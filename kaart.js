@@ -1,7 +1,7 @@
-// kaart.js — WFS via Netlify Function proxy
-const map = L.map('map').setView([52.1,5.1],7);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
-  attribution:'&copy; OSM contributors'
+// kaart.js — WMS via Netlify Function proxy + raw XML debugging
+const map = L.map('map').setView([52.1, 5.1], 7);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '&copy; OSM contributors'
 }).addTo(map);
 
 let marker;
@@ -17,21 +17,15 @@ map.on('click', async e => {
 
   try {
     const resp = await fetch(proxyUrl);
-    const geojson = await resp.json();
-    console.log('WFS via proxy:', geojson);
+    const data = await resp.json();
+    console.log('Data via proxy:', data);
+    console.log('Raw XML from proxy:', data.raw); // <-- Inspecteer hier de volledige XML
 
-    if (geojson.features?.length) {
-      const props = geojson.features[0].properties;
-      console.log('Properties:', props);
-      // Vaak is hier de sleutel bk06_naam
-      const grondsoort = props.bk06_naam || props.grondsoortnaam || 'Onbekend';
-      document.getElementById('grondsoort').value = grondsoort;
-      window.huidigeGrond = grondsoort;
-    } else {
-      document.getElementById('grondsoort').value = 'Onbekend';
-      window.huidigeGrond = 'Onbekend';
-    }
-
+    // Zodra je weet welke tag de grondsoort bevat (bijv. <LABEL> of <soilarea_label>),
+    // kun je de regex in je function daarop aanpassen en hier alleen data.grondsoort gebruiken.
+    const grondsoort = data.grondsoort || 'Onbekend';
+    document.getElementById('grondsoort').value = grondsoort;
+    window.huidigeGrond = grondsoort;
   } catch (err) {
     console.error('Fout bij proxy WFS:', err);
     document.getElementById('grondsoort').value = 'Fout bij ophalen';
