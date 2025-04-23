@@ -1,8 +1,8 @@
 [build]
-  # Nu pakt Netlify niet meer de root, maar de submap mesttool-starter
-  publish    = "mesttool-starter"
-  command    = ""
+  # Zet de site neer vanuit de root
+  publish = "."
+  command = ""
 
+# Functies liggen in de map "functions" in de root
 [functions]
-  # Functies in mesttool-starter/functions
-  directory  = "mesttool-starter/functions"
+  directory = "functions"
