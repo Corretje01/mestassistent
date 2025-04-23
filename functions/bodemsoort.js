@@ -1,5 +1,4 @@
 // netlify/functions/bodemsoort.js
-
 export async function handler(event) {
   const { lon, lat, debug } = event.queryStringParameters || {};
   if (!lon || !lat) {
@@ -10,19 +9,17 @@ export async function handler(event) {
     };
   }
 
-  // Maak een heel klein vierkant om je klikpunt (±0.0001° ≈ 10 m)
+  // Klein vierkantje van ±0.0001° rond je punt
   const delta = 0.0001;
   const minLon = Number(lon) - delta;
   const minLat = Number(lat) - delta;
   const maxLon = Number(lon) + delta;
   const maxLat = Number(lat) + delta;
 
-  // Vraag een 3×3 tile, pak de middelste pixel (x=1,y=1)
+  // 3×3 tile, we pakken pixel (1,1)
   const wmsUrl =
     'https://service.pdok.nl/bzk/bro-bodemkaart/wms/v1_0' +
-    '?service=WMS' +
-    '&version=1.1.1' +
-    '&request=GetFeatureInfo' +
+    '?service=WMS&version=1.1.1&request=GetFeatureInfo' +
     '&layers=soilarea&query_layers=soilarea' +
     '&styles=' +
     '&srs=EPSG:4326' +
@@ -37,19 +34,17 @@ export async function handler(event) {
     if (!resp.ok) throw new Error(`PDOK WMS returned status ${resp.status}`);
     const xmlText = await resp.text();
 
-    // Probeer allereerst <soilarea_label>, dan <LABEL>, dan fallback
+    // Zoek eerst de human‐friendly bodemsoortnaam
     const match =
-      xmlText.match(/<soilarea_label[^>]*>([^<]+)<\/soilarea_label>/i) ||
-      xmlText.match(/<LABEL[^>]*>([^<]+)<\/LABEL>/i) ||
-      xmlText.match(/<grondsoortnaam>([^<]+)<\/grondsoortnaam>/i);
+      xmlText.match(/<[^:>]+:first_soilname>([^<]+)<\/[^:>]+:first_soilname>/i) ||
+      xmlText.match(/<[^:>]+:normal_soilprofile_name>([^<]+)<\/[^:>]+:normal_soilprofile_name>/i) ||
+      xmlText.match(/<LABEL[^>]*>([^<]+)<\/LABEL>/i);
 
     const grondsoort = match ? match[1] : 'Onbekend';
 
-    // Bouw de response, voeg raw XML alleen toe als debug=true
+    // Bouw de JSON‐response, raw XML alleen bij debug=true
     const body = { grondsoort };
-    if (debug === 'true') {
-      body.raw = xmlText;
-    }
+    if (debug === 'true') body.raw = xmlText;
 
     return {
       statusCode: 200,
