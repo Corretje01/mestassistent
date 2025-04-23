@@ -1,3 +1,4 @@
+// netlify/functions/bodemsoort.js
 export async function handler(event) {
   const { lon, lat } = event.queryStringParameters || {};
   if (!lon || !lat) {
@@ -8,16 +9,18 @@ export async function handler(event) {
     };
   }
 
+  // Maak een heel klein vierkant rond het klikpunt
   const delta = 0.0001;
   const minLon = Number(lon) - delta;
   const minLat = Number(lat) - delta;
   const maxLon = Number(lon) + delta;
   const maxLat = Number(lat) + delta;
 
+  // Vraag een 3×3 tile om de middelste pixel (1,1)
   const wmsUrl =
     'https://service.pdok.nl/bzk/bro-bodemkaart/wms/v1_0' +
     '?service=WMS&version=1.1.1&request=GetFeatureInfo' +
-    '&layers=bodemvlakken&query_layers=bodemvlakken' +
+    '&layers=soilarea&query_layers=soilarea' +
     '&styles=' +
     '&srs=EPSG:4326' +
     `&bbox=${minLon},${minLat},${maxLon},${maxLat}` +
@@ -31,9 +34,11 @@ export async function handler(event) {
     if (!resp.ok) throw new Error(`PDOK WMS returned status ${resp.status}`);
     const xmlText = await resp.text();
 
+    // Eerst soilarea_label, dan LABEL, dan fallback
     const match =
-      xmlText.match(/<grondsoortnaam>([^<]+)<\/grondsoortnaam>/i) ||
-      xmlText.match(/<LABEL[^>]*>([^<]+)<\/LABEL>/i);
+      xmlText.match(/<soilarea_label[^>]*>([^<]+)<\/soilarea_label>/i) ||
+      xmlText.match(/<LABEL[^>]*>([^<]+)<\/LABEL>/i) ||
+      xmlText.match(/<grondsoortnaam>([^<]+)<\/grondsoortnaam>/i);
 
     const grondsoort = match ? match[1] : 'Onbekend';
 
