@@ -9,37 +9,34 @@ export async function handler(event) {
     };
   }
 
-  // WMS 1.1.1: lon,lat,lon,lat en x=0,y=0 op 1×1 tile
   const wmsUrl =
     'https://service.pdok.nl/bzk/bro-bodemkaart/wms/v1_0' +
-    '?service=WMS' +
-    '&version=1.1.1' +
-    '&request=GetFeatureInfo' +
+    '?service=WMS&version=1.1.1&request=GetFeatureInfo' +
     '&layers=bodemvlakken&query_layers=bodemvlakken' +
-    '&styles=' +
-    '&srs=EPSG:4326' +
+    '&styles=&srs=EPSG:4326' +
     `&bbox=${lon},${lat},${lon},${lat}` +
-    '&width=1&height=1' +
-    '&format=image/png' +
+    '&width=1&height=1&format=image/png' +
     '&info_format=text/xml' +
     '&x=0&y=0';
 
   try {
     const resp = await fetch(wmsUrl);
-    if (!resp.ok) throw new Error(`PDOK WMS returned status ${resp.status}`);
+    if (!resp.ok) throw new Error(`PDOK WMS returned ${resp.status}`);
     const xmlText = await resp.text();
 
-    // Pak de Nederlandse naam uit de XML
+    // Probeer alvast een paar tags
     const match =
       xmlText.match(/<grondsoortnaam>([^<]+)<\/grondsoortnaam>/i) ||
-      xmlText.match(/<LABEL[^>]*>([^<]+)<\/LABEL>/i);
+      xmlText.match(/<LABEL[^>]*>([^<]+)<\/LABEL>/i) ||
+      xmlText.match(/<Label[^>]*>([^<]+)<\/Label>/i);
 
     const grondsoort = match ? match[1] : 'Onbekend';
 
+    // Stuur ook raw xml voor debugging
     return {
       statusCode: 200,
       headers: { 'Access-Control-Allow-Origin': '*' },
-      body: JSON.stringify({ grondsoort }),
+      body: JSON.stringify({ grondsoort, raw: xmlText }),
     };
   } catch (err) {
     return {
