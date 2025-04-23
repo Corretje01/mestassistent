@@ -1,41 +1,44 @@
 // netlify/functions/bodemsoort.js
 
-// We gebruiken de ingebouwde fetch van Node18-runtime in Netlify
-exports.handler = async function(event, context) {
+exports.handler = async function(event) {
   const lon = event.queryStringParameters?.lon;
   const lat = event.queryStringParameters?.lat;
   if (!lon || !lat) {
     return {
       statusCode: 400,
-      headers: { 'Access-Control-Allow-Origin': '*' },
-      body: JSON.stringify({ error: 'lon en lat parameters zijn verplicht' })
+      headers: {'Access-Control-Allow-Origin': '*'},
+      body: JSON.stringify({ error: 'lon en lat parameters zijn verplicht' }),
     };
   }
 
-  // Bouw de WFS-URL voor PDOK BRO bodemkaart
-  const wfsUrl =
-    'https://service.pdok.nl/bzk/bro-bodemkaart/wfs/v1_0' +
-    '?service=WFS&version=2.0.0&request=GetFeature' +
-    '&typeNames=bro:bodemvlakken' +
-    '&outputFormat=application/json' +
-    '&srsName=EPSG:4326' +
-    `&cql_filter=INTERSECTS(geometrie,POINT(${lon}%20${lat}))` +
-    '&count=1';
+  // Voor WMS 1.3.0 met CRS=EPSG:4326 is de BBOX order: lat,minLon,lat,maxLon
+  const bbox = `${lat},${lon},${lat},${lon}`;
+  const url =
+    'https://service.pdok.nl/bzk/bro-bodemkaart/wms/v1_0' +
+    '?service=WMS&version=1.3.0&request=GetFeatureInfo' +
+    '&layers=bro-bodemkaart' +
+    '&query_layers=bro-bodemkaart' +
+    '&styles=' +
+    `&bbox=${bbox}` +
+    '&width=1&height=1' +
+    '&crs=EPSG:4326' +
+    '&format=image/png' +
+    '&info_format=application/json' +
+    '&i=0&j=0';
 
   try {
-    const resp = await fetch(wfsUrl);
-    if (!resp.ok) throw new Error(`PDOK WFS returned status ${resp.status}`);
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error(`PDOK WMS returned status ${resp.status}`);
     const json = await resp.json();
-
     return {
       statusCode: 200,
-      headers: { 'Access-Control-Allow-Origin': '*' },
+      headers: {'Access-Control-Allow-Origin': '*'},
       body: JSON.stringify(json),
     };
   } catch (err) {
     return {
       statusCode: 502,
-      headers: { 'Access-Control-Allow-Origin': '*' },
+      headers: {'Access-Control-Allow-Origin': '*'},
       body: JSON.stringify({ error: err.message }),
     };
   }
