@@ -10,7 +10,6 @@ exports.handler = async function(event) {
     };
   }
 
-  // Bouw de WMS GetFeatureInfo URL voor BRO Bodemkaart (laag soilarea)
   const bbox = `${lat},${lon},${lat},${lon}`;
   const wmsUrl =
     'https://service.pdok.nl/bzk/bro-bodemkaart/wms/v1_0' +
@@ -29,9 +28,10 @@ exports.handler = async function(event) {
 
   try {
     const resp = await fetch(wmsUrl);
+    if (!resp.ok) throw new Error(`PDOK WMS returned status ${resp.status}`);
     const xmlText = await resp.text();
 
-    // Pak de bodemsoort uit de XML (LABEL of label of SOILAREA_LABEL)
+    // Probeer alvast een paar varianten
     const match =
       xmlText.match(/<LABEL[^>]*>([^<]+)<\/LABEL>/i) ||
       xmlText.match(/<soilarea_label[^>]*>([^<]+)<\/soilarea_label>/i) ||
@@ -39,10 +39,11 @@ exports.handler = async function(event) {
 
     const grondsoort = match ? match[1] : 'Onbekend';
 
+    // Stuur zowel de vage grondsoort als de ruwe XML terug
     return {
       statusCode: 200,
       headers: { 'Access-Control-Allow-Origin': '*' },
-      body: JSON.stringify({ grondsoort }),
+      body: JSON.stringify({ grondsoort, raw: xmlText }),
     };
   } catch (err) {
     return {
