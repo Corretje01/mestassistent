@@ -1,4 +1,10 @@
-// kaart.js — WFS via Netlify Function proxy + RVO-grondsoort-classifier
+// kaart.js — WFS via Netlify Function proxy met gefinetunde logging
+
+// Zet DEBUG op true als je bij succes de volledige raw‐payload wilt zien
+const DEBUG = false;
+
+// Zet LIVE_ERRORS op true om bij elke HTTP‐error de raw payload te tonen
+const LIVE_ERRORS = true;
 
 const map = L.map('map').setView([52.1, 5.1], 7);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -6,53 +12,43 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 }).addTo(map);
 
 let marker;
-const DEBUG = false;  // op true: altijd de raw-response loggen
-
-/**
- * Reduceer ieder BRO-soilname naar één van de RVO-grondsoorten.
- */
-function classifySoil(rawName) {
-  if (!rawName) return 'Onbekend';
-  const s = rawName.toLowerCase();
-  if (s.includes('veen') || s.includes('peat'))      return 'Veen';
-  if (s.includes('klei') || s.includes('clay'))      return 'Klei';
-  if (s.includes('löss') || s.includes('loss') || s.includes('loess')) return 'Löss';
-  if (s.includes('zand') || s.includes('sand'))      return 'Zand';
-  return 'Onbekend';
-}
-
 map.on('click', async e => {
+  // Verwijder oude marker en zet een nieuwe
   if (marker) map.removeLayer(marker);
   marker = L.marker(e.latlng).addTo(map);
-  console.log('Klik op kaart:', e.latlng);
 
   const lon = e.latlng.lng.toFixed(6);
   const lat = e.latlng.lat.toFixed(6);
-  const proxyUrl = `/.netlify/functions/bodemsoort?lon=${lon}&lat=${lat}`;
-  console.log('Proxy WFS URL:', proxyUrl);
+  const url = `/.netlify/functions/bodemsoort?lon=${lon}&lat=${lat}`;
 
   try {
-    const resp = await fetch(proxyUrl);
-    const json = await resp.json();
-    if (DEBUG) console.log('Raw BRO-response:', json);
+    const resp = await fetch(url);
+    const payload = await resp.json();
 
-    let base = 'Onbekend';
-    if (json.features?.length) {
-      const props = json.features[0].properties;
-      // kies één van de velden die altijd aanwezig is
-      const rawName = props.first_soilname 
-                   || props.normal_soilprofile_name 
-                   || props.bk06_naam 
-                   || '';
-      console.log('BRO naam:', rawName);
-      base = classifySoil(rawName);
+    // HTTP‐error van de Function zelf
+    if (!resp.ok) {
+      console.error(`Function returned status ${resp.status}`, payload);
+      if (LIVE_ERRORS) {
+        console.error('Raw payload:', payload.raw ?? payload);
+      }
+      document.getElementById('grondsoort').value = 'Fout bij ophalen';
+      window.huidigeGrond = 'Onbekend';
+      return;
     }
 
-    document.getElementById('grondsoort').value = base;
-    window.huidigeGrond = base;
+    // Succesvolle response
+    if (DEBUG) {
+      console.log('RAW response:', payload.raw ?? payload);
+    } else {
+      console.log('Grondsoort:', payload.grondsoort);
+    }
+
+    document.getElementById('grondsoort').value = payload.grondsoort;
+    window.huidigeGrond = payload.grondsoort;
 
   } catch (err) {
-    console.error('Fout bij proxy WFS:', err);
+    // Network‐ of JSON‐parsefout
+    console.error('Fetch of JSON failed:', err);
     document.getElementById('grondsoort').value = 'Fout bij ophalen';
     window.huidigeGrond = 'Onbekend';
   }
