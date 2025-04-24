@@ -1,0 +1,22 @@
+[
+  { "name": "Beekeerdgronden; leemarm en zwak lemig fijn zand", "category": "Zand" },
+  { "name": "Beekeerdgronden; lemig fijn zand",               "category": "Zand" },
+  { "name": "Bergbrikgronden; siltige leem",                  "category": "Klei" },
+  { "name": "Duinvaaggronden; grof zand",                     "category": "Zand" },
+  { "name": "Duinvaaggronden; leemarm en zwak lemig fijn zand","category": "Zand" },
+  { "name": "Gooreerdgronden; grof zand",                     "category": "Zand" },
+  { "name": "Gooreerdgronden; leemarm en zwak lemig fijn zand","category": "Zand" },
+  { "name": "Gooreerdgronden; lemig fijn zand",               "category": "Zand" },
+  { "name": "Gorsvaaggronden; zware zavel en klei; geen zand beginnend ondieper dan 0.8 m", "category": "Klei" },
+  { "name": "Gorsvaaggronden; zware zavel en klei; zand beginnend ondieper dan 0.8 m",     "category": "Klei" },
+  { "name": "Haarpodzolgronden; leemarm en zwak lemig fijn zand","category": "Zand" },
+  { "name": "Hoge bruine enkeerdgronden; grof zand",         "category": "Zand" },
+  { "name": "Hoge bruine enkeerdgronden; leemarm en zwak lemig fijn zand","category": "Zand" },
+  { "name": "Hoge bruine enkeerdgronden; lemig fijn zand",   "category": "Zand" },
+  { "name": "Hoge zwarte enkeerdgronden; leemarm en zwak lemig fijn zand","category": "Zand" },
+  { "name": "Hoge zwarte enkeerdgronden; lemig fijn zand",   "category": "Zand" },
+  { "name": "Holtpodzolgronden; leemarm en zwak lemig fijn zand","category": "Zand" },
+  { "name": "Holtpodzolgronden; lemig fijn zand",            "category": "Zand" },
+  { "name": "Kalkarme drechtvaaggronden; zavel en lichte klei, profielverloop 1","category": "Klei" },
+  { "name": "Kalkarme drechtvaaggronden; zware klei, profielverloop 1","category": "Klei" }
+]
