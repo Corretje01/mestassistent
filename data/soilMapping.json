@@ -18,5 +18,27 @@
   { "name": "Holtpodzolgronden; leemarm en zwak lemig fijn zand","category": "Zand" },
   { "name": "Holtpodzolgronden; lemig fijn zand",            "category": "Zand" },
   { "name": "Kalkarme drechtvaaggronden; zavel en lichte klei, profielverloop 1","category": "Klei" },
-  { "name": "Kalkarme drechtvaaggronden; zware klei, profielverloop 1","category": "Klei" }
+  { "name": "Kalkarme drechtvaaggronden; zware klei, profielverloop 1","category": "Klei" },
+  { "name": "Kalkarme leek-/woudeerdgronden; klei, profielverloop 3, of 3 en 4 of 4",      "category": "Klei" },
+  { "name": "Kalkarme leek-/woudeerdgronden; klei, profielverloop 5",                   "category": "Klei" },
+  { "name": "Kalkarme leek-/woudeerdgronden; zavel, profielverloop 5",                  "category": "Klei" },
+  { "name": "Kalkarme nesvaaggronden; klei",                                           "category": "Klei" },
+  { "name": "Kalkarme poldervaaggronden; klei, profielverloop 3, of 3 en 4, of 4",      "category": "Klei" },
+  { "name": "Kalkarme poldervaaggronden; klei, profielverloop 5",                      "category": "Klei" },
+  { "name": "Kalkarme poldervaaggronden; lichte zavel, profielverloop 5",               "category": "Klei" },
+  { "name": "Kalkarme poldervaaggronden; zavel, profielverloop 3, of 3 en 4, of 4",      "category": "Klei" },
+  { "name": "Kalkarme poldervaaggronden; zware zavel, profielverloop 5",               "category": "Klei" },
+  { "name": "Kalkhoudende beekeerdgronden; zeer fijn en matig fijn zand",               "category": "Zand" },
+  { "name": "Kalkhoudende duinvaaggronden; fijn zand",                                "category": "Zand" },
+  { "name": "Kalkhoudende duinvaaggronden; fijn zand, gedeeltelijk ontkalkt",          "category": "Zand" },
+  { "name": "Kalkhoudende enkeerdgronden; matig fijn zand",                           "category": "Zand" },
+  { "name": "Kalkhoudende ooivaaggronden; lichte zavel",                              "category": "Klei" },
+  { "name": "Kalkhoudende ooivaaggronden; zware zavel en lichte klei",                "category": "Klei" },
+  { "name": "Kalkhoudende poldervaaggronden; lichte zavel, profielverloop 5",          "category": "Klei" },
+  { "name": "Kalkhoudende poldervaaggronden; zavel en lichte klei, profielverloop 3,…", "category": "Klei" },
+  { "name": "Kalkhoudende poldervaaggronden; zavel, profielverloop 2",                "category": "Klei" },
+  { "name": "Kalkhoudende poldervaaggronden; zware klei, profielverloop 3,…",         "category": "Klei" },
+  { "name": "Kalkhoudende poldervaaggronden; zware zavel en lichte klei, profielverloop 5","category": "Klei" }
+]
+
 ]
