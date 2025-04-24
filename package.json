@@ -1,12 +1,15 @@
-// --- File: package.json ---
 {
   "name": "mestassistent",
   "version": "1.0.0",
+  "description": "Mestplaatsingsruimte calculator",
+  "main": "berekening.js",
   "type": "module",
   "scripts": {
     "generate-soils": "node scripts/generateSoils.js",
     "bootstrap": "bash scripts/bootstrap.sh"
   },
+  "author": "Corretje01",
+  "license": "MIT",
   "dependencies": {
     "node-fetch": "^2.6.7"
   }
