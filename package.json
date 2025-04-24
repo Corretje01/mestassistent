@@ -1,0 +1,13 @@
+// --- File: package.json ---
+{
+  "name": "mestassistent",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "generate-soils": "node scripts/generateSoils.js",
+    "bootstrap": "bash scripts/bootstrap.sh"
+  },
+  "dependencies": {
+    "node-fetch": "^2.6.7"
+  }
+}
