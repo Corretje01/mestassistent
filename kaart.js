@@ -1,19 +1,18 @@
-// kaart.js — WFS via Netlify Function proxy met gefinetunde logging
+// --- File: kaart.js ---
+// Laadt data/soilMapping.json en gebruikt Netlify proxy om bodemsoort op te halen
+let soilMap = {};
+fetch("data/soilMapping.json")
+  .then(r => r.json())
+  .then(json => { soilMap = json; })
+  .catch(err => console.error("Kon soilMapping.json niet laden:", err));
 
-// Zet DEBUG op true als je bij succes de volledige raw‐payload wilt zien
-const DEBUG = false;
-
-// Zet LIVE_ERRORS op true om bij elke HTTP‐error de raw payload te tonen
-const LIVE_ERRORS = true;
-
-const map = L.map('map').setView([52.1, 5.1], 7);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  attribution: '&copy; OSM contributors'
+const map = L.map('map').setView([52.1,5.1],7);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+  attribution:'&copy; OSM contributors'
 }).addTo(map);
 
 let marker;
 map.on('click', async e => {
-  // Verwijder oude marker en zet een nieuwe
   if (marker) map.removeLayer(marker);
   marker = L.marker(e.latlng).addTo(map);
 
@@ -23,33 +22,20 @@ map.on('click', async e => {
 
   try {
     const resp = await fetch(url);
-    const payload = await resp.json();
-
-    // HTTP‐error van de Function zelf
-    if (!resp.ok) {
-      console.error(`Function returned status ${resp.status}`, payload);
-      if (LIVE_ERRORS) {
-        console.error('Raw payload:', payload.raw ?? payload);
-      }
-      document.getElementById('grondsoort').value = 'Fout bij ophalen';
-      window.huidigeGrond = 'Onbekend';
-      return;
+    const data = await resp.json();
+    let raw = 'Onbekend';
+    if (data.features?.length) {
+      const props = data.features[0].properties;
+      raw = props.first_soilname || props.normal_soilprofile_name || props.bk06_naam || raw;
     }
+    const cat = soilMap[raw] || 'U';
 
-    // Succesvolle response
-    if (DEBUG) {
-      console.log('RAW response:', payload.raw ?? payload);
-    } else {
-      console.log('Grondsoort:', payload.grondsoort);
-    }
-
-    document.getElementById('grondsoort').value = payload.grondsoort;
-    window.huidigeGrond = payload.grondsoort;
-
+    document.getElementById('grondsoort').value = raw;
+    window.huidigeGrond = cat;
+    console.log(`Bodem: ${raw} → Categorie: ${cat}`);
   } catch (err) {
-    // Network‐ of JSON‐parsefout
-    console.error('Fetch of JSON failed:', err);
+    console.error('Fout bij proxy:', err);
     document.getElementById('grondsoort').value = 'Fout bij ophalen';
-    window.huidigeGrond = 'Onbekend';
+    window.huidigeGrond = 'U';
   }
 });
