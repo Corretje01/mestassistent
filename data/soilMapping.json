@@ -98,7 +98,7 @@
   { "name": "Liedeerdgronden; klei, profielverloop 1",                       "category": "Klei" },
   { "name": "Liedeerdgronden; zavel, profielverloop 1",                      "category": "Klei" },
   { "name": "Loopodzolgronden; leemarm en zwak lemig fijn zand",             "category": "Zand" },
-  { "name": "Loopodzolgronden; lemig fijn zand",                            "category": "Zand" }
+  { "name": "Loopodzolgronden; lemig fijn zand",                            "category": "Zand" },
   { "name": "Madeveengronden op zand met humuspodzol, beginnend ondieper dan 1.2 m",    "category": "Veen" },
   { "name": "Madeveengronden op zand zonder humuspodzol, beginnend ondieper dan 1.2 m", "category": "Veen" },
   { "name": "Madeveengronden op zeggeveen, rietzeggeveen of broekveen",               "category": "Veen" },
