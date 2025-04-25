@@ -1,8 +1,5 @@
 // kaart.js — met soilMapping + kadastrale perceelinformatie (v5) via PDOK, met RD-projectie via proj4
 
-// Zorg dat je in index.html vóór dit script include:
-// <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.7.5/proj4.js"></script>
-
 const DEBUG = false;
 const LIVE_ERRORS = true;
 
@@ -30,13 +27,14 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 
 let marker;
 map.on('click', async e => {
+  // Verwijder oude marker en zet een nieuwe neer
   if (marker) map.removeLayer(marker);
   marker = L.marker(e.latlng).addTo(map);
 
   const lon = parseFloat(e.latlng.lng);
   const lat = parseFloat(e.latlng.lat);
 
-  // **3) Bodemsoort opvragen (ongewijzigd)**
+  // **3) Bodemsoort opvragen**
   const bodemUrl = `/.netlify/functions/bodemsoort?lon=${lon}&lat=${lat}`;
   try {
     const resp = await fetch(bodemUrl);
@@ -50,10 +48,7 @@ map.on('click', async e => {
     }
     const rawName = payload.grondsoort;
     const baseCat = getBaseCategory(rawName);
-    if (DEBUG) {
-      console.log('RAW bodem response:', payload.raw ?? payload);
-      console.log(`Origineel: ${rawName}`);
-    }
+    if (DEBUG) console.log('RAW bodem response:', payload.raw ?? payload);
     console.log(`Grondsoort: ${rawName} → Basis-categorie: ${baseCat}`);
     document.getElementById('grondsoort').value = baseCat;
     window.huidigeGrond = baseCat;
@@ -64,11 +59,20 @@ map.on('click', async e => {
   }
 
   // **4) RD-projectie (EPSG:28992) met proj4**
+  // Definieer EPSG:28992 als het nog niet bekend is
+  if (!proj4.defs['EPSG:28992']) {
+    proj4.defs('EPSG:28992',
+      '+proj=sterea +lat_0=52.15616055555555 +lon_0=5.38763888888889 '
+     +'+k=0.9999079 +x_0=155000 +y_0=463000 '
+     +'+ellps=bessel +towgs84=565.417,50.3319,465.552,'
+     +'-0.398957,0.343988,-1.8774,4.0725 +units=m +no_defs'
+    );
+  }
   let rdX, rdY;
   try {
     [rdX, rdY] = proj4('EPSG:4326', 'EPSG:28992', [lon, lat]);
   } catch (err) {
-    console.error('Proj4 transform failed:', err);
+    console.error('Proj4 transform failed:', err.message);
     rdX = lon;
     rdY = lat;
   }
@@ -107,7 +111,8 @@ map.on('click', async e => {
     const oppField = ['kadastraleGrootteWaarde','oppervlakte','area'].find(f => p[f] !== undefined);
     const nummerField = ['perceelnummer','identificatie'].find(f => p[f] !== undefined);
     const sectieField = ['sectie'].find(f => p[f] !== undefined);
-    const gemeenteField = ['kadastraleGemeentenaam','kadastraleGemeente','gemeentenaam','gemeente'].find(f => p[f] !== undefined);
+    const gemeenteField = ['kadastraleGemeentenaam','kadastraleGemeente','gemeentenaam','gemeente']
+                         .find(f => p[f] !== undefined);
 
     const opp = p[oppField];
     const perceelNummer = p[nummerField];
