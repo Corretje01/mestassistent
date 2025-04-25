@@ -1,4 +1,4 @@
-// kaart.js — met soilMapping + kadastrale perceelinformatie (v5) via PDOK (WGS84, BBOX-filter)
+// kaart.js — met soilMapping + kadastrale perceelinformatie (v5) via PDOK (WGS84, BBOX lower-case)
 
 const DEBUG = false;
 const LIVE_ERRORS = true;
@@ -58,9 +58,8 @@ map.on('click', async e => {
     window.huidigeGrond = 'Onbekend';
   }
 
-    // **4) Perceelinformatie opvragen via WFS v5 met BBOX-filter**
+  // **4) Perceelinformatie opvragen via WFS v5 met bbox-filter**
   const wfsBase = 'https://service.pdok.nl/kadaster/kadastralekaart/wfs/v5_0';
-  // Maak klein bbox rond klikpunt (±10m ≈ 0.0001°)
   const delta = 0.0001;
   const minLon = lon - delta;
   const minLat = lat - delta;
@@ -68,17 +67,15 @@ map.on('click', async e => {
   const maxLat = lat + delta;
   const bboxStr = `${minLon},${minLat},${maxLon},${maxLat},EPSG:4326`;
 
-  // Gebruik typeNames voor v5
-  const typeNames = 'kadastralekaartv5:perceel';
-  // Bouw URL handmatig om BBOX uppercase te houden
   const perceelUrl = `${wfsBase}` +
     `?service=WFS` +
     `&version=2.0.0` +
     `&request=GetFeature` +
-    `&typeNames=${typeNames}` +
+    `&typeNames=kadastralekaart:Perceel` +
     `&outputFormat=application/json` +
-    `&BBOX=${bboxStr}` +
-    `&count=1`;
+    `&bbox=${bboxStr}` +
+    `&count=1` +
+    `&maxFeatures=1`;
 
   if (DEBUG) console.log('Perceel WFS URL:', perceelUrl);
 
@@ -114,8 +111,7 @@ map.on('click', async e => {
       console.log(`Oppervlakte: ${opp} m²`);
     }
 
-    alert(`Perceel: ${gemeente} ${sectie} ${perceelNummer}
-Oppervlakte: ${opp} m²`);
+    alert(`Perceel: ${gemeente} ${sectie} ${perceelNummer}\nOppervlakte: ${opp} m²`);
     document.getElementById('hectare').value = (opp / 10000).toFixed(2);
   } catch (err) {
     console.error('Fout bij ophalen perceelinformatie:', err);
