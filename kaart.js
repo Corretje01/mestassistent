@@ -49,43 +49,43 @@ map.on('click', async e => {
     window.huidigeGrond = 'Onbekend';
   }
 
-    // **4) Perceelinformatie opvragen via INSPIRE WFS v1_0**
-  const wfsBase = 'https://service.pdok.nl/kadaster/cp/wfs/v1_0';
-  const params = new URLSearchParams({
-    service: 'WFS',
-    version: '1.1.0',
-    request: 'GetFeature',
-    typeNames: 'Perceel',
-    outputFormat: 'application/json',
-    srsName: 'EPSG:4326',
-    count: '1',
-    CQL_FILTER: `INTERSECTS(geometry,POINT(${lon} ${lat}))`
-  });
-  const perceelUrl = `${wfsBase}?${params.toString()}`;
-  if (DEBUG) console.log('🔗 INSPIRE WFS URL:', perceelUrl);
+  // **4) Perceel opvragen via PDOK Locatieserver**
+const lsUrl = new URL('https://geodata.nationaalgeoregister.nl/locatieserver/v3/free');
+lsUrl.search = new URLSearchParams({
+  fq: 'type:perceel',
+  lat: lat,
+  lon: lon,
+  rows: '1',
+  fl: 'weergavenaam,kadastrale_grootte_waarde,perceelnummer,sectie',
+  wt: 'json'
+});
 
-  try {
-    const resp = await fetch(perceelUrl);
-    const data = await resp.json();
-    if (!resp.ok) throw new Error(`Status ${resp.status}`);
-    if (!data.features.length) {
-      alert('Geen perceel gevonden op deze locatie (INSPIRE).');
-      return;
-    }
+if (DEBUG) console.log('🔗 Locatieserver URL:', lsUrl.toString());
 
-    const p = data.features[0].properties;
-    if (DEBUG) console.log('🔍 INSPIRE perceel properties:', p);
-
-    // Kies je velden
-    const opp = p.kadastraleGrootteWaarde;
-    const nummer = p.perceelnummer || p.identificatieLokaalID;
-    const sectie = p.sectie;
-    const gemeente = p.kadastraleGemeenteWaarde;
-
-    alert(`Perceel: ${gemeente} ${sectie} ${nummer}\nOppervlakte: ${opp} m²`);
-    if (opp) document.getElementById('hectare').value = (opp / 10000).toFixed(2);
-  } catch (err) {
-    console.error('INSPIRE perceel fout:', err);
-    if (LIVE_ERRORS) alert('Fout bij ophalen INSPIRE-perceelinfo.');
+try {
+  const lsResp = await fetch(lsUrl);
+  const lsData = await lsResp.json();
+  const doc = lsData.response?.docs?.[0];
+  if (!doc) {
+    alert('Geen perceel gevonden op deze locatie.');
+    return;
   }
+
+  // weergavenaam komt in de vorm “Teteringen A 23”
+  const [weergavenaam, sectiePlusNummer] = (doc.weergavenaam||'').split(' ');
+  const sectie = doc.sectie || '';
+  const nummer = doc.perceelnummer || '';
+  const opp = doc.kadastrale_grootte_waarde;
+
+  alert(
+    `Perceel: ${weergavenaam} ${sectie} ${nummer}\n` +
+    `Oppervlakte: ${opp ?? 'n.v.t.'} m²`
+  );
+  if (opp) {
+    document.getElementById('hectare').value = (opp/10000).toFixed(2);
+  }
+} catch(err) {
+  console.error('Locatieserver fout:', err);
+  if (LIVE_ERRORS) alert('Fout bij ophalen perceel via Locatieserver.');
+}
 });
