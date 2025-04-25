@@ -1,7 +1,7 @@
-// kaart.js — met soilMapping integratie, RVO‑categorieën en debugging van perceeldata
+// kaart.js — met soilMapping integratie, RVO-categorieën en debugging van perceeldata
 
 // Zet DEBUG op true om extra logs te zien
-tconst DEBUG = true;
+const DEBUG = true;
 const LIVE_ERRORS = true;
 
 // **1) Soil-mapping inladen**
