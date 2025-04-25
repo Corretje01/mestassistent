@@ -113,14 +113,17 @@ map.on('click', async e => {
     const oppField = ['kadastraleGrootteWaarde', 'oppervlakte'].find(f => p[f] !== undefined);
     const nummerField = ['perceelnummer', 'identificatie'].find(f => p[f] !== undefined);
     const sectieField = ['sectie'].find(f => p[f] !== undefined);
-    const gemeenteField = ['kadastraleGemeentenaam', 'gemeentenaam'].find(f => p[f] !== undefined);
+    const gemeenteField = ['kadastraleGemeenteWaarde', 'kadastraleGemeentenaam', 'gemeentenaam']
+                          .find(f => p[f] !== undefined);
 
     const opp = oppField ? p[oppField] : undefined;
     const perceelNummer = nummerField ? p[nummerField] : 'unknown';
     const sectie = sectieField ? p[sectieField] : 'unknown';
     const gemeente = gemeenteField ? p[gemeenteField] : '';
 
-    if (DEBUG) console.log(`📝 Gekozen fields → opp: ${oppField}, nummer: ${nummerField}, sectie: ${sectieField}, gemeente: ${gemeenteField}`);
+    if (DEBUG) {
+      console.log(`📝 Gekozen fields → opp: ${oppField}, nummer: ${nummerField}, sectie: ${sectieField}, gemeente: ${gemeenteField}`);
+    }
 
     // Toon popup met de gevonden data
     alert(`Perceel: ${gemeente} ${sectie} ${perceelNummer}\nOppervlakte: ${opp ?? 'n.v.t.'} m²`);
