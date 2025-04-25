@@ -1,4 +1,7 @@
-// kaart.js — met soilMapping + kadastrale perceelinformatie (v5) via PDOK
+// kaart.js — met soilMapping + kadastrale perceelinformatie (v5) via PDOK, met RD-projectie via proj4
+
+// Zorg dat je in index.html vóór dit script include:
+// <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.7.5/proj4.js"></script>
 
 const DEBUG = false;
 const LIVE_ERRORS = true;
@@ -26,22 +29,18 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 }).addTo(map);
 
 let marker;
-
 map.on('click', async e => {
-  // Verwijder oude marker en zet een nieuwe neer
   if (marker) map.removeLayer(marker);
   marker = L.marker(e.latlng).addTo(map);
 
-  const lon = e.latlng.lng.toFixed(6);
-  const lat = e.latlng.lat.toFixed(6);
+  const lon = parseFloat(e.latlng.lng);
+  const lat = parseFloat(e.latlng.lat);
 
-  // **3) Bodemsoort opvragen**
+  // **3) Bodemsoort opvragen (ongewijzigd)**
   const bodemUrl = `/.netlify/functions/bodemsoort?lon=${lon}&lat=${lat}`;
   try {
     const resp = await fetch(bodemUrl);
     const payload = await resp.json();
-
-    // Fout-afhandeling Function
     if (!resp.ok) {
       console.error(`Function returned status ${resp.status}`, payload);
       if (LIVE_ERRORS) console.error('Raw payload:', payload.raw ?? payload);
@@ -49,25 +48,33 @@ map.on('click', async e => {
       window.huidigeGrond = 'Onbekend';
       return;
     }
-
     const rawName = payload.grondsoort;
     const baseCat = getBaseCategory(rawName);
-
     if (DEBUG) {
-      console.log('RAW response:', payload.raw ?? payload);
+      console.log('RAW bodem response:', payload.raw ?? payload);
       console.log(`Origineel: ${rawName}`);
     }
     console.log(`Grondsoort: ${rawName} → Basis-categorie: ${baseCat}`);
-
     document.getElementById('grondsoort').value = baseCat;
     window.huidigeGrond = baseCat;
   } catch (err) {
-    console.error('Fetch of JSON failed:', err);
+    console.error('Fetch of bodem JSON failed:', err);
     document.getElementById('grondsoort').value = 'Fout bij ophalen';
     window.huidigeGrond = 'Onbekend';
   }
 
-  // **4) Perceelinformatie opvragen via WFS v5**
+  // **4) RD-projectie (EPSG:28992) met proj4**
+  let rdX, rdY;
+  try {
+    [rdX, rdY] = proj4('EPSG:4326', 'EPSG:28992', [lon, lat]);
+  } catch (err) {
+    console.error('Proj4 transform failed:', err);
+    rdX = lon;
+    rdY = lat;
+  }
+  if (DEBUG) console.log(`RD-coördinaten: x=${rdX.toFixed(2)}, y=${rdY.toFixed(2)}`);
+
+  // **5) Perceelinformatie opvragen via WFS v5**
   const wfsBase = 'https://service.pdok.nl/kadaster/kadastralekaart/wfs/v5_0';
   const params = new URLSearchParams({
     service: 'WFS',
@@ -75,34 +82,40 @@ map.on('click', async e => {
     request: 'GetFeature',
     typeNames: 'kadastralekaart:Perceel',
     outputFormat: 'application/json',
-    srsName: 'EPSG:4326',
+    srsName: 'urn:ogc:def:crs:EPSG::28992',
     count: '1',
-    CQL_FILTER: `INTERSECTS(geometrie,POINT(${lon} ${lat}))`
+    CQL_FILTER: `INTERSECTS(geometrie,POINT(${rdX} ${rdY}))`
   });
   const perceelUrl = `${wfsBase}?${params.toString()}`;
+  if (DEBUG) console.log('Perceel WFS URL:', perceelUrl);
 
   try {
     const perceelResp = await fetch(perceelUrl);
     const perceelData = await perceelResp.json();
-
     if (!perceelResp.ok) {
       console.error(`Perceel-service returned status ${perceelResp.status}`, perceelData);
       if (LIVE_ERRORS) console.error('Raw perceel payload:', perceelData);
       return;
     }
-
-    if (!perceelData.features || perceelData.features.length === 0) {
+    const features = perceelData.features;
+    if (!features || features.length === 0) {
       alert('Geen perceel gevonden op deze locatie.');
       return;
     }
+    const p = features[0].properties;
+    // Dynamische veldnamen
+    const oppField = ['kadastraleGrootteWaarde','oppervlakte','area'].find(f => p[f] !== undefined);
+    const nummerField = ['perceelnummer','identificatie'].find(f => p[f] !== undefined);
+    const sectieField = ['sectie'].find(f => p[f] !== undefined);
+    const gemeenteField = ['kadastraleGemeentenaam','kadastraleGemeente','gemeentenaam','gemeente'].find(f => p[f] !== undefined);
 
-    const perceel = perceelData.features[0];
-    const opp = perceel.properties.kadastraleGrootteWaarde;
-    const perceelNummer = perceel.properties.perceelnummer;
-    const sectie = perceel.properties.sectie;
-    const gemeente = perceel.properties.kadastraleGemeentenaam;
+    const opp = p[oppField];
+    const perceelNummer = p[nummerField];
+    const sectie = p[sectieField];
+    const gemeente = p[gemeenteField] || '';
 
     if (DEBUG) {
+      console.log('Perceel properties:', p);
       console.log(`Perceel gevonden: ${gemeente} ${sectie} ${perceelNummer}`);
       console.log(`Oppervlakte: ${opp} m²`);
     }
