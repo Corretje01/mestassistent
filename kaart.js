@@ -49,9 +49,9 @@ map.on('click', async e => {
     window.huidigeGrond = 'Onbekend';
   }
 
-  // **4) Perceel opvragen via PDOK Locatieserver**
-const lsUrl = new URL('https://geodata.nationaalgeoregister.nl/locatieserver/v3/free');
-lsUrl.search = new URLSearchParams({
+// **4) Perceel opvragen via nieuwe PDOK Locatieserver FREE-API (v3_1)**
+const lsBase = 'https://api.pdok.nl/bzk/locatieserver/search/v3_1/free';
+const lsParams = new URLSearchParams({
   fq: 'type:perceel',
   lat: lat,
   lon: lon,
@@ -59,32 +59,34 @@ lsUrl.search = new URLSearchParams({
   fl: 'weergavenaam,kadastrale_grootte_waarde,perceelnummer,sectie',
   wt: 'json'
 });
-
-if (DEBUG) console.log('🔗 Locatieserver URL:', lsUrl.toString());
+const lsUrl = `${lsBase}?${lsParams.toString()}`;
+if (DEBUG) console.log('🔗 Locatieserver URL:', lsUrl);
 
 try {
   const lsResp = await fetch(lsUrl);
   const lsData = await lsResp.json();
+  if (!lsResp.ok) throw new Error(lsData.error || `Status ${lsResp.status}`);
+
   const doc = lsData.response?.docs?.[0];
   if (!doc) {
     alert('Geen perceel gevonden op deze locatie.');
     return;
   }
 
-  // weergavenaam komt in de vorm “Teteringen A 23”
-  const [weergavenaam, sectiePlusNummer] = (doc.weergavenaam||'').split(' ');
-  const sectie = doc.sectie || '';
-  const nummer = doc.perceelnummer || '';
+  // doc.weergavenaam is iets als "Teteringen A 23"
+  const weergavenaam = doc.weergavenaam || '';
   const opp = doc.kadastrale_grootte_waarde;
+  const nummer = doc.perceelnummer;
+  const sectie = doc.sectie;
 
   alert(
-    `Perceel: ${weergavenaam} ${sectie} ${nummer}\n` +
+    `Perceel: ${weergavenaam}\n` +
     `Oppervlakte: ${opp ?? 'n.v.t.'} m²`
   );
   if (opp) {
     document.getElementById('hectare').value = (opp/10000).toFixed(2);
   }
-} catch(err) {
+} catch (err) {
   console.error('Locatieserver fout:', err);
   if (LIVE_ERRORS) alert('Fout bij ophalen perceel via Locatieserver.');
 }
