@@ -1,4 +1,4 @@
-// kaart.js — met soilMapping integratie en RVO‐categorieën
+// kaart.js — met soilMapping integratie en RVO‐categorieën + perceelinformatie via PDOK
 
 // Zet DEBUG op true als je bij succes de volledige raw-payload wilt zien
 const DEBUG = false;
@@ -35,10 +35,10 @@ map.on('click', async e => {
 
   const lon = e.latlng.lng.toFixed(6);
   const lat = e.latlng.lat.toFixed(6);
-  const url = `/.netlify/functions/bodemsoort?lon=${lon}&lat=${lat}`;
+  const bodemUrl = `/.netlify/functions/bodemsoort?lon=${lon}&lat=${lat}`;
 
   try {
-    const resp = await fetch(url);
+    const resp = await fetch(bodemUrl);
     const payload = await resp.json();
 
     // 3) Fout-afhandeling van de Function zelf
@@ -69,5 +69,48 @@ map.on('click', async e => {
     console.error('Fetch of JSON failed:', err);
     document.getElementById('grondsoort').value = 'Fout bij ophalen';
     window.huidigeGrond = 'Onbekend';
+  }
+
+  // **6) Perceelinformatie ophalen via Kadaster-WFS**
+  const perceelUrl = `https://service.pdok.nl/kadaster/kadastralekaartv4/wfs/v4_0?` +
+                     `SERVICE=WFS&VERSION=2.0.0&REQUEST=GetFeature&` +
+                     `TYPENAMES=kadastralekaartv4:perceel&outputFormat=application/json&` +
+                     `srsName=EPSG:4326&CQL_FILTER=INTERSECTS(geometrie,POINT(${lon} ${lat}))`;
+
+  try {
+    const perceelResp = await fetch(perceelUrl);
+    const perceelData = await perceelResp.json();
+
+    if (!perceelResp.ok) {
+      console.error(`Perceel-service returned status ${perceelResp.status}`, perceelData);
+      if (LIVE_ERRORS) console.error('Raw perceel payload:', perceelData);
+      return;
+    }
+
+    if (perceelData.features.length === 0) {
+      alert("Geen perceel gevonden op deze locatie.");
+      return;
+    }
+
+    const perceel = perceelData.features[0];
+    const opp = perceel.properties.kadastraleGrootteWaarde;
+    const perceelNummer = perceel.properties.perceelnummer;
+    const sectie = perceel.properties.sectie;
+    const gemeente = perceel.properties.kadastraleGemeentenaam;
+
+    if (DEBUG) {
+      console.log(`Perceel gevonden: ${gemeente} ${sectie} ${perceelNummer}`);
+      console.log(`Oppervlakte: ${opp} m²`);
+    }
+
+    // Toon perceelinformatie
+    alert(`Perceel: ${gemeente} ${sectie} ${perceelNummer}\nOppervlakte: ${opp} m²`);
+
+    // Optioneel: automatisch hectare-invoer invullen
+    document.getElementById('hectare').value = (opp / 10000).toFixed(2);
+
+  } catch (err) {
+    console.error('Fout bij ophalen perceelinformatie:', err);
+    if (LIVE_ERRORS) alert('Fout bij ophalen perceelinformatie.');
   }
 });
