@@ -49,45 +49,60 @@ map.on('click', async e => {
     window.huidigeGrond = 'Onbekend';
   }
 
-// **4) Perceel opvragen via nieuwe PDOK Locatieserver FREE-API (v3_1)**
-const lsBase = 'https://api.pdok.nl/bzk/locatieserver/search/v3_1/free';
-const lsParams = new URLSearchParams({
-  fq: 'type:perceel',
-  lat: lat,
-  lon: lon,
-  rows: '1',
-  fl: 'weergavenaam,kadastrale_grootte_waarde,perceelnummer,sectie',
-  wt: 'json'
-});
-const lsUrl = `${lsBase}?${lsParams.toString()}`;
-if (DEBUG) console.log('🔗 Locatieserver URL:', lsUrl);
+  // **4) Perceel opvragen via PDOK Locatieserver FREE v3_1**
+  const lsBase = 'https://api.pdok.nl/bzk/locatieserver/search/v3_1/free';
+  const lsParams = new URLSearchParams({
+    fq: 'type:perceel',
+    lat: lat,
+    lon: lon,
+    rows: '1',
+    fl: 'weergavenaam,*,score', // vraag alle velden op met '*' voor inspectie
+    wt: 'json'
+  });
+  const lsUrl = `${lsBase}?${lsParams.toString()}`;
+  if (DEBUG) console.log('🔗 Locatieserver URL:', lsUrl);
 
-try {
-  const lsResp = await fetch(lsUrl);
-  const lsData = await lsResp.json();
-  if (!lsResp.ok) throw new Error(lsData.error || `Status ${lsResp.status}`);
+  try {
+    const lsResp = await fetch(lsUrl);
+    const lsData = await lsResp.json();
+    if (!lsResp.ok) throw new Error(lsData.error || `Status ${lsResp.status}`);
 
-  const doc = lsData.response?.docs?.[0];
-  if (!doc) {
-    alert('Geen perceel gevonden op deze locatie.');
-    return;
+    const doc = lsData.response?.docs?.[0];
+    if (DEBUG) console.log('🗂 Locatieserver doc:', doc);
+
+    if (!doc) {
+      alert('Geen perceel gevonden op deze locatie.');
+      return;
+    }
+
+    // Zoek automatisch het veld voor oppervlakte (grootte of oppervlakte)
+    const areaKey = Object.keys(doc).find(k =>
+      /grootte|oppervlakte/.test(k.toLowerCase())
+    );
+    const opp = areaKey ? doc[areaKey] : undefined;
+
+    // Weergavenaam bevat “Gemeente Sectie Nummer”
+    const weergavenaam = doc.weergavenaam || '';
+    // Perceelnummer en sectie (voor het geval weergavenaam niet de perfecte split is)
+    const perceelNummer = doc.perceelnummer || doc.identificatieLokaalID || '';
+    const sectie = doc.sectie || '';
+
+    if (DEBUG) {
+      console.log(`🏷️  Weergavenaam : ${weergavenaam}`);
+      console.log(`🔑  Opp-field    : ${areaKey} = ${opp}`);
+      console.log(`# nummer       : ${perceelNummer}`);
+      console.log(`§ sectie       : ${sectie}`);
+    }
+
+    alert(
+      `Perceel: ${weergavenaam}\n` +
+      `Oppervlakte: ${opp != null ? opp + ' m²' : 'n.v.t.'}`
+    );
+    if (opp != null) {
+      document.getElementById('hectare').value = (opp/10000).toFixed(2);
+    }
+  } catch (err) {
+    console.error('Locatieserver fout:', err);
+    if (LIVE_ERRORS) alert('Fout bij ophalen perceel via Locatieserver.');
   }
-
-  // doc.weergavenaam is iets als "Teteringen A 23"
-  const weergavenaam = doc.weergavenaam || '';
-  const opp = doc.kadastrale_grootte_waarde;
-  const nummer = doc.perceelnummer;
-  const sectie = doc.sectie;
-
-  alert(
-    `Perceel: ${weergavenaam}\n` +
-    `Oppervlakte: ${opp ?? 'n.v.t.'} m²`
-  );
-  if (opp) {
-    document.getElementById('hectare').value = (opp/10000).toFixed(2);
-  }
-} catch (err) {
-  console.error('Locatieserver fout:', err);
-  if (LIVE_ERRORS) alert('Fout bij ophalen perceel via Locatieserver.');
-}
 });
