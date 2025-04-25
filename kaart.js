@@ -49,42 +49,43 @@ map.on('click', async e => {
     window.huidigeGrond = 'Onbekend';
   }
 
-  // **4) Perceelinformatie opvragen via WFS v5**
-  const wfsBase = 'https://service.pdok.nl/kadaster/kadastralekaart/wfs/v5_0';
+    // **4) Perceelinformatie opvragen via INSPIRE WFS v1_0**
+  const wfsBase = 'https://service.pdok.nl/kadaster/cp/wfs/v1_0';
   const params = new URLSearchParams({
     service: 'WFS',
-    version: '2.0.0',
+    version: '1.1.0',
     request: 'GetFeature',
     typeNames: 'Perceel',
     outputFormat: 'application/json',
     srsName: 'EPSG:4326',
     count: '1',
-    CQL_FILTER: `INTERSECTS(geometrie,POINT(${lon} ${lat}))`
+    CQL_FILTER: `INTERSECTS(geometry,POINT(${lon} ${lat}))`
   });
-  const url = `${wfsBase}?${params}`;
-  if (DEBUG) console.log('Perceel WFS URL:', url);
+  const perceelUrl = `${wfsBase}?${params.toString()}`;
+  if (DEBUG) console.log('🔗 INSPIRE WFS URL:', perceelUrl);
+
   try {
-    const r = await fetch(url);
-    const data = await r.json();
-    if (!r.ok) throw new Error(`Status ${r.status}`);
+    const resp = await fetch(perceelUrl);
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(`Status ${resp.status}`);
     if (!data.features.length) {
-      alert('Geen perceel gevonden');
+      alert('Geen perceel gevonden op deze locatie (INSPIRE).');
       return;
     }
+
     const p = data.features[0].properties;
-    if (DEBUG) {
-      console.log('Properties:', p);
-    }
-    // Velden
+    if (DEBUG) console.log('🔍 INSPIRE perceel properties:', p);
+
+    // Kies je velden
     const opp = p.kadastraleGrootteWaarde;
     const nummer = p.perceelnummer || p.identificatieLokaalID;
     const sectie = p.sectie;
     const gemeente = p.kadastraleGemeenteWaarde;
 
     alert(`Perceel: ${gemeente} ${sectie} ${nummer}\nOppervlakte: ${opp} m²`);
-    if (opp) document.getElementById('hectare').value = (opp/10000).toFixed(2);
+    if (opp) document.getElementById('hectare').value = (opp / 10000).toFixed(2);
   } catch (err) {
-    console.error('Perceel fout:', err);
-    if (LIVE_ERRORS) alert('Fout bij perceel ophalen');
+    console.error('INSPIRE perceel fout:', err);
+    if (LIVE_ERRORS) alert('Fout bij ophalen INSPIRE-perceelinfo.');
   }
 });
