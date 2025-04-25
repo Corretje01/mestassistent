@@ -1,4 +1,4 @@
-// kaart.js — met soilMapping + kadastrale perceelinformatie (v5) via PDOK, met RD-projectie via proj4
+// kaart.js — met soilMapping + kadastrale perceelinformatie (v5) via PDOK (WGS84)
 
 const DEBUG = false;
 const LIVE_ERRORS = true;
@@ -58,27 +58,7 @@ map.on('click', async e => {
     window.huidigeGrond = 'Onbekend';
   }
 
-  // **4) RD-projectie (EPSG:28992) met proj4**
-  // Definieer EPSG:28992 als het nog niet bekend is
-  if (!proj4.defs['EPSG:28992']) {
-    proj4.defs('EPSG:28992',
-      '+proj=sterea +lat_0=52.15616055555555 +lon_0=5.38763888888889 '
-     +'+k=0.9999079 +x_0=155000 +y_0=463000 '
-     +'+ellps=bessel +towgs84=565.417,50.3319,465.552,'
-     +'-0.398957,0.343988,-1.8774,4.0725 +units=m +no_defs'
-    );
-  }
-  let rdX, rdY;
-  try {
-    [rdX, rdY] = proj4('EPSG:4326', 'EPSG:28992', [lon, lat]);
-  } catch (err) {
-    console.error('Proj4 transform failed:', err.message);
-    rdX = lon;
-    rdY = lat;
-  }
-  if (DEBUG) console.log(`RD-coördinaten: x=${rdX.toFixed(2)}, y=${rdY.toFixed(2)}`);
-
-  // **5) Perceelinformatie opvragen via WFS v5**
+  // **4) Perceelinformatie opvragen via WFS v5 (WGS84)**
   const wfsBase = 'https://service.pdok.nl/kadaster/kadastralekaart/wfs/v5_0';
   const params = new URLSearchParams({
     service: 'WFS',
@@ -86,9 +66,9 @@ map.on('click', async e => {
     request: 'GetFeature',
     typeNames: 'kadastralekaart:Perceel',
     outputFormat: 'application/json',
-    srsName: 'urn:ogc:def:crs:EPSG::28992',
+    srsName: 'EPSG:4326',
     count: '1',
-    CQL_FILTER: `INTERSECTS(geometrie,POINT(${rdX} ${rdY}))`
+    CQL_FILTER: `INTERSECTS(geometrie,POINT(${lon} ${lat}))`
   });
   const perceelUrl = `${wfsBase}?${params.toString()}`;
   if (DEBUG) console.log('Perceel WFS URL:', perceelUrl);
