@@ -1,6 +1,7 @@
-// kaart.js — met soilMapping + kadastrale perceelinformatie (v5) via PDOK (WGS84, BBOX lower-case)
+// kaart.js — met soilMapping integratie, RVO‑categorieën en debugging van perceeldata
 
-const DEBUG = false;
+// Zet DEBUG op true om extra logs te zien
+tconst DEBUG = true;
 const LIVE_ERRORS = true;
 
 // **1) Soil-mapping inladen**
@@ -31,14 +32,15 @@ map.on('click', async e => {
   if (marker) map.removeLayer(marker);
   marker = L.marker(e.latlng).addTo(map);
 
-  const lon = parseFloat(e.latlng.lng);
-  const lat = parseFloat(e.latlng.lat);
+  const lon = e.latlng.lng.toFixed(6);
+  const lat = e.latlng.lat.toFixed(6);
 
   // **3) Bodemsoort opvragen**
   const bodemUrl = `/.netlify/functions/bodemsoort?lon=${lon}&lat=${lat}`;
   try {
     const resp = await fetch(bodemUrl);
     const payload = await resp.json();
+
     if (!resp.ok) {
       console.error(`Function returned status ${resp.status}`, payload);
       if (LIVE_ERRORS) console.error('Raw payload:', payload.raw ?? payload);
@@ -46,73 +48,87 @@ map.on('click', async e => {
       window.huidigeGrond = 'Onbekend';
       return;
     }
+
     const rawName = payload.grondsoort;
     const baseCat = getBaseCategory(rawName);
-    if (DEBUG) console.log('RAW bodem response:', payload.raw ?? payload);
-    console.log(`Grondsoort: ${rawName} → Basis-categorie: ${baseCat}`);
+
+    if (DEBUG) {
+      console.log('📦 Raw bodem payload:', payload.raw ?? payload);
+      console.log(`Grondsoort (raw): ${rawName}, gespiegeld naar: ${baseCat}`);
+    }
+
     document.getElementById('grondsoort').value = baseCat;
     window.huidigeGrond = baseCat;
   } catch (err) {
-    console.error('Fetch of bodem JSON failed:', err);
+    console.error('Fetch bodem JSON failed:', err);
     document.getElementById('grondsoort').value = 'Fout bij ophalen';
     window.huidigeGrond = 'Onbekend';
   }
 
-  // **4) Perceelinformatie opvragen via WFS v5 met bbox-filter**
+  // **4) Perceelinformatie opvragen via WFS v5 met CQL_FILTER**
   const wfsBase = 'https://service.pdok.nl/kadaster/kadastralekaart/wfs/v5_0';
-  const delta = 0.0001;
-  const minLon = lon - delta;
-  const minLat = lat - delta;
-  const maxLon = lon + delta;
-  const maxLat = lat + delta;
-  const bboxStr = `${minLon},${minLat},${maxLon},${maxLat},EPSG:4326`;
+  const params = new URLSearchParams({
+    service: 'WFS',
+    version: '2.0.0',
+    request: 'GetFeature',
+    typeNames: 'kadastralekaart:Perceel',
+    outputFormat: 'application/json',
+    srsName: 'EPSG:4326',
+    count: '1',
+    CQL_FILTER: `INTERSECTS(geometrie,POINT(${lon} ${lat}))`
+  });
+  const perceelUrl = `${wfsBase}?${params.toString()}`;
 
-  const perceelUrl = `${wfsBase}` +
-    `?service=WFS` +
-    `&version=2.0.0` +
-    `&request=GetFeature` +
-    `&typeNames=kadastralekaart:Perceel` +
-    `&outputFormat=application/json` +
-    `&bbox=${bboxStr}` +
-    `&count=1` +
-    `&maxFeatures=1`;
-
-  if (DEBUG) console.log('Perceel WFS URL:', perceelUrl);
+  // Log de URL
+  if (DEBUG) console.log('🔗 Perceel WFS URL:', perceelUrl);
 
   try {
     const perceelResp = await fetch(perceelUrl);
     const perceelData = await perceelResp.json();
+
+    // Log raw perceelData
+    console.log('🗂 Raw perceelData:', perceelData);
+
     if (!perceelResp.ok) {
       console.error(`Perceel-service returned status ${perceelResp.status}`, perceelData);
       if (LIVE_ERRORS) console.error('Raw perceel payload:', perceelData);
       return;
     }
+
     const features = perceelData.features;
     if (!features || features.length === 0) {
       alert('Geen perceel gevonden op deze locatie.');
       return;
     }
+
     const p = features[0].properties;
-    // Dynamische veldnamen
-    const oppField = ['kadastraleGrootteWaarde','oppervlakte','area'].find(f => p[f] !== undefined);
-    const nummerField = ['perceelnummer','identificatie'].find(f => p[f] !== undefined);
-    const sectieField = ['sectie'].find(f => p[f] !== undefined);
-    const gemeenteField = ['kadastraleGemeentenaam','kadastraleGemeente','gemeentenaam','gemeente']
-                         .find(f => p[f] !== undefined);
 
-    const opp = p[oppField];
-    const perceelNummer = p[nummerField];
-    const sectie = p[sectieField];
-    const gemeente = p[gemeenteField] || '';
-
+    // Toon alle veldnamen en waarden voor debugging
     if (DEBUG) {
-      console.log('Perceel properties:', p);
-      console.log(`Perceel gevonden: ${gemeente} ${sectie} ${perceelNummer}`);
-      console.log(`Oppervlakte: ${opp} m²`);
+      console.log('🔍 Beschikbare perceel properties:');
+      Object.entries(p).forEach(([key, value]) => console.log(`  • ${key}: ${value}`));
     }
 
-    alert(`Perceel: ${gemeente} ${sectie} ${perceelNummer}\nOppervlakte: ${opp} m²`);
-    document.getElementById('hectare').value = (opp / 10000).toFixed(2);
+    // Dynamische veldnamen bepalen op basis van what's available
+    const oppField = ['kadastraleGrootteWaarde', 'oppervlakte'].find(f => p[f] !== undefined);
+    const nummerField = ['perceelnummer', 'identificatie'].find(f => p[f] !== undefined);
+    const sectieField = ['sectie'].find(f => p[f] !== undefined);
+    const gemeenteField = ['kadastraleGemeentenaam', 'gemeentenaam'].find(f => p[f] !== undefined);
+
+    const opp = oppField ? p[oppField] : undefined;
+    const perceelNummer = nummerField ? p[nummerField] : 'unknown';
+    const sectie = sectieField ? p[sectieField] : 'unknown';
+    const gemeente = gemeenteField ? p[gemeenteField] : '';
+
+    if (DEBUG) console.log(`📝 Gekozen fields → opp: ${oppField}, nummer: ${nummerField}, sectie: ${sectieField}, gemeente: ${gemeenteField}`);
+
+    // Toon popup met de gevonden data
+    alert(`Perceel: ${gemeente} ${sectie} ${perceelNummer}\nOppervlakte: ${opp ?? 'n.v.t.'} m²`);
+
+    // Vul hectare-veld in
+    if (opp) {
+      document.getElementById('hectare').value = (opp / 10000).toFixed(2);
+    }
   } catch (err) {
     console.error('Fout bij ophalen perceelinformatie:', err);
     if (LIVE_ERRORS) alert('Fout bij ophalen perceelinformatie.');
