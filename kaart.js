@@ -1,4 +1,4 @@
-// kaart.js — met soilMapping + kadastrale perceelinformatie (v5) via PDOK (WGS84)
+// kaart.js — met soilMapping + kadastrale perceelinformatie (v5) via PDOK (WGS84, BBOX-filter)
 
 const DEBUG = false;
 const LIVE_ERRORS = true;
@@ -58,17 +58,24 @@ map.on('click', async e => {
     window.huidigeGrond = 'Onbekend';
   }
 
-  // **4) Perceelinformatie opvragen via WFS v5 (WGS84)**
+  // **4) Perceelinformatie opvragen via WFS v5 met BBOX-filter**
   const wfsBase = 'https://service.pdok.nl/kadaster/kadastralekaart/wfs/v5_0';
+  // Maak klein bbox rond klikpunt (±10m ≈ 0.0001°)
+  const delta = 0.0001;
+  const minLon = lon - delta;
+  const minLat = lat - delta;
+  const maxLon = lon + delta;
+  const maxLat = lat + delta;
+  const bboxStr = `${minLon},${minLat},${maxLon},${maxLat},EPSG:4326`;
+
   const params = new URLSearchParams({
     service: 'WFS',
     version: '2.0.0',
     request: 'GetFeature',
     typeNames: 'kadastralekaart:Perceel',
     outputFormat: 'application/json',
-    srsName: 'EPSG:4326',
-    count: '1',
-    CQL_FILTER: `INTERSECTS(geometrie,POINT(${lon} ${lat}))`
+    bbox: bboxStr,
+    count: '1'
   });
   const perceelUrl = `${wfsBase}?${params.toString()}`;
   if (DEBUG) console.log('Perceel WFS URL:', perceelUrl);
