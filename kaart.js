@@ -58,7 +58,7 @@ map.on('click', async e => {
     window.huidigeGrond = 'Onbekend';
   }
 
-  // **4) Perceelinformatie opvragen via WFS v5 met BBOX-filter**
+    // **4) Perceelinformatie opvragen via WFS v5 met BBOX-filter**
   const wfsBase = 'https://service.pdok.nl/kadaster/kadastralekaart/wfs/v5_0';
   // Maak klein bbox rond klikpunt (±10m ≈ 0.0001°)
   const delta = 0.0001;
@@ -68,16 +68,18 @@ map.on('click', async e => {
   const maxLat = lat + delta;
   const bboxStr = `${minLon},${minLat},${maxLon},${maxLat},EPSG:4326`;
 
-  const params = new URLSearchParams({
-    service: 'WFS',
-    version: '2.0.0',
-    request: 'GetFeature',
-    typeNames: 'kadastralekaart:Perceel',
-    outputFormat: 'application/json',
-    bbox: bboxStr,
-    count: '1'
-  });
-  const perceelUrl = `${wfsBase}?${params.toString()}`;
+  // Gebruik typeNames voor v5
+  const typeNames = 'kadastralekaartv5:perceel';
+  // Bouw URL handmatig om BBOX uppercase te houden
+  const perceelUrl = `${wfsBase}` +
+    `?service=WFS` +
+    `&version=2.0.0` +
+    `&request=GetFeature` +
+    `&typeNames=${typeNames}` +
+    `&outputFormat=application/json` +
+    `&BBOX=${bboxStr}` +
+    `&count=1`;
+
   if (DEBUG) console.log('Perceel WFS URL:', perceelUrl);
 
   try {
@@ -112,7 +114,8 @@ map.on('click', async e => {
       console.log(`Oppervlakte: ${opp} m²`);
     }
 
-    alert(`Perceel: ${gemeente} ${sectie} ${perceelNummer}\nOppervlakte: ${opp} m²`);
+    alert(`Perceel: ${gemeente} ${sectie} ${perceelNummer}
+Oppervlakte: ${opp} m²`);
     document.getElementById('hectare').value = (opp / 10000).toFixed(2);
   } catch (err) {
     console.error('Fout bij ophalen perceelinformatie:', err);
