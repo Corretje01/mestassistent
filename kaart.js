@@ -65,34 +65,27 @@ map.on('click', async e => {
     window.huidigeGrond = 'Onbekend';
   }
 
-    // **4) Perceelinformatie opvragen via WFS v5 met bbox-filter**
+      // **4) Perceelinformatie opvragen via WFS v5 met CQL_FILTER (geometry)**
   const wfsBase = 'https://service.pdok.nl/kadaster/kadastralekaart/wfs/v5_0';
-
-  // Bepaal een kleine BBOX rond het klikpunt (±15 meter)
-  const delta = 0.00014; // ~15m
-  const minLon = lon - delta;
-  const minLat = lat - delta;
-  const maxLon = lon + delta;
-  const maxLat = lat + delta;
-
   const params = new URLSearchParams();
   params.append('service', 'WFS');
   params.append('version', '2.0.0');
   params.append('request', 'GetFeature');
-  params.append('typeNames', 'kadastralekaart:Perceel');
+  params.append('typeName', 'perceel');
   params.append('outputFormat', 'application/json');
   params.append('srsName', 'EPSG:4326');
-  params.append('bbox', `${minLon},${minLat},${maxLon},${maxLat},EPSG:4326`);
   params.append('count', '1');
+  params.append('CQL_FILTER', `INTERSECTS(geometry,POINT(${lon} ${lat}))`);
 
   const perceelUrl = `${wfsBase}?${params.toString()}`;
-  if (DEBUG) console.log('🔗 Perceel WFS URL (bbox):', perceelUrl);
+  if (DEBUG) console.log('🔗 Perceel WFS URL:', perceelUrl);
 
   try {
     const perceelResp = await fetch(perceelUrl);
     const perceelData = await perceelResp.json();
 
-    console.log('🗂 Raw perceelData (bbox):', perceelData);
+    // Log raw perceelData
+    console.log('🗂 Raw perceelData:', perceelData);
 
     if (!perceelResp.ok) {
       console.error(`Perceel-service returned status ${perceelResp.status}`, perceelData);
@@ -107,8 +100,14 @@ map.on('click', async e => {
     }
 
     const p = features[0].properties;
-    if (DEBUG) console.log('🔍 Beschikbare perceel properties (bbox):', p);
 
+    // Toon alle veldnamen en waarden voor debugging
+    if (DEBUG) {
+      console.log('🔍 Beschikbare perceel properties:');
+      Object.entries(p).forEach(([key, value]) => console.log(`  • ${key}: ${value}`));
+    }
+
+    // Dynamische veldnamen bepalen
     const oppField = ['kadastraleGrootteWaarde', 'oppervlakte'].find(f => p[f] !== undefined);
     const nummerField = ['perceelnummer', 'identificatie'].find(f => p[f] !== undefined);
     const sectieField = ['sectie'].find(f => p[f] !== undefined);
@@ -127,7 +126,7 @@ Oppervlakte: ${opp ?? 'n.v.t.'} m²`);
     if (opp) document.getElementById('hectare').value = (opp / 10000).toFixed(2);
 
   } catch (err) {
-    console.error('Fout bij ophalen perceelinformatie (bbox):', err);
+    console.error('Fout bij ophalen perceelinformatie:', err);
     if (LIVE_ERRORS) alert('Fout bij ophalen perceelinformatie.');
   }
 });
