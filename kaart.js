@@ -33,7 +33,7 @@ map.on('click', async e => {
   const lon = e.latlng.lng.toFixed(6);
   const lat = e.latlng.lat.toFixed(6);
 
-  // **3) Bodemsoort ophalen**
+  // **3) Bodemsoort ophalen (zoals voorheen)**
   try {
     const resp = await fetch(`/.netlify/functions/bodemsoort?lon=${lon}&lat=${lat}`);
     const payload = await resp.json();
@@ -48,31 +48,31 @@ map.on('click', async e => {
     window.huidigeGrond = 'Onbekend';
   }
 
-  // **4) Vorige parcel highlight verwijderen**
+  // **4) Vorige highlight verwijderen**
   if (parcelLayer) {
     map.removeLayer(parcelLayer);
     parcelLayer = null;
   }
 
-  // **5) Perceel ophalen via INSPIRE WFS v1_0**
-  const wfsBase = 'https://service.pdok.nl/kadaster/cp/wfs/v1_0';
+  // **5) Perceel ophalen via WFS v5_0 (GeoJSON)**
+  const wfsBase = 'https://service.pdok.nl/kadaster/kadastralekaart/wfs/v5_0';
   const params = new URLSearchParams();
-  params.append('service', 'WFS');
-  params.append('version', '1.1.0');
-  params.append('request', 'GetFeature');
-  params.append('typeName', 'Perceel');            // singular voor WFS 1.1.0
-  params.append('outputFormat', 'application/json');
-  params.append('srsName', 'EPSG:4326');
-  params.append('count', '1');
-  params.append('CQL_FILTER', `INTERSECTS(geometry,POINT(${lon} ${lat}))`);
+  params.append('service',      'WFS');
+  params.append('version',      '2.0.0');
+  params.append('request',      'GetFeature');
+  params.append('typeNames',    'kadastralekaart:Perceel');
+  params.append('outputFormat', 'application/json; subtype=geojson');
+  params.append('srsName',      'EPSG:4326');
+  params.append('count',        '1');
+  params.append('CQL_FILTER',   `INTERSECTS(geometrie,POINT(${lon} ${lat}))`);
   const url = `${wfsBase}?${params.toString()}`;
 
-  if (DEBUG) console.log('Parcel WFS URL:', url);
+  if (DEBUG) console.log('Parcel WFS v5_0 URL:', url);
 
   try {
     const r = await fetch(url);
     const data = await r.json();
-    if (!r.ok) throw new Error(r.status);
+    if (!r.ok) throw new Error(`WFS fout: ${r.status}`);
     const feat = data.features?.[0];
     if (!feat) {
       alert('Geen perceel gevonden op deze locatie.');
@@ -87,12 +87,14 @@ map.on('click', async e => {
 
     // **7) Lees eigenschappen en vul form in**
     const p = feat.properties;
-    const opp    = p.kadastraleGrootteWaarde;
-    const naam   = p.weergavenaam || `${p.kadastraleGemeenteWaarde} ${p.sectie} ${p.perceelnummer}`;
+    const opp  = p.kadastraleGrootteWaarde;
+    const naam = p.weergavenaam ||
+                 `${p.kadastraleGemeenteWaarde} ${p.sectie} ${p.perceelnummer}`;
 
-    alert(`Perceel: ${naam}\nOppervlakte: ${opp ?? 'n.v.t.'} m²`);
-    if (opp) document.getElementById('hectare').value = (opp/10000).toFixed(2);
-
+    alert(`Perceel: ${naam}\nOppervlakte: ${opp != null ? opp+' m²' : 'n.v.t.'}`);
+    if (opp != null) {
+      document.getElementById('hectare').value = (opp/10000).toFixed(2);
+    }
   } catch (err) {
     console.error('Perceel fout:', err);
     if (LIVE_ERRORS) alert('Fout bij ophalen perceel.');
