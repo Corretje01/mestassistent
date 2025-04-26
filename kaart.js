@@ -54,28 +54,37 @@ map.on('click', async e => {
     parcelLayer = null;
   }
 
-  // 5) OGC API Features-call  
-  //    Dit endpoint ondersteunt CORS, altijd JSON, en filtert op punt-in-perceel
-  const ogcUrl = new URL(
-    'https://api.pdok.nl/kadaster/kadastralekaart/ogc/features/v1/collections/Perceel/items'
-  );
-  ogcUrl.search = new URLSearchParams({
-    f:      'json',
-    limit:  '1',
-    filter: `INTERSECTS(geometry,POINT(${lon} ${lat}))`
-  }).toString();
-
-  if (DEBUG) console.log('🔗 OGC-Features URL:', ogcUrl.toString());
+// 5) Perceel ophalen via onze Netlify-proxy
+  const proxyUrl = `/.netlify/functions/perceel?lon=${lon}&lat=${lat}`;
+  if (DEBUG) console.log('🔗 Proxy-perceel URL:', proxyUrl);
 
   try {
-    const r = await fetch(ogcUrl);
-    const j = await r.json();
-    if (!r.ok) throw new Error(j.title || `HTTP ${r.status}`);
-    const feat = j.features?.[0];
+    const r    = await fetch(proxyUrl);
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || `Status ${r.status}`);
+    const feat = data.features?.[0];
     if (!feat) {
       alert('Geen perceel gevonden op deze locatie.');
       return;
     }
+
+    // highlight én vullen van de form blijft exact zoals je had
+    parcelLayer = L.geoJSON(feat.geometry, {
+      style: { color: '#1e90ff', weight: 2, fillOpacity: 0.2 }
+    }).addTo(map);
+    map.fitBounds(parcelLayer.getBounds());
+
+    const p    = feat.properties;
+    const opp  = p.kadastraleGrootteWaarde;
+    const naam = p.weergavenaam ||
+                 `${p.kadastraleGemeenteWaarde} ${p.sectie} ${p.perceelnummer}`;
+
+    alert(`Perceel: ${naam}\nOppervlakte: ${opp ?? 'n.v.t.'} m²`);
+    if (opp) document.getElementById('hectare').value = (opp/10000).toFixed(2);
+  } catch (err) {
+    console.error('Perceel fout:', err);
+    if (LIVE_ERRORS) alert('Fout bij ophalen perceel.');
+  }
 
     // 6) Highlight het perceel
     parcelLayer = L.geoJSON(feat.geometry, {
