@@ -10,15 +10,14 @@ export async function handler(event) {
     };
   }
 
-  // Ruimere BBOX van ±50 m
+  // BBOX van ±50 m, axis order lat,lon voor EPSG:4326 in WFS 2.0
   const delta  = 0.0005;
   const minLon = parseFloat(lon) - delta;
   const minLat = parseFloat(lat) - delta;
   const maxLon = parseFloat(lon) + delta;
   const maxLat = parseFloat(lat) + delta;
-  const bbox   = `${minLon},${minLat},${maxLon},${maxLat},EPSG:4326`;
+  const bbox   = `${minLat},${minLon},${maxLat},${maxLon},EPSG:4326`;
 
-  // WFS v5_0 endpoint
   const wfsBase = 'https://service.pdok.nl/kadaster/kadastralekaart/wfs/v5_0';
   const params = new URLSearchParams({
     service:      'WFS',
