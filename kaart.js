@@ -1,4 +1,4 @@
-// kaart.js — soilMapping + RVO-categorieën + inline perceel-informatie
+// kaart.js — soilMapping + RVO-categorieën + automatische hectare-invulling
 
 const DEBUG = false;
 const LIVE_ERRORS = true;
@@ -15,12 +15,11 @@ function getBaseCategory(soilName) {
 }
 
 // 2) Leaflet init
-const map = L.map('map').setView([52.1, 5.1], 7);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  attribution: '&copy; OSM contributors'
+const map = L.map('map').setView([52.1,5.1],7);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+  attribution:'© OSM contributors'
 }).addTo(map);
 
-// Huidige parcel-layer
 let parcelLayer = null;
 
 map.on('click', async e => {
@@ -35,7 +34,6 @@ map.on('click', async e => {
     const baseCat = getBaseCategory(p.grondsoort);
     document.getElementById('grondsoort').value = baseCat;
     window.huidigeGrond = baseCat;
-    if (DEBUG) console.log('Bodemsoort:', p.grondsoort, '→', baseCat);
   } catch (err) {
     console.error('Bodem fout:', err);
     document.getElementById('grondsoort').value = 'Fout';
@@ -48,41 +46,38 @@ map.on('click', async e => {
     parcelLayer = null;
   }
 
-  // 5) Perceel ophalen via proxy-function
+  // 5) Perceel via proxy
   const proxyUrl = `/.netlify/functions/perceel?lon=${lon}&lat=${lat}`;
-  if (DEBUG) console.log('🔗 Proxy-perceel URL:', proxyUrl);
-
   try {
     const r    = await fetch(proxyUrl);
     const data = await r.json();
     if (!r.ok) throw new Error(data.error || `Status ${r.status}`);
+
     const feat = data.features?.[0];
     if (!feat) {
-      // leeg, ga geen alert meer tonen maar leeg de velden
       document.getElementById('perceel').value = '';
-      document.getElementById('oppervlakte').value = '';
+      document.getElementById('hectare').value = '';
       return;
     }
 
-    // 6) Highlight perceel
+    // 6) Highlight
     parcelLayer = L.geoJSON(feat.geometry, {
       style: { color: '#1e90ff', weight: 2, fillOpacity: 0.2 }
     }).addTo(map);
     map.fitBounds(parcelLayer.getBounds());
 
-    // 7) Vul inline velden
+    // 7) Vul perceelnaam en hectare
     const props = feat.properties;
-    const naam  = props.weergavenaam
-                  || `${props.kadastraleGemeenteWaarde} ${props.sectie} ${props.perceelnummer}`;
-    const opp   = props.kadastraleGrootteWaarde;
+    const naam  = props.weergavenaam ||
+                  `${props.kadastraleGemeenteWaarde} ${props.sectie} ${props.perceelnummer}`;
+    const opp   = props.kadastraleGrootteWaarde; // in m²
 
     document.getElementById('perceel').value = naam;
-    document.getElementById('oppervlakte').value = opp != null ? opp : '';
+    // Hectare = m2 / 10 000, afronden op 2 decimalen
+    document.getElementById('hectare').value = opp != null
+      ? (opp / 10000).toFixed(2)
+      : '';
 
-    // Vervul ook hectare veld (voor downstream berekening)
-    if (opp != null) {
-      document.getElementById('hectare').value = (opp / 10000).toFixed(2);
-    }
   } catch (err) {
     console.error('Perceel fout:', err);
     if (LIVE_ERRORS) alert('Fout bij ophalen perceel.');
