@@ -1,7 +1,7 @@
-// kaart.js — met soilMapping integratie, RVO-categorieën en dynamische perceeldata via WFS v5
+// kaart.js — met soil-mapping, RVO-categorieën en interactieve parcel-selectie
 
 // Zet DEBUG op true om extra logs te zien
-const DEBUG = true;
+const DEBUG = false;
 const LIVE_ERRORS = true;
 
 // **1) Soil-mapping inladen**
@@ -13,6 +13,7 @@ fetch('/data/soilMapping.json')
 
 /**
  * Haal de RVO-basis-categorie op uit de raw BRO-naam.
+ * Retourneert 'Zand', 'Klei', 'Veen', 'Löss' of 'Onbekend'.
  */
 function getBaseCategory(soilName) {
   const entry = soilMapping.find(e => e.name === soilName);
@@ -25,84 +26,75 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   attribution: '&copy; OSM contributors'
 }).addTo(map);
 
-let marker;
-map.on('click', async e => {
-  // Marker plaatsen
-  if (marker) map.removeLayer(marker);
-  marker = L.marker(e.latlng).addTo(map);
+// Houd de huidige parcel-layer bij zodat we 'm kunnen verwijderen
+let parcelLayer = null;
 
+map.on('click', async e => {
   const lon = e.latlng.lng.toFixed(6);
   const lat = e.latlng.lat.toFixed(6);
 
-  // **3) Bodemsoort opvragen**
+  // 3) Bodemsoort ophalen (exact zoals eerder)
   try {
     const resp = await fetch(`/.netlify/functions/bodemsoort?lon=${lon}&lat=${lat}`);
     const payload = await resp.json();
-    if (!resp.ok) throw new Error(`Status ${resp.status}`);
+    if (!resp.ok) throw new Error(payload.error || resp.status);
     const baseCat = getBaseCategory(payload.grondsoort);
     document.getElementById('grondsoort').value = baseCat;
     window.huidigeGrond = baseCat;
     if (DEBUG) console.log('Bodemsoort:', payload.grondsoort, '→', baseCat);
   } catch (err) {
-    console.error('Bodemsoort fout:', err);
+    console.error('Bodem fout:', err);
     document.getElementById('grondsoort').value = 'Fout';
     window.huidigeGrond = 'Onbekend';
   }
 
-  // **4) Perceel opvragen via PDOK Locatieserver FREE v3_1**
-  const lsBase = 'https://api.pdok.nl/bzk/locatieserver/search/v3_1/free';
-  const lsParams = new URLSearchParams({
-    fq: 'type:perceel',
-    lat: lat,
-    lon: lon,
-    rows: '1',
-    fl: 'weergavenaam,*,score', // vraag alle velden op met '*' voor inspectie
-    wt: 'json'
+  // 4) Bestaande parcelLayer verwijderen
+  if (parcelLayer) {
+    map.removeLayer(parcelLayer);
+    parcelLayer = null;
+  }
+
+  // 5) Perceel ophalen via WFS v1_0 (INSPIRE-geharmoniseerd)
+  const wfsBase = 'https://service.pdok.nl/kadaster/cp/wfs/v1_0';
+  const params = new URLSearchParams({
+    service:  'WFS',
+    version:  '1.1.0',
+    request:  'GetFeature',
+    typeNames:'Perceel',
+    outputFormat:'application/json',
+    srsName:  'EPSG:4326',
+    count:    '1',
+    CQL_FILTER:`INTERSECTS(geometry,POINT(${lon} ${lat}))`
   });
-  const lsUrl = `${lsBase}?${lsParams.toString()}`;
-  if (DEBUG) console.log('🔗 Locatieserver URL:', lsUrl);
+  const url = `${wfsBase}?${params.toString()}`;
+  if (DEBUG) console.log('Parcel WFS URL:', url);
 
   try {
-    const lsResp = await fetch(lsUrl);
-    const lsData = await lsResp.json();
-    if (!lsResp.ok) throw new Error(lsData.error || `Status ${lsResp.status}`);
-
-    const doc = lsData.response?.docs?.[0];
-    if (DEBUG) console.log('🗂 Locatieserver doc:', doc);
-
-    if (!doc) {
+    const r = await fetch(url);
+    const data = await r.json();
+    if (!r.ok) throw new Error(r.status);
+    const feat = data.features?.[0];
+    if (!feat) {
       alert('Geen perceel gevonden op deze locatie.');
       return;
     }
 
-    // Zoek automatisch het veld voor oppervlakte (grootte of oppervlakte)
-    const areaKey = Object.keys(doc).find(k =>
-      /grootte|oppervlakte/.test(k.toLowerCase())
-    );
-    const opp = areaKey ? doc[areaKey] : undefined;
+    // 6) Highlight het perceel op de kaart
+    parcelLayer = L.geoJSON(feat.geometry, {
+      style: { color: '#1e90ff', weight: 2, fillOpacity: 0.2 }
+    }).addTo(map);
+    map.fitBounds(parcelLayer.getBounds());
 
-    // Weergavenaam bevat “Gemeente Sectie Nummer”
-    const weergavenaam = doc.weergavenaam || '';
-    // Perceelnummer en sectie (voor het geval weergavenaam niet de perfecte split is)
-    const perceelNummer = doc.perceelnummer || doc.identificatieLokaalID || '';
-    const sectie = doc.sectie || '';
+    // 7) Lees properties uit én vul de form in
+    const p = feat.properties;
+    const opp    = p.kadastraleGrootteWaarde;
+    const naam   = p.weergavenaam ||
+                   `${p.kadastraleGemeenteWaarde} ${p.sectie} ${p.perceelnummer}`;
+    alert(`Perceel: ${naam}\nOppervlakte: ${opp ?? 'n.v.t.'} m²`);
+    if (opp) document.getElementById('hectare').value = (opp/10000).toFixed(2);
 
-    if (DEBUG) {
-      console.log(`🏷️  Weergavenaam : ${weergavenaam}`);
-      console.log(`🔑  Opp-field    : ${areaKey} = ${opp}`);
-      console.log(`# nummer       : ${perceelNummer}`);
-      console.log(`§ sectie       : ${sectie}`);
-    }
-
-    alert(
-      `Perceel: ${weergavenaam}\n` +
-      `Oppervlakte: ${opp != null ? opp + ' m²' : 'n.v.t.'}`
-    );
-    if (opp != null) {
-      document.getElementById('hectare').value = (opp/10000).toFixed(2);
-    }
   } catch (err) {
-    console.error('Locatieserver fout:', err);
-    if (LIVE_ERRORS) alert('Fout bij ophalen perceel via Locatieserver.');
+    console.error('Perceel fout:', err);
+    if (LIVE_ERRORS) alert('Fout bij ophalen perceel.');
   }
 });
