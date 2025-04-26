@@ -61,7 +61,7 @@ map.on('click', async e => {
   params.append('version', '1.1.0');
   params.append('request', 'GetFeature');
   params.append('typeName', 'Perceel');            // singular voor WFS 1.1.0
-  params.append('outputFormat', 'application/json');
+    params.append('outputFormat', 'application/json');  // use JSON output format supported by WFS v5_0
   params.append('srsName', 'EPSG:4326');
   params.append('count', '1');
     params.append('CQL_FILTER', `INTERSECTS(geometry,POINT(${lon} ${lat}))`);  // use 'geometry' attribute for WFS v5_0
