@@ -10,8 +10,8 @@ export async function handler(event) {
     };
   }
 
-  // Bouw een heel klein BBOX rond je punt (±2 m)
-  const delta  = 0.00002;
+  // Ruimere BBOX van ±50 m
+  const delta  = 0.0005;
   const minLon = parseFloat(lon) - delta;
   const minLat = parseFloat(lat) - delta;
   const maxLon = parseFloat(lon) + delta;
@@ -33,8 +33,7 @@ export async function handler(event) {
   const url = `${wfsBase}?${params.toString()}`;
 
   try {
-    // Let op: gebruik hier de globale fetch
-    const res = await fetch(url);
+    const res  = await fetch(url);
     const json = await res.json();
     return {
       statusCode: 200,
