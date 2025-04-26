@@ -1,5 +1,4 @@
 // functions/perceel.js
-import fetch from 'node-fetch';
 
 export async function handler(event) {
   const { lon, lat } = event.queryStringParameters || {};
@@ -34,6 +33,7 @@ export async function handler(event) {
   const url = `${wfsBase}?${params.toString()}`;
 
   try {
+    // Let op: gebruik hier de globale fetch
     const res = await fetch(url);
     const json = await res.json();
     return {
