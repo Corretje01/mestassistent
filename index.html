@@ -1,3 +1,4 @@
+<!-- index.html -->
 <!DOCTYPE html>
 <html lang="nl">
 <head>
@@ -6,14 +7,8 @@
   <title>Mestplaatsingsruimte</title>
   <link rel="stylesheet" href="style.css"/>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-
-  <!-- 1) Leaflet.js -->
   <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <!-- 2) proj4.js voor RD-transformaties (EPSG:28992) -->
-  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.7.5/proj4.js"></script>
-  <!-- 3) Jouw kaartlogica met bodemsoort + perceel-opvraag -->
   <script defer src="kaart.js"></script>
-  <!-- 4) Mestberekening -->
   <script defer src="berekening.js"></script>
 </head>
 <body>
@@ -47,6 +42,15 @@
 
       <label>NV-gebied?
         <input id="nvgebied" readonly />
+      </label>
+
+      <!-- Nieuwe velden -->
+      <label>Perceel
+        <input id="perceel" readonly />
+      </label>
+
+      <label>Oppervlakte (m²)
+        <input id="oppervlakte" readonly />
       </label>
 
       <button type="submit">Bereken gebruiksruimte</button>
