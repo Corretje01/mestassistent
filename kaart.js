@@ -64,7 +64,7 @@ map.on('click', async e => {
     params.append('outputFormat', 'application/json');  // use JSON output format supported by WFS v5_0
   params.append('srsName', 'EPSG:4326');
   params.append('count', '1');
-    params.append('CQL_FILTER', `INTERSECTS(geometry,POINT(${lon} ${lat}))`);  // use 'geometry' attribute for WFS v5_0
+      params.append('CQL_FILTER', `INTERSECTS(geometrie,POINT(${lon} ${lat}))`);  // Dutch geometry attribute  // use 'geometry' attribute for WFS v5_0
 
   const url = `${wfsBase}?${params.toString()}`;
 
