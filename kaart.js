@@ -1,4 +1,4 @@
-// kaart.js — met soilMapping, RVO-categorieën en interactieve parcel-selectie
+// kaart.js — met soilMapping, RVO-categorieën en interactieve parcel-selectie via BBOX
 
 // Zet DEBUG op true om extra logs te zien
 const DEBUG = false;
@@ -48,32 +48,39 @@ map.on('click', async e => {
     window.huidigeGrond = 'Onbekend';
   }
 
-  // **4) Vorige parcel highlight verwijderen**
+  // **4) Vorige highlight verwijderen**
   if (parcelLayer) {
     map.removeLayer(parcelLayer);
     parcelLayer = null;
   }
 
-  // **5) Perceel ophalen via INSPIRE WFS v1_0**
-  const wfsBase = 'https://service.pdok.nl/kadaster/cp/wfs/v1_0';
-  const params = new URLSearchParams();
-  params.append('service', 'WFS');
-  params.append('version', '1.1.0');
-  params.append('request', 'GetFeature');
-  params.append('typeName', 'Perceel');            // singular voor WFS 1.1.0
-    params.append('outputFormat', 'application/json');  // use JSON output format supported by WFS v5_0
-  params.append('srsName', 'EPSG:4326');
-  params.append('count', '1');
-      params.append('CQL_FILTER', `INTERSECTS(geometrie,POINT(${lon} ${lat}))`);  // Dutch geometry attribute  // use 'geometry' attribute for WFS v5_0
+  // **5) Perceel ophalen via WFS v5_0 met kleine BBOX (±2 m)**
+  const wfsBase = 'https://service.pdok.nl/kadaster/kadastralekaart/wfs/v5_0';
+  const delta  = 0.00002; // ~2 meter in degrees
+  const minLon = parseFloat(lon) - delta;
+  const minLat = parseFloat(lat) - delta;
+  const maxLon = parseFloat(lon) + delta;
+  const maxLat = parseFloat(lat) + delta;
+  const bbox   = `${minLon},${minLat},${maxLon},${maxLat},EPSG:4326`;
 
+  const params = new URLSearchParams({
+    service:      'WFS',
+    version:      '2.0.0',
+    request:      'GetFeature',
+    typeNames:    'kadastralekaart:Perceel',
+    outputFormat: 'application/json',
+    srsName:      'EPSG:4326',
+    count:        '1',
+    bbox
+  });
   const url = `${wfsBase}?${params.toString()}`;
 
-  if (DEBUG) console.log('Parcel WFS URL:', url);
+  if (DEBUG) console.log('Parcel WFS URL (bbox):', url);
 
   try {
-    const r = await fetch(url);
+    const r    = await fetch(url);
     const data = await r.json();
-    if (!r.ok) throw new Error(r.status);
+    if (!r.ok) throw new Error(`WFS fout: ${r.status}`);
     const feat = data.features?.[0];
     if (!feat) {
       alert('Geen perceel gevonden op deze locatie.');
@@ -87,13 +94,15 @@ map.on('click', async e => {
     map.fitBounds(parcelLayer.getBounds());
 
     // **7) Lees eigenschappen en vul form in**
-    const p = feat.properties;
-    const opp    = p.kadastraleGrootteWaarde;
-    const naam   = p.weergavenaam || `${p.kadastraleGemeenteWaarde} ${p.sectie} ${p.perceelnummer}`;
+    const p    = feat.properties;
+    const opp  = p.kadastraleGrootteWaarde;
+    const naam = p.weergavenaam ||
+                 `${p.kadastraleGemeenteWaarde} ${p.sectie} ${p.perceelnummer}`;
 
-    alert(`Perceel: ${naam}\nOppervlakte: ${opp ?? 'n.v.t.'} m²`);
-    if (opp) document.getElementById('hectare').value = (opp/10000).toFixed(2);
-
+    alert(`Perceel: ${naam}\nOppervlakte: ${opp != null ? opp+' m²' : 'n.v.t.'}`);
+    if (opp != null) {
+      document.getElementById('hectare').value = (opp/10000).toFixed(2);
+    }
   } catch (err) {
     console.error('Perceel fout:', err);
     if (LIVE_ERRORS) alert('Fout bij ophalen perceel.');
