@@ -1,8 +1,8 @@
 // kaart.js — met soilMapping, RVO-categorieën en interactieve parcel-selectie
 
 // Zet DEBUG op true om extra logs te zien
-enconst DEBUG = false;
-enconst LIVE_ERRORS = true;
+const DEBUG = false;
+const LIVE_ERRORS = true;
 
 // **1) Soil-mapping inladen**
 let soilMapping = [];
