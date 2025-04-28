@@ -1,4 +1,4 @@
-// kaart.js — multi‐parcel select/deselect met debug‐logs
+// kaart.js — multi‐parcel select/deselect met uitgebreide debug‐logging
 
 const DEBUG = false;
 const LIVE_ERRORS = true;
@@ -27,6 +27,7 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 const selectedParcels = [];
 
 map.on('click', async e => {
+  // afgeronde click‐coördinaten
   const lon = parseFloat(e.latlng.lng.toFixed(6));
   const lat = parseFloat(e.latlng.lat.toFixed(6));
   const pt  = turf.point([lon, lat]);
@@ -48,7 +49,7 @@ map.on('click', async e => {
   let rawSoil;
   try {
     const respSoil = await fetch(`/.netlify/functions/bodemsoort?lon=${lon}&lat=${lat}`);
-    const pSoil = await respSoil.json();
+    const pSoil    = await respSoil.json();
     if (!respSoil.ok) throw new Error(pSoil.error || respSoil.status);
     rawSoil = pSoil.grondsoort;
   } catch (err) {
@@ -74,10 +75,15 @@ map.on('click', async e => {
     return;
   }
 
-  // 3d) Debug‐logs voor point-in-polygon
+  // 3d) Uitgebreide debug‐logging
   console.groupCollapsed('🔍 Debug parcel-selection');
   console.log('Click point:', [lon, lat]);
-  console.log('Received geometry:', feat.geometry);
+  console.log('Polygon ring coords:', feat.geometry.coordinates[0]);
+  // bereken afstand tot elk hoekpunt (in graden)
+  const distances = feat.geometry.coordinates[0].map(coord =>
+    turf.distance(pt, turf.point(coord), { units: 'degrees' })
+  );
+  console.log('Min afstand tot hoekpunt (°):', Math.min(...distances));
   const contains = turf.booleanPointInPolygon(pt, feat.geometry);
   console.log('booleanPointInPolygon →', contains);
   console.groupEnd();
