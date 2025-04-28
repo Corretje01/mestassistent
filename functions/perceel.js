@@ -10,12 +10,12 @@ export async function handler(event) {
     };
   }
 
-  // Bouw CQL_FILTER met een spatie (lon lat), en escape die met encodeURIComponent
+  // Bouw de CQL filter en escape ‘m
   const cql       = `CONTAINS(geometry,POINT(${lon} ${lat}))`;
   const filterEnc = encodeURIComponent(cql);
 
   const wfsBase = 'https://service.pdok.nl/kadaster/kadastralekaart/wfs/v5_0';
-  const url =
+  const pdokUrl =
     `${wfsBase}` +
     `?service=WFS` +
     `&version=2.0.0` +
@@ -27,12 +27,16 @@ export async function handler(event) {
     `&CQL_FILTER=${filterEnc}`;
 
   try {
-    const res  = await fetch(url);
+    const res  = await fetch(pdokUrl);
     const json = await res.json();
+    // plak de URL erin zodat we ‘m op de client terug kunnen zien
     return {
       statusCode: 200,
       headers: { 'Access-Control-Allow-Origin': '*' },
-      body: JSON.stringify(json)
+      body: JSON.stringify({
+        debugUrl: pdokUrl,
+        ...json
+      })
     };
   } catch (err) {
     return {
