@@ -6,8 +6,7 @@ const LIVE_ERRORS = true;
 // 1) Soil‐mapping inladen
 let soilMapping = [];
 fetch('/data/soilMapping.json')
-  .then(r => r.json())
-  .then(j => soilMapping = j)
+  .then(r => r.json()).then(j => soilMapping = j)
   .catch(err => console.error('❌ Kan soilMapping.json niet laden:', err));
 function getBaseCategory(name) {
   const e = soilMapping.find(x => x.name === name);
@@ -16,19 +15,19 @@ function getBaseCategory(name) {
 
 // 2) Leaflet init
 const map = L.map('map').setView([52.1,5.1],7);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
   attribution:'© OSM contributors'
 }).addTo(map);
 
-// 3) Geselecteerde percelen
-let parcels = []; // { id, layer, props... }
+// 3) Data‐structuur voor geselecteerde percelen
+let parcels = []; // elk element: { id, layer, props }
 
-// 4) Unieke ID
+// Hulpfunctie: maak unieke ID
 function uuid() {
   return 'p_' + Math.random().toString(36).slice(2);
 }
 
-// 5) UI renderen
+// 4) Helper: render UI‐lijst
 function renderParcelList() {
   const container = document.getElementById('parcelList');
   container.innerHTML = '';
@@ -56,17 +55,16 @@ function renderParcelList() {
       </div>
       <button class="remove-btn">Verwijder</button>
     `;
-    // Verwijder-button
-    div.querySelector('.remove-btn').onclick = () => removeParcel(p.id);
-    // Bijwerken
-    div.querySelector('.teelt').onchange    = e => { p.gewas = e.target.value; };
+    div.querySelector('.remove-btn').onclick = () => {
+      removeParcel(p.id);
+    };
+    div.querySelector('.teelt').onchange = e => { p.gewas = e.target.value; };
     div.querySelector('.derogatie').onchange = e => { p.derogatie = e.target.value; };
-
     container.append(div);
   });
 }
 
-// 6) Verwijder perceel
+// 5) Helper: verwijder perceel uit kaart + UI
 function removeParcel(id) {
   const idx = parcels.findIndex(p=>p.id===id);
   if (idx<0) return;
@@ -75,12 +73,12 @@ function removeParcel(id) {
   renderParcelList();
 }
 
-// 7) Klik-handler
+// 6) Click‐handler
 map.on('click', async e => {
   const lon = e.latlng.lng.toFixed(6);
   const lat = e.latlng.lat.toFixed(6);
 
-  // Deselect als binnen bestaand perceel
+  // 6a) binnen een bestaand perceel? → deselect
   for (let p of parcels) {
     if (p.layer.getBounds().contains(e.latlng)) {
       removeParcel(p.id);
@@ -88,30 +86,30 @@ map.on('click', async e => {
     }
   }
 
-  // Ophalen via Netlify-proxy
+  // 6b) Ophalen via Netlify‐proxy
   const url = `/.netlify/functions/perceel?lon=${lon}&lat=${lat}`;
-  if (DEBUG) console.log('Perceel URL →',url);
+  if (DEBUG) console.log('Proxy-perceel URL →',url);
 
   try {
-    const r    = await fetch(url);
+    const r = await fetch(url);
     const data = await r.json();
     if (!r.ok) throw new Error(data.error||r.status);
     const feat = data.features?.[0];
     if (!feat) return;
 
-    // Highlight
+    // 6c) Highlight nieuwe perceel
     const layer = L.geoJSON(feat.geometry, {
       style:{ color:'#1e90ff', weight:2, fillOpacity:0.2 }
     }).addTo(map);
 
-    // Lees props
+    // 6d) Lees properties
     const props = feat.properties;
-    const name  = props.weergavenaam ||
+    const name = props.weergavenaam ||
       `${props.kadastraleGemeenteWaarde} ${props.sectie} ${props.perceelnummer}`;
-    const opp   = props.kadastraleGrootteWaarde; // m²
-    const ha    = opp!=null? (opp/10000).toFixed(2) : '';
+    const opp  = props.kadastraleGrootteWaarde; // m2
+    const ha   = opp!=null? (opp/10000).toFixed(2) : '';
 
-    // Bodemsoort ophalen indien nodig
+    // 6e) Bodemsoort ophalen als nodig
     let baseCat = window.huidigeGrond;
     if (!baseCat || baseCat==='Onbekend') {
       try {
@@ -121,16 +119,17 @@ map.on('click', async e => {
       } catch {}
     }
 
-    // Voeg toe
+    // 6f) voeg toe aan lijst
+    const id = uuid();
     parcels.push({
-      id: uuid(),
+      id,
       layer,
       name,
       grondsoort: baseCat,
-      nvgebied:   window.isNV? 'Ja':'Nee',
+      nvgebied: window.isNV? 'Ja':'Nee',
       ha,
-      gewas:      'mais',
-      derogatie:  'nee'
+      gewas: 'mais',
+      derogatie: 'nee'
     });
     renderParcelList();
 
@@ -138,4 +137,4 @@ map.on('click', async e => {
     console.error('Perceel fout:',err);
     if (LIVE_ERRORS) alert('Fout bij ophalen perceel.');
   }
-});
+}); :contentReference[oaicite:2]{index=2}
