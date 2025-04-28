@@ -1,111 +1,141 @@
-// kaart.js — met check op dubbele selectie
+// kaart.js — multi-perceel selectie + dynamic UI
 
-// 0) State: lijst van geselecteerde percelen
-const parcels = []; // elk element: { featureId, layer, naam, ha, grondsoort, nvgebied }
+const DEBUG = false;
+const LIVE_ERRORS = true;
 
-// Hulpfunctie om de UI-lijst te renderen (ongewijzigd)
+// 1) Soil‐mapping inladen
+let soilMapping = [];
+fetch('/data/soilMapping.json')
+  .then(r => r.json())
+  .then(j => soilMapping = j)
+  .catch(err => console.error('❌ Kan soilMapping.json niet laden:', err));
+function getBaseCategory(name) {
+  const e = soilMapping.find(x => x.name === name);
+  return e?.category || 'Onbekend';
+}
+
+// 2) Leaflet init
+const map = L.map('map').setView([52.1,5.1],7);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution:'© OSM contributors'
+}).addTo(map);
+
+// 3) Geselecteerde percelen
+let parcels = []; // { id, layer, props... }
+
+// 4) Unieke ID
+function uuid() {
+  return 'p_' + Math.random().toString(36).slice(2);
+}
+
+// 5) UI renderen
 function renderParcelList() {
   const container = document.getElementById('parcelList');
   container.innerHTML = '';
-  parcels.forEach((p,i) => {
+  parcels.forEach(p => {
     const div = document.createElement('div');
-    div.className = 'parcel-item';
+    div.classList.add('parcel-item');
+    div.dataset.id = p.id;
     div.innerHTML = `
-      <strong>${i+1}. ${p.naam}</strong><br>
-      Opp: ${p.ha} ha · Bodem: ${p.grondsoort}<br>
-      <button data-id="${p.featureId}" class="remove-btn">Verwijder</button>
+      <div class="form-group"><label>Perceel</label><input readonly value="${p.name}"></div>
+      <div class="form-group"><label>Grondsoort</label><input readonly value="${p.grondsoort}"></div>
+      <div class="form-group"><label>NV-gebied?</label><input readonly value="${p.nvgebied}"></div>
+      <div class="form-group"><label>Ha (ha)</label><input readonly value="${p.ha}"></div>
+      <div class="form-group"><label>Teelt</label>
+        <select class="teelt">
+          <option value="mais"${p.gewas==='mais'?' selected':''}>Maïs</option>
+          <option value="tarwe"${p.gewas==='tarwe'?' selected':''}>Tarwe</option>
+          <option value="suikerbieten"${p.gewas==='suikerbieten'?' selected':''}>Suikerbieten</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Derogatie</label>
+        <select class="derogatie">
+          <option value="nee"${p.derogatie==='nee'?' selected':''}>Nee</option>
+          <option value="ja"${p.derogatie==='ja'?' selected':''}>Ja</option>
+        </select>
+      </div>
+      <button class="remove-btn">Verwijder</button>
     `;
-    div.querySelector('.remove-btn')
-       .addEventListener('click', () => removeParcel(p.featureId));
+    // Verwijder-button
+    div.querySelector('.remove-btn').onclick = () => removeParcel(p.id);
+    // Bijwerken
+    div.querySelector('.teelt').onchange    = e => { p.gewas = e.target.value; };
+    div.querySelector('.derogatie').onchange = e => { p.derogatie = e.target.value; };
+
     container.append(div);
   });
 }
 
-function removeParcel(featureId) {
-  const idx = parcels.findIndex(p => p.featureId === featureId);
-  if (idx === -1) return;
+// 6) Verwijder perceel
+function removeParcel(id) {
+  const idx = parcels.findIndex(p=>p.id===id);
+  if (idx<0) return;
   map.removeLayer(parcels[idx].layer);
-  parcels.splice(idx, 1);
+  parcels.splice(idx,1);
   renderParcelList();
 }
 
-// 1) Init kaart
-const map = L.map('map').setView([52.1, 5.1], 7);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  attribution: '© OSM contributors'
-}).addTo(map);
-
-// 2) Kadastrale achtergrond (WMS)
-L.tileLayer.wms('https://service.pdok.nl/kadaster/kadastralekaart/wms/v5_0', {
-  layers: 'kadastralekaart:Perceel',
-  format: 'image/png',
-  transparent: true,
-  attribution: 'Kadaster via PDOK'
-}).addTo(map);
-
-// 3) Soil‐mapping helper (ongewijzigd)
-let soilMapping = [];
-fetch('/data/soilMapping.json')
-  .then(r => r.json()).then(j => soilMapping = j)
-  .catch(() => {});
-function getBaseCategory(raw) {
-  const e = soilMapping.find(x => x.name === raw);
-  return e?.category || 'Onbekend';
-}
-
-// 4) Klik‐handler: selecteer / deselecteer
+// 7) Klik-handler
 map.on('click', async e => {
-  const lon = e.latlng.lng.toFixed(6),
-        lat = e.latlng.lat.toFixed(6);
+  const lon = e.latlng.lng.toFixed(6);
+  const lat = e.latlng.lat.toFixed(6);
 
-  // 4a) Check dubbele selectie: haal bestaande featureId's op
-  // → eerst de proxy-url
-  const proxyUrl = `/.netlify/functions/perceel?lon=${lon}&lat=${lat}`;
-  let feat;
-  try {
-    const resp = await fetch(proxyUrl);
-    const data = await resp.json();
-    feat = data.features?.[0];
-    if (!feat) return; // geen perceel hier
-  } catch {
-    return;
+  // Deselect als binnen bestaand perceel
+  for (let p of parcels) {
+    if (p.layer.getBounds().contains(e.latlng)) {
+      removeParcel(p.id);
+      return;
+    }
   }
 
-  // 4b) Als dit featureId al in parcels zit, negeren we de klik
-  if (parcels.some(p => p.featureId === feat.id)) {
-    return; // al geselecteerd, niet opnieuw toevoegen
-  }
+  // Ophalen via Netlify-proxy
+  const url = `/.netlify/functions/perceel?lon=${lon}&lat=${lat}`;
+  if (DEBUG) console.log('Perceel URL →',url);
 
-  // 4c) Highlight en UI toevoegen
-  const layer = L.geoJSON(feat.geometry, {
-    style: { color: '#1e90ff', weight: 2, fillOpacity: 0.2 }
-  }).addTo(map);
-  map.fitBounds(layer.getBounds());
-
-  // Lees properties
-  const props = feat.properties;
-  const naam = props.weergavenaam
-             || `${props.kadastraleGemeenteWaarde} ${props.sectie} ${props.perceelnummer}`;
-  const opp  = props.kadastraleGrootteWaarde;
-  const ha   = opp!=null ? (opp/10000).toFixed(2) : '';
-
-  // NV‐gebied en bodemsoort
-  const nvgebied = window.isNV ? 'Ja' : 'Nee';
-  let grondsoort = 'Onbekend';
   try {
-    const r = await fetch(`/.netlify/functions/bodemsoort?lon=${lon}&lat=${lat}`);
-    const j = await r.json();
-    if (r.ok) grondsoort = getBaseCategory(j.grondsoort);
-  } catch {}
+    const r    = await fetch(url);
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error||r.status);
+    const feat = data.features?.[0];
+    if (!feat) return;
 
-  // Push naar onze state en render opnieuw
-  parcels.push({
-    featureId: feat.id,
-    layer,
-    naam,
-    ha,
-    grondsoort,
-    nvgebied
-  });
-  renderParcelList();
+    // Highlight
+    const layer = L.geoJSON(feat.geometry, {
+      style:{ color:'#1e90ff', weight:2, fillOpacity:0.2 }
+    }).addTo(map);
+
+    // Lees props
+    const props = feat.properties;
+    const name  = props.weergavenaam ||
+      `${props.kadastraleGemeenteWaarde} ${props.sectie} ${props.perceelnummer}`;
+    const opp   = props.kadastraleGrootteWaarde; // m²
+    const ha    = opp!=null? (opp/10000).toFixed(2) : '';
+
+    // Bodemsoort ophalen indien nodig
+    let baseCat = window.huidigeGrond;
+    if (!baseCat || baseCat==='Onbekend') {
+      try {
+        const br = await fetch(`/.netlify/functions/bodemsoort?lon=${lon}&lat=${lat}`);
+        const pj = await br.json();
+        if (br.ok) baseCat = getBaseCategory(pj.grondsoort);
+      } catch {}
+    }
+
+    // Voeg toe
+    parcels.push({
+      id: uuid(),
+      layer,
+      name,
+      grondsoort: baseCat,
+      nvgebied:   window.isNV? 'Ja':'Nee',
+      ha,
+      gewas:      'mais',
+      derogatie:  'nee'
+    });
+    renderParcelList();
+
+  } catch(err) {
+    console.error('Perceel fout:',err);
+    if (LIVE_ERRORS) alert('Fout bij ophalen perceel.');
+  }
 });
