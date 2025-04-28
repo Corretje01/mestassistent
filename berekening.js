@@ -4,13 +4,13 @@ if (mestForm) {
   mestForm.addEventListener('submit', e => {
     e.preventDefault();
 
-    // Zorg dat er minstens één perceel geselecteerd is
-    if (!window.parcels || window.parcels.length === 0) {
+    // 1) check of de globale 'parcels' array bestaat en items heeft
+    if (typeof parcels === 'undefined' || parcels.length === 0) {
       alert('Selecteer eerst minstens één perceel.');
       return;
     }
 
-    // RVO-normen
+    // 2) RVO-normen
     const normen = {
       mais: {
         grond: { Zand: { B: 185 }, Klei: { B: 140 }, Veen: { B: 112 } },
@@ -34,8 +34,8 @@ if (mestForm) {
     let totaalN = 0;
     let totaalP = 0;
 
-    // Loop over alle geselecteerde percelen
-    window.parcels.forEach(p => {
+    // 3) Loop over alle geselecteerde percelen
+    parcels.forEach(p => {
       const ha = parseFloat(p.ha) || 0;
       const gewasKey = p.gewas;
       const deriv = p.derogatie === 'ja';
@@ -45,34 +45,30 @@ if (mestForm) {
       const m = normen[gewasKey];
       if (!m) return; // onbekend gewas, skip
 
-      // Norm A (N dierlijk per ha)
+      // bereken A_per_ha, B_per_ha en C_per_ha
       let A_ha = m.A;
       if (isNV && m.A_NVkort) {
         A_ha = A_ha * (100 - m.A_NVkort) / 100;
       }
 
-      // Norm B (N totaal per ha)
-      let B_ha = m.grond[grond]?.B ?? m.grond['Zand'].B;
+      let B_ha = m.grond[grond]?.B ?? m.grond.Zand.B;
       if (deriv) {
         B_ha = isNV ? m.B_derog_NV : m.B_derog_rest;
       }
 
-      // Norm C (P per ha)
       const C_ha = m.C;
 
-      // Totaal per perceel
+      // totale hoeveelheden per perceel
       const A = A_ha * ha;
       const B = B_ha * ha;
       const C = C_ha * ha;
 
-      // Toegestane stikstof = minimum van A en B
-      const N_toegestaan = Math.min(A, B);
-
-      totaalN += N_toegestaan;
+      // toegestane stikstof is min(A,B)
+      totaalN += Math.min(A, B);
       totaalP += C;
     });
 
-    // Toon het eindresultaat
+    // 4) Toon het eindresultaat
     document.getElementById('resultaat').innerHTML = `
       <div class="resultaat-blok">
         <h2>Eindtotaal mestruimte</h2>
