@@ -1,16 +1,15 @@
 <!DOCTYPE html>
 <html lang="nl">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Mestplaatsingsruimte</title>
-  <link rel="stylesheet" href="style.css"/>
+  <link rel="stylesheet" href="style.css" />
 
-  <!-- Leaflet CSS -->
+  <!-- Leaflet CSS (zonder integrity zodat het niet geblokkeerd wordt) -->
   <link
     rel="stylesheet"
     href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-    integrity="sha512-1wqj+J0N7+tzZEPsZYJXSLZBgvoYkCxlXBvPqaFP8iIGk6jT8fMOzT0KBXpr8CgmrLZMj5xqzaRgaS5lskmYcw=="
     crossorigin=""
   />
 </head>
@@ -18,13 +17,13 @@
   <div id="container">
     <h1>Mestplaatsingsruimte-calculator</h1>
 
-    <!-- 1. De kaart -->
+    <!-- 1) Kaart -->
     <div id="map" class="map"></div>
 
-    <!-- 2. Lijst met geselecteerde percelen -->
+    <!-- 2) Lijst met geselecteerde percelen -->
     <div id="parcelList" class="parcel-list"></div>
 
-    <!-- 3. Formulier voor de berekening -->
+    <!-- 3) Formulier -->
     <form id="mestForm">
       <div class="form-grid">
         <div class="form-group">
@@ -64,20 +63,19 @@
       </div>
     </form>
 
-    <!-- 4. Resultaat -->
+    <!-- 4) Resultaat -->
     <div id="resultaat" class="resultaat-blok"></div>
   </div>
 
-  <!-- Leaflet JS -->
+  <!-- Leaflet JS (zonder integrity) -->
   <script
-    defer
     src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-    integrity="sha512-nMNlpuaDPrql/nYY1Dw6v7nvB4XP/2b5aWb6h59dGSZTnUAdhZrJyk6F3kU1ZUanGfNH79wIVQx5G5rpKa0bMg=="
     crossorigin=""
   ></script>
-
-  <!-- Jouw scripts -->
-  <script defer src="kaart.js"></script>
-  <script defer src="berekening.js"></script>
+  <!-- Turf (optioneel, als je die check nog nodig hebt) -->
+  <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+  <!-- Jouw eigen scripts -->
+  <script src="kaart.js"></script>
+  <script src="berekening.js"></script>
 </body>
 </html>
