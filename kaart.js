@@ -1,16 +1,17 @@
-// kaart.js — multi‐parcel select/deselect met uitgebreide debug‐logging
+// kaart.js — multi‐parcel select/deselect met proxy‐URL debug
 
-const DEBUG = false;
+// Zet DEBUG op true om alle URL’s en geometry‐checks te loggen
+const DEBUG = true;
 const LIVE_ERRORS = true;
 
 // 1) Soil‐mapping inladen
 let soilMapping = [];
 fetch('/data/soilMapping.json')
   .then(res => res.json())
-  .then(j => soilMapping = j)
+  .then(json => soilMapping = json)
   .catch(err => console.error('❌ Kan soilMapping.json niet laden:', err));
 
-// Helper: RVO‐basis‐categorie bepalen
+// Helper: RVO‐basis‐categorie bepalen uit raw bodem‐naam
 function getBaseCategory(soilName) {
   const entry = soilMapping.find(e => e.name === soilName);
   return entry?.category || 'Onbekend';
@@ -22,30 +23,32 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   attribution: '&copy; OSM contributors'
 }).addTo(map);
 
-// 2a) Array met alle geselecteerde percelen
-//    ieder item: { layer: L.GeoJSON, cardId: string, geom: GeoJSON }
+// 2a) Houd alle geselecteerde percelen bij
+//    elk item = { layer: L.GeoJSON, cardId: string, geom: GeoJSON }
 const selectedParcels = [];
 
+// 3) Klik‐handler
 map.on('click', async e => {
-  // afgeronde click‐coördinaten
+  // 3.1 Ronde coördinaten af op 6 decimalen
   const lon = parseFloat(e.latlng.lng.toFixed(6));
   const lat = parseFloat(e.latlng.lat.toFixed(6));
   const pt  = turf.point([lon, lat]);
   const parcelList = document.getElementById('parcelList');
 
-  // 3a) Deselec­t: klik binnen bestaand polygon?
+  // 3.2 Deselec­t: kijk of je binnen een bestaand perceel klikt
   for (let i = 0; i < selectedParcels.length; i++) {
     const { layer, cardId, geom } = selectedParcels[i];
     if (turf.booleanPointInPolygon(pt, geom)) {
+      // Verwijder highlight en bijbehorende card
       map.removeLayer(layer);
       document.getElementById(cardId)?.remove();
       selectedParcels.splice(i, 1);
-      if (DEBUG) console.log('Deselected parcel', cardId);
+      if (DEBUG) console.log(`🔸 Deselected parcel ${cardId}`);
       return;
     }
   }
 
-  // 3b) Bodemsoort ophalen
+  // 3.3 Bodemsoort ophalen
   let rawSoil;
   try {
     const respSoil = await fetch(`/.netlify/functions/bodemsoort?lon=${lon}&lat=${lat}`);
@@ -58,10 +61,14 @@ map.on('click', async e => {
   }
   const baseCat = getBaseCategory(rawSoil);
 
-  // 3c) Perceel ophalen met strikt point-in-polygon server-filter
+  // 3.4 Bouw en log de proxy‐URL voor perceel‐fetch
+  const proxyUrl = `/.netlify/functions/perceel?lon=${lon}&lat=${lat}`;
+  if (DEBUG) console.log('🌐 Proxy-perceel URL →', proxyUrl);
+
+  // 3.5 Perceel ophalen via Netlify‐proxy
   let feat;
   try {
-    const resp = await fetch(`/.netlify/functions/perceel?lon=${lon}&lat=${lat}`);
+    const resp = await fetch(proxyUrl);
     const data = await resp.json();
     if (!resp.ok) throw new Error(data.error || resp.status);
     if (!data.features?.[0]) {
@@ -75,11 +82,10 @@ map.on('click', async e => {
     return;
   }
 
-  // 3d) Uitgebreide debug‐logging
+  // 3.6 Uitgebreide debug‐logging: ring‐coords, afstand en contains
   console.groupCollapsed('🔍 Debug parcel-selection');
   console.log('Click point:', [lon, lat]);
   console.log('Polygon ring coords:', feat.geometry.coordinates[0]);
-  // bereken afstand tot elk hoekpunt (in graden)
   const distances = feat.geometry.coordinates[0].map(coord =>
     turf.distance(pt, turf.point(coord), { units: 'degrees' })
   );
@@ -93,24 +99,24 @@ map.on('click', async e => {
     return;
   }
 
-  // 3e) Highlight perceel op de kaart
+  // 3.7 Highlight het perceel op de kaart
   const parcelLayer = L.geoJSON(feat.geometry, {
     style: { color: '#1e90ff', weight: 2, fillOpacity: 0.2 }
   }).addTo(map);
   map.fitBounds(parcelLayer.getBounds());
 
-  // 3f) Maak en toon card met perceel‐data
+  // 3.8 Maak een card voor dit perceel
   const props = feat.properties;
-  const naam = props.weergavenaam
+  const naam  = props.weergavenaam
     || `${props.kadastraleGemeenteWaarde} ${props.sectie} ${props.perceelnummer}`;
   const oppHa = props.kadastraleGrootteWaarde != null
     ? (props.kadastraleGrootteWaarde / 10000).toFixed(2)
     : '';
 
   const cardId = `parcel-${Date.now()}`;
-  const card = document.createElement('div');
+  const card   = document.createElement('div');
   card.className = 'parcel-card';
-  card.id = cardId;
+  card.id        = cardId;
   card.innerHTML = `
     <h3>${naam}</h3>
     <div class="card-grid">
@@ -145,12 +151,12 @@ map.on('click', async e => {
   `;
   parcelList.appendChild(card);
 
-  // 3g) Voeg toe aan selectedParcels
+  // 3.9 Sla op in selectedParcels
   selectedParcels.push({
     layer: parcelLayer,
     cardId,
     geom: feat.geometry
   });
 
-  if (DEBUG) console.log('Selected parcels:', selectedParcels);
+  if (DEBUG) console.log('✅ Selected parcels:', selectedParcels);
 });
