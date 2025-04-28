@@ -3,27 +3,37 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Mestplaatsingsruimte</title>
+  <title>Mestplaatsingsruimte-calculator</title>
+
+  <!-- Eigen stylesheet -->
   <link rel="stylesheet" href="style.css" />
 
-  <!-- Leaflet CSS (zonder integrity zodat het niet geblokkeerd wordt) -->
+  <!-- Leaflet zonder integrity-attributen (anders worden ze geblokkeerd) -->
   <link
     rel="stylesheet"
     href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-    crossorigin=""
   />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- Turf (voor geavanceerde ruimtelijke checks, indien nodig) -->
+  <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+
+  <!-- Eigen script achteraan, na Leaflet -->
+  <script defer src="kaart.js"></script>
+  <script defer src="berekening.js"></script>
 </head>
+
 <body>
   <div id="container">
     <h1>Mestplaatsingsruimte-calculator</h1>
 
-    <!-- 1) Kaart -->
+    <!-- De kaart -->
     <div id="map" class="map"></div>
 
-    <!-- 2) Lijst met geselecteerde percelen -->
+    <!-- Dynamische lijst met geselecteerde percelen -->
     <div id="parcelList" class="parcel-list"></div>
 
-    <!-- 3) Formulier -->
+    <!-- Het formulier (kan leeg blijven, vullen gebeurt via parcelList) -->
     <form id="mestForm">
       <div class="form-grid">
         <div class="form-group">
@@ -58,24 +68,13 @@
           </select>
         </div>
       </div>
+
       <div class="form-actions">
         <button type="submit">Bereken gebruiksruimte</button>
       </div>
     </form>
 
-    <!-- 4) Resultaat -->
     <div id="resultaat" class="resultaat-blok"></div>
   </div>
-
-  <!-- Leaflet JS (zonder integrity) -->
-  <script
-    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-    crossorigin=""
-  ></script>
-  <!-- Turf (optioneel, als je die check nog nodig hebt) -->
-  <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
-  <!-- Jouw eigen scripts -->
-  <script src="kaart.js"></script>
-  <script src="berekening.js"></script>
 </body>
 </html>
