@@ -1,3 +1,4 @@
+<!-- index.html -->
 <!DOCTYPE html>
 <html lang="nl">
 <head>
@@ -5,26 +6,30 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>Mestplaatsingsruimte</title>
 
-  <!-- Eigen CSS -->
+  <!-- Onze styling -->
   <link rel="stylesheet" href="style.css"/>
 
   <!-- Leaflet -->
   <link
     rel="stylesheet"
     href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha512-PoK7QMZCM0yXlseTjPUEhY+l3g4AkaeAVbYT3H06gfj6YVcOm0hLS0KnnZM2j7Wt8UZacH2HEd1Y7wYDLrA4pA=="
+    crossorigin=""
   />
   <script
     defer
     src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha512-8w+EVE7bN9UtpTi4Le+hSgmbhQcdVQVH3Mq3kzD3n4b4S4lmvWvHg3uWxM2rqaBr8x2ZAZsEfGkz4e1StkzLmw=="
+    crossorigin=""
   ></script>
 
-  <!-- Turf.js voor punt-in-polygon check -->
+  <!-- Turf.js voor betrouwbare punt-in-polygon checks -->
   <script
     defer
     src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"
   ></script>
 
-  <!-- Eigen scripts -->
+  <!-- Onze kaart- en berekenings-scripts -->
   <script defer src="kaart.js"></script>
   <script defer src="berekening.js"></script>
 </head>
@@ -32,10 +37,13 @@
   <div id="container">
     <h1>Mestplaatsingsruimte-calculator</h1>
 
-    <!-- Kaart -->
+    <!-- De kaart -->
     <div id="map" class="map"></div>
 
-    <!-- Formulier -->
+    <!-- Dynamisch lijstje met geselecteerde percelen (toekomstig multi-select) -->
+    <div id="parcelList" class="parcel-list"></div>
+
+    <!-- Form voor de berekening -->
     <form id="mestForm">
       <div class="form-grid">
         <div class="form-group">
@@ -75,7 +83,6 @@
       </div>
     </form>
 
-    <!-- Resultaat -->
     <div id="resultaat" class="resultaat-blok"></div>
   </div>
 </body>
