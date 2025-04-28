@@ -25,19 +25,14 @@ map.on('click', async e => {
   const lon = e.latlng.lng.toFixed(6);
   const lat = e.latlng.lat.toFixed(6);
 
-// 2a) Toggle deselect: als je klikt binnen het huidige perceel
-if (parcelLayer && parcelLayer.getBounds().contains(e.latlng)) {
-  map.removeLayer(parcelLayer);
-  parcelLayer = null;
-
-  // Maak de inline velden helemaal leeg
-  document.getElementById('perceel').value    = '';
-  document.getElementById('hectare').value    = '';
-  document.getElementById('grondsoort').value = '';
-  document.getElementById('nvgebied').value   = '';
-
-  return;
-}
+  // 2a) Toggle deselect: als geklikt binnen huidige parcelLayer bounds
+  if (parcelLayer && parcelLayer.getBounds().contains(e.latlng)) {
+    map.removeLayer(parcelLayer);
+    parcelLayer = null;
+    document.getElementById('perceel').value = '';
+    document.getElementById('hectare').value = '';
+    return;
+  }
 
   // 3) Bodemsoort ophalen
   try {
