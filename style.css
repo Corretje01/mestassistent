@@ -22,31 +22,7 @@ body {
   margin-bottom: 1.5rem;
 }
 
-/* form-grid voor berekening */
-.form-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1rem 2rem;
-}
-.form-group {
-  display: flex;
-  flex-direction: column;
-}
-.form-group label {
-  font-weight: bold;
-  margin-bottom: 0.3rem;
-}
-input[readonly],
-input[type="number"],
-select {
-  padding: 0.6rem;
-  font-size: 1rem;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  background-color: #fdfdfd;
-}
-
-/* submitknop */
+/* alleen nog nodig voor de submitknop */
 .form-actions {
   margin-top: 1.5rem;
   text-align: center;
@@ -110,6 +86,7 @@ select {
   padding: 0.5rem 0.8rem;
   cursor: pointer;
   border-radius: 4px;
+  margin-top: 0.5rem;
 }
 .parcel-item .remove-btn:hover {
   background: #c0392b;
@@ -117,9 +94,6 @@ select {
 
 /* responsive tweaks */
 @media (max-width: 600px) {
-  .form-grid {
-    grid-template-columns: 1fr;
-  }
   .parcel-item .form-group {
     flex-direction: column;
     align-items: flex-start;
