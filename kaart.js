@@ -1,4 +1,4 @@
-// kaart.js — soilMapping + RVO-categorieën + toggle parcel-selectie + Turf-check
+// kaart.js — direct PDOK-WFS + Turf check
 
 const DEBUG = false;
 const LIVE_ERRORS = true;
@@ -14,7 +14,7 @@ function getBaseCategory(soilName) {
   return entry?.category || 'Onbekend';
 }
 
-// 1) Leaflet init
+// Leaflet init
 const map = L.map('map').setView([52.1, 5.1], 7);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   attribution: '&copy; OSM contributors'
@@ -26,18 +26,17 @@ map.on('click', async e => {
   const lon = e.latlng.lng.toFixed(6);
   const lat = e.latlng.lat.toFixed(6);
 
-  // 2) Deselect als binnen huidig perceel
+  // Deselec­te als je binnen huidig perceel klikt
   if (parcelLayer && parcelLayer.getBounds().contains(e.latlng)) {
     map.removeLayer(parcelLayer);
     parcelLayer = null;
-    document.getElementById('perceel').value    = '';
-    document.getElementById('hectare').value    = '';
-    document.getElementById('grondsoort').value = '';
-    document.getElementById('nvgebied').value   = '';
+    ['perceel','hectare','grondsoort','nvgebied'].forEach(id => {
+      document.getElementById(id).value = '';
+    });
     return;
   }
 
-  // 3) Bodemsoort ophalen
+  // Haal bodemsoort op
   try {
     const resp = await fetch(`/.netlify/functions/bodemsoort?lon=${lon}&lat=${lat}`);
     const p    = await resp.json();
@@ -51,21 +50,31 @@ map.on('click', async e => {
     window.huidigeGrond = 'Onbekend';
   }
 
-  // 4) Oude highlight weghalen
+  // Verwijder oude highlight
   if (parcelLayer) {
     map.removeLayer(parcelLayer);
     parcelLayer = null;
   }
 
-  // 5) Perceel via proxy-functie ophalen
-  const proxyUrl = `/.netlify/functions/perceel?lon=${lon}&lat=${lat}`;
-  if (DEBUG) console.log('🔗 Proxy-perceel URL:', proxyUrl);
+  // Bouw PDOK WFS-URL (direct, zonder proxy)
+  const params = new URLSearchParams({
+    service:      'WFS',
+    version:      '2.0.0',
+    request:      'GetFeature',
+    typeNames:    'kadastralekaart:Perceel',
+    outputFormat: 'application/json',
+    srsName:      'EPSG:4326',
+    count:        '1',
+    CQL_FILTER:   `CONTAINS(geometry,POINT(${lon}+${lat}))`
+  });
+  const wfsUrl = `https://service.pdok.nl/kadaster/kadastralekaart/wfs/v5_0?${params}`;
+  if (DEBUG) console.log('▶ PDOK WFS URL:', wfsUrl);
 
   let feat;
   try {
-    const r    = await fetch(proxyUrl);
+    const r    = await fetch(wfsUrl, { mode: 'cors' });
     const data = await r.json();
-    if (!r.ok) throw new Error(data.error || `Status ${r.status}`);
+    if (!r.ok) throw new Error(JSON.stringify(data));
     feat = data.features?.[0];
     if (!feat) {
       alert('Geen perceel gevonden op deze locatie.');
@@ -77,25 +86,22 @@ map.on('click', async e => {
     return;
   }
 
-  // 6) Turf-punt-in-polygon check
-  // Bouw eerst een Turf-Polygon van de GeoJSON-coords:
-  // feat.geometry.coordinates is [ [ [lng,lat], … ] ] voor één ring
+  // Turf-check: punt in polygon?
   const turfPoly  = turf.polygon(feat.geometry.coordinates);
-  const turfPoint = turf.point([parseFloat(lon), parseFloat(lat)]);
-
+  const turfPoint = turf.point([+lon, +lat]);
   if (!turf.booleanPointInPolygon(turfPoint, turfPoly)) {
     console.warn('⚠️ Turf check failed', feat.geometry.coordinates);
     alert('Klik viel net buiten de perceelgrens. Probeer nogmaals precies binnen te klikken.');
     return;
   }
 
-  // 7) Highlight perceel
+  // Highlight perceel & zoom
   parcelLayer = L.geoJSON(feat.geometry, {
     style: { color: '#1e90ff', weight: 2, fillOpacity: 0.2 }
   }).addTo(map);
   map.fitBounds(parcelLayer.getBounds());
 
-  // 8) Vul form-velden
+  // Velden vullen
   const props = feat.properties;
   const naam  = props.weergavenaam
                 || `${props.kadastraleGemeenteWaarde} ${props.sectie} ${props.perceelnummer}`;
@@ -105,6 +111,5 @@ map.on('click', async e => {
   document.getElementById('hectare').value  = opp != null
     ? (opp / 10000).toFixed(2)
     : '';
-  // NV-gebied invullen als window.isNV gedefinieerd zou zijn:
   document.getElementById('nvgebied').value = window.isNV ? 'Ja' : 'Nee';
 });
