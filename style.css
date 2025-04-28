@@ -1,39 +1,62 @@
-/* style.css */
+/* basis */
 body {
   font-family: Arial, sans-serif;
   background-color: #f9f9f9;
   margin: 0;
   padding: 0;
 }
+
 #container {
   max-width: 800px;
   margin: 2rem auto;
   background: #fff;
   padding: 2rem;
   border-radius: 10px;
-  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
+
+/* kaart */
 .map {
   width: 100%;
   height: 350px;
   border-radius: 6px;
   margin-bottom: 1.5rem;
 }
-/* Lijst met geselecteerde percelen boven het formulier */
+
+/* parcel-list */
 .parcel-list {
   margin-bottom: 1rem;
-  max-height: 150px;
-  overflow-y: auto;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  padding: 0.5rem;
 }
-/* Form-grid */
+.parcel-item {
+  background: #e3f2fd;
+  border: 1px solid #90caf9;
+  padding: 0.75rem;
+  border-radius: 4px;
+  margin-bottom: 0.5rem;
+  position: relative;
+}
+.parcel-item button.remove-btn {
+  position: absolute;
+  right: 0.75rem;
+  top: 0.75rem;
+  background: #f44336;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 0.3rem 0.6rem;
+  cursor: pointer;
+}
+.parcel-item button.remove-btn:hover {
+  background: #d32f2f;
+}
+
+/* formulier grid */
 .form-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 1rem 2rem;
 }
+
 .form-group {
   display: flex;
   flex-direction: column;
@@ -42,6 +65,7 @@ body {
   font-weight: bold;
   margin-bottom: 0.3rem;
 }
+
 input[readonly],
 input[type="number"],
 select {
@@ -49,8 +73,10 @@ select {
   font-size: 1rem;
   border: 1px solid #ccc;
   border-radius: 4px;
-  background-color: #fdfdfd;
+  background-color: #fcfcfc;
 }
+
+/* actieknop */
 .form-actions {
   margin-top: 1.5rem;
   text-align: center;
@@ -64,11 +90,13 @@ select {
   font-size: 1rem;
   cursor: pointer;
   width: 100%;
-  max-width: 300px;
+  max-width: 320px;
 }
 .form-actions button:hover {
   background-color: #0056b3;
 }
+
+/* resultaat-blok */
 .resultaat-blok {
   background-color: #e9f7ef;
   border: 1px solid #c3e6cb;
