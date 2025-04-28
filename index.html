@@ -4,41 +4,27 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>Mestplaatsingsruimte</title>
-
-  <!-- Eigen stylesheet -->
   <link rel="stylesheet" href="style.css"/>
 
-  <!-- Leaflet CSS/JS -->
+  <!-- Leaflet -->
   <link
     rel="stylesheet"
     href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
   />
-  <script
-    defer
-    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-  ></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-  <!-- Turf voor betrouwbare punt-in-polygon checks -->
-  <script
-    defer
-    src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"
-  ></script>
+  <!-- Turf voor nauwkeurige point-in-polygon -->
+  <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
 
-  <!-- Onze eigen scripts -->
+  <!-- Onze scripts -->
   <script defer src="kaart.js"></script>
   <script defer src="berekening.js"></script>
 </head>
 <body>
   <div id="container">
     <h1>Mestplaatsingsruimte-calculator</h1>
-
-    <!-- 1) De kaart -->
     <div id="map" class="map"></div>
 
-    <!-- 2) Hier verschijnen de blokken voor elk geselecteerd perceel -->
-    <div id="parcelList" class="parcel-list"></div>
-
-    <!-- 3) Het bestaande formulier voor de mestberekening -->
     <form id="mestForm">
       <div class="form-grid">
         <div class="form-group">
@@ -78,7 +64,6 @@
       </div>
     </form>
 
-    <!-- 4) Hier komt het resultaat van de berekening -->
     <div id="resultaat" class="resultaat-blok"></div>
   </div>
 </body>
