@@ -15,28 +15,27 @@
     <h1>Mestplaatsingsruimte-calculator</h1>
     <div id="map" class="map"></div>
 
+    <!-- STAP 1: Hier komen straks alle geselecteerde percelen -->
+    <div id="parcelList" class="parcel-list"></div>
+
     <form id="mestForm">
       <div class="form-grid">
         <div class="form-group">
           <label for="perceel">Perceel</label>
           <input type="text" id="perceel" readonly />
         </div>
-
         <div class="form-group">
           <label for="grondsoort">Grondsoort</label>
           <input type="text" id="grondsoort" readonly />
         </div>
-
         <div class="form-group">
           <label for="nvgebied">NV-gebied?</label>
           <input type="text" id="nvgebied" readonly />
         </div>
-
         <div class="form-group">
           <label for="hectare">Oppervlakte (ha)</label>
           <input type="number" id="hectare" readonly />
         </div>
-
         <div class="form-group">
           <label for="gewas">Teelt</label>
           <select id="gewas" required>
@@ -45,7 +44,6 @@
             <option value="suikerbieten">Suikerbieten</option>
           </select>
         </div>
-
         <div class="form-group">
           <label for="derogatie">Derogatie</label>
           <select id="derogatie">
@@ -54,7 +52,6 @@
           </select>
         </div>
       </div>
-
       <div class="form-actions">
         <button type="submit">Bereken gebruiksruimte</button>
       </div>
