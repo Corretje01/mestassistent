@@ -6,58 +6,56 @@
   <title>Mestplaatsingsruimte</title>
   <link rel="stylesheet" href="style.css"/>
 
-  <!-- Leaflet CSS met correcte SRI-hash -->
+  <!-- Leaflet (zonder integrity / crossorigin) -->
   <link
     rel="stylesheet"
     href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-    crossorigin="anonymous"
   />
-
-  <!-- Leaflet JS met correcte SRI-hash -->
   <script
     defer
     src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
-    crossorigin="anonymous"
   ></script>
 
-  <!-- Turf.js voor accurate point-in-polygon checks -->
+  <!-- Turf (voor punt-in-polygon) -->
   <script
     defer
     src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"
   ></script>
 
-  <!-- Onze eigen scripts -->
+  <!-- Onze scripts -->
   <script defer src="kaart.js"></script>
   <script defer src="berekening.js"></script>
 </head>
 <body>
   <div id="container">
     <h1>Mestplaatsingsruimte-calculator</h1>
+
+    <!-- De kaart -->
     <div id="map" class="map"></div>
 
-    <!-- Lijst met meerdere percelen komt hier -->
-    <div id="parcelList" class="parcel-list"></div>
-
+    <!-- Formulier voor de inline velden -->
     <form id="mestForm">
       <div class="form-grid">
         <div class="form-group">
           <label for="perceel">Perceel</label>
           <input type="text" id="perceel" readonly />
         </div>
+
         <div class="form-group">
           <label for="grondsoort">Grondsoort</label>
           <input type="text" id="grondsoort" readonly />
         </div>
+
         <div class="form-group">
           <label for="nvgebied">NV-gebied?</label>
           <input type="text" id="nvgebied" readonly />
         </div>
+
         <div class="form-group">
           <label for="hectare">Oppervlakte (ha)</label>
           <input type="number" id="hectare" readonly />
         </div>
+
         <div class="form-group">
           <label for="gewas">Teelt</label>
           <select id="gewas" required>
@@ -66,6 +64,7 @@
             <option value="suikerbieten">Suikerbieten</option>
           </select>
         </div>
+
         <div class="form-group">
           <label for="derogatie">Derogatie</label>
           <select id="derogatie">
@@ -74,11 +73,13 @@
           </select>
         </div>
       </div>
+
       <div class="form-actions">
         <button type="submit">Bereken gebruiksruimte</button>
       </div>
     </form>
 
+    <!-- Resultaat-blok -->
     <div id="resultaat" class="resultaat-blok"></div>
   </div>
 </body>
