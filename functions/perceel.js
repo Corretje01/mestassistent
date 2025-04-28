@@ -10,13 +10,12 @@ export async function handler(event) {
     };
   }
 
-  // Bouw de CQL_FILTER-string zonder URLSearchParams,
-  // zodat we zeker weten dat spaties als %20 (en niet +) worden gecodeerd.
+  // Bouw CQL_FILTER met een spatie (lon lat), en escape die met encodeURIComponent
   const cql       = `CONTAINS(geometry,POINT(${lon} ${lat}))`;
   const filterEnc = encodeURIComponent(cql);
 
   const wfsBase = 'https://service.pdok.nl/kadaster/kadastralekaart/wfs/v5_0';
-  const url = 
+  const url =
     `${wfsBase}` +
     `?service=WFS` +
     `&version=2.0.0` +
