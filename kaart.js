@@ -1,41 +1,41 @@
-// kaart.js — soilMapping + RVO-categorieën + multi-parcel select/deselect
+// kaart.js — multi‐parcel select/deselect met Turf.js voor accurate polygon-detectie
 
 const DEBUG = false;
 const LIVE_ERRORS = true;
 
-// 1) Soil-mapping inladen
+// 1) Soil‐mapping inladen
 let soilMapping = [];
 fetch('/data/soilMapping.json')
   .then(res => res.json())
   .then(j => soilMapping = j)
   .catch(err => console.error('❌ Kan soilMapping.json niet laden:', err));
 
+// Helper: RVO‐basis‐categorie bepalen
 function getBaseCategory(soilName) {
   const entry = soilMapping.find(e => e.name === soilName);
   return entry?.category || 'Onbekend';
 }
 
-// 2) Leaflet-kaart init
+// 2) Leaflet‐kaart init
 const map = L.map('map').setView([52.1, 5.1], 7);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   attribution: '&copy; OSM contributors'
 }).addTo(map);
 
-// 2a) Houd alle geselecteerde percelen bij
-//    ieder item: { layer: L.GeoJSON, cardId: string }
+// 2a) Array met alle geselecteerde percelen
+//    ieder item: { layer: L.GeoJSON, cardId: string, geom: GeoJSON }
 const selectedParcels = [];
 
-// 3) Klik-handler: toggle deselect of nieuwe selectie
+// 3) Klik‐handler
 map.on('click', async e => {
-  const lon = e.latlng.lng.toFixed(6);
-  const lat = e.latlng.lat.toFixed(6);
+  const [lon, lat] = [parseFloat(e.latlng.lng.toFixed(6)), parseFloat(e.latlng.lat.toFixed(6))];
+  const pt = turf.point([lon, lat]);
   const parcelList = document.getElementById('parcelList');
 
-  // 3a) Deselect: klik binnen bestaand perceel?
+  // 3a) Deselec­t: als point binnen één van de geselecteerde geoms valt
   for (let i = 0; i < selectedParcels.length; i++) {
-    const { layer, cardId } = selectedParcels[i];
-    if (layer.getBounds().contains(e.latlng)) {
-      // Verwijder laag en kaartje
+    const { layer, cardId, geom } = selectedParcels[i];
+    if (turf.booleanPointInPolygon(pt, geom)) {
       map.removeLayer(layer);
       document.getElementById(cardId)?.remove();
       selectedParcels.splice(i, 1);
@@ -44,7 +44,7 @@ map.on('click', async e => {
     }
   }
 
-  // 3b) Nieuwe selectie: bodemsoort ophalen
+  // 3b) Bodemsoort ophalen
   let rawSoil;
   try {
     const respSoil = await fetch(`/.netlify/functions/bodemsoort?lon=${lon}&lat=${lat}`);
@@ -64,22 +64,23 @@ map.on('click', async e => {
     const data = await resp.json();
     if (!resp.ok) throw new Error(data.error || resp.status);
     feat = data.features?.[0];
-    if (!feat) return;  // geen perceel hier
+    if (!feat) return;  // geen perceel
   } catch (err) {
     console.error('Perceel fout:', err);
     if (LIVE_ERRORS) alert('Fout bij ophalen perceel.');
     return;
   }
 
-  // 3d) Highlight perceellayer
+  // 3d) Highlight perceel
   const parcelLayer = L.geoJSON(feat.geometry, {
     style: { color: '#1e90ff', weight: 2, fillOpacity: 0.2 }
   }).addTo(map);
   map.fitBounds(parcelLayer.getBounds());
 
-  // 3e) Maak een kaartje voor dit perceel
+  // 3e) Card maken met de juiste data
   const props = feat.properties;
-  const naam = props.weergavenaam || `${props.kadastraleGemeenteWaarde} ${props.sectie} ${props.perceelnummer}`;
+  const naam = props.weergavenaam
+    || `${props.kadastraleGemeenteWaarde} ${props.sectie} ${props.perceelnummer}`;
   const oppHa = props.kadastraleGrootteWaarde != null
     ? (props.kadastraleGrootteWaarde / 10000).toFixed(2)
     : '';
@@ -122,8 +123,12 @@ map.on('click', async e => {
   `;
   parcelList.appendChild(card);
 
-  // 3f) Voeg toe aan array
-  selectedParcels.push({ layer: parcelLayer, cardId });
+  // 3f) Toevoegen aan selectedParcels
+  selectedParcels.push({
+    layer: parcelLayer,
+    cardId,
+    geom: feat.geometry
+  });
 
   if (DEBUG) console.log('Selected parcels:', selectedParcels);
 });
