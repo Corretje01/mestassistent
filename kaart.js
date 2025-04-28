@@ -1,4 +1,4 @@
-// kaart.js — multi‐parcel select/deselect met Turf.js voor accurate polygon-detectie
+// kaart.js — multi‐parcel select/deselect met strikte point-in-polygon selectie
 
 const DEBUG = false;
 const LIVE_ERRORS = true;
@@ -10,7 +10,6 @@ fetch('/data/soilMapping.json')
   .then(j => soilMapping = j)
   .catch(err => console.error('❌ Kan soilMapping.json niet laden:', err));
 
-// Helper: RVO‐basis‐categorie bepalen
 function getBaseCategory(soilName) {
   const entry = soilMapping.find(e => e.name === soilName);
   return entry?.category || 'Onbekend';
@@ -22,17 +21,16 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   attribution: '&copy; OSM contributors'
 }).addTo(map);
 
-// 2a) Array met alle geselecteerde percelen
-//    ieder item: { layer: L.GeoJSON, cardId: string, geom: GeoJSON }
+// 2a) Houd alle geselecteerde percelen bij
 const selectedParcels = [];
 
-// 3) Klik‐handler
 map.on('click', async e => {
-  const [lon, lat] = [parseFloat(e.latlng.lng.toFixed(6)), parseFloat(e.latlng.lat.toFixed(6))];
+  const lon = parseFloat(e.latlng.lng.toFixed(6));
+  const lat = parseFloat(e.latlng.lat.toFixed(6));
   const pt = turf.point([lon, lat]);
   const parcelList = document.getElementById('parcelList');
 
-  // 3a) Deselec­t: als point binnen één van de geselecteerde geoms valt
+  // 3a) Deselec­t door echte polygon-check
   for (let i = 0; i < selectedParcels.length; i++) {
     const { layer, cardId, geom } = selectedParcels[i];
     if (turf.booleanPointInPolygon(pt, geom)) {
@@ -57,27 +55,32 @@ map.on('click', async e => {
   }
   const baseCat = getBaseCategory(rawSoil);
 
-  // 3c) Perceel ophalen via proxy‐function
+  // 3c) Perceel ophalen met point-in-polygon CQL_FILTER
   let feat;
   try {
-    const resp = await fetch(`/.netlify/functions/perceel?lon=${lon}&lat=${lat}`);
-    const data = await resp.json();
+    const resp    = await fetch(`/.netlify/functions/perceel?lon=${lon}&lat=${lat}`);
+    const data    = await resp.json();
     if (!resp.ok) throw new Error(data.error || resp.status);
-    feat = data.features?.[0];
-    if (!feat) return;  // geen perceel
+    if (!data.features?.[0]) return;  // geen perceel precies hier
+    feat = data.features[0];
   } catch (err) {
     console.error('Perceel fout:', err);
     if (LIVE_ERRORS) alert('Fout bij ophalen perceel.');
     return;
   }
 
-  // 3d) Highlight perceel
+  // 3d) Nogmaals controleren dat point écht in dit polygon zit
+  if (!turf.booleanPointInPolygon(pt, feat.geometry)) {
+    if (LIVE_ERRORS) alert('Klik viel net buiten de perceelsgrens.');
+    return;
+  }
+
+  // 3e) Highlight en kaartje
   const parcelLayer = L.geoJSON(feat.geometry, {
     style: { color: '#1e90ff', weight: 2, fillOpacity: 0.2 }
   }).addTo(map);
   map.fitBounds(parcelLayer.getBounds());
 
-  // 3e) Card maken met de juiste data
   const props = feat.properties;
   const naam = props.weergavenaam
     || `${props.kadastraleGemeenteWaarde} ${props.sectie} ${props.perceelnummer}`;
@@ -123,7 +126,7 @@ map.on('click', async e => {
   `;
   parcelList.appendChild(card);
 
-  // 3f) Toevoegen aan selectedParcels
+  // 3f) Opslaan
   selectedParcels.push({
     layer: parcelLayer,
     cardId,
