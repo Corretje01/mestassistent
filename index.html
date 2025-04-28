@@ -1,59 +1,50 @@
 <!DOCTYPE html>
 <html lang="nl">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Mestplaatsingsruimte</title>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Mestplaatsingsruimte-calculator</title>
 
-  <!-- Eigen CSS -->
-  <link rel="stylesheet" href="style.css" />
+  <!-- Onze styling -->
+  <link rel="stylesheet" href="style.css"/>
 
-  <!-- Leaflet zonder integrity-attribuut -->
+  <!-- Leaflet -->
   <link
     rel="stylesheet"
     href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha512-<juiste-hash>"
+    crossorigin=""
   />
   <script
     defer
     src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha512-<juiste-hash>"
+    crossorigin=""
   ></script>
 
-  <!-- Turf.js voor nauwkeurige punt-in-polygon checks -->
+  <!-- Turf.js (optioneel, momenteel niet gebruikt voor contains) -->
   <script
     defer
     src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"
   ></script>
 
-  <!-- Eigen scripts -->
+  <!-- Onze kaarten- en berekeningslogica -->
   <script defer src="kaart.js"></script>
   <script defer src="berekening.js"></script>
 </head>
 <body>
   <div id="container">
     <h1>Mestplaatsingsruimte-calculator</h1>
+
+    <!-- De kaart -->
     <div id="map" class="map"></div>
 
-    <!-- (optioneel) lijst voor meervoudige percelen -->
+    <!-- Dynamische lijst van geselecteerde percelen -->
     <div id="parcelList" class="parcel-list"></div>
 
+    <!-- Form voor berekening -->
     <form id="mestForm">
       <div class="form-grid">
-        <div class="form-group">
-          <label for="perceel">Perceel</label>
-          <input type="text" id="perceel" readonly />
-        </div>
-        <div class="form-group">
-          <label for="grondsoort">Grondsoort</label>
-          <input type="text" id="grondsoort" readonly />
-        </div>
-        <div class="form-group">
-          <label for="nvgebied">NV-gebied?</label>
-          <input type="text" id="nvgebied" readonly />
-        </div>
-        <div class="form-group">
-          <label for="hectare">Oppervlakte (ha)</label>
-          <input type="number" id="hectare" readonly />
-        </div>
         <div class="form-group">
           <label for="gewas">Teelt</label>
           <select id="gewas" required>
@@ -75,6 +66,7 @@
       </div>
     </form>
 
+    <!-- Resultaat -->
     <div id="resultaat" class="resultaat-blok"></div>
   </div>
 </body>
