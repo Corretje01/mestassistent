@@ -9,16 +9,20 @@ export async function handler(event) {
     };
   }
 
-  // ±50 m BBOX rond je punt (axis-order lat,lon voor WFS 2.0)
-  const delta  = 0.0005;
-  const minLon = parseFloat(lon) - delta;
-  const minLat = parseFloat(lat) - delta;
-  const maxLon = parseFloat(lon) + delta;
-  const maxLat = parseFloat(lat) + delta;
-  const bbox   = `${minLat},${minLon},${maxLat},${maxLon},EPSG:4326`;
+  // 1) Maak een kleine BBOX rond je punt (hier ±0,0005° ≈ ±55 m)
+  const d = 0.0005;
+  const minX = parseFloat(lon) - d;
+  const maxX = parseFloat(lon) + d;
+  const minY = parseFloat(lat) - d;
+  const maxY = parseFloat(lat) + d;
 
-  // WFS-endpoint en CQL_FILTER=CONTAINS
-  const base = 'https://service.pdok.nl/kadaster/kadastralekaart/wfs/v5_0';
+  // 2) Combineer BBOX en CONTAINS in één CQL_FILTER
+  const cql = [
+    `BBOX(geometry,${minX},${minY},${maxX},${maxY})`,
+    `CONTAINS(geometry,POINT(${lon} ${lat}))`
+  ].join(' AND ');
+
+  // 3) Bouw de WFS-URL
   const params = new URLSearchParams({
     service:      'WFS',
     version:      '2.0.0',
@@ -27,10 +31,9 @@ export async function handler(event) {
     outputFormat: 'application/json',
     srsName:      'EPSG:4326',
     count:        '1',
-    bbox, 
-    CQL_FILTER:   `CONTAINS(geometry,POINT(${lon} ${lat}))`
+    CQL_FILTER:   cql
   });
-  const url = `${base}?${params.toString()}`;
+  const url = `https://service.pdok.nl/kadaster/kadastralekaart/wfs/v5_0?${params}`;
 
   try {
     const res  = await fetch(url);
