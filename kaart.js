@@ -55,11 +55,14 @@ function renderParcelList() {
       </div>
       <button class="remove-btn">Verwijder</button>
     `;
+    // button om te deselecteren vanuit UI
     div.querySelector('.remove-btn').onclick = () => {
       removeParcel(p.id);
     };
+    // select‐listeners om te slaan in parcels[]
     div.querySelector('.teelt').onchange = e => { p.gewas = e.target.value; };
     div.querySelector('.derogatie').onchange = e => { p.derogatie = e.target.value; };
+
     container.append(div);
   });
 }
@@ -95,12 +98,16 @@ map.on('click', async e => {
     const data = await r.json();
     if (!r.ok) throw new Error(data.error||r.status);
     const feat = data.features?.[0];
-    if (!feat) return;
+    if (!feat) {
+      // géén perceel gevonden
+      return;
+    }
 
     // 6c) Highlight nieuwe perceel
     const layer = L.geoJSON(feat.geometry, {
       style:{ color:'#1e90ff', weight:2, fillOpacity:0.2 }
     }).addTo(map);
+    // map.fitBounds(layer.getBounds()); // kies zelf of je wilt uitzoomen
 
     // 6d) Lees properties
     const props = feat.properties;
@@ -109,7 +116,7 @@ map.on('click', async e => {
     const opp  = props.kadastraleGrootteWaarde; // m2
     const ha   = opp!=null? (opp/10000).toFixed(2) : '';
 
-    // 6e) Bodemsoort ophalen als nodig
+    // 6e) Bodemsoort al eerder opgehaald? Zoniet, even ophalen:
     let baseCat = window.huidigeGrond;
     if (!baseCat || baseCat==='Onbekend') {
       try {
@@ -137,4 +144,4 @@ map.on('click', async e => {
     console.error('Perceel fout:',err);
     if (LIVE_ERRORS) alert('Fout bij ophalen perceel.');
   }
-}); :contentReference[oaicite:2]{index=2}
+});
