@@ -1,3 +1,6 @@
+/* style.css — volledige styling inclusief multi-select stap 2 */
+
+/* Algemene pagina-styling */
 body {
   font-family: Arial, sans-serif;
   background-color: #f9f9f9;
@@ -5,6 +8,7 @@ body {
   padding: 0;
 }
 
+/* Container rondom de applicatie */
 #container {
   max-width: 700px;
   margin: 2rem auto;
@@ -14,6 +18,7 @@ body {
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
+/* De kaart */
 #map {
   width: 100%;
   height: 300px;
@@ -21,7 +26,7 @@ body {
   margin-bottom: 20px;
 }
 
-/* STAP 1: lijst met geselecteerde percelen */
+/* STAP 2: lijst met geselecteerde percelen */
 .parcel-list {
   display: flex;
   flex-direction: column;
@@ -29,15 +34,22 @@ body {
   margin-bottom: 1.5rem;
 }
 
-/* (In latere stappen vullen we elke `.parcel-card` binnen deze lijst) */
+/* Styling voor elke individuele perceel-card (dummy of écht) */
+.parcel-card {
+  border: 1px solid #007bff;
+  border-radius: 6px;
+  padding: 0.8rem 1rem;
+  background: #f0f8ff;
+}
 
-/* Tweekoloms grid voor form */
+/* Twee-koloms grid voor je invoervelden */
 .form-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 1rem 2rem;
 }
 
+/* Elke groep: label + veld */
 .form-group {
   display: flex;
   flex-direction: column;
@@ -48,6 +60,7 @@ body {
   margin-bottom: 0.3rem;
 }
 
+/* Inputs en selects consistent maken */
 input[readonly],
 input[type="number"],
 select {
@@ -58,6 +71,7 @@ select {
   background-color: #fdfdfd;
 }
 
+/* Submit-knop onderaan */
 .form-actions {
   margin-top: 1.5rem;
   text-align: center;
@@ -79,6 +93,7 @@ select {
   background-color: #0056b3;
 }
 
+/* Resultaat-blok styling */
 .resultaat-blok {
   background-color: #e9f7ef;
   border: 1px solid #c3e6cb;
