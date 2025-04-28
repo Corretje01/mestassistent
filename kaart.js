@@ -1,125 +1,147 @@
-// kaart.js — volledig herschreven
+// kaart.js — multi-perceel selectie + dynamic UI
 
-// 0) Lijst van geselecteerde percelen
-const selectedParcels = [];
+const DEBUG = false;
+const LIVE_ERRORS = true;
 
-// 1) Kaart init
-const map = L.map('map').setView([52.1, 5.1], 8);
-
-// 2) Achtergrond (OSM)
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  attribution: '&copy; OSM contributors'
-}).addTo(map);
-
-// 3) Kadastrale grenzen achtergrond (WMS PDOK)
-L.tileLayer.wms('https://service.pdok.nl/kadaster/kadastralekaart/wms/v5_0', {
-  layers: 'perceelgrens',
-  format: 'image/png',
-  transparent: true,
-  attribution: 'Kadaster via PDOK'
-}).addTo(map);
-
-// Helpers: maak URL's
-function bodemsoortUrl(lon, lat) {
-  return `/.netlify/functions/bodemsoort?lon=${lon}&lat=${lat}`;
+// 1) Soil‐mapping inladen
+let soilMapping = [];
+fetch('/data/soilMapping.json')
+  .then(r => r.json()).then(j => soilMapping = j)
+  .catch(err => console.error('❌ Kan soilMapping.json niet laden:', err));
+function getBaseCategory(name) {
+  const e = soilMapping.find(x => x.name === name);
+  return e?.category || 'Onbekend';
 }
-function perceelWfsUrl(lon, lat) {
-  const pt = encodeURIComponent(`POINT(${lon} ${lat})`);
-  const p = new URLSearchParams({
-    service: 'WFS',
-    version: '2.0.0',
-    request: 'GetFeature',
-    typeNames: 'kadastralekaart:Perceel',
-    outputFormat: 'application/json',
-    srsName: 'EPSG:4326',
-    count: '1',
-    CQL_FILTER: `INTERSECTS(geometry,${pt})`
+
+// 2) Leaflet init
+const map = L.map('map').setView([52.1,5.1],7);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+  attribution:'© OSM contributors'
+}).addTo(map);
+
+// 3) Data‐structuur voor geselecteerde percelen
+let parcels = []; // elk element: { id, layer, props }
+
+// Hulpfunctie: maak unieke ID
+function uuid() {
+  return 'p_' + Math.random().toString(36).slice(2);
+}
+
+// 4) Helper: render UI‐lijst
+function renderParcelList() {
+  const container = document.getElementById('parcelList');
+  container.innerHTML = '';
+  parcels.forEach(p => {
+    const div = document.createElement('div');
+    div.classList.add('parcel-item');
+    div.dataset.id = p.id;
+    div.innerHTML = `
+      <div class="form-group"><label>Perceel</label><input readonly value="${p.name}"></div>
+      <div class="form-group"><label>Grondsoort</label><input readonly value="${p.grondsoort}"></div>
+      <div class="form-group"><label>NV-gebied?</label><input readonly value="${p.nvgebied}"></div>
+      <div class="form-group"><label>Ha (ha)</label><input readonly value="${p.ha}"></div>
+      <div class="form-group"><label>Teelt</label>
+        <select class="teelt">
+          <option value="mais"${p.gewas==='mais'?' selected':''}>Maïs</option>
+          <option value="tarwe"${p.gewas==='tarwe'?' selected':''}>Tarwe</option>
+          <option value="suikerbieten"${p.gewas==='suikerbieten'?' selected':''}>Suikerbieten</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Derogatie</label>
+        <select class="derogatie">
+          <option value="nee"${p.derogatie==='nee'?' selected':''}>Nee</option>
+          <option value="ja"${p.derogatie==='ja'?' selected':''}>Ja</option>
+        </select>
+      </div>
+      <button class="remove-btn">Verwijder</button>
+    `;
+    // button om te deselecteren vanuit UI
+    div.querySelector('.remove-btn').onclick = () => {
+      removeParcel(p.id);
+    };
+    // select‐listeners om te slaan in parcels[]
+    div.querySelector('.teelt').onchange = e => { p.gewas = e.target.value; };
+    div.querySelector('.derogatie').onchange = e => { p.derogatie = e.target.value; };
+
+    container.append(div);
   });
-  return `https://service.pdok.nl/kadaster/kadastralekaart/wfs/v5_0?${p}`;
 }
 
-// 4) Klik op kaart
+// 5) Helper: verwijder perceel uit kaart + UI
+function removeParcel(id) {
+  const idx = parcels.findIndex(p=>p.id===id);
+  if (idx<0) return;
+  map.removeLayer(parcels[idx].layer);
+  parcels.splice(idx,1);
+  renderParcelList();
+}
+
+// 6) Click‐handler
 map.on('click', async e => {
   const lon = e.latlng.lng.toFixed(6);
   const lat = e.latlng.lat.toFixed(6);
 
-  // 4a) Deselec­t: klik binnen bestaand geselecteerd perceel?
-  for (let p of selectedParcels) {
+  // 6a) binnen een bestaand perceel? → deselect
+  for (let p of parcels) {
     if (p.layer.getBounds().contains(e.latlng)) {
       removeParcel(p.id);
       return;
     }
   }
 
-  // 4b) Bodemsoort ophalen
-  let grondsoort = 'Onbekend';
-  try {
-    const r1 = await fetch(bodemsoortUrl(lon, lat));
-    const j1 = await r1.json();
-    grondsoort = j1.grondsoort || grondsoort;
-  } catch {
-    console.warn('Bodemsoort mislukte');
-  }
+  // 6b) Ophalen via Netlify‐proxy
+  const url = `/.netlify/functions/perceel?lon=${lon}&lat=${lat}`;
+  if (DEBUG) console.log('Proxy-perceel URL →',url);
 
-  // 4c) Perceel ophalen
   try {
-    const r2 = await fetch(perceelWfsUrl(lon, lat));
-    const j2 = await r2.json();
-    const feat = j2.features?.[0];
+    const r = await fetch(url);
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error||r.status);
+    const feat = data.features?.[0];
     if (!feat) {
-      alert('Geen perceel gevonden.');
+      // géén perceel gevonden
       return;
     }
 
-    // props lezen
-    const pr = feat.properties;
-    const naam =
-      pr.weergavenaam ||
-      `${pr.kadastraleGemeenteWaarde} ${pr.sectie} ${pr.perceelnummer}`;
-    const oppHa = pr.kadastraleGrootteWaarde
-      ? (pr.kadastraleGrootteWaarde / 10000).toFixed(2)
-      : '';
-
-    // 4d) Teken perceel
+    // 6c) Highlight nieuwe perceel
     const layer = L.geoJSON(feat.geometry, {
-      style: { color: '#1e90ff', weight: 2, fillOpacity: 0.2 }
+      style:{ color:'#1e90ff', weight:2, fillOpacity:0.2 }
     }).addTo(map);
-    map.fitBounds(layer.getBounds());
+    // map.fitBounds(layer.getBounds()); // kies zelf of je wilt uitzoomen
 
-    // 4e) Voeg toe
-    const id = feat.id;
-    selectedParcels.push({ id, layer, naam, oppHa, grondsoort });
+    // 6d) Lees properties
+    const props = feat.properties;
+    const name = props.weergavenaam ||
+      `${props.kadastraleGemeenteWaarde} ${props.sectie} ${props.perceelnummer}`;
+    const opp  = props.kadastraleGrootteWaarde; // m2
+    const ha   = opp!=null? (opp/10000).toFixed(2) : '';
+
+    // 6e) Bodemsoort al eerder opgehaald? Zoniet, even ophalen:
+    let baseCat = window.huidigeGrond;
+    if (!baseCat || baseCat==='Onbekend') {
+      try {
+        const br = await fetch(`/.netlify/functions/bodemsoort?lon=${lon}&lat=${lat}`);
+        const pj = await br.json();
+        if (br.ok) baseCat = getBaseCategory(pj.grondsoort);
+      } catch {}
+    }
+
+    // 6f) voeg toe aan lijst
+    const id = uuid();
+    parcels.push({
+      id,
+      layer,
+      name,
+      grondsoort: baseCat,
+      nvgebied: window.isNV? 'Ja':'Nee',
+      ha,
+      gewas: 'mais',
+      derogatie: 'nee'
+    });
     renderParcelList();
-  } catch (err) {
-    console.error('Perceel mislukte', err);
-    alert('Fout bij perceel ophalen.');
+
+  } catch(err) {
+    console.error('Perceel fout:',err);
+    if (LIVE_ERRORS) alert('Fout bij ophalen perceel.');
   }
 });
-
-// Verwijder functie
-function removeParcel(id) {
-  const idx = selectedParcels.findIndex(p => p.id === id);
-  if (idx < 0) return;
-  map.removeLayer(selectedParcels[idx].layer);
-  selectedParcels.splice(idx, 1);
-  renderParcelList();
-}
-
-// Lijst renderen
-function renderParcelList() {
-  const container = document.getElementById('parcelList');
-  container.innerHTML = '';
-  selectedParcels.forEach((p, i) => {
-    const d = document.createElement('div');
-    d.className = 'parcel-item';
-    d.innerHTML = `
-      <strong>${i + 1}. ${p.naam}</strong><br>
-      Opp: ${p.oppHa} ha · Bodem: ${p.grondsoort}
-      <button data-id="${p.id}" class="remove-btn">Verwijder</button>
-    `;
-    container.appendChild(d);
-  });
-  container
-    .querySelectorAll('.remove-btn')
-    .forEach(b => (b.onclick = () => removeParcel(b.dataset.id)));
-}
