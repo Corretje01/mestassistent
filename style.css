@@ -21,6 +21,16 @@ body {
   margin-bottom: 20px;
 }
 
+/* STAP 1: lijst met geselecteerde percelen */
+.parcel-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+/* (In latere stappen vullen we elke `.parcel-card` binnen deze lijst) */
+
 /* Tweekoloms grid voor form */
 .form-grid {
   display: grid;
@@ -28,7 +38,6 @@ body {
   gap: 1rem 2rem;
 }
 
-/* Iedere form-groep: label + veld */
 .form-group {
   display: flex;
   flex-direction: column;
@@ -49,7 +58,6 @@ select {
   background-color: #fdfdfd;
 }
 
-/* Actieknop onderaan, gecentreerd */
 .form-actions {
   margin-top: 1.5rem;
   text-align: center;
