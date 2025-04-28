@@ -1,147 +1,133 @@
-// kaart.js — Intersects-only, meter-precies, multi-select
+// kaart.js — volledig herschreven
 
-// Debugging
-const DEBUG = true;
+// 0) Globals
+const selectedParcels = []; // array van { id, layer, props }
 
-// 1) SoilMapping
-let soilMapping = [];
-fetch('/data/soilMapping.json')
-  .then(r => r.json())
-  .then(j => soilMapping = j)
-  .catch(err => console.error('❌ Kan soilMapping.json niet laden:', err));
-
-function getBaseCategory(rawName) {
-  const entry = soilMapping.find(e => e.name === rawName);
-  return entry?.category || 'Onbekend';
-}
-
-// 2) Init kaart
+// 1) Initialiseer Leaflet-kaart
 const map = L.map('map').setView([52.1, 5.1], 8);
 
-// OSM-achtergrond
+// 2) Achtergrond (OSM)
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   attribution: '&copy; OSM contributors'
 }).addTo(map);
 
-// WMS-laag met **alle** kadastrale grenzen onderin
+// 3) Kadastrale grenzen als WMS-overlay
 L.tileLayer.wms('https://service.pdok.nl/kadaster/kadastralekaart/wms/v5_0', {
-  layers:      'kadastralekaart:Perceel',
-  format:      'image/png',
+  layers: 'perceelgrens',
+  format: 'image/png',
   transparent: true,
-  version:     '1.1.1',
-  attribution: '&copy; Kadaster via PDOK'
+  attribution: 'Kadaster via PDOK'
 }).addTo(map);
 
-// 3) State voor geselecteerde percelen
-const selected = [];
-
-// 4) Helper om form-lijst te renderen
-function renderParcelList() {
-  const listEl = document.getElementById('parcelList');
-  listEl.innerHTML = '';
-  selected.forEach((p, i) => {
-    const div = document.createElement('div');
-    div.className = 'parcel-entry';
-    div.innerHTML = `
-      <strong>${i+1}. ${p.name}</strong>
-      <p>Opp: ${p.opp} ha · Bodem: ${p.grond}</p>
-      <button data-idx="${i}">🗑 Verwijder</button>
-    `;
-    div.querySelector('button').onclick = () => {
-      map.removeLayer(p.layer);
-      selected.splice(i,1);
-      renderParcelList();
-    };
-    listEl.appendChild(div);
-  });
+// Hulpfunctie: bouw Bodemsoort-URL
+function bodemsoortUrl(lon, lat) {
+  return `/.netlify/functions/bodemsoort?lon=${lon}&lat=${lat}`;
 }
 
-// 5) Ophalen bodemsoort
-async function fetchBodemsoort(lon, lat) {
-  const url = `/.netlify/functions/bodemsoort?lon=${lon}&lat=${lat}`;
-  if (DEBUG) console.log('Bodemsoort URL →', url);
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Bodemsoort API ${res.status}`);
-  const js = await res.json();
-  return js.grondsoort || 'Onbekend';
-}
-
-// 6) Ophalen perceel via WFS + CQL INTERSECTS
-async function fetchPerceel(lon, lat) {
-  const cql = `INTERSECTS(geometry,POINT(${lon}%20${lat}))`; // lon lat
+// Hulpfunctie: bouw Perceel-WFS-URL met CQL_FILTER=INTERSECTS
+function perceelWfsUrl(lon, lat) {
+  const point = encodeURIComponent(`POINT(${lon} ${lat})`);
   const params = new URLSearchParams({
-    service:      'WFS',
-    version:      '2.0.0',
-    request:      'GetFeature',
-    typeNames:    'kadastralekaart:Perceel',
+    service: 'WFS',
+    version: '2.0.0',
+    request: 'GetFeature',
+    typeNames: 'kadastralekaart:Perceel',
     outputFormat: 'application/json',
-    srsName:      'EPSG:4326',
-    count:        '1',
-    CQL_FILTER:   cql
+    srsName: 'EPSG:4326',
+    count: '1',
+    CQL_FILTER: `INTERSECTS(geometry,${point})`
   });
-  const url = `https://service.pdok.nl/kadaster/kadastralekaart/wfs/v5_0?${params}`;
-  if (DEBUG) console.log('WFS URL →', url);
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`WFS API ${res.status}`);
-  const js = await res.json();
-  if (DEBUG) console.log('Features ontvangen:', js.features);
-  return js.features || [];
+  return `https://service.pdok.nl/kadaster/kadastralekaart/wfs/v5_0?${params}`;
 }
 
-// 7) Klik‐handler: selecteer / deselecteer
+// 4) Map-click handler
 map.on('click', async e => {
-  const lon = e.latlng.lng.toFixed(6);
-  const lat = e.latlng.lat.toFixed(6);
+  const [lon, lat] = [e.latlng.lng.toFixed(6), e.latlng.lat.toFixed(6)];
 
-  // 7a) Deselect check: klik binnen een al-geselecteerde
-  const hit = selected.findIndex(o => o.layer.getBounds().contains(e.latlng));
-  if (hit !== -1) {
-    map.removeLayer(selected[hit].layer);
-    selected.splice(hit,1);
-    renderParcelList();
-    return;
-  }
-
-  try {
-    // 7b) Bodemsoort
-    const rawSoil = await fetchBodemsoort(lon, lat);
-    const grond   = getBaseCategory(rawSoil);
-
-    // 7c) Perceel
-    const feats = await fetchPerceel(lon, lat);
-    if (feats.length === 0) {
-      alert('Geen perceel gevonden op dit punt.');
+  // 4a) Kijk of we binnen een bestaand geselecteerd perceel klikken → deselect
+  for (let i = 0; i < selectedParcels.length; i++) {
+    const { layer } = selectedParcels[i];
+    if (layer.getBounds().contains(e.latlng)) {
+      removeParcel(selectedParcels[i].id);
       return;
     }
-    const feat = feats[0];
+  }
 
-    // 7d) Highlight
+  // 4b) Haal bodemsoort
+  let grondsoort = 'Onbekend';
+  try {
+    const resp1 = await fetch(bodemsoortUrl(lon, lat));
+    if (!resp1.ok) throw new Error();
+    const j = await resp1.json();
+    grondsoort = j.grondsoort || 'Onbekend';
+  } catch {
+    console.warn('Bodemsoort ophalen mislukt');
+  }
+
+  // 4c) Haal perceel via WFS
+  try {
+    const resp2 = await fetch(perceelWfsUrl(lon, lat));
+    if (!resp2.ok) throw new Error();
+    const j2 = await resp2.json();
+    const feat = j2.features?.[0];
+    if (!feat) {
+      alert('Geen perceel gevonden onder deze klik.');
+      return;
+    }
+
+    const props = feat.properties;
+    // bepaal de naam (weergavenaam of gemeentecode+sectie+nummer)
+    const naam = props.weergavenaam
+               || `${props.kadastraleGemeenteWaarde} ${props.sectie} ${props.perceelnummer}`;
+    // opp in m2 omrekenen naar ha
+    const oppHa = props.kadastraleGrootteWaarde
+                ? (props.kadastraleGrootteWaarde / 10000).toFixed(2)
+                : '';
+
+    // 4d) Teken perceel op de kaart
     const layer = L.geoJSON(feat.geometry, {
-      style: { color:'#1e90ff', weight:2, fillOpacity:0.2 }
+      style: { color: '#1e90ff', weight: 2, fillOpacity: 0.2 }
     }).addTo(map);
+    map.fitBounds(layer.getBounds());
 
-    // 7e) Zoom naar alle geselecteerde
-    const group = L.featureGroup(selected.map(o=>o.layer).concat(layer));
-    map.fitBounds(group.getBounds(), { padding:[20,20] });
-
-    // 7f) Eigenschappen
-    const p    = feat.properties;
-    const name = p.weergavenaam
-               || `${p.kadastraleGemeenteWaarde} ${p.sectie} ${p.perceelnummer}`;
-    const opp  = p.kadastraleGrootteWaarde!=null
-               ? (p.kadastraleGrootteWaarde/10000).toFixed(2)
-               : '';
-    const nv   = window.isNV ? 'Ja' : 'Nee';
-
-    // 7g) Opslaan + render
-    selected.push({ layer, name, opp, grond, nv });
+    // 4e) Voeg toe aan selectedParcels
+    const id = feat.id;
+    selectedParcels.push({ id, layer, naam, oppHa, grondsoort });
     renderParcelList();
 
   } catch (err) {
-    console.error(err);
-    alert(err.message);
+    console.error('Perceel ophalen mislukt', err);
+    alert('Fout bij ophalen perceel.');
   }
 });
 
-// 8) Init lege lijst
-renderParcelList();
+// 5) Verwijder percelen
+function removeParcel(id) {
+  const idx = selectedParcels.findIndex(p => p.id === id);
+  if (idx === -1) return;
+  map.removeLayer(selectedParcels[idx].layer);
+  selectedParcels.splice(idx, 1);
+  renderParcelList();
+}
+
+// 6) Render de lijst onder de kaart
+function renderParcelList() {
+  const container = document.getElementById('parcelList');
+  container.innerHTML = ''; // leegmaken
+
+  selectedParcels.forEach((p, i) => {
+    const div = document.createElement('div');
+    div.className = 'parcel-item';
+    div.innerHTML = `
+      <strong>${i + 1}. ${p.naam}</strong><br>
+      Opp: ${p.oppHa} ha · Bodem: ${p.grondsoort}
+      <button data-id="${p.id}" class="remove-btn">Verwijder</button>
+    `;
+    container.appendChild(div);
+  });
+
+  // events op verwijderen-knoppen
+  container.querySelectorAll('.remove-btn').forEach(btn => {
+    btn.onclick = () => removeParcel(btn.dataset.id);
+  });
+}
