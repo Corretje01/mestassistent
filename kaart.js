@@ -9,8 +9,7 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   attribution: '&copy; OSM contributors'
 }).addTo(map);
 
-// 3) Klik-handler: voeg nu een dummy-card toe aan #parcelList
-map.on('click', e => {
+// 3) Klik-handler: voeg nu een dummy-card toe aan #parcelList\map.on('click', e => {
   const parcelList = document.getElementById('parcelList');
 
   // Maak een unieke ID voor dit dummy-item
@@ -29,3 +28,21 @@ map.on('click', e => {
 
   console.log('selectedParcels:', selectedParcels);
 });
+
+/* style.css additions */
+
+/* (bestaande .parcel-list styling) */
+.parcel-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+/* Nieuwe styling voor elke kaart */
+.parcel-card {
+  border: 1px solid #007bff;
+  border-radius: 6px;
+  padding: 0.8rem 1rem;
+  background: #f0f8ff;
+}
