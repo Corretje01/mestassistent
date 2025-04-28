@@ -10,20 +10,22 @@ export async function handler(event) {
     };
   }
 
+  // Bouw de CQL_FILTER-string zonder URLSearchParams,
+  // zodat we zeker weten dat spaties als %20 (en niet +) worden gecodeerd.
+  const cql       = `CONTAINS(geometry,POINT(${lon} ${lat}))`;
+  const filterEnc = encodeURIComponent(cql);
+
   const wfsBase = 'https://service.pdok.nl/kadaster/kadastralekaart/wfs/v5_0';
-  // Strict point-in-polygon filter
-  const cql = `CONTAINS(geometry,POINT(${lon} ${lat}))`;
-  const params = new URLSearchParams({
-    service:      'WFS',
-    version:      '2.0.0',
-    request:      'GetFeature',
-    typeNames:    'kadastralekaart:Perceel',
-    outputFormat: 'application/json',
-    srsName:      'EPSG:4326',
-    count:        '1',
-    CQL_FILTER:   cql
-  });
-  const url = `${wfsBase}?${params.toString()}`;
+  const url = 
+    `${wfsBase}` +
+    `?service=WFS` +
+    `&version=2.0.0` +
+    `&request=GetFeature` +
+    `&typeNames=kadastralekaart:Perceel` +
+    `&outputFormat=application/json` +
+    `&srsName=EPSG:4326` +
+    `&count=1` +
+    `&CQL_FILTER=${filterEnc}`;
 
   try {
     const res  = await fetch(url);
