@@ -9,41 +9,33 @@
   <!-- Onze styling -->
   <link rel="stylesheet" href="style.css"/>
 
-  <!-- Leaflet -->
+  <!-- Leaflet (zonder integrity/crossorigin) -->
   <link
     rel="stylesheet"
     href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-    integrity="sha512-PoK7QMZCM0yXlseTjPUEhY+l3g4AkaeAVbYT3H06gfj6YVcOm0hLS0KnnZM2j7Wt8UZacH2HEd1Y7wYDLrA4pA=="
-    crossorigin=""
   />
   <script
     defer
     src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-    integrity="sha512-8w+EVE7bN9UtpTi4Le+hSgmbhQcdVQVH3Mq3kzD3n4b4S4lmvWvHg3uWxM2rqaBr8x2ZAZsEfGkz4e1StkzLmw=="
-    crossorigin=""
   ></script>
 
-  <!-- Turf.js voor betrouwbare punt-in-polygon checks -->
+  <!-- Turf.js voor nauwkeurige punt-in-polygon checks -->
   <script
     defer
     src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"
   ></script>
 
-  <!-- Onze kaart- en berekenings-scripts -->
+  <!-- Onze scripts -->
   <script defer src="kaart.js"></script>
   <script defer src="berekening.js"></script>
 </head>
 <body>
   <div id="container">
     <h1>Mestplaatsingsruimte-calculator</h1>
-
-    <!-- De kaart -->
     <div id="map" class="map"></div>
 
-    <!-- Dynamisch lijstje met geselecteerde percelen (toekomstig multi-select) -->
     <div id="parcelList" class="parcel-list"></div>
 
-    <!-- Form voor de berekening -->
     <form id="mestForm">
       <div class="form-grid">
         <div class="form-group">
