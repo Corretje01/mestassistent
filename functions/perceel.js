@@ -1,19 +1,24 @@
+// functions/perceel.js
 export async function handler(event) {
   const { lon, lat } = event.queryStringParameters || {};
   if (!lon || !lat) {
-    return { statusCode:400, body: JSON.stringify({error:'lon & lat zijn verplicht'}) };
+    return {
+      statusCode: 400,
+      headers: { 'Access-Control-Allow-Origin': '*' },
+      body: JSON.stringify({ error: 'lon & lat parameters zijn verplicht' })
+    };
   }
 
-  // ±0.00005° is ca. 5 m
-  const delta = 0.00005;
-  const minX = parseFloat(lon) - delta;
-  const maxX = parseFloat(lon) + delta;
-  const minY = parseFloat(lat) - delta;
-  const maxY = parseFloat(lat) + delta;
+  // ±50 m BBOX rond je punt (axis-order lat,lon voor WFS 2.0)
+  const delta  = 0.0005;
+  const minLon = parseFloat(lon) - delta;
+  const minLat = parseFloat(lat) - delta;
+  const maxLon = parseFloat(lon) + delta;
+  const maxLat = parseFloat(lat) + delta;
+  const bbox   = `${minLat},${minLon},${maxLat},${maxLon},EPSG:4326`;
 
-  const cql = `BBOX(geometry,${minX},${minY},${maxX},${maxY})`;
-  // of: const cql = `INTERSECTS(geometry,POINT(${lon} ${lat}))`;
-
+  // WFS-endpoint en CQL_FILTER=CONTAINS
+  const base = 'https://service.pdok.nl/kadaster/kadastralekaart/wfs/v5_0';
   const params = new URLSearchParams({
     service:      'WFS',
     version:      '2.0.0',
@@ -21,24 +26,25 @@ export async function handler(event) {
     typeNames:    'kadastralekaart:Perceel',
     outputFormat: 'application/json',
     srsName:      'EPSG:4326',
-    count:        '10',         // retourneer even meerdere kandidaten
-    CQL_FILTER:   cql
+    count:        '1',
+    bbox, 
+    CQL_FILTER:   `CONTAINS(geometry,POINT(${lon} ${lat}))`
   });
-  const url = `https://service.pdok.nl/kadaster/kadastralekaart/wfs/v5_0?${params}`;
+  const url = `${base}?${params.toString()}`;
 
   try {
-    const resp = await fetch(url);
-    const json = await resp.json();
+    const res  = await fetch(url);
+    const json = await res.json();
     return {
-      statusCode:200,
-      headers:{'Access-Control-Allow-Origin':'*'},
+      statusCode: 200,
+      headers: { 'Access-Control-Allow-Origin': '*' },
       body: JSON.stringify(json)
     };
-  } catch(err) {
+  } catch (err) {
     return {
-      statusCode:502,
-      headers:{'Access-Control-Allow-Origin':'*'},
-      body: JSON.stringify({error: err.message})
+      statusCode: 502,
+      headers: { 'Access-Control-Allow-Origin': '*' },
+      body: JSON.stringify({ error: err.message })
     };
   }
 }
