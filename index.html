@@ -1,31 +1,32 @@
-<!-- index.html -->
 <!DOCTYPE html>
 <html lang="nl">
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>Mestplaatsingsruimte</title>
-
-  <!-- Onze styling -->
   <link rel="stylesheet" href="style.css"/>
 
-  <!-- Leaflet (zonder integrity/crossorigin) -->
+  <!-- Leaflet -->
   <link
     rel="stylesheet"
     href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha512-sA+7h+gUh...<juiste-hash>..."
+    crossorigin=""
   />
   <script
     defer
     src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha512-QVltawop...<juiste-hash>..."
+    crossorigin=""
   ></script>
 
-  <!-- Turf.js voor nauwkeurige punt-in-polygon checks -->
+  <!-- Turf voor point-in-polygon -->
   <script
     defer
     src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"
   ></script>
 
-  <!-- Onze scripts -->
+  <!-- Eigen scripts -->
   <script defer src="kaart.js"></script>
   <script defer src="berekening.js"></script>
 </head>
@@ -33,8 +34,6 @@
   <div id="container">
     <h1>Mestplaatsingsruimte-calculator</h1>
     <div id="map" class="map"></div>
-
-    <div id="parcelList" class="parcel-list"></div>
 
     <form id="mestForm">
       <div class="form-grid">
