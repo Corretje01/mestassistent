@@ -1,19 +1,18 @@
-// kaart.js — volledige, nieuwe versie
+// kaart.js — volledig herschreven
 
-// Toggle voor extra logging
+// Zet DEBUG=false zodra alles werkt
 const DEBUG = true;
 const LIVE_ERRORS = true;
 
 // 1) SoilMapping inladen
 let soilMapping = [];
 fetch('/data/soilMapping.json')
-  .then(res => res.json())
+  .then(r => r.json())
   .then(j => soilMapping = j)
-  .catch(err => console.error('❌ Kan soilMapping.json niet laden:', err));
+  .catch(err => console.error('❌ soilMapping.json error:', err));
 
-// Helper om te mappen naar Zand/Klei/Veen/Löss
-function getBaseCategory(raw) {
-  const entry = soilMapping.find(e => e.name === raw);
+function getBaseCategory(rawName) {
+  const entry = soilMapping.find(e => e.name === rawName);
   return entry?.category || 'Onbekend';
 }
 
@@ -23,56 +22,66 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   attribution: '&copy; OSM contributors'
 }).addTo(map);
 
-// Track de huidige highlight-layer
-let parcelLayer = null;
+let currentLayer = null;
 
 map.on('click', async e => {
   const lon = e.latlng.lng.toFixed(6);
   const lat = e.latlng.lat.toFixed(6);
 
-  // 2a) Deselec­t: klik binnen huidig perceel
-  if (parcelLayer && parcelLayer.getBounds().contains(e.latlng)) {
-    map.removeLayer(parcelLayer);
-    parcelLayer = null;
-    ['perceel','hectare','grondsoort','nvgebied'].forEach(id => {
-      document.getElementById(id).value = '';
-    });
+  // 2a) Deselect als je binnen huidig polygon klikt
+  if (currentLayer && currentLayer.getBounds().contains(e.latlng)) {
+    map.removeLayer(currentLayer);
+    currentLayer = null;
+    ['perceel','hectare','grondsoort','nvgebied'].forEach(id => 
+      document.getElementById(id).value = ''
+    );
     return;
   }
 
   // 3) Bodemsoort ophalen
   try {
     const resp = await fetch(`/.netlify/functions/bodemsoort?lon=${lon}&lat=${lat}`);
-    const p    = await resp.json();
-    if (!resp.ok) throw new Error(p.error || resp.status);
-    const cat = getBaseCategory(p.grondsoort);
+    const json = await resp.json();
+    if (!resp.ok) throw new Error(json.error || resp.status);
+    const cat = getBaseCategory(json.grondsoort);
     document.getElementById('grondsoort').value = cat;
     window.huidigeGrond = cat;
-  } catch (err) {
+  } catch(err) {
     console.error('Bodem fout:', err);
     document.getElementById('grondsoort').value = 'Fout';
     window.huidigeGrond = 'Onbekend';
   }
 
-  // 4) Oude highlight verwijderen
-  if (parcelLayer) {
-    map.removeLayer(parcelLayer);
-    parcelLayer = null;
+  // 4) Oude highlight weg
+  if (currentLayer) {
+    map.removeLayer(currentLayer);
+    currentLayer = null;
   }
 
-  // 5) Vraag perceel op via jouw Netlify-proxy
-  const proxyUrl = `/.netlify/functions/perceel?lon=${lon}&lat=${lat}`;
-  if (DEBUG) console.log('▶ Proxy-perceel URL →', proxyUrl);
+  // 5) Bouw PDOK-WFS URL met CQL_FILTER
+  const base = 'https://service.pdok.nl/kadaster/kadastralekaart/wfs/v5_0';
+  const cql  = `CONTAINS(geometry,POINT(${lon} ${lat}))`;
+  const params = new URLSearchParams({
+    service:      'WFS',
+    version:      '2.0.0',
+    request:      'GetFeature',
+    typeNames:    'kadastralekaart:Perceel',
+    outputFormat: 'application/json',
+    srsName:      'EPSG:4326',
+    count:        '1',
+    CQL_FILTER:   cql
+  });
+  const wfsUrl = `${base}?${params.toString()}`;
 
+  if (DEBUG) {
+    console.log('▶ PDOK WFS URL:', wfsUrl);
+  }
+
+  // 6) Fetch en highlight
   try {
-    const r    = await fetch(proxyUrl);
+    const r    = await fetch(wfsUrl);
     const data = await r.json();
-    if (!r.ok) throw new Error(data.error || `Status ${r.status}`);
-
-    // **ZEER BELANGRIJK**: hier zie je de échte PDOK-call
-    if (DEBUG && data.debugUrl) {
-      console.log('▶ PDOK WFS URL: ', data.debugUrl);
-    }
+    if (!r.ok) throw new Error(data.error || r.status);
 
     const feat = data.features?.[0];
     if (!feat) {
@@ -80,25 +89,37 @@ map.on('click', async e => {
       return;
     }
 
-    // 6) Highlight polygon
-    parcelLayer = L.geoJSON(feat.geometry, {
+    // 7) Extra check: echt binnen poly (Turf)
+    const pt     = turf.point([parseFloat(lon), parseFloat(lat)]);
+    const poly   = turf.polygon(feat.geometry.coordinates);
+    const inside = turf.booleanPointInPolygon(pt, poly);
+
+    if (!inside) {
+      alert('Klik viel net buiten de perceelgrens. Probeer nogmaals precies binnen te klikken.');
+      if (DEBUG) console.log('⚠️ Turf check failed', feat.geometry.coordinates[0]);
+      return;
+    }
+
+    // 8) Toon polygon
+    currentLayer = L.geoJSON(feat.geometry, {
       style: { color: '#1e90ff', weight: 2, fillOpacity: 0.2 }
     }).addTo(map);
-    map.fitBounds(parcelLayer.getBounds());
+    map.fitBounds(currentLayer.getBounds());
 
-    // 7) Vul velden in
-    const props = feat.properties;
-    const naam  = props.weergavenaam
-                  || `${props.kadastraleGemeenteWaarde} ${props.sectie} ${props.perceelnummer}`;
-    const opp   = props.kadastraleGrootteWaarde; // m²
-
-    document.getElementById('perceel').value    = naam;
-    document.getElementById('hectare').value    = opp != null
-      ? (opp / 10000).toFixed(2)
+    // 9) Velden invullen
+    const p = feat.properties;
+    const name = p.weergavenaam
+      || `${p.kadastraleGemeenteWaarde} ${p.sectie} ${p.perceelnummer}`;
+    const areaM2 = p.kadastraleGrootteWaarde;
+    const areaHa = areaM2 != null
+      ? (areaM2 / 10000).toFixed(2)
       : '';
-    document.getElementById('nvgebied').value   = window.isNV ? 'Ja' : 'Nee';
 
-  } catch (err) {
+    document.getElementById('perceel').value  = name;
+    document.getElementById('hectare').value  = areaHa;
+    document.getElementById('nvgebied').value = window.isNV ? 'Ja' : 'Nee';
+
+  } catch(err) {
     console.error('Perceel fout:', err);
     if (LIVE_ERRORS) alert('Fout bij ophalen perceel.');
   }
