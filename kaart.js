@@ -1,51 +1,53 @@
-// kaart.js — stap 2: basis voor multi‐select met dummy‐cards,
-// mét behoud van je bestaande structuur (soilMapping, map‐init, enz.)
+// kaart.js — stap 2b: dummy‐cards met toggle op dezelfde locatie
 
-// DEBUG- en error‐flags
+// DEBUG‐flag
 const DEBUG = false;
-const LIVE_ERRORS = true;
 
-// 1) Soil‐mapping inladen
-let soilMapping = [];
-fetch('/data/soilMapping.json')
-  .then(res => res.json())
-  .then(j => soilMapping = j)
-  .catch(err => console.error('❌ Kan soilMapping.json niet laden:', err));
+// 1) Array waarin we elk geselecteerd “dummy‐perceel” bijhouden
+//    We slaan { id, lat, lon } op om toggling op coords te kunnen doen
+const selectedParcels = [];
 
-// Helper: RVO‐basis‐categorie bepalen
-function getBaseCategory(soilName) {
-  const entry = soilMapping.find(e => e.name === soilName);
-  return entry?.category || 'Onbekend';
-}
-
-// 2) Leaflet‐kaart init
+// 2) Leaflet‐kaart init (ongewijzigd)
 const map = L.map('map').setView([52.1, 5.1], 7);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   attribution: '&copy; OSM contributors'
 }).addTo(map);
 
-// 2a) Array met alle geselecteerde percelen (stap 2)
-const selectedParcels = [];
-
-// 3) Klik‐handler (nu alleen dummy‐cards; echte logica volgt in stap 3)
+// 3) Klik‐handler met toggle‐logica
 map.on('click', e => {
+  const lon = e.latlng.lng.toFixed(6);
+  const lat = e.latlng.lat.toFixed(6);
   const parcelList = document.getElementById('parcelList');
 
-  // Unieke ID voor deze selectie
+  // Kijk of we al een dummy hebben op exact deze coords
+  const existingIndex = selectedParcels.findIndex(p => p.lat === lat && p.lon === lon);
+
+  if (existingIndex !== -1) {
+    // Deselec­t: verwijder kaart en card
+    const toRemove = selectedParcels[existingIndex];
+    // DOM verwijderen
+    const cardEl = document.getElementById(toRemove.id);
+    if (cardEl) parcelList.removeChild(cardEl);
+    // Array bijwerken
+    selectedParcels.splice(existingIndex, 1);
+    if (DEBUG) console.log(`Deselected dummy at ${lat},${lon}`, selectedParcels);
+    return;
+  }
+
+  // Nieuw: we selecteren een dummy‐perceel
   const id = `dummy-${Date.now()}`;
+  selectedParcels.push({ id, lat, lon });
 
-  // Opslaan in de array
-  selectedParcels.push({ id });
-
-  // Bouw een eenvoudige card
+  // Maak de dummy‐card
   const card = document.createElement('div');
   card.className = 'parcel-card';
   card.id = id;
   card.innerHTML = `
-    <h3>Dummy perceel ${selectedParcels.length}</h3>
-    <p>Kaartje #${selectedParcels.length} in de lijst.</p>
+    <h3>Dummy perceel</h3>
+    <p>Locatie: ${lat}, ${lon}</p>
+    <p>Kaartje #${selectedParcels.length}</p>
   `;
   parcelList.appendChild(card);
 
-  if (DEBUG) console.log('selectedParcels:', selectedParcels);
+  if (DEBUG) console.log('Selected parcels:', selectedParcels);
 });
