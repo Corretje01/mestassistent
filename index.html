@@ -1,3 +1,4 @@
+<!-- index.html -->
 <!DOCTYPE html>
 <html lang="nl">
 <head>
@@ -5,8 +6,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>Mestplaatsingsruimte</title>
   <link rel="stylesheet" href="style.css"/>
+
+  <!-- Leaflet -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
   <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- Turf for accurate point-in-polygon -->
+  <script defer src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+
+  <!-- Onze scripts -->
   <script defer src="kaart.js"></script>
   <script defer src="berekening.js"></script>
 </head>
@@ -15,7 +23,7 @@
     <h1>Mestplaatsingsruimte-calculator</h1>
     <div id="map" class="map"></div>
 
-    <!-- STAP 1: Hier komen straks alle geselecteerde percelen -->
+    <!-- Hier komen alle geselecteerde percelen -->
     <div id="parcelList" class="parcel-list"></div>
 
     <form id="mestForm">
