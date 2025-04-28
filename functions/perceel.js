@@ -10,7 +10,7 @@ export async function handler(event) {
   }
 
   // ±50 m BBOX rond je punt (axis-order lat,lon voor WFS 2.0)
-  const delta  = 0.0005;
+  const delta  = 0.00005;
   const minLon = parseFloat(lon) - delta;
   const minLat = parseFloat(lat) - delta;
   const maxLon = parseFloat(lon) + delta;
