@@ -1,71 +1,51 @@
-// berekening.js — alleen totale mestruimte tonen
+// berekening.js — mestberekening per perceel
 
-document.addEventListener('DOMContentLoaded', () => {
-  const btn       = document.getElementById('berekenBtn');
-  const resultaat = document.getElementById('resultaat');
-
-  btn.addEventListener('click', e => {
+const mestForm = document.getElementById('mestForm');
+if (mestForm) {
+  mestForm.addEventListener('submit', e => {
     e.preventDefault();
-
-    // Haal de geselecteerde percelen uit kaart.js
-    const lst = window.parcels || [];
-    if (lst.length === 0) {
-      resultaat.innerHTML = `<p>Geen percelen geselecteerd.</p>`;
-      return;
-    }
-
-    // Normen-config
-    const normen = {
-      mais: {
-        grond: { Zand:{B:185}, Klei:{B:140}, Veen:{B:112}, Löss:{B:185} },
-        A:170, A_NVkort:20, B_derog_NV:190, B_derog_rest:200, C:75
-      },
-      tarwe: {
-        grond: { Zand:{B:150}, Klei:{B:120}, Veen:{B:100}, Löss:{B:150} },
-        A:170, A_NVkort:0,  B_derog_NV:170, B_derog_rest:200, C:60
-      },
-      suikerbieten: {
-        grond: { Zand:{B:170}, Klei:{B:130}, Veen:{B:110}, Löss:{B:170} },
-        A:170, A_NVkort:0,  B_derog_NV:170, B_derog_rest:200, C:70
-      }
-      // … voeg hier andere gewassen toe
-    };
-
-    let totaalN = 0;
-    let totaalP = 0;
-
-    lst.forEach(p => {
-      const m = normen[p.gewas];
-      // Norm A (kg N/ha)
+    const resultaten = parcels.map((p, i) => {
+      const ha       = parseFloat(p.ha) || 0;
+      const gewasKey = p.gewas;
+      const deriv    = p.derogatie === 'ja';
+      const grond    = p.grondsoort;
+      const isNV     = (p.nvgebied === 'Ja');
+      const normen   = {
+        mais: { grond:{ Zand:{B:185},Klei:{B:140},Veen:{B:112} }, A:170, A_NVkort:20, B_derog_NV:190, B_derog_rest:200, C:75 },
+        tarwe:{ grond:{ Zand:{B:150},Klei:{B:120},Veen:{B:100} }, A:170, A_NVkort:0,  B_derog_NV:170, B_derog_rest:200, C:60 }
+      };
+      const m = normen[gewasKey];
       let A_ha = m.A;
-      if (p.nvgebied === 'Ja' && m.A_NVkort) {
-        A_ha = A_ha * (100 - m.A_NVkort) / 100;
-      }
-      // Norm B (kg N/ha)
-      let B_ha = m.grond[p.grondsoort]?.B ?? m.grond['Zand'].B;
-      if (p.derogatie === 'ja') {
-        B_ha = p.nvgebied === 'Ja' ? m.B_derog_NV : m.B_derog_rest;
-      }
-      // Norm C (kg P/ha)
+      if (isNV && m.A_NVkort) A_ha = A_ha * (100 - m.A_NVkort)/100;
+      let B_ha = m.grond[grond]?.B || m.grond.Zand.B;
+      if (deriv) B_ha = isNV? m.B_derog_NV : m.B_derog_rest;
       const C_ha = m.C;
-
-      const ha = parseFloat(p.ha) || 0;
-      const N_dierlijk = A_ha * ha;
-      const N_totaal   = B_ha * ha;
-      const P_totaal   = C_ha * ha;
-
-      // toegestane N is min van A en B
-      totaalN += Math.min(N_dierlijk, N_totaal);
-      // toegestane P is gewoon P
-      totaalP += P_totaal;
+      const A = A_ha * ha, B = B_ha * ha, C = C_ha * ha;
+      const N_toegestaan = Math.min(A,B);
+      return {
+        titel: p.name,
+        A:    { perHa: A_ha, totaal: A },
+        B:    { perHa: B_ha, totaal: B },
+        C:    { perHa: C_ha, totaal: C },
+        N_toegestaan
+      };
     });
 
-    resultaat.innerHTML = `
+    // Toon alle resultaten
+    const html = resultaten.map((r, i) => `
       <div class="resultaat-blok">
-        <h2>Totale mestruimte</h2>
-        <p><strong>Stikstof (N):</strong> ${totaalN.toFixed(0)} kg</p>
-        <p><strong>Fosfaat (P):</strong> ${totaalP.toFixed(0)} kg</p>
+        <h2>${i+1}. ${r.titel}</h2>
+        <p><strong>A (N<sub>dierlijk</sub>):</strong>
+          ${r.A.perHa.toFixed(1)} kg/ha × ${parcels[i].ha} ha = ${r.A.totaal.toFixed(0)} kg</p>
+        <p><strong>B (N<sub>totaal</sub>):</strong>
+          ${r.B.perHa.toFixed(1)} kg/ha × ${parcels[i].ha} ha = ${r.B.totaal.toFixed(0)} kg</p>
+        <p><strong>C (P<sub>totaal</sub>):</strong>
+          ${r.C.perHa.toFixed(1)} kg/ha × ${parcels[i].ha} ha = ${r.C.totaal.toFixed(0)} kg</p>
+        <hr>
+        <p><strong>Toegestane stikstof:</strong> ${r.N_toegestaan.toFixed(0)} kg</p>
+        <p><strong>Toegestane fosfaat:</strong> ${r.C.totaal.toFixed(0)} kg</p>
       </div>
-    `;
+    `).join('');
+    document.getElementById('resultaat').innerHTML = html;
   });
-});
+}
