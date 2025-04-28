@@ -1,9 +1,9 @@
-// kaart.js — Leaflet + Turf + Netlify-proxy voor perceelsselectie
+// kaart.js — Leaflet + Turf + Netlify-proxy voor perceelsselectie mét buffer-fallback
 
 const DEBUG = false;
 const LIVE_ERRORS = true;
 
-// 1) Soil-mapping laden
+// 1) Soil-mapping inladen
 let soilMapping = [];
 fetch('/data/soilMapping.json')
   .then(r => r.json())
@@ -27,7 +27,7 @@ let parcelLayer = null;
 map.on('click', async e => {
   const [lon, lat] = [e.latlng.lng.toFixed(6), e.latlng.lat.toFixed(6)];
 
-  // 2a) Deselect: klik binnen huidig perceel
+  // 2a) Toggle deselect: klik binnen huidig perceel
   if (parcelLayer && parcelLayer.getBounds().contains(e.latlng)) {
     map.removeLayer(parcelLayer);
     parcelLayer = null;
@@ -49,14 +49,14 @@ map.on('click', async e => {
     window.huidigeGrond = 'Onbekend';
   }
 
-  // 4) Verwijder vorige highlight
+  // 4) Oude highlight verwijderen
   if (parcelLayer) {
     map.removeLayer(parcelLayer);
     parcelLayer = null;
     clearFields();
   }
 
-  // 5) Haal perceel op via Netlify-proxy
+  // 5) Proxy-aanroep voor perceel
   const proxyUrl = `/.netlify/functions/perceel?lon=${lon}&lat=${lat}`;
   if (DEBUG) console.log('🔗 Proxy-perceel URL:', proxyUrl);
 
@@ -77,13 +77,19 @@ map.on('click', async e => {
     return;
   }
 
-  // 6) Turf-check: echt binnen perceel?
-  const pt     = turf.point([+lon, +lat]);
-  const poly   = turf.polygon(feat.geometry.coordinates);
-  const inside = turf.booleanPointInPolygon(pt, poly);
+  // 6) Turf-check: eerst exact, en anders binnen 5 m buffer
+  const pt   = turf.point([+lon, +lat]);
+  const poly = turf.polygon(feat.geometry.coordinates);
+  let inside = turf.booleanPointInPolygon(pt, poly);
+
   if (!inside) {
-    console.warn('⚠ Turf check failed', feat.geometry.coordinates[0]);
-    alert('Klik viel net buiten de perceelgrens. Probeer opnieuw.');
+    // buffer van 5 meter rondom
+    const buf = turf.buffer(poly, 5, { units: 'meters' });
+    inside = turf.booleanPointInPolygon(pt, buf);
+    if (DEBUG) console.log('⚠ Binnen 5m-buffer?', inside);
+  }
+  if (!inside) {
+    alert('Klik viel net buiten de perceelsgrens. Probeer opnieuw.');
     return;
   }
 
@@ -107,7 +113,6 @@ function fillFields(props) {
   const naam = props.weergavenaam
     || `${props.kadastraleGemeenteWaarde} ${props.sectie} ${props.perceelnummer}`;
   const opp  = props.kadastraleGrootteWaarde;
-
   document.getElementById('perceel').value  = naam;
   document.getElementById('nvgebied').value = (props.inbrenggebiedCode ? 'Ja' : 'Nee');
   document.getElementById('hectare').value  = opp != null
