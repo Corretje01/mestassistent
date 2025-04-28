@@ -1,39 +1,45 @@
 <!DOCTYPE html>
 <html lang="nl">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Mestplaatsingsruimte-calculator</title>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Mestplaatsingsruimte</title>
+  <link rel="stylesheet" href="style.css"/>
 
-  <!-- Eigen stylesheet -->
-  <link rel="stylesheet" href="style.css" />
-
-  <!-- Leaflet zonder integrity-attributen (anders worden ze geblokkeerd) -->
+  <!-- Leaflet CSS met correcte SRI-hash -->
   <link
     rel="stylesheet"
     href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin="anonymous"
   />
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-  <!-- Turf (voor geavanceerde ruimtelijke checks, indien nodig) -->
-  <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+  <!-- Leaflet JS met correcte SRI-hash -->
+  <script
+    defer
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin="anonymous"
+  ></script>
 
-  <!-- Eigen script achteraan, na Leaflet -->
+  <!-- Turf.js voor accurate point-in-polygon checks -->
+  <script
+    defer
+    src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"
+  ></script>
+
+  <!-- Onze eigen scripts -->
   <script defer src="kaart.js"></script>
   <script defer src="berekening.js"></script>
 </head>
-
 <body>
   <div id="container">
     <h1>Mestplaatsingsruimte-calculator</h1>
-
-    <!-- De kaart -->
     <div id="map" class="map"></div>
 
-    <!-- Dynamische lijst met geselecteerde percelen -->
+    <!-- Lijst met meerdere percelen komt hier -->
     <div id="parcelList" class="parcel-list"></div>
 
-    <!-- Het formulier (kan leeg blijven, vullen gebeurt via parcelList) -->
     <form id="mestForm">
       <div class="form-grid">
         <div class="form-group">
@@ -68,7 +74,6 @@
           </select>
         </div>
       </div>
-
       <div class="form-actions">
         <button type="submit">Bereken gebruiksruimte</button>
       </div>
