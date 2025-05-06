@@ -1,3 +1,4 @@
+// ===== kaart.js =====
 // kaart.js — multi-perceel selectie + dynamic UI
 
 const DEBUG = false;
@@ -15,7 +16,7 @@ function getBaseCategory(name) {
 
 // 2) Leaflet init
 const map = L.map('map').setView([52.1,5.1],7);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{  
   attribution:'© OSM contributors'
 }).addTo(map);
 
@@ -40,6 +41,9 @@ function renderParcelList() {
       <div class="form-group"><label>Grondsoort</label><input readonly value="${p.grondsoort}"></div>
       <div class="form-group"><label>NV-gebied?</label><input readonly value="${p.nvgebied}"></div>
       <div class="form-group"><label>Ha (ha)</label><input readonly value="${p.ha}"></div>
+      <div class="form-group"><label>Landgebruik</label><input readonly value="${p.landgebruik}"></div>
+      <div class="form-group"><label>Gewascode</label><input readonly value="${p.gewasCode}"></div>
+      <div class="form-group"><label>Gewas naam</label><input readonly value="${p.gewasNaam}"></div>
       <div class="form-group"><label>Teelt</label>
         <select class="teelt">
           <option value="mais"${p.gewas==='mais'?' selected':''}>Maïs</option>
@@ -62,7 +66,6 @@ function renderParcelList() {
     // select‐listeners om te slaan in parcels[]
     div.querySelector('.teelt').onchange = e => { p.gewas = e.target.value; };
     div.querySelector('.derogatie').onchange = e => { p.derogatie = e.target.value; };
-
     container.append(div);
   });
 }
@@ -94,12 +97,11 @@ map.on('click', async e => {
   if (DEBUG) console.log('Proxy-perceel URL →',url);
 
   try {
-    const r = await fetch(url);
-    const data = await r.json();
-    if (!r.ok) throw new Error(data.error||r.status);
+    const res = await fetch(url);
+    const data = await res.json();
     const feat = data.features?.[0];
     if (!feat) {
-      // géén perceel gevonden
+      if (LIVE_ERRORS) alert('Geen perceel gevonden.');
       return;
     }
 
@@ -107,7 +109,6 @@ map.on('click', async e => {
     const layer = L.geoJSON(feat.geometry, {
       style:{ color:'#1e90ff', weight:2, fillOpacity:0.2 }
     }).addTo(map);
-    // map.fitBounds(layer.getBounds()); // kies zelf of je wilt uitzoomen
 
     // 6d) Lees properties
     const props = feat.properties;
@@ -133,10 +134,13 @@ map.on('click', async e => {
       layer,
       name,
       grondsoort: baseCat,
-      nvgebied: window.isNV? 'Ja':'Nee',
+      nvgebied:   window.isNV ? 'Ja' : 'Nee',
       ha,
-      gewas: 'mais',
-      derogatie: 'nee'
+      landgebruik: props.landgebruik || 'Onbekend',
+      gewasCode:   props.gewasCode   || '',
+      gewasNaam:   props.gewasNaam   || '',
+      gewas:       'mais',
+      derogatie:   'nee'
     });
     renderParcelList();
 
