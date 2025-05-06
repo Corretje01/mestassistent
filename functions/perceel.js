@@ -44,24 +44,44 @@ export async function handler(event) {
           service:      'WFS',
           version:      '2.0.0',
           request:      'GetFeature',
-          typeNames:    'brpgewaspercelen:gewaspercelen',
+          typeNames:    'brpgewaspercelen:BrpGewas',
           outputFormat: 'application/json',
           srsName:      'EPSG:4326',
           count:        '1',
           CQL_FILTER:   `CONTAINS(geometry,POINT(${lon} ${lat}))`
         });
         const gewasUrl = `https://service.pdok.nl/rvo/brpgewaspercelen/wfs/v1_0?${gewasParams.toString()}`;
-        const gres = await fetch(gewasUrl);
+        const gres    = await fetch(gewasUrl);
         if (gres.ok) {
           const gjson = await gres.json();
           const gfeat = gjson.features?.[0];
           if (gfeat) {
-            // Voeg landgebruik en gewascode toe aan properties
+            // DEBUG: log alle properties van het gewasperceel
+            console.log('DEBUG gewaspercelen properties:', gfeat.properties);
+
+            // Robuuste extractie van landgebruik, gewascode en gewasnaam
+            const gp = gfeat.properties || {};
+            const landgebruik = gp.CAT_GEWASCATEGORIE
+                              || gp.cat_gewascategorie
+                              || gp['brpgewaspercelen:CAT_GEWASCATEGORIE']
+                              || gp['brpgewaspercelen:cat_gewascategorie']
+                              || 'Onbekend';
+            const gewasCode   = gp.GWS_GEWASCODE
+                              || gp.gws_gewascode
+                              || gp['brpgewaspercelen:GWS_GEWASCODE']
+                              || gp['brpgewaspercelen:gws_gewascode']
+                              || '';
+            const gewasNaam   = gp.GWS_GEWAS
+                              || gp.gws_gewas
+                              || gp['brpgewaspercelen:GWS_GEWAS']
+                              || gp['brpgewaspercelen:gws_gewas']
+                              || '';
+
             feat.properties = {
               ...feat.properties,
-              landgebruik: gfeat.properties.CAT_GEWASCATEGORIE,
-              gewasCode:   gfeat.properties.GWS_GEWASCODE,
-              gewasNaam:   gfeat.properties.GWS_GEWAS
+              landgebruik,
+              gewasCode,
+              gewasNaam
             };
           }
         }
