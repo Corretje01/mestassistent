@@ -1,4 +1,26 @@
-= [];
+// ===== kaart.js =====
+const DEBUG = false;
+const LIVE_ERRORS = true;
+
+// Soil-mapping inladen
+let soilMapping = [];
+fetch('/data/soilMapping.json')
+  .then(r => r.json()).then(j => soilMapping = j)
+  .catch(err => console.error('❌ Kan soilMapping.json niet laden:', err));
+
+function getBaseCategory(name) {
+  const e = soilMapping.find(x => x.name === name);
+  return e?.category || 'Onbekend';
+}
+
+// Leaflet init
+const map = L.map('map').setView([52.1, 5.1], 7);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{  
+  attribution: '© OSM contributors'
+}).addTo(map);
+
+// Data-structuur voor geselecteerde percelen
+let parcels = [];
 
 // Hulpfunctie: unieke ID
 function uuid() {
