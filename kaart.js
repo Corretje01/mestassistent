@@ -1,30 +1,24 @@
+// ===== kaart.js =====
 const DEBUG = false;
 const LIVE_ERRORS = true;
 
-// Laad soilMapping
 let soilMapping = [];
 fetch('/data/soilMapping.json')
-  .then(r => r.json())
-  .then(j => (soilMapping = j))
-  .catch(err =>
-    console.error('❌ Kan soilMapping.json niet laden:', err)
-  );
+  .then(r => r.json()).then(j => soilMapping = j)
+  .catch(err => console.error('❌ Kan soilMapping.json niet laden:', err));
 
 function getBaseCategory(name) {
   const e = soilMapping.find(x => x.name === name);
   return e?.category || 'Onbekend';
 }
 
-// Init map
 const map = L.map('map').setView([52.1, 5.1], 7);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   attribution: '© OSM contributors'
 }).addTo(map);
 
 let parcels = [];
-function uuid() {
-  return 'p_' + Math.random().toString(36).slice(2);
-}
+function uuid() { return 'p_' + Math.random().toString(36).slice(2); }
 
 function renderParcelList() {
   const container = document.getElementById('parcelList');
@@ -43,8 +37,7 @@ function renderParcelList() {
       <div class="form-group"><label>Gewas naam</label><input readonly value="${p.gewasNaam}"></div>
       <button class="remove-btn">Verwijder</button>
     `;
-    div.querySelector('.remove-btn').onclick = () =>
-      removeParcel(p.id);
+    div.querySelector('.remove-btn').onclick = () => removeParcel(p.id);
     container.append(div);
   });
 }
@@ -61,19 +54,14 @@ function removeParcel(id) {
 map.on('click', async e => {
   const lon = e.latlng.lng.toFixed(6);
   const lat = e.latlng.lat.toFixed(6);
-
-  // Deselec­teer bij dubbelklik
   for (const p of parcels) {
     if (p.layer.getBounds().contains(e.latlng)) {
-      removeParcel(p.id);
-      return;
+      return removeParcel(p.id);
     }
   }
 
   try {
-    const res  = await fetch(
-      `/.netlify/functions/perceel?lon=${lon}&lat=${lat}`
-    );
+    const res  = await fetch(`/.netlify/functions/perceel?lon=${lon}&lat=${lat}`);
     const data = await res.json();
     const feat = data.features?.[0];
     if (!feat) {
@@ -83,36 +71,27 @@ map.on('click', async e => {
     console.log('DEBUG kaart properties:', feat.properties);
 
     const layer = L.geoJSON(feat.geometry, {
-      style: {
-        color: '#1e90ff',
-        weight: 2,
-        fillOpacity: 0.2
-      }
+      style: { color: '#1e90ff', weight: 2, fillOpacity: 0.2 }
     }).addTo(map);
 
     const props = feat.properties;
-    const name =
-      props.weergavenaam ||
-      `${props.kadastraleGemeenteWaarde} ${props.sectie} ${props.perceelnummer}`;
-    const opp = props.kadastraleGrootteWaarde;
-    const ha  = opp != null ? (opp / 10000).toFixed(2) : '';
+    const name  = props.weergavenaam || `${props.kadastraleGemeenteWaarde} ${props.sectie} ${props.perceelnummer}`;
+    const opp   = props.kadastraleGrootteWaarde;
+    const ha    = opp != null ? (opp/10000).toFixed(2) : '';
 
-    // Bepaal bodemsoort
-    const baseCat = getBaseCategory(props.grondsoort);
-    let grondsoort = baseCat;
-    if (baseCat === 'Zand') {
-      const prov = props.provincie || '';
-      grondsoort =
-        prov === 'Limburg' || prov === 'Noord-Brabant'
-          ? 'Zuidelijk zand'
-          : 'Noordelijk westelijk en centraal zand';
+    let baseCat = window.huidigeGrond;
+    if (!baseCat || baseCat === 'Onbekend') {
+      try {
+        const pj = await (await fetch(`/.netlify/functions/bodemsoort?lon=${lon}&lat=${lat}`)).json();
+        baseCat = getBaseCategory(pj.grondsoort);
+      } catch {}
     }
 
     parcels.push({
-      id: uuid(),
+      id:         uuid(),
       layer,
       name,
-      grondsoort,
+      grondsoort: baseCat,
       nvgebied:   window.isNV ? 'Ja' : 'Nee',
       ha,
       landgebruik: props.landgebruik || 'Onbekend',
