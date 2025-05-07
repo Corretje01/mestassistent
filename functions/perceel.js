@@ -58,26 +58,70 @@ export async function handler(event) {
 
   // 3) Ophalen provincie via spatial filter
   try {
+    // Gebruik actuele PDOK CBS Gebiedsindelingen-service (Provincie gegeneraliseerd)
     const provParams = new URLSearchParams({
-      service: 'WFS', version: '2.0.0', request: 'GetFeature',
-      typeNames: 'cbsgebiedsindelingen:Provincie', outputFormat: 'application/json',
-      srsName: 'EPSG:4326', count: '1', bbox,
-      CQL_FILTER: `CONTAINS(geometry,POINT(${lon} ${lat}))`
+      service:      'WFS',
+      version:      '2.0.0',
+      request:      'GetFeature',
+      typeNames:    'gebiedsindelingen:provincie_gegeneraliseerd',
+      outputFormat: 'application/json',
+      srsName:      'EPSG:4326',
+      count:        '1',
+      CQL_FILTER:   `CONTAINS(geometry,POINT(${lon} ${lat}))`
     });
     const provUrl = `https://service.pdok.nl/cbs/gebiedsindelingen/2025/wfs/v1_0?${provParams.toString()}`;
     const pjson = await fetch(provUrl).then(r => r.json());
     const pfeat = pjson.features?.[0];
     if (pfeat) {
-      const pname = pfeat.properties.provincienaam || 'Onbekend';
+      console.log('DEBUG province properties:', pfeat.properties);
+      const pname = pfeat.properties.provincienaam || pfeat.properties.PROVINCIE || 'Onbekend';
       Object.assign(feat.properties, { provincie: pname });
     }
   } catch (err) {
     console.error('Fout bij ophalen provincie:', err);
   }
 
+  // Return including updated properties
   return {
     statusCode: 200,
     headers: { 'Access-Control-Allow-Origin': '*' },
     body: JSON.stringify(json)
-  };
-}
+  };;
+    }
+    console.log('DEBUG kaart properties:', feat.properties);
+
+    const layer = L.geoJSON(feat.geometry, {
+      style: { color: '#1e90ff', weight: 2, fillOpacity: 0.2 }
+    }).addTo(map);
+
+    const props = feat.properties;
+    const name = props.weergavenaam || `${props.kadastraleGemeenteWaarde} ${props.sectie} ${props.perceelnummer}`;
+    const opp = props.kadastraleGrootteWaarde;
+    const ha = opp != null ? (opp / 10000).toFixed(2) : '';
+
+    let baseCat = window.huidigeGrond;
+    if (!baseCat || baseCat === 'Onbekend') {
+      try {
+        const pj = await (await fetch(`/.netlify/functions/bodemsoort?lon=${lon}&lat=${lat}`)).json();
+        baseCat = getBaseCategory(pj.grondsoort);
+      } catch {}
+    }
+
+    parcels.push({
+      id: uuid(),
+      layer,
+      name,
+      provincie: props.provincie,
+      grondsoort: baseCat,
+      nvgebied: window.isNV ? 'Ja' : 'Nee',
+      ha,
+      landgebruik: props.landgebruik || 'Onbekend',
+      gewasCode: props.gewasCode || '',
+      gewasNaam: props.gewasNaam || ''
+    });
+    renderParcelList();
+  } catch (err) {
+    console.error('Perceel fout:', err);
+    if (LIVE_ERRORS) alert('Fout bij ophalen perceel.');
+  }
+});
