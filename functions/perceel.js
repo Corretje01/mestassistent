@@ -69,7 +69,7 @@ export async function handler(event) {
       count:        '1',
       CQL_FILTER:   `CONTAINS(geometry,POINT(${lon} ${lat}))`
     });
-    const provUrl = `https://service.pdok.nl/cbs/gebiedsindelingen/2025/wfs/v1_0?${provParams.toString()}`;
+    const provUrl = `https://service.pdok.nl/cbs/gebiedsindelingen/2024/wfs/v1_0?${provParams.toString()}`;
     const pjson = await fetch(provUrl).then(r => r.json());
     const pfeat = pjson.features?.[0];
     if (pfeat) {
