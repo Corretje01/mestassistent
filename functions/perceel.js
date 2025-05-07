@@ -18,8 +18,8 @@ export async function handler(event) {
   const bbox   = `${minLat},${minLon},${maxLat},${maxLon},EPSG:4326`;
 
   // 1) Ophalen kadastraal perceel
-  const base = 'https://service.pdok.nl/kadaster/kadastralekaart/wfs/v5_0';
-  const params = new URLSearchParams({
+  const base      = 'https://service.pdok.nl/kadaster/kadastralekaart/wfs/v5_0';
+  const params    = new URLSearchParams({
     service:      'WFS',
     version:      '2.0.0',
     request:      'GetFeature',
@@ -30,13 +30,36 @@ export async function handler(event) {
     bbox,
     CQL_FILTER:   `CONTAINS(geometry,POINT(${lon} ${lat}))`
   });
-  const url = `${base}?${params.toString()}`;
-
-  // Haal kadastraal perceel op
-  const json = await fetch(url).then(r => r.json());
-  const feat = json.features?.[0];
+  const url       = `${base}?${params.toString()}`;
+  const json      = await fetch(url).then(r => r.json());
+  const feat      = json.features?.[0];
   if (!feat) {
-    return { statusCode: 200, headers: { 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify(json) };
+    return { statusCode:200, headers:{'Access-Control-Allow-Origin':'*'}, body:JSON.stringify(json) };
+  }
+
+  // 1a) Ophalen provincie via spatial filter
+  try {
+    const provParams = new URLSearchParams({
+      service:      'WFS',
+      version:      '2.0.0',
+      request:      'GetFeature',
+      typeNames:    'bestuurlijkegebieden:Provinciegebied',
+      outputFormat: 'application/json',
+      srsName:      'EPSG:4326',
+      count:        '1',
+      CQL_FILTER:   `CONTAINS(geometry,POINT(${lon} ${lat}))`
+    });
+    const provUrl  = `https://service.pdok.nl/kadaster/bestuurlijkegebieden/wfs/v1_0?${provParams.toString()}`;
+    const pres     = await fetch(provUrl);
+    const pjson    = await pres.json();
+    const pfeat    = pjson.features?.[0];
+    if (pfeat) {
+      const pp           = pfeat.properties || {};
+      const provincie     = pp.provincienaam || pp.Provincienaam || pp.naam || '';
+      feat.properties.provincie = provincie;
+    }
+  } catch (err) {
+    console.error('Fout bij ophalen provincie:', err);
   }
 
   // 2) Ophalen gewasperceel via spatial filter
@@ -56,10 +79,7 @@ export async function handler(event) {
     const gjson    = await fetch(gewasUrl).then(r => r.json());
     const gfeat    = gjson.features?.[0];
     if (gfeat) {
-      console.log('DEBUG rawGewaspercelenProperties:', gfeat.properties);
-      const gp = gfeat.properties || {};
-
-      // Extract landgebruik, gewascode en gewasnaam
+      const gp        = gfeat.properties || {};
       const landgebruik = gp.category || 'Onbekend';
       const gewasCode   = gp.gewascode?.toString() || '';
       const gewasNaam   = gp.gewas || '';
@@ -70,8 +90,8 @@ export async function handler(event) {
   }
 
   return {
-    statusCode: 200,
-    headers: { 'Access-Control-Allow-Origin': '*' },
+    statusCode:200,
+    headers:{'Access-Control-Allow-Origin':'*'},
     body: JSON.stringify(json)
   };
 }
