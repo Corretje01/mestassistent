@@ -39,7 +39,7 @@ export async function handler(event) {
     return { statusCode: 200, headers: { 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify(json) };
   }
 
-  // Perceelnummer samenstellen uit Kadaster-velden
+  // Perceel-ID samenstellen
   const p = feat.properties || {};
   const perceelId = `${p.kadastraleGemeenteWaarde}${p.sectie}${p.perceelnummer}`;
   console.log('DEBUG perceelId:', perceelId);
@@ -61,14 +61,24 @@ export async function handler(event) {
     const gjson    = await fetch(gewasUrl).then(r => r.json());
     const gfeat    = gjson.features?.[0];
     if (gfeat) {
-      // Voeg raw gewaspercelen properties toe voor debugging in browser
-      feat.properties.rawGewaspercelenProperties = gfeat.properties;
       console.log('DEBUG rawGewaspercelenProperties:', gfeat.properties);
-
       const gp = gfeat.properties || {};
-      const landgebruik = gp.CAT_GEWASCATEGORIE || gp.cat_gewascategorie || '';
-      const gewasCode   = gp.GWS_GEWASCODE    || gp.gws_gewascode    || '';
-      const gewasNaam   = gp.GWS_GEWAS        || gp.gws_gewas        || '';
+
+      // Nieuw: extractie van de werkelijke property-namen van rawGewaspercelenProperties
+      const landgebruik = gp.CAT_GEWASCATEGORIE
+                        || gp.cat_gewascategorie
+                        || gp.category
+                        || 'Onbekend';
+      const gewasCode   = gp.GWS_GEWASCODE
+                        || gp.gws_gewascode
+                        || gp.gewascode?.toString()
+                        || '';
+      const gewasNaam   = gp.GWS_GEWAS
+                        || gp.gws_gewas
+                        || gp.gewas
+                        || '';
+
+      // Voeg toe aan perceel-properties
       Object.assign(feat.properties, { landgebruik, gewasCode, gewasNaam });
     }
   } catch (err) {
