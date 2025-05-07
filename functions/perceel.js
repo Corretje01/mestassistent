@@ -42,7 +42,7 @@ export async function handler(event) {
     };
   }
 
-  // 2) Ophalen gewasperceel via spatial filter (CQL_CONTAINS)
+  // 2) Ophalen gewasperceel via spatial filter
   try {
     const gewasParams = new URLSearchParams({
       service:      'WFS',
@@ -67,6 +67,22 @@ export async function handler(event) {
     }
   } catch (err) {
     console.error('Fout bij ophalen gewasperceel:', err);
+  }
+
+  // 3) Ophalen provincie via Reverse Geocoding (Nominatim)
+  try {
+    const geoRes = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=5`
+    );
+    const geoJson = await geoRes.json();
+    const province =
+      (geoJson.address &&
+        (geoJson.address.province || geoJson.address.state)) ||
+      '';
+    feat.properties.provincie = province;
+  } catch (err) {
+    console.error('Fout bij bepalen provincie:', err);
+    feat.properties.provincie = '';
   }
 
   return {
