@@ -69,7 +69,33 @@ export async function handler(event) {
     console.error('Fout bij ophalen gewasperceel:', err);
   }
 
+  // 3) Ophalen provincie via spatial filter
+  try {
+    const provParams = new URLSearchParams({
+      service:      'WFS',
+      version:      '2.0.0',
+      request:      'GetFeature',
+      typeNames:    'cbsgebiedsindelingen:Provincie',
+      outputFormat: 'application/json',
+      srsName:      'EPSG:4326',
+      count:        '1',
+      bbox,
+      CQL_FILTER:   `CONTAINS(geometry,POINT(${lon} ${lat}))`
+    });
+    const provUrl  = `https://service.pdok.nl/cbs/gebiedsindelingen/2023/wfs/v1_0?${provParams.toString()}`;
+    const pjson    = await fetch(provUrl).then(r => r.json());
+    const pfeat    = pjson.features?.[0];
+    const pname    = pfeat?.properties?.provincienaam || 'Onbekend';
+    Object.assign(feat.properties, { provincie: pname });
+  } catch (err) {
+    console.error('Fout bij ophalen provincie:', err);
+  }
+
   return {
+    statusCode: 200,
+    headers: { 'Access-Control-Allow-Origin': '*' },
+    body: JSON.stringify(json)
+  }; {
     statusCode: 200,
     headers: { 'Access-Control-Allow-Origin': '*' },
     body: JSON.stringify(json)
