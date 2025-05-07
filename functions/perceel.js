@@ -81,6 +81,7 @@ export async function handler(event) {
       outputFormat: 'application/json',
       srsName:      'EPSG:4326',
       count:        '1',
+      bbox,
       CQL_FILTER:   `CONTAINS(geometry,POINT(${lon} ${lat}))`
     });
     const url3   = `${base3}?${params3.toString()}`;
