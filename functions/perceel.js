@@ -43,7 +43,7 @@ export async function handler(event) {
       service:      'WFS',
       version:      '2.0.0',
       request:      'GetFeature',
-      typeNames:    'bestuurlijkegebieden:Provinciegebied',
+      typeNames:    'bestuurlijkegebieden:Provinciegebieden',
       outputFormat: 'application/json',
       srsName:      'EPSG:4326',
       count:        '1',
@@ -55,7 +55,8 @@ export async function handler(event) {
     const pfeat    = pjson.features?.[0];
     if (pfeat) {
       const pp           = pfeat.properties || {};
-      const provincie     = pp.provincienaam || pp.Provincienaam || pp.naam || '';
+      const provincie = pp.statnaam || pp.Provincienaam || '';
+      console.log('DEBUG geladen provincie:', provincie);;
       feat.properties.provincie = provincie;
     }
   } catch (err) {
