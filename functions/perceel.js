@@ -32,20 +32,13 @@ export async function handler(event) {
   });
   const url = `${base}?${params.toString()}`;
 
-  // Haal kadastraal perceel op
   const json = await fetch(url).then(r => r.json());
   const feat = json.features?.[0];
   if (!feat) {
     return { statusCode: 200, headers: { 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify(json) };
   }
 
-  // Perceel-ID samenstellen
-  const p = feat.properties || {};
-  const perceelId = `${p.kadastraleGemeenteWaarde}${p.sectie}${p.perceelnummer}`;
-  console.log('DEBUG perceelId:', perceelId);
-  feat.properties.perceelId = perceelId;
-
-  // 2) Ophalen gewasperceel op basis van perceelnummer
+  // 2) Ophalen gewasperceel via spatial filter (CQL_CONTAINS)
   try {
     const gewasParams = new URLSearchParams({
       service:      'WFS',
@@ -55,7 +48,8 @@ export async function handler(event) {
       outputFormat: 'application/json',
       srsName:      'EPSG:4326',
       count:        '1',
-      CQL_FILTER:   `KAD_PERCEEL='${perceelId}'`
+      bbox,
+      CQL_FILTER:   `CONTAINS(geometry,POINT(${lon} ${lat}))`
     });
     const gewasUrl = `https://service.pdok.nl/rvo/brpgewaspercelen/wfs/v1_0?${gewasParams.toString()}`;
     const gjson    = await fetch(gewasUrl).then(r => r.json());
@@ -64,21 +58,10 @@ export async function handler(event) {
       console.log('DEBUG rawGewaspercelenProperties:', gfeat.properties);
       const gp = gfeat.properties || {};
 
-      // Nieuw: extractie van de werkelijke property-namen van rawGewaspercelenProperties
-      const landgebruik = gp.CAT_GEWASCATEGORIE
-                        || gp.cat_gewascategorie
-                        || gp.category
-                        || 'Onbekend';
-      const gewasCode   = gp.GWS_GEWASCODE
-                        || gp.gws_gewascode
-                        || gp.gewascode?.toString()
-                        || '';
-      const gewasNaam   = gp.GWS_GEWAS
-                        || gp.gws_gewas
-                        || gp.gewas
-                        || '';
-
-      // Voeg toe aan perceel-properties
+      // Extract landgebruik, gewascode en gewasnaam
+      const landgebruik = gp.category || 'Onbekend';
+      const gewasCode   = gp.gewascode?.toString() || '';
+      const gewasNaam   = gp.gewas || '';
       Object.assign(feat.properties, { landgebruik, gewasCode, gewasNaam });
     }
   } catch (err) {
