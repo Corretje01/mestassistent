@@ -1,3 +1,4 @@
+// ===== functions/perceel.js =====
 export async function handler(event) {
   const { lon, lat } = event.queryStringParameters || {};
   if (!lon || !lat) {
@@ -59,7 +60,10 @@ export async function handler(event) {
     const gjson    = await fetch(gewasUrl).then(r => r.json());
     const gfeat    = gjson.features?.[0];
     if (gfeat) {
+      console.log('DEBUG rawGewaspercelenProperties:', gfeat.properties);
       const gp = gfeat.properties || {};
+
+      // Extract landgebruik, gewascode en gewasnaam
       const landgebruik = gp.category || 'Onbekend';
       const gewasCode   = gp.gewascode?.toString() || '';
       const gewasNaam   = gp.gewas || '';
@@ -67,22 +71,6 @@ export async function handler(event) {
     }
   } catch (err) {
     console.error('Fout bij ophalen gewasperceel:', err);
-  }
-
-  // 3) Ophalen provincie via Reverse Geocoding (Nominatim)
-  try {
-    const geoRes = await fetch(
-      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=5`
-    );
-    const geoJson = await geoRes.json();
-    const province =
-      (geoJson.address &&
-        (geoJson.address.province || geoJson.address.state)) ||
-      '';
-    feat.properties.provincie = province;
-  } catch (err) {
-    console.error('Fout bij bepalen provincie:', err);
-    feat.properties.provincie = '';
   }
 
   return {
