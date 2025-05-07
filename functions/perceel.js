@@ -36,11 +36,7 @@ export async function handler(event) {
   const json = await fetch(url).then(r => r.json());
   const feat = json.features?.[0];
   if (!feat) {
-    return {
-      statusCode: 200,
-      headers: { 'Access-Control-Allow-Origin': '*' },
-      body: JSON.stringify(json)
-    };
+    return { statusCode: 200, headers: { 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify(json) };
   }
 
   // 2) Ophalen gewasperceel via spatial filter
