@@ -13,7 +13,7 @@ function getBaseCategory(name) {
 }
 
 const map = L.map('map').setView([52.1, 5.1], 7);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OSM contributors' }).addTo(map);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{ attribution: '© OSM contributors' }).addTo(map);
 
 let parcels = [];
 function uuid() { return 'p_' + Math.random().toString(36).slice(2); }
@@ -55,32 +55,37 @@ map.on('click', async e => {
   for (const p of parcels) if (p.layer.getBounds().contains(e.latlng)) return removeParcel(p.id);
 
   try {
-    const res = await fetch(`/.netlify/functions/perceel?lon=${lon}&lat=${lat}`);
-    const data = await res.json();
-    const feat = data.features?.[0];
+    const res   = await fetch(`/.netlify/functions/perceel?lon=${lon}&lat=${lat}`);
+    const data  = await res.json();
+    const feat  = data.features?.[0];
     if (!feat) { if (LIVE_ERRORS) alert('Geen perceel gevonden.'); return; }
     console.log('DEBUG kaart properties:', feat.properties);
 
-    const layer = L.geoJSON(feat.geometry, { style: { color: '#1e90ff', weight: 2, fillOpacity: 0.2 } }).addTo(map);
+    const layer = L.geoJSON(feat.geometry, { style:{ color:'#1e90ff', weight:2, fillOpacity:0.2 } }).addTo(map);
     const props = feat.properties;
-    const name = props.weergavenaam || `${props.kadastraleGemeenteWaarde} ${props.sectie} ${props.perceelnummer}`;
-    const opp  = props.kadastraleGrootteWaarde;
-    const ha   = opp != null ? (opp / 10000).toFixed(2) : '';
+    const name  = props.weergavenaam || `${props.kadastraleGemeenteWaarde} ${props.sectie} ${props.perceelnummer}`;
+    const opp   = props.kadastraleGrootteWaarde;
+    const ha    = opp != null ? (opp/10000).toFixed(2) : '';
 
-    let baseCat = window.huidigeGrond;
-    if (!baseCat || baseCat === 'Onbekend') {
-      try {
-        const pj = await (await fetch(`/.netlify/functions/bodemsoort?lon=${lon}&lat=${lat}`)).json();
-        baseCat = getBaseCategory(pj.grondsoort);
-      } catch {}
+    // Bodemsoort bepalen
+    let baseCat = getBaseCategory(props.grondsoort);
+    // Indien zand, verder specificeren op provincie
+    let grondsoort = baseCat;
+    if (baseCat === 'Zand') {
+      const prov = props.provincie || '';
+      if (prov === 'Limburg' || prov === 'Noord-Brabant') {
+        grondsoort = 'Zuidelijk zand';
+      } else {
+        grondsoort = 'Noordelijk westelijk en centraal zand';
+      }
     }
 
     parcels.push({
       id:         uuid(),
       layer,
       name,
-      grondsoort: baseCat,
-      nvgebied:   window.isNV ? 'Ja' : 'Nee',
+      grondsoort,
+      nvgebied:   window.isNV?'Ja':'Nee',
       ha,
       landgebruik: props.landgebruik || 'Onbekend',
       gewasCode:   props.gewasCode   || '',
