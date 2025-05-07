@@ -71,7 +71,6 @@ map.on('click', async e => {
     const data = await res.json();
     const feat = data.features?.[0];
     if (!feat) { if (LIVE_ERRORS) alert('Geen perceel gevonden.'); return; }
-    // DEBUG: toon alle properties in browser console
     console.log('DEBUG kaart properties:', feat.properties);
     const layer = L.geoJSON(feat.geometry, { style:{ color:'#1e90ff', weight:2, fillOpacity:0.2 } }).addTo(map);
     const props = feat.properties;
