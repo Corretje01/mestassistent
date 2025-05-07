@@ -32,6 +32,7 @@ export async function handler(event) {
   });
   const url = `${base}?${params.toString()}`;
 
+  // Haal kadastraal perceel op
   const json = await fetch(url).then(r => r.json());
   const feat = json.features?.[0];
   if (!feat) {
@@ -44,7 +45,7 @@ export async function handler(event) {
   console.log('DEBUG perceelId:', perceelId);
   feat.properties.perceelId = perceelId;
 
-  // 2) Ophalen gewasperceel op basis van KAD_PERCEEL
+  // 2) Ophalen gewasperceel op basis van perceelnummer
   try {
     const gewasParams = new URLSearchParams({
       service:      'WFS',
@@ -60,7 +61,10 @@ export async function handler(event) {
     const gjson    = await fetch(gewasUrl).then(r => r.json());
     const gfeat    = gjson.features?.[0];
     if (gfeat) {
-      console.log('DEBUG gewaspercelen properties:', gfeat.properties);
+      // Voeg raw gewaspercelen properties toe voor debugging in browser
+      feat.properties.rawGewaspercelenProperties = gfeat.properties;
+      console.log('DEBUG rawGewaspercelenProperties:', gfeat.properties);
+
       const gp = gfeat.properties || {};
       const landgebruik = gp.CAT_GEWASCATEGORIE || gp.cat_gewascategorie || '';
       const gewasCode   = gp.GWS_GEWASCODE    || gp.gws_gewascode    || '';
