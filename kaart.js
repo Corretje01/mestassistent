@@ -27,9 +27,9 @@ function renderParcelList() {
     div.dataset.id = p.id;
     div.innerHTML = `
       <div class="form-group"><label>Perceel</label><input readonly value="${p.name}"></div>
+      <div class="form-group"><label>Provincie</label><input readonly value="${p.provincie || 'Onbekend'}"></div>
       <div class="form-group"><label>Grondsoort</label><input readonly value="${p.grondsoort}"></div>
       <div class="form-group"><label>NV-gebied?</label><input readonly value="${p.nvgebied}"></div>
-      <div class="form-group"><label>Provincie</label><input readonly value="${p.provincie}"></div>
       <div class="form-group"><label>Ha (ha)</label><input readonly value="${p.ha}"></div>
       <div class="form-group"><label>Landgebruik</label><input readonly value="${p.landgebruik}"></div>
       <div class="form-group"><label>Gewascode</label><input readonly value="${p.gewasCode}"></div>
@@ -39,6 +39,7 @@ function renderParcelList() {
     div.querySelector('.remove-btn').onclick = () => removeParcel(p.id);
     container.append(div);
   });
+}
 }
 
 function removeParcel(id) {
@@ -116,14 +117,15 @@ map.on('click', async e => {
       id:         uuid(),
       layer,
       name,
+      provincie:   props.provincie || 'Onbekend',
       grondsoort: baseCat,
       nvgebied:   window.isNV ? 'Ja' : 'Nee',
-      provincie,
       ha,
       landgebruik: props.landgebruik || 'Onbekend',
       gewasCode:   props.gewasCode   || '',
       gewasNaam:   props.gewasNaam   || ''
     });
+    renderParcelList();
     renderParcelList();
   } catch (err) {
     console.error('Perceel fout:', err);
