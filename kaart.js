@@ -55,17 +55,18 @@ map.on('click', async e => {
   for (const p of parcels) if (p.layer.getBounds().contains(e.latlng)) return removeParcel(p.id);
 
   try {
-    const res   = await fetch(`/.netlify/functions/perceel?lon=${lon}&lat=${lat}`);
-    const data  = await res.json();
-    const feat  = data.features?.[0];
+    const res = await fetch(`/.netlify/functions/perceel?lon=${lon}&lat=${lat}`);
+    const data = await res.json();
+    const feat = data.features?.[0];
     if (!feat) { if (LIVE_ERRORS) alert('Geen perceel gevonden.'); return; }
     console.log('DEBUG kaart properties:', feat.properties);
+    console.log('DEBUG provincie property:', feat.properties.provincie);
 
     const layer = L.geoJSON(feat.geometry, { style:{ color:'#1e90ff', weight:2, fillOpacity:0.2 } }).addTo(map);
     const props = feat.properties;
-    const name  = props.weergavenaam || `${props.kadastraleGemeenteWaarde} ${props.sectie} ${props.perceelnummer}`;
-    const opp   = props.kadastraleGrootteWaarde;
-    const ha    = opp != null ? (opp/10000).toFixed(2) : '';
+    const name = props.weergavenaam || `${props.kadastraleGemeenteWaarde} ${props.sectie} ${props.perceelnummer}`;
+    const opp  = props.kadastraleGrootteWaarde;
+    const ha   = opp != null ? (opp/10000).toFixed(2) : '';
 
     // Bodemsoort bepalen
     let baseCat = getBaseCategory(props.grondsoort);
@@ -81,6 +82,17 @@ map.on('click', async e => {
     }
 
     parcels.push({
+      id:         uuid(),
+      layer,
+      name,
+      grondsoort,
+      nvgebied:   window.isNV ? 'Ja' : 'Nee',
+      ha,
+      landgebruik: props.landgebruik || 'Onbekend',
+      gewasCode:   props.gewasCode   || '',
+      gewasNaam:   props.gewasNaam   || ''
+    });
+    renderParcelList();({
       id:         uuid(),
       layer,
       name,
