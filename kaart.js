@@ -55,6 +55,8 @@ function removeParcel(id) {
 map.on('click', async e => {
   const lon = e.latlng.lng.toFixed(6);
   const lat = e.latlng.lat.toFixed(6);
+
+  // Deselection
   for (const p of parcels) {
     if (p.layer.getBounds().contains(e.latlng)) {
       return removeParcel(p.id);
@@ -62,7 +64,7 @@ map.on('click', async e => {
   }
 
   try {
-    const res = await fetch(`/.netlify/functions/perceel?lon=${lon}&lat=${lat}`);
+    const res  = await fetch(`/.netlify/functions/perceel?lon=${lon}&lat=${lat}`);
     const data = await res.json();
     const feat = data.features?.[0];
     if (!feat) {
@@ -76,9 +78,10 @@ map.on('click', async e => {
     }).addTo(map);
 
     const props = feat.properties;
-    const name = props.weergavenaam || `${props.kadastraleGemeenteWaarde} ${props.sectie} ${props.perceelnummer}`;
-    const opp = props.kadastraleGrootteWaarde;
-    const ha = opp != null ? (opp / 10000).toFixed(2) : '';
+    const name  = props.weergavenaam ||
+                  `${props.kadastraleGemeenteWaarde} ${props.sectie} ${props.perceelnummer}`;
+    const opp   = props.kadastraleGrootteWaarde;
+    const ha    = opp != null ? (opp / 10000).toFixed(2) : '';
 
     let baseCat = window.huidigeGrond;
     if (!baseCat || baseCat === 'Onbekend') {
@@ -88,17 +91,26 @@ map.on('click', async e => {
       } catch {}
     }
 
+    // Split 'Zand' naar zuidelijk vs noordelijk/centraal/westelijk
+    if (baseCat === 'Zand') {
+      if (props.provincie === 'Limburg' || props.provincie === 'Noord-Brabant') {
+        baseCat = 'Zuidelijk zand';
+      } else {
+        baseCat = 'Noordelijk, westelijk en centraal zand';
+      }
+    }
+
     parcels.push({
-      id: uuid(),
+      id:         uuid(),
       layer,
       name,
-      provincie: props.provincie,
+      provincie:  props.provincie,
       grondsoort: baseCat,
-      nvgebied: window.isNV ? 'Ja' : 'Nee',
+      nvgebied:   window.isNV ? 'Ja' : 'Nee',
       ha,
-      landgebruik: props.landgebruik || 'Onbekend',
-      gewasCode: props.gewasCode || '',
-      gewasNaam: props.gewasNaam || ''
+      landgebruik: props.landgebruik  || 'Onbekend',
+      gewasCode:   props.gewasCode    || '',
+      gewasNaam:   props.gewasNaam    || ''
     });
     renderParcelList();
   } catch (err) {
