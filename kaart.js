@@ -4,22 +4,11 @@ const LIVE_ERRORS = true;
 // Laad soilMapping
 let soilMapping = [];
 fetch('/data/soilMapping.json')
-  .then(r => r.json()).then(j => soilMapping = j)
-  .catch(err => console.error('❌ Kan soilMapping.json niet laden:', err));
-
-// Zuidelijke gemeenten (Noord-Brabant + Limburg)
-const southernGemeenten = new Set([
-  "Alphen-Chaam","Altena","Asten","Baarle-Nassau","Bergeijk","Bergen op Zoom","Bernheze","Best","Bladel","Boekel","Boxtel",
-  "Breda","Cranendonck","Deurne","Dongen","Drimmelen","Eersel","Eindhoven","Etten-Leur","Geertruidenberg","Geldrop-Mierlo",
-  "Gemert-Bakel","Gilze en Rijen","Goirle","Halderberge","Heeze-Leende","Helmond","'s-Hertogenbosch","Heusden","Hilvarenbeek",
-  "Laarbeek","Land van Cuijk","Loon op Zand","Maashorst","Meierijstad","Moerdijk","Nuenen","Oirschot","Oisterwijk","Oosterhout",
-  "Oss","Reusel-De Mierden","Roosendaal","Rucphen","Sint-Michielsgestel","Someren","Son en Breugel","Steenbergen","Tilburg",
-  "Valkenswaard","Veldhoven","Vught","Waalre","Waalwijk","Woensdrecht","Zundert",
-  "Beek","Beekdaelen","Beesel","Bergen","Brunssum","Echt-Susteren","Eijsden-Margraten","Gennep","Gulpen-Wittem","Heerlen",
-  "Horst aan de Maas","Kerkrade","Landgraaf","Leudal","Maasgouw","Maastricht","Meerssen","Mook en Middelaar","Nederweert",
-  "Peel en Maas","Roerdalen","Roermond","Simpelveld","Sittard-Geleen","Stein","Vaals","Valkenburg aan de Geul","Venlo","Venray",
-  "Voerendaal","Weert"
-]);
+  .then(r => r.json())
+  .then(j => (soilMapping = j))
+  .catch(err =>
+    console.error('❌ Kan soilMapping.json niet laden:', err)
+  );
 
 function getBaseCategory(name) {
   const e = soilMapping.find(x => x.name === name);
@@ -54,7 +43,8 @@ function renderParcelList() {
       <div class="form-group"><label>Gewas naam</label><input readonly value="${p.gewasNaam}"></div>
       <button class="remove-btn">Verwijder</button>
     `;
-    div.querySelector('.remove-btn').onclick = () => removeParcel(p.id);
+    div.querySelector('.remove-btn').onclick = () =>
+      removeParcel(p.id);
     container.append(div);
   });
 }
@@ -81,7 +71,9 @@ map.on('click', async e => {
   }
 
   try {
-    const res  = await fetch(`/.netlify/functions/perceel?lon=${lon}&lat=${lat}`);
+    const res  = await fetch(
+      `/.netlify/functions/perceel?lon=${lon}&lat=${lat}`
+    );
     const data = await res.json();
     const feat = data.features?.[0];
     if (!feat) {
@@ -91,23 +83,29 @@ map.on('click', async e => {
     console.log('DEBUG kaart properties:', feat.properties);
 
     const layer = L.geoJSON(feat.geometry, {
-      style: { color: '#1e90ff', weight: 2, fillOpacity: 0.2 }
+      style: {
+        color: '#1e90ff',
+        weight: 2,
+        fillOpacity: 0.2
+      }
     }).addTo(map);
 
     const props = feat.properties;
-    const name  = props.weergavenaam ||
+    const name =
+      props.weergavenaam ||
       `${props.kadastraleGemeenteWaarde} ${props.sectie} ${props.perceelnummer}`;
-    const opp   = props.kadastraleGrootteWaarde;
-    const ha    = opp != null ? (opp / 10000).toFixed(2) : '';
+    const opp = props.kadastraleGrootteWaarde;
+    const ha  = opp != null ? (opp / 10000).toFixed(2) : '';
 
     // Bepaal bodemsoort
     const baseCat = getBaseCategory(props.grondsoort);
     let grondsoort = baseCat;
     if (baseCat === 'Zand') {
-      const gemeente = props.kadastraleGemeenteWaarde || '';
-      grondsoort = southernGemeenten.has(gemeente)
-        ? 'Zuidelijk zand'
-        : 'Noordelijk westelijk en centraal zand';
+      const prov = props.provincie || '';
+      grondsoort =
+        prov === 'Limburg' || prov === 'Noord-Brabant'
+          ? 'Zuidelijk zand'
+          : 'Noordelijk westelijk en centraal zand';
     }
 
     parcels.push({
