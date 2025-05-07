@@ -1,4 +1,3 @@
-// ===== kaart.js =====
 const DEBUG = false;
 const LIVE_ERRORS = true;
 
@@ -56,7 +55,7 @@ map.on('click', async e => {
   const lon = e.latlng.lng.toFixed(6);
   const lat = e.latlng.lat.toFixed(6);
 
-  // Deselection
+  // Deselecteren
   for (const p of parcels) {
     if (p.layer.getBounds().contains(e.latlng)) {
       return removeParcel(p.id);
@@ -78,11 +77,12 @@ map.on('click', async e => {
     }).addTo(map);
 
     const props = feat.properties;
-    const name  = props.weergavenaam ||
-                  `${props.kadastraleGemeenteWaarde} ${props.sectie} ${props.perceelnummer}`;
+    const name  = props.weergavenaam
+                || `${props.kadastraleGemeenteWaarde} ${props.sectie} ${props.perceelnummer}`;
     const opp   = props.kadastraleGrootteWaarde;
-    const ha    = opp != null ? (opp / 10000).toFixed(2) : '';
+    let   ha    = opp != null ? (opp/10000).toFixed(2) : '';
 
+    // Bodemsoort
     let baseCat = window.huidigeGrond;
     if (!baseCat || baseCat === 'Onbekend') {
       try {
@@ -91,7 +91,7 @@ map.on('click', async e => {
       } catch {}
     }
 
-    // Split 'Zand' naar zuidelijk vs noordelijk/centraal/westelijk
+    // Splitsing van 'Zand' naar Zuidelijk vs Noord/West/Centra
     if (baseCat === 'Zand') {
       if (props.provincie === 'Limburg' || props.provincie === 'Noord-Brabant') {
         baseCat = 'Zuidelijk zand';
@@ -108,11 +108,12 @@ map.on('click', async e => {
       grondsoort: baseCat,
       nvgebied:   window.isNV ? 'Ja' : 'Nee',
       ha,
-      landgebruik: props.landgebruik  || 'Onbekend',
-      gewasCode:   props.gewasCode    || '',
-      gewasNaam:   props.gewasNaam    || ''
+      landgebruik: props.landgebruik   || 'Onbekend',
+      gewasCode:   props.gewasCode     || '',
+      gewasNaam:   props.gewasNaam     || ''
     });
     renderParcelList();
+
   } catch (err) {
     console.error('Perceel fout:', err);
     if (LIVE_ERRORS) alert('Fout bij ophalen perceel.');
