@@ -1,32 +1,35 @@
 // berekening.js — mestberekening voor meerdere percelen
+
+// 1) Laad de grondgebonden stikstofnormen (tabel 2) als JSON
+let stikstofnormen = {};
+fetch('/data/stikstofnormen_tabel2.json')
+  .then(res => res.json())
+  .then(json => stikstofnormen = json)
+  .catch(err => console.error('❌ Kan stikstofnormen niet laden:', err));
+
 const mestForm = document.getElementById('mestForm');
 if (mestForm) {
   mestForm.addEventListener('submit', e => {
     e.preventDefault();
 
-    // 1) check of de globale 'parcels' array bestaat en items heeft
+    // Controle: minstens één perceel geselecteerd
     if (typeof parcels === 'undefined' || parcels.length === 0) {
       alert('Selecteer eerst minstens één perceel.');
       return;
     }
+    // Controle: JSON geladen
+    if (Object.keys(stikstofnormen).length === 0) {
+      alert('Stikstofnormen nog niet geladen, probeer opnieuw.');
+      return;
+    }
 
-    // 2) RVO-normen
+    // 2) Handmatige A- en C-normen per gewas (zelfde structuur als eerder)
     const normen = {
-      mais: {
-        grond: { Zand: { B: 185 }, Klei: { B: 140 }, Veen: { B: 112 } },
-        A: 170,
-        A_NVkort: 20,
-        B_derog_NV: 190,
-        B_derog_rest: 200,
-        C: 75
+      'mais': {
+        A: 170, A_NVkort: 20, B_derog_NV: 190, B_derog_rest: 200, C: 75
       },
-      tarwe: {
-        grond: { Zand: { B: 150 }, Klei: { B: 120 }, Veen: { B: 100 } },
-        A: 170,
-        A_NVkort: 0,
-        B_derog_NV: 170,
-        B_derog_rest: 200,
-        C: 60
+      'tarwe': {
+        A: 170, A_NVkort: 0,  B_derog_NV: 170, B_derog_rest: 200, C: 60
       }
       // … voeg hier andere gewassen toe
     };
@@ -36,36 +39,54 @@ if (mestForm) {
 
     // 3) Loop over alle geselecteerde percelen
     parcels.forEach(p => {
-      const ha = parseFloat(p.ha) || 0;
-      const gewasKey = p.gewas;
-      const deriv = p.derogatie === 'ja';
-      const grond = p.grondsoort || 'Zand';
-      const isNV = p.nvgebied === 'Ja';
+      const ha        = parseFloat(p.ha) || 0;
+      const grond     = p.grondsoort || 'Zand';
+      const isNV      = p.nvgebied === 'Ja';
+      const deriv     = p.derogatie === 'ja'; // indien je dit veld gebruikt
+      const gewasKey  = p.gewasNaam.toLowerCase(); // moet overeenkomen met keys in `normen`
+      const gewasCode = p.gewasCode;
 
+      // *** A-norm per ha ***
       const m = normen[gewasKey];
-      if (!m) return; // onbekend gewas, skip
-
-      // bereken A_per_ha, B_per_ha en C_per_ha
+      if (!m) {
+        console.warn(`Geen A-/C-norm gedefinieerd voor ${p.gewasNaam}`);
+        return;
+      }
       let A_ha = m.A;
       if (isNV && m.A_NVkort) {
         A_ha = A_ha * (100 - m.A_NVkort) / 100;
       }
 
-      let B_ha = m.grond[grond]?.B ?? m.grond.Zand.B;
+      // *** B-norm per ha uit JSON ***
+      // Zoek eerst op gewasnaam, anders op code
+      let normEntry = stikstofnormen[p.gewasNaam];
+      if (!normEntry) {
+        const gevonden = Object.entries(stikstofnormen)
+          .find(([_, entry]) => entry.Gewascodes.includes(gewasCode));
+        if (gevonden) normEntry = gevonden[1];
+      }
+      if (!normEntry) {
+        console.warn(`Geen grondgebonden stikstofnorm voor gewascode ${gewasCode}`);
+        return;
+      }
+      // Kies de juiste grondsoortwaarde, of fallback
+      let B_ha = (normEntry[grond] !== undefined)
+                ? normEntry[grond]
+                : normEntry['Noordelijk, westelijk en centraal zand'];
+
+      // Derogatie kan B_ha overschrijven
       if (deriv) {
         B_ha = isNV ? m.B_derog_NV : m.B_derog_rest;
       }
 
+      // *** C-norm per ha (fosfaat) ***
       const C_ha = m.C;
 
-      // totale hoeveelheden per perceel
-      const A = A_ha * ha;
-      const B = B_ha * ha;
-      const C = C_ha * ha;
+      // Toegestane stikstof is min(A_ha, B_ha)
+      const N_ha = Math.min(A_ha, B_ha);
 
-      // toegestane stikstof is min(A,B)
-      totaalN += Math.min(A, B);
-      totaalP += C;
+      totaalN += N_ha * ha;
+      totaalP += C_ha  * ha;
     });
 
     // 4) Toon het eindresultaat
