@@ -1,5 +1,6 @@
 {
   "Grasland met beweiden": {
+    "Gewascodes": ["265", "331"],
     "Klei": 345,
     "Noordelijk, westelijk en centraal zand": 250,
     "Zuidelijk zand": 250,
@@ -7,6 +8,7 @@
     "Veen": 265
   },
   "Grasland met volledig maaien": {
+    "Gewascodes": [],
     "Klei": 385,
     "Noordelijk, westelijk en centraal zand": 320,
     "Zuidelijk zand": 320,
@@ -14,6 +16,7 @@
     "Veen": 300
   },
   "Tijdelijk grasland van 1 januari tot minstens 15 april": {
+    "Gewascodes": [],
     "Klei": 60,
     "Noordelijk, westelijk en centraal zand": 50,
     "Zuidelijk zand": 50,
@@ -21,6 +24,7 @@
     "Veen": 50
   },
   "Tijdelijk grasland van 1 januari tot minstens 15 mei": {
+    "Gewascodes": [],
     "Klei": 110,
     "Noordelijk, westelijk en centraal zand": 90,
     "Zuidelijk zand": 90,
@@ -28,6 +32,7 @@
     "Veen": 90
   },
   "Tijdelijk grasland van 1 januari tot minstens 15 augustus": {
+    "Gewascodes": [],
     "Klei": 250,
     "Noordelijk, westelijk en centraal zand": 210,
     "Zuidelijk zand": 210,
@@ -35,6 +40,7 @@
     "Veen": 210
   },
   "Tijdelijk grasland van 1 januari tot minstens 15 september": {
+    "Gewascodes": [],
     "Klei": 280,
     "Noordelijk, westelijk en centraal zand": 235,
     "Zuidelijk zand": 235,
@@ -42,6 +48,7 @@
     "Veen": 235
   },
   "Tijdelijk grasland van 1 januari tot minstens 15 oktober": {
+    "Gewascodes": ["266"],
     "Klei": 310,
     "Noordelijk, westelijk en centraal zand": 250,
     "Zuidelijk zand": 250,
@@ -49,6 +56,7 @@
     "Veen": 265
   },
   "Tijdelijk grasland vanaf 15 april tot minstens 15 oktober": {
+    "Gewascodes": [],
     "Klei": 310,
     "Noordelijk, westelijk en centraal zand": 250,
     "Zuidelijk zand": 250,
@@ -56,6 +64,7 @@
     "Veen": 265
   },
   "Tijdelijk grasland vanaf 15 mei tot minstens 15 oktober": {
+    "Gewascodes": [],
     "Klei": 280,
     "Noordelijk, westelijk en centraal zand": 235,
     "Zuidelijk zand": 235,
@@ -63,6 +72,7 @@
     "Veen": 235
   },
   "Tijdelijk grasland vanaf 15 augustus tot minstens 15 oktober": {
+    "Gewascodes": [],
     "Klei": 95,
     "Noordelijk, westelijk en centraal zand": 80,
     "Zuidelijk zand": 80,
@@ -70,6 +80,7 @@
     "Veen": 80
   },
   "Tijdelijk grasland vanaf 15 september tot minstens 15 oktober": {
+    "Gewascodes": [],
     "Klei": 30,
     "Noordelijk, westelijk en centraal zand": 25,
     "Zuidelijk zand": 25,
@@ -77,6 +88,7 @@
     "Veen": 25
   },
   "Tijdelijk grasland vanaf 15 oktober": {
+    "Gewascodes": [],
     "Klei": 0,
     "Noordelijk, westelijk en centraal zand": 0,
     "Zuidelijk zand": 0,
@@ -84,6 +96,7 @@
     "Veen": 0
   },
   "Consumptieaardappelrassen hoge norm (zie tabel 2c)": {
+    "Gewascodes": [],
     "Klei": 275,
     "Noordelijk, westelijk en centraal zand": 260,
     "Zuidelijk zand": 208,
@@ -91,6 +104,7 @@
     "Veen": 270
   },
   "Consumptieaardappelrassen overig": {
+    "Gewascodes": ["2014"],
     "Klei": 250,
     "Noordelijk, westelijk en centraal zand": 235,
     "Zuidelijk zand": 188,
@@ -98,6 +112,7 @@
     "Veen": 245
   },
   "Consumptieaardappelrassen lage norm (zie tabel 2c)": {
+    "Gewascodes": [],
     "Klei": 225,
     "Noordelijk, westelijk en centraal zand": 210,
     "Zuidelijk zand": 168,
@@ -105,6 +120,7 @@
     "Veen": 220
   },
   "Consumptieaardappel, vroeg (loofvernietiging voor 15 juli)": {
+    "Gewascodes": ["2025"],
     "Klei": 120,
     "Noordelijk, westelijk en centraal zand": 120,
     "Zuidelijk zand": 96,
@@ -112,6 +128,7 @@
     "Veen": 120
   },
   "Pootaardappelrassen hoge norm (zie tabel 2d)": {
+    "Gewascodes": [],
     "Klei": 140,
     "Noordelijk, westelijk en centraal zand": 140,
     "Zuidelijk zand": 140,
@@ -119,6 +136,7 @@
     "Veen": 140
   },
   "Pootaardappelrassen overig": {
+    "Gewascodes": ["2015", "2016"],
     "Klei": 120,
     "Noordelijk, westelijk en centraal zand": 120,
     "Zuidelijk zand": 120,
@@ -126,6 +144,7 @@
     "Veen": 120
   },
   "Pootaardappelrassen lage norm (zie tabel 2d)": {
+    "Gewascodes": [],
     "Klei": 100,
     "Noordelijk, westelijk en centraal zand": 100,
     "Zuidelijk zand": 100,
@@ -133,6 +152,7 @@
     "Veen": 100
   },
   "Pootaardappelen, uitgroeiteelt (loofvernietiging na 15 augustus)": {
+    "Gewascodes": [],
     "Klei": 180,
     "Noordelijk, westelijk en centraal zand": 165,
     "Zuidelijk zand": 165,
@@ -140,6 +160,7 @@
     "Veen": 170
   },
   "Zetmeelaardappelen": {
+    "Gewascodes": ["2017"],
     "Klei": 240,
     "Noordelijk, westelijk en centraal zand": 230,
     "Zuidelijk zand": 184,
@@ -147,6 +168,7 @@
     "Veen": 230
   },
   "Suikerbieten": {
+    "Gewascodes": ["256"],
     "Klei": 150,
     "Noordelijk, westelijk en centraal zand": 145,
     "Zuidelijk zand": 116,
@@ -154,6 +176,7 @@
     "Veen": 145
   },
   "Cichorei": {
+    "Gewascodes": ["511", "1023", "1024", "1036"],
     "Klei": 70,
     "Noordelijk, westelijk en centraal zand": 70,
     "Zuidelijk zand": 70,
@@ -161,6 +184,7 @@
     "Veen": 70
   },
   "Voederbieten": {
+    "Gewascodes": ["257"],
     "Klei": 165,
     "Noordelijk, westelijk en centraal zand": 165,
     "Zuidelijk zand": 132,
@@ -168,6 +192,7 @@
     "Veen": 165
   },
   "Wintertarwe": {
+    "Gewascodes": ["233", "382"],
     "Klei": 245,
     "Noordelijk, westelijk en centraal zand": 160,
     "Zuidelijk zand": 160,
@@ -175,6 +200,7 @@
     "Veen": 160
   },
   "Zomertarwe": {
+    "Gewascodes": ["234"],
     "Klei": 150,
     "Noordelijk, westelijk en centraal zand": 140,
     "Zuidelijk zand": 140,
@@ -182,6 +208,7 @@
     "Veen": 140
   },
   "Wintergerst": {
+    "Gewascodes": ["235"],
     "Klei": 140,
     "Noordelijk, westelijk en centraal zand": 140,
     "Zuidelijk zand": 140,
@@ -189,6 +216,7 @@
     "Veen": 140
   },
   "Zomergerst": {
+    "Gewascodes": ["236", "381"],
     "Klei": 80,
     "Noordelijk, westelijk en centraal zand": 80,
     "Zuidelijk zand": 80,
@@ -196,6 +224,7 @@
     "Veen": 80
   },
   "Triticale": {
+    "Gewascodes": ["314"],
     "Klei": 160,
     "Noordelijk, westelijk en centraal zand": 150,
     "Zuidelijk zand": 120,
@@ -203,6 +232,7 @@
     "Veen": 150
   },
   "Winterrogge": {
+    "Gewascodes": ["7129", "7130"],
     "Klei": 140,
     "Noordelijk, westelijk en centraal zand": 140,
     "Zuidelijk zand": 140,
@@ -210,6 +240,7 @@
     "Veen": 140
   },
   "Haver": {
+    "Gewascodes": ["238", "670", "6636"],
     "Klei": 100,
     "Noordelijk, westelijk en centraal zand": 100,
     "Zuidelijk zand": 100,
@@ -217,6 +248,7 @@
     "Veen": 100
   },
   "Maïs, bedrijven met derogatie": {
+    "Gewascodes": [],
     "Klei": 160,
     "Noordelijk, westelijk en centraal zand": 140,
     "Zuidelijk zand": 112,
@@ -224,147 +256,167 @@
     "Veen": 150
   },
   "Maïs, bedrijven zonder derogatie": {
+    "Gewascodes": ["259", "316", "317", "1935", "2032"],
     "Klei": 185,
-    "Noordelijk, westelijk en centraal zand": 140,
-    "Zuidelijk zand": 112,
-    "Löss": 112,
-    "Veen": 150
+    "Noordelijk, westelijk en centraal zand": 170,
+    "Zuidelijk zand": 170,
+    "Löss": 170,
+    "Veen": 180
   },
   "Luzerne, eerste jaar": {
+    "Gewascodes": [],
+    "Klei": 190,
+    "Noordelijk, westelijk en centraal zand": 170,
+    "Zuidelijk zand": 170,
+    "Löss": 170,
+    "Veen": 180
+  },
+  "Luzerne, volgende jaren": {
+    "Gewascodes": ["286"],
+    "Klei": 140,
+    "Noordelijk, westelijk en centraal zand": 120,
+    "Zuidelijk zand": 120,
+    "Löss": 120,
+    "Veen": 130
+  },
+  "Gras voor industriële verwerking (inzaai in september en eerste jaar)": {
+    "Gewascodes": [],
+    "Klei": 220,
+    "Noordelijk, westelijk en centraal zand": 200,
+    "Zuidelijk zand": 200,
+    "Löss": 200,
+    "Veen": 200
+  },
+  "Gras voor industriële verwerking (inzaai voor 15 mei en volgende jaren)": {
+    "Gewascodes": [],
+    "Klei": 180,
+    "Noordelijk, westelijk en centraal zand": 160,
+    "Zuidelijk zand": 160,
+    "Löss": 160,
+    "Veen": 160
+  },
+  "Graszaad, Engels raaigras, eerste jaars": {
+    "Gewascodes": [],
+    "Klei": 110,
+    "Noordelijk, westelijk en centraal zand": 110,
+    "Zuidelijk zand": 110,
+    "Löss": 110,
+    "Veen": 110
+  },
+  "Graszaad, Engels raaigras, overjarig": {
+    "Gewascodes": ["352", "1312"],
+    "Klei": 95,
+    "Noordelijk, westelijk en centraal zand": 95,
+    "Zuidelijk zand": 95,
+    "Löss": 95,
+    "Veen": 95
+  },
+  "Graszaad, rietzwenkgras": {
+    "Gewascodes": [],
+    "Klei": 115,
+    "Noordelijk, westelijk en centraal zand": 115,
+    "Zuidelijk zand": 115,
+    "Löss": 115,
+    "Veen": 115
+  },
+  "Graszaad, rietzwenkgras, volgteelt": {
+    "Gewascodes": ["514"],
+    "Klei": 70,
+    "Noordelijk, westelijk en centraal zand": 70,
+    "Zuidelijk zand": 70,
+    "Löss": 70,
+    "Veen": 70
+  },
+  "Graszaad, veldbeemd": {
+    "Gewascodes": ["531"],
+    "Klei": 75,
+    "Noordelijk, westelijk en centraal zand": 75,
+    "Zuidelijk zand": 75,
+    "Löss": 75,
+    "Veen": 75
+  },
+  "Graszaad, veldbeemd, volgteelt": {
+    "Gewascodes": ["532"],
     "Klei": 40,
     "Noordelijk, westelijk en centraal zand": 40,
     "Zuidelijk zand": 40,
     "Löss": 40,
     "Veen": 40
   },
-  "Luzerne, volgende jaren": {
+  "Graszaad, roodzwenkgras, 1e jaars": {
+    "Gewascodes": [],
+    "Klei": 60,
+    "Noordelijk, westelijk en centraal zand": 60,
+    "Zuidelijk zand": 60,
+    "Löss": 60,
+    "Veen": 60
+  },
+  "Graszaad, roodzwenkgras, 1e jaars, volgteelt": {
+    "Gewascodes": ["533"],
+    "Klei": 45,
+    "Noordelijk, westelijk en centraal zand": 45,
+    "Zuidelijk zand": 45,
+    "Löss": 45,
+    "Veen": 45
+  },
+  "Graszaad, roodzwenkgras, overjarig": {
+    "Gewascodes": [],
+    "Klei": 75,
+    "Noordelijk, westelijk en centraal zand": 75,
+    "Zuidelijk zand": 75,
+    "Löss": 75,
+    "Veen": 75
+  },
+  "Graszaad, roodzwenkgras, overjarig, volgteelt": {
+    "Gewascodes": [],
+    "Klei": 50,
+    "Noordelijk, westelijk en centraal zand": 50,
+    "Zuidelijk zand": 50,
+    "Löss": 50,
+    "Veen": 50
+  },
+  "Graszaad, westerwolds": {
+    "Gewascodes": ["535"],
+    "Klei": 100,
+    "Noordelijk, westelijk en centraal zand": 100,
+    "Zuidelijk zand": 100,
+    "Löss": 100,
+    "Veen": 100
+  },
+  "Graszaad, Italiaans": {
+    "Gewascodes": ["5148"],
+    "Klei": 115,
+    "Noordelijk, westelijk en centraal zand": 115,
+    "Zuidelijk zand": 115,
+    "Löss": 115,
+    "Veen": 115
+  },
+  "Graszaad, overig": {
+    "Gewascodes": ["537"],
+    "Klei": 85,
+    "Noordelijk, westelijk en centraal zand": 85,
+    "Zuidelijk zand": 85,
+    "Löss": 85,
+    "Veen": 85
+  },
+  "Graszaad, overig, volgteelt": {
+    "Gewascodes": ["538"],
+    "Klei": 60,
+    "Noordelijk, westelijk en centraal zand": 60,
+    "Zuidelijk zand": 60,
+    "Löss": 60,
+    "Veen": 60
+  },
+  "Graszoden": {
+    "Gewascodes": ["539"],
     "Klei": 0,
     "Noordelijk, westelijk en centraal zand": 0,
     "Zuidelijk zand": 0,
     "Löss": 0,
     "Veen": 0
   },
-  "Gras voor industriële verwerking (inzaai in september en eerste jaar)": {
-    "Klei": 30,
-    "Noordelijk, westelijk en centraal zand": 25,
-    "Zuidelijk zand": 25,
-    "Löss": 25,
-    "Veen": 25
-  },
-  "Gras voor industriële verwerking (inzaai voor 15 mei en volgende jaren)": {
-    "Klei": 310,
-    "Noordelijk, westelijk en centraal zand": 250,
-    "Zuidelijk zand": 250,
-    "Löss": 250,
-    "Veen": 265
-  },
-  "Graszaad, Engels raaigras, eerste jaars": {
-    "Klei": 165,
-    "Noordelijk, westelijk en centraal zand": 150,
-    "Zuidelijk zand": 120,
-    "Löss": 120,
-    "Veen": 155
-  },
-  "Graszaad, Engels raaigras, overjarig": {
-    "Klei": 200,
-    "Noordelijk, westelijk en centraal zand": 185,
-    "Zuidelijk zand": 148,
-    "Löss": 148,
-    "Veen": 190
-  },
-  "Graszaad, rietzwenkgras": {
-    "Klei": 140,
-    "Noordelijk, westelijk en centraal zand": 130,
-    "Zuidelijk zand": 104,
-    "Löss": 104,
-    "Veen": 135
-  },
-  {
-  "Graszaad, rietzwenkgras, volgteelt": {
-    "Klei": 60,
-    "Noordelijk, westelijk en centraal zand": 50,
-    "Zuidelijk zand": 40,
-    "Löss": 40,
-    "Veen": 55
-  },
-  "Graszaad, veldbeemd": {
-    "Klei": 130,
-    "Noordelijk, westelijk en centraal zand": 100,
-    "Zuidelijk zand": 80,
-    "Löss": 80,
-    "Veen": 105
-  },
-  "Graszaad, veldbeemd, volgteelt": {
-    "Klei": 60,
-    "Noordelijk, westelijk en centraal zand": 50,
-    "Zuidelijk zand": 40,
-    "Löss": 40,
-    "Veen": 55
-  },
-  "Graszaad, roodzwenkgras, 1e jaars": {
-    "Klei": 85,
-    "Noordelijk, westelijk en centraal zand": 75,
-    "Zuidelijk zand": 60,
-    "Löss": 60,
-    "Veen": 80
-  },
-  "Graszaad, roodzwenkgras, 1e jaars, volgteelt": {
-    "Klei": 35,
-    "Noordelijk, westelijk en centraal zand": 35,
-    "Zuidelijk zand": 28,
-    "Löss": 28,
-    "Veen": 35
-  },
-  "Graszaad, roodzwenkgras, overjarig": {
-    "Klei": 115,
-    "Noordelijk, westelijk en centraal zand": 105,
-    "Zuidelijk zand": 84,
-    "Löss": 84,
-    "Veen": 110
-  },
-  "Graszaad, roodzwenkgras, overjarig, volgteelt": {
-    "Klei": 45,
-    "Noordelijk, westelijk en centraal zand": 45,
-    "Zuidelijk zand": 36,
-    "Löss": 36,
-    "Veen": 45
-  },
-  "Graszaad, westerwolds": {
-    "Klei": 110,
-    "Noordelijk, westelijk en centraal zand": 100,
-    "Zuidelijk zand": 80,
-    "Löss": 80,
-    "Veen": 105
-  },
-  "Graszaad, Italiaans": {
-    "Klei": 130,
-    "Noordelijk, westelijk en centraal zand": 120,
-    "Zuidelijk zand": 96,
-    "Löss": 96,
-    "Veen": 125
-  },
-  "Graszaad, overig": {
-    "Klei": 90,
-    "Noordelijk, westelijk en centraal zand": 80,
-    "Zuidelijk zand": 64,
-    "Löss": 64,
-    "Veen": 85
-  },
-  "Graszaad, overig, volgteelt": {
-    "Klei": 45,
-    "Noordelijk, westelijk en centraal zand": 45,
-    "Zuidelijk zand": 36,
-    "Löss": 36,
-    "Veen": 45
-  },
-  "Graszoden": {
-    "Klei": 340,
-    "Noordelijk, westelijk en centraal zand": 340,
-    "Zuidelijk zand": 272,
-    "Löss": 272,
-    "Veen": 340
-  },
   "Ui, overig": {
+    "Gewascodes": ["602"],
     "Klei": 120,
     "Noordelijk, westelijk en centraal zand": 120,
     "Zuidelijk zand": 120,
@@ -372,53 +424,60 @@
     "Veen": 120
   },
   "Zaaiui": {
+    "Gewascodes": ["601"],
+    "Klei": 90,
+    "Noordelijk, westelijk en centraal zand": 90,
+    "Zuidelijk zand": 90,
+    "Löss": 90,
+    "Veen": 90
+  },
+  "Winterui, 2e jaars plantui": {
+    "Gewascodes": ["603"],
+    "Klei": 105,
+    "Noordelijk, westelijk en centraal zand": 105,
+    "Zuidelijk zand": 105,
+    "Löss": 105,
+    "Veen": 105
+  },
+  "Blauwmaanzaad": {
+    "Gewascodes": ["721"],
+    "Klei": 45,
+    "Noordelijk, westelijk en centraal zand": 45,
+    "Zuidelijk zand": 45,
+    "Löss": 45,
+    "Veen": 45
+  },
+  "Karwij": {
+    "Gewascodes": ["722"],
+    "Klei": 65,
+    "Noordelijk, westelijk en centraal zand": 65,
+    "Zuidelijk zand": 65,
+    "Löss": 65,
+    "Veen": 65
+  },
+  "Koolzaad, winter": {
+    "Gewascodes": ["731"],
     "Klei": 170,
+    "Noordelijk, westelijk en centraal zand": 170,
+    "Zuidelijk zand": 170,
+    "Löss": 170,
+    "Veen": 170
+  },
+  "Koolzaad, zomer": {
+    "Gewascodes": ["732"],
+    "Klei": 120,
     "Noordelijk, westelijk en centraal zand": 120,
     "Zuidelijk zand": 120,
     "Löss": 120,
     "Veen": 120
   },
-  "Winterui, 2e jaars plantui": {
-    "Klei": 170,
-    "Noordelijk, westelijk en centraal zand": 155,
-    "Zuidelijk zand": 124,
-    "Löss": 124,
-    "Veen": 160
-  },
-  "Blauwmaanzaad": {
-    "Klei": 110,
-    "Noordelijk, westelijk en centraal zand": 100,
-    "Zuidelijk zand": 80,
-    "Löss": 80,
-    "Veen": 105
-  },
-  "Karwij": {
-    "Klei": 150,
-    "Noordelijk, westelijk en centraal zand": 140,
-    "Zuidelijk zand": 112,
-    "Löss": 112,
-    "Veen": 145
-  },
-  "Koolzaad, winter": {
-    "Klei": 205,
-    "Noordelijk, westelijk en centraal zand": 190,
-    "Zuidelijk zand": 152,
-    "Löss": 152,
-    "Veen": 195
-  },
-  "Koolzaad, zomer": {
-    "Klei": 120,
-    "Noordelijk, westelijk en centraal zand": 120,
-    "Zuidelijk zand": 96,
-    "Löss": 96,
-    "Veen": 120
-  },
   "Vlas": {
-    "Klei": 70,
-    "Noordelijk, westelijk en centraal zand": 70,
-    "Zuidelijk zand": 56,
-    "Löss": 56,
-    "Veen": 70
+    "Gewascodes": ["740"],
+    "Klei": 65,
+    "Noordelijk, westelijk en centraal zand": 65,
+    "Zuidelijk zand": 65,
+    "Löss": 65,
+    "Veen": 65
   },
   "Akkerbouwgewassen, overig": {
     "Klei": 200,
