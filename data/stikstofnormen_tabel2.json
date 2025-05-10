@@ -1306,4 +1306,94 @@
     "Löss": 200,
     "Veen": 200
   },
+  "Buitenbloemen overig": {
+    "Gewascodes": ["174", "515", "653", "656", "657", "991", "992", "1039", "1040", "1042", "1043", "1044", "1045", "1046", "1048", "1049", "1050", "1055"],
+    "Klei": 150,
+    "Noordelijk, westelijk en centraal zand": 150,
+    "Zuidelijk zand": 150,
+    "Löss": 150,
+    "Veen": 150
+  },
+  "Bos- en Haagplantsoen": {
+    "Gewascodes": ["863", "1067"],
+    "Klei": 95,
+    "Noordelijk, westelijk en centraal zand": 95,
+    "Zuidelijk zand": 95,
+    "Löss": 95,
+    "Veen": 95
+  },
+  "Vaste planten": {
+    "Gewascodes": ["1080"],
+    "Klei": 175,
+    "Noordelijk, westelijk en centraal zand": 175,
+    "Zuidelijk zand": 175,
+    "Löss": 175,
+    "Veen": 175
+  },
+  "Vruchtbomen, onderstammen": {
+    "Gewascodes": ["1078"],
+    "Klei": 30,
+    "Noordelijk, westelijk en centraal zand": 30,
+    "Zuidelijk zand": 30,
+    "Löss": 30,
+    "Veen": 30
+  },
+  "Vruchtbomen, moerbomen": {
+    "Gewascodes": ["1077"],
+    "Klei": 110,
+    "Noordelijk, westelijk en centraal zand": 110,
+    "Zuidelijk zand": 110,
+    "Löss": 110,
+    "Veen": 110
+  },
+  "Vruchtbomen, overig": {
+    "Gewascodes": ["1079"],
+    "Klei": 135,
+    "Noordelijk, westelijk en centraal zand": 105,
+    "Zuidelijk zand": 105,
+    "Löss": 105,
+    "Veen": 105
+  },
+  "Trek- en besheesters": {
+    "Gewascodes": ["1076"],
+    "Klei": 80,
+    "Noordelijk, westelijk en centraal zand": 80,
+    "Zuidelijk zand": 80,
+    "Löss": 80,
+    "Veen": 80
+  },
+  "Snijgroen": {
+    "Gewascodes": ["1876"],
+    "Klei": 95,
+    "Noordelijk, westelijk en centraal zand": 95,
+    "Zuidelijk zand": 95,
+    "Löss": 95,
+    "Veen": 95
+  },
+  "Snelgroeiende houtsoorten voor biomassaproductie": {
+    "Gewascodes": [],
+    "Klei": 90,
+    "Noordelijk, westelijk en centraal zand": 90,
+    "Zuidelijk zand": 90,
+    "Löss": 90,
+    "Veen": 90
+  },
+  "Vaste norm": {
+    "Gewascodes": ["2793", "2794"],
+    "Klei": 110,
+    "Noordelijk, westelijk en centraal zand": 110,
+    "Zuidelijk zand": 110,
+    "Löss": 110,
+    "Veen": 110
+  },
+  "Geen norm": {
+    "Gewascodes": ["332","335","338","343","662","794","795","1033","1053","1081","1082","1083","1084","1085","1086","1087","1088","1089","1090","1091","1092","1093","1094","1936","2300","2617","2618","2619","2620","2621","2622","2624","2625","2626","2628","2629","2631","2632","2633","2634","2635","2636","2637","2638","2639","2642","2704","2705","2706","2707","3055","3801","3802","6520","6521","6522","6746","6748","6792","6793","6794","6798","6799","6800","6801","6807","6808","6809","7127","7128"],
+    "Klei": 0,
+    "Klei": 0,
+    "Noordelijk, westelijk en centraal zand": 0,
+    "Zuidelijk zand": 0,
+    "Löss": 0,
+    "Veen": 0
+  }
+}
  
