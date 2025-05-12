@@ -13,13 +13,16 @@ let parcels = [];
 map.on('click', async e => {
   try {
     // a) Perceel via Netlify Function
-    const percResp = await fetch(`/functions/perceel?lat=${e.latlng.lat}&lng=${e.latlng.lng}`);
+    const percResp = await fetch(`/.netlify/functions/perceel?lat=${e.latlng.lat}&lng=${e.latlng.lng}`);
+    if (!percResp.ok) throw new Error(`Perceel-API returned ${percResp.status}`);
     const percData = await percResp.json();
+
     // b) Bodemsoort via Netlify Function
-    const bodemResp = await fetch(`/functions/bodemsoort?lat=${e.latlng.lat}&lng=${e.latlng.lng}`);
+    const bodemResp = await fetch(`/.netlify/functions/bodemsoort?lat=${e.latlng.lat}&lng=${e.latlng.lng}`);
+    if (!bodemResp.ok) throw new Error(`Bodemsoort-API returned ${bodemResp.status}`);
     const bodemData = await bodemResp.json();
 
-    // Maak p-object zonder NV-gebied
+    // 4) Maak p-object (zonder NV-gebied)
     const p = {
       identificatieLokaalID: percData.identificatieLokaalID,
       ha: percData.surfaceHa,
@@ -31,13 +34,14 @@ map.on('click', async e => {
 
     parcels.push(p);
     renderParcelList();
+
   } catch (err) {
     console.error('Perceel fout:', err);
-    alert('Fout bij het ophalen van het perceel.');
+    alert('Fout bij het ophalen van het perceel. Probeer opnieuw.');
   }
 });
 
-// 4) Render de lijst met alleen de vier gevraagde velden
+// 5) Render de lijst met alleen de vier gevraagde velden
 function renderParcelList() {
   const container = document.getElementById('parcelList');
   if (!container) return;
@@ -64,10 +68,10 @@ function renderParcelList() {
 
     // Voeg alleen de velden toe die de gebruiker ziet
     item.append(
-      makeField('Perceel',      'perceel',    p.identificatieLokaalID),
-      makeField('Opp. (ha)',    'ha',         p.ha,      'number'),
-      makeField('Gewascode',    'gewasCode',  p.gewasCode),
-      makeField('Gewasnaam',    'gewasNaam',  p.gewasNaam)
+      makeField('Perceel',     'perceel',    p.identificatieLokaalID),
+      makeField('Opp. (ha)',   'ha',         p.ha,               'number'),
+      makeField('Gewascode',   'gewasCode',  p.gewasCode),
+      makeField('Gewasnaam',   'gewasNaam',  p.gewasNaam)
     );
 
     // Verwijder-knop
