@@ -2,9 +2,9 @@
 
 /* 1. CSS-variabelen */
 :root {
-  --color-black:   #0d0d0d;
-  --color-white:   #ffffff;
-  --color-yellow:  #f1c40f;
+  --color-black:      #0d0d0d;
+  --color-white:      #ffffff;
+  --color-yellow:     #f1c40f;
   --color-gray-light: #f5f5f5;
   --color-gray-dark:  #777777;
 }
@@ -243,18 +243,34 @@ h3 { font-size: 1.125rem; }
   border-radius: 50%;
   cursor: pointer;
 }
+/* Checkbox verbergen */
 .slider-group input[type="checkbox"] {
+  display: none;
+}
+
+/* Lock-button stijl in plaats van checkbox */
+.lock-btn {
   position: absolute;
   top: 0;
   right: -10px;
-  transform: scale(1.2);
+  background: none;
+  border: none;
+  font-size: 1.2rem;
   cursor: pointer;
 }
+.lock-btn.unlocked::before {
+  content: "\1F513"; /* 🔓 */
+}
+.lock-btn.locked::before {
+  content: "\1F512"; /* 🔒 */
+}
+
+/* 12. Volledige breedte voor de financiële slider */
 .full-width {
   grid-column: 1 / -1;
 }
 
-/* 12. Responsive */
+/* 13. Responsive */
 @media (max-width: 768px) {
   .sliders-grid {
     grid-template-columns: 1fr;
