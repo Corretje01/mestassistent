@@ -1,4 +1,4 @@
-// kaart.js — toggling van perceelsselectie
+// kaart.js — toggling van perceelsselectie met behoud van originele flow
 
 const map = L.map('map').setView([52.1, 5.1], 7);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -6,12 +6,11 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 }).addTo(map);
 
 let parcels = [];
-
 function uuid() {
   return 'p_' + Math.random().toString(36).slice(2);
 }
 
-// Slimme rendering: precies vier velden, plus verwijder-knop
+// Rendering van de percelenlijst blijft ongewijzigd:
 function renderParcelList() {
   const container = document.getElementById('parcelList');
   container.innerHTML = '';
@@ -34,6 +33,7 @@ function renderParcelList() {
   });
 }
 
+// Klik op kaart: togglet selectie in plaats van altijd toevoegen
 map.on('click', async e => {
   const { lat, lng } = e.latlng;
   try {
@@ -44,56 +44,47 @@ map.on('click', async e => {
     const feat = data.features?.[0];
     if (!feat) throw new Error('Geen perceel gevonden');
 
-    // 2) Bodemsoort ophalen
+    // Unieke naam bepalen (zoals in origineel) :contentReference[oaicite:0]{index=0}:contentReference[oaicite:1]{index=1}
+    const props = feat.properties;
+    const name  = props.weergavenaam
+                || `${props.kadastraleGemeenteWaarde} ${props.sectie} ${props.perceelnummer}`;
+
+    // 2) Toggle: als dit perceel al in de lijst zit, deselecteer en return
+    const exist = parcels.find(p => p.name === name);
+    if (exist) {
+      map.removeLayer(exist.layer);
+      parcels = parcels.filter(p => p.name !== name);
+      renderParcelList();
+      return;
+    }
+
+    // 3) Bodemsoort ophalen (net als origineel) :contentReference[oaicite:2]{index=2}:contentReference[oaicite:3]{index=3}
     const bodemResp = await fetch(`/.netlify/functions/bodemsoort?lon=${lng}&lat=${lat}`);
     if (!bodemResp.ok) throw new Error('Bodemsoort-API ' + bodemResp.status);
     const bodem = await bodemResp.json();
 
-    // 3) Teken perceel met toggle-handler
+    // 4) Teken nieuw perceel
     const layer = L.geoJSON(feat.geometry, {
-      style: { color: '#1e90ff', weight: 2, fillOpacity: 0.2 },
-      onEachFeature: (feature, layer) => {
-        layer.on('click', evt => {
-          // voorkom dat deze click de map.on('click') triggert
-          L.DomEvent.stopPropagation(evt);
-          // als dit layer al in parcels zit, verwijderen we 'm
-          const existing = parcels.find(p => p.layer === layer);
-          if (existing) {
-            map.removeLayer(layer);
-            parcels = parcels.filter(p => p.layer !== layer);
-            renderParcelList();
-          }
-        });
-      }
+      style: { color: '#1e90ff', weight: 2, fillOpacity: 0.2 }
     }).addTo(map);
 
-    // 4) Bouw perceel-object en check op duplicate before push
-    const props = feat.properties;
-    const name  = props.weergavenaam
-                || `${props.kadastraleGemeenteWaarde} ${props.sectie} ${props.perceelnummer}`;
-    const ha    = props.kadastraleGrootteWaarde
-                ? (props.kadastraleGrootteWaarde / 10000).toFixed(2)
-                : '';
-
-    // Kijk of we deze geometry al hebben—layer equality is genoeg dankzij toggle-handler
-    const already = parcels.some(p => {
-      // eenvoudige check: gelijk object reference?
-      // (oude layers zijn verwijderd bij deselect)
-      return false;
-    });
-    // altijd push; deselect gebeurt in onEachFeature
+    // 5) Gegevens samenvoegen en toevoegen aan array
+    const ha = props.kadastraleGrootteWaarde
+             ? (props.kadastraleGrootteWaarde / 10000).toFixed(2)
+             : '';
     parcels.push({
       id:         uuid(),
       layer,
       name,
       ha,
-      gewasCode:   props.gewasCode  || '',
-      gewasNaam:   props.gewasNaam  || '',
+      gewasCode:   props.gewasCode   || '',
+      gewasNaam:   props.gewasNaam   || '',
       provincie:   props.provincie,
-      grondsoort:  bodem.grondsoort,
+      grondsoort:  bodem.bodemsoortNaam,
       landgebruik: props.landgebruik || 'Onbekend'
     });
 
+    // 6) Lijst bijwerken
     renderParcelList();
 
   } catch (err) {
