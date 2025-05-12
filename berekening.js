@@ -1,36 +1,35 @@
-// berekening.js
-
-// Form submission
+// Wacht op submit
 document.getElementById('calc-form').addEventListener('submit', function(e) {
   e.preventDefault();
 
-  // 1) Lees inputwaarden (voorbeeld)
-  const invoer1 = parseFloat(document.querySelector('#veld1').value || 0);
-  const invoer2 = parseFloat(document.querySelector('#veld2').value || 0);
-  // … meer velden …
+  // 1) Lees invoerwaarden uit
+  const veld1 = parseFloat(document.getElementById('veld1').value) || 0;
+  const veld2 = parseFloat(document.getElementById('veld2').value) || 0;
 
-  // 2) Validatie
-  if (isNaN(invoer1) || isNaN(invoer2)) {
+  // 2) Basisvalidatie
+  if (isNaN(veld1) || isNaN(veld2)) {
     alert('Vul alle velden correct in.');
     return;
   }
 
-  // 3) Berekeningen (voorbeeldformule)
-  const stikstof = invoer1 * 1.2;
-  const fosfaat  = invoer2 * 0.8;
-  // … je eigen logica …
+  // 3) Berekening (pas dit naar eigen logica)
+  const stikstof = veld1 * 1.2;
+  const fosfaat  = veld2 * 0.8;
 
-  // 4) Resultaat tonen
+  // 4) Toon resultaten
   document.getElementById('resultaten').textContent =
     `Stikstofruimte: ${stikstof.toFixed(0)} kg • Fosfaatruimte: ${fosfaat.toFixed(0)} kg`;
-  document.getElementById('conclusie').textContent =
-    (stikstof > 0 && fosfaat > 0)
-      ? 'Je kunt deze mestruimte gebruiken!'
-      : 'Helaas is je ruimte (nog) onvoldoende.';
 
+  const conclusieEl = document.getElementById('conclusie');
+  if (stikstof > 0 && fosfaat > 0) {
+    conclusieEl.textContent = 'Je kunt deze mestruimte gebruiken!';
+  } else {
+    conclusieEl.textContent = 'Helaas is je ruimte (nog) onvoldoende.';
+  }
+
+  // 5) Laat de result-container en de stap-2 knop zien
   const resultContainer = document.getElementById('result-container');
-  resultContainer.style.display = 'block';
-
-  // 5) “Ga naar stap 2”-knop zichtbaar maken
-  document.getElementById('step2-btn').style.display = 'block';
+  const step2Btn       = document.getElementById('step2-btn');
+  resultContainer.hidden = false;
+  step2Btn.hidden       = false;
 });
