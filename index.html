@@ -3,45 +3,62 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Bereken je stikstof & fosfaatruimte</title>
+  <title>Mestplaatsingsruimte 2025</title>
   <link rel="stylesheet" href="style.css" />
+  <!-- Leaflet CSS zonder integrity/crossorigin -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.3.1/dist/leaflet.css" />
 </head>
 <body>
-  <header class="header">
-    <nav class="nav">
-      <!-- Home-link verwijderd -->
-      <a href="#" class="nav__item nav__item--right">Inloggen</a>
+  <header class="site-header">
+    <nav class="navbar">
+      <a href="#" class="nav-logo">MestAssistent</a>
+      <ul class="nav-links">
+        <!-- Home verwijderd -->
+        <li><a href="#" class="btn-login">Inloggen</a></li>
+      </ul>
     </nav>
   </header>
 
   <main class="container">
-    <h2>Stap 1: Gebruiksruimte berekenen</h2>
-    <form id="calc-form" class="calc-form">
-      <div class="field-group">
-        <label for="veld1">Invoer 1</label>
-        <input type="number" id="veld1" name="veld1" required />
-      </div>
-      <div class="field-group">
-        <label for="veld2">Invoer 2</label>
-        <input type="number" id="veld2" name="veld2" required />
-      </div>
-      <button type="submit" class="btn btn--primary">Bereken</button>
-    </form>
+    <!-- Introductie -->
+    <section class="intro">
+      <h1>Mestplaatsingsruimte 2025</h1>
+      <p>De hoeveelheid mest die je kan plaatsen is afhankelijk van drie normen:</p>
+      <ul>
+        <li><strong>A:</strong> Stikstof (N) uit dierlijke mest</li>
+        <li><strong>B:</strong> Grondgebonden stikstof (N) uit alle meststoffen</li>
+        <li><strong>C:</strong> Fosfaat (P) uit alle meststoffen</li>
+      </ul>
+      <p>De laagste uitkomst van A en B is je maximale N-ruimte. C bepaalt je P-ruimte.</p>
+      <p>Selecteer je percelen en bereken direct hoeveel N en P je in 2025 mag plaatsen.</p>
+    </section>
 
-    <!-- Resultaat-container, standaard hidden -->
-    <div id="result-container" class="card" hidden>
-      <h3>Resultaat</h3>
-      <p id="resultaten"></p>
-      <h3>Conclusie</h3>
-      <p id="conclusie"></p>
+    <!-- Kaart -->
+    <div id="map"></div>
 
-      <!-- Ga naar stap 2, standaard hidden -->
-      <button id="step2-btn" class="btn btn--primary" hidden>
-        Ga naar stap 2
-      </button>
-    </div>
+    <!-- Geselecteerde percelen -->
+    <section class="parcel-list-section">
+      <h2>Geselecteerde percelen</h2>
+      <div id="parcelList" class="parcel-list">
+        <!-- kaart.js vult deze lijst -->
+      </div>
+    </section>
+
+    <!-- Berekenknop -->
+    <section class="form-section">
+      <form id="mestForm" class="calc-form">
+        <button type="submit" class="btn btn-primary">Bereken</button>
+      </form>
+    </section>
+
+    <!-- Resultaat -->
+    <section id="resultaat" class="result-section">
+      <!-- berekening.js vult dit -->
+    </section>
   </main>
 
+  <script src="https://unpkg.com/leaflet@1.3.1/dist/leaflet.js"></script>
+  <script src="kaart.js"></script>
   <script src="berekening.js"></script>
 </body>
 </html>
