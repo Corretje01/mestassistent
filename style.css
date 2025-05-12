@@ -1,4 +1,4 @@
-/* style.css (geüpdatet voor checkbox-positionering) */
+/* style.css (geüpdatet voor checkbox links naast titel) */
 
 /* 1. CSS-variabelen */
 :root {
@@ -215,16 +215,18 @@ h3 { font-size: 1.125rem; }
 .slider-group {
   position: relative;
   padding-top: 1.5rem;
-  padding-left: 24px; /* ruimte voor checkbox */
+  padding-left: 32px; /* meer ruimte voor checkbox en titel */
 }
 .slider-group label {
-  display: flex;
-  align-items: center;
+  display: block;
   font-size: 0.9rem;
   margin-bottom: 0.5rem;
 }
 .slider-group .value {
-  margin-left: auto;
+  position: absolute;
+  top: 0;
+  right: 0;
+  font-size: 0.9rem;
 }
 .slider-group input[type="range"] {
   width: 100%;
@@ -246,9 +248,8 @@ h3 { font-size: 1.125rem; }
 /* Checkbox-styling voor lock */
 .slider-group input[type="checkbox"] {
   position: absolute;
-  top: 0;
-  left: 0;
-  margin: 0;
+  top: 4px;
+  left: 4px;
   width: 16px;
   height: 16px;
   -webkit-appearance: none;
@@ -269,21 +270,4 @@ h3 { font-size: 1.125rem; }
   color: var(--color-black);
 }
 .slider-group input[type="checkbox"]:checked::after {
-  content: "\1F512"; /* 🔒 */
-}
-
-/* 12. Volledige breedte voor financiële slider */
-.full-width {
-  grid-column: 1 / -1;
-}
-
-/* 13. Responsive */
-@media (max-width: 768px) {
-  .sliders-grid {
-    grid-template-columns: 1fr;
-  }
-  .category__label {
-    width: 100%;
-    margin-bottom: 0.5rem;
-  }
-}
+```
