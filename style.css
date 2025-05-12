@@ -2,17 +2,18 @@
 
 /* Algemeen */
 body {
-  font-family: sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
+               Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
   margin: 0;
   padding: 0;
-  line-height: 1.5;
+  line-height: 1.6;
   background: #f9f9f9;
   color: #333;
 }
 
 header {
   background: #2c3e50;
-  color: white;
+  color: #fff;
   padding: 1rem;
   text-align: center;
 }
@@ -38,28 +39,105 @@ main {
   margin-bottom: 1rem;
 }
 
-/* Formulier */
+/* Parcels list */
+.parcel-list-section {
+  margin-bottom: 1.5rem;
+}
+
+.parcel-list-section h2 {
+  margin-bottom: 0.5rem;
+  font-size: 1.25rem;
+  color: #2c3e50;
+}
+
+.parcel-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.parcel-list .parcel-item {
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 0.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.parcel-list .parcel-item .parcel-info {
+  flex: 1;
+}
+
+.parcel-list .parcel-item button.remove-parcel {
+  background: #e74c3c;
+  border: none;
+  color: #fff;
+  padding: 0.25rem 0.6rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.875rem;
+}
+
+.parcel-list .parcel-item button.remove-parcel:hover {
+  background: #c0392b;
+}
+
+/* Formulier sectie */
 .form-section {
   margin-bottom: 1.5rem;
 }
 
+.form-section label {
+  display: block;
+  margin-bottom: 0.25rem;
+  font-weight: 500;
+  color: #2c3e50;
+}
+
+.form-section input[type="text"],
+.form-section input[type="number"],
+.form-section select {
+  width: 100%;
+  max-width: 360px;
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 1rem;
+  font-size: 1rem;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  background: #fff;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.form-section input[type="text"]:focus,
+.form-section input[type="number"]:focus,
+.form-section select:focus {
+  outline: none;
+  border-color: #27ae60;
+  box-shadow: 0 0 0 3px rgba(39, 174, 96, 0.2);
+}
+
+/* Button styling */
 .btn {
   background: #27ae60;
-  color: white;
+  color: #fff;
   border: none;
   padding: 0.75rem 1.25rem;
   font-size: 1rem;
-  border-radius: 4px;
+  border-radius: 6px;
   cursor: pointer;
+  transition: background 0.2s ease;
 }
 
 .btn:hover {
   background: #219150;
 }
 
-/* Resultaat */
+/* Resultaat weergave */
 .result-section {
-  background: white;
+  background: #fff;
   padding: 1.5rem;
   border-radius: 8px;
   box-shadow: 0 2px 6px rgba(0,0,0,0.1);
