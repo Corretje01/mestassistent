@@ -23,24 +23,18 @@
     <!-- Introductie -->
     <section class="intro">
       <h1>Mestplaatsingsruimte 2025</h1>
-      <p>
-        De hoeveelheid mest die je kan plaatsen is afhankelijk van drie normen:
-      </p>
+      <p>De hoeveelheid mest die je kan plaatsen is afhankelijk van drie normen:</p>
       <ul>
         <li><strong>A:</strong> Stikstof (N) uit dierlijke mest</li>
         <li><strong>B:</strong> Grondgebonden stikstof (N) uit alle meststoffen</li>
         <li><strong>C:</strong> Fosfaat (P) uit alle meststoffen</li>
       </ul>
-      <p>
-        De laagste uitkomst van A en B is je maximale N-ruimte, en C bepaalt je P-ruimte.
-      </p>
-      <p>
-        Vul in via het formulier om direct te berekenen hoeveel N en P je in 2025 mag plaatsen.
-      </p>
+      <p>De laagste uitkomst van A en B is je maximale N-ruimte, en C bepaalt je P-ruimte.</p>
+      <p>Vul in via onderstaand formulier om direct te berekenen hoeveel N en P je in 2025 mag plaatsen.</p>
     </section>
 
     <!-- Kaart -->
-    <section id="map" class="map"></section>
+    <div id="map"></div>
 
     <!-- Geselecteerde percelen -->
     <section class="parcel-list-section">
@@ -50,17 +44,21 @@
       </div>
     </section>
 
-    <!-- Formulier om percelen te berekenen -->
+    <!-- Berekenknop -->
     <section class="form-section">
       <form id="mestForm" class="calc-form">
         <button type="submit" class="btn btn-primary">Bereken</button>
       </form>
     </section>
 
-    <!-- Resultaat weergave -->
+    <!-- Resultaat -->
     <section id="resultaat" class="result-section">
       <!-- berekening.js vult dit -->
     </section>
   </main>
+
+  <script src="https://unpkg.com/leaflet@1.3.1/dist/leaflet.js"></script>
+  <script src="kaart.js"></script>
+  <script src="berekening.js"></script>
 </body>
 </html>
