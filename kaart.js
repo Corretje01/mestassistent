@@ -1,15 +1,4 @@
-// kaart.js — initialisatie en percelenlijst
-
-let soilMapping = [];
-fetch('/data/soilMapping.json')
-  .then(r => r.json())
-  .then(j => soilMapping = j)
-  .catch(err => console.error('❌ soilMapping.json niet geladen:', err));
-
-function getBaseCategory(name) {
-  const e = soilMapping.find(x => x.name === name);
-  return e?.category || 'Onbekend';
-}
+// kaart.js — terug naar server-gebaseerde selectie (orig. gedrag)
 
 const map = L.map('map').setView([52.1, 5.1], 7);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -19,101 +8,67 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 let parcels = [];
 function uuid() { return 'p_' + Math.random().toString(36).slice(2); }
 
+// Slimme rendering: precies vier velden, plus verwijder-knop
 function renderParcelList() {
   const container = document.getElementById('parcelList');
-  if (!container) return;
   container.innerHTML = '';
-
   parcels.forEach(p => {
-    const item = document.createElement('div');
-    item.className = 'parcel-item';
-
-    const h3 = document.createElement('h3');
-    h3.textContent = `Perceel ${p.name}`;
-    item.appendChild(h3);
-
-    const makeField = (label, val, type='text') => {
-      const fg = document.createElement('div');
-      fg.className = 'field-group';
-      const lbl = document.createElement('label');
-      lbl.textContent = label;
-      const inp = document.createElement('input');
-      inp.type = type; inp.value = val; inp.readOnly = true;
-      fg.append(lbl, inp);
-      return fg;
+    const div = document.createElement('div');
+    div.className = 'parcel-item';
+    div.innerHTML = `
+      <h3>Perceel ${p.name}</h3>
+      <div class="field-group"><label>Opp. (ha)</label><input readonly value="${p.ha}"></div>
+      <div class="field-group"><label>Gewascode</label><input readonly value="${p.gewasCode}"></div>
+      <div class="field-group"><label>Gewasnaam</label><input readonly value="${p.gewasNaam}"></div>
+      <button class="remove-btn">Verwijder</button>
+    `;
+    div.querySelector('.remove-btn').onclick = () => {
+      map.removeLayer(p.layer);
+      parcels = parcels.filter(x => x.id !== p.id);
+      renderParcelList();
     };
-
-    item.appendChild(makeField('Opp. (ha)',  p.ha,        'number'));
-    item.appendChild(makeField('Gewascode',  p.gewasCode));
-    item.appendChild(makeField('Gewasnaam',  p.gewasNaam));
-
-    const btn = document.createElement('button');
-    btn.textContent = 'Verwijder';
-    btn.className = 'remove-btn';
-    btn.onclick = () => removeParcel(p.id);
-    item.appendChild(btn);
-
-    container.appendChild(item);
+    container.append(div);
   });
 }
 
-function removeParcel(id) {
-  const idx = parcels.findIndex(p => p.id === id);
-  if (idx >= 0) {
-    map.removeLayer(parcels[idx].layer);
-    parcels.splice(idx, 1);
-    renderParcelList();
-  }
-}
-
+// Klik op kaart: vraag direct de PDOK-WFS functie om het perceel
 map.on('click', async e => {
   const { lat, lng } = e.latlng;
-
-  // Deselection bij klik binnen bestaand perceel
-  for (const p of parcels) {
-    if (p.layer.getBounds().contains(e.latlng)) {
-      return removeParcel(p.id);
-    }
-  }
-
   try {
-    // OPGELET: gebruik lon en lat, niet lng
-    const resP = await fetch(`/.netlify/functions/perceel?lon=${lng}&lat=${lat}`);
-    if (!resP.ok) throw new Error(`Perceel-API returned ${resP.status}`);
-    const dataP = await resP.json();
-    const feat  = dataP.features?.[0];
+    const res = await fetch(`/.netlify/functions/perceel?lon=${lng}&lat=${lat}`);
+    if (!res.ok) throw new Error('Perceel-API ' + res.status);
+    const data = await res.json();
+    const feat = data.features?.[0];
     if (!feat) throw new Error('Geen perceel gevonden');
 
-    const resB = await fetch(`/.netlify/functions/bodemsoort?lon=${lng}&lat=${lat}`);
-    if (!resB.ok) throw new Error(`Bodemsoort-API returned ${resB.status}`);
-    const dataB = await resB.json();
+    // Bodemsoort ophalen (kan parallel, maar origineel liep vaak sequentieel)
+    const bodemResp = await fetch(`/.netlify/functions/bodemsoort?lon=${lng}&lat=${lat}`);
+    if (!bodemResp.ok) throw new Error('Bodemsoort-API ' + bodemResp.status);
+    const bodem = await bodemResp.json();
 
+    // Teken perceel
     const layer = L.geoJSON(feat.geometry, {
       style: { color: '#1e90ff', weight: 2, fillOpacity: 0.2 }
     }).addTo(map);
 
+    // Bouw naam en opp.
     const props = feat.properties;
-    const naam  = props.weergavenaam
+    const name  = props.weergavenaam
                 || `${props.kadastraleGemeenteWaarde} ${props.sectie} ${props.perceelnummer}`;
-    const opp   = props.kadastraleGrootteWaarde;
-    const ha    = opp != null ? (opp / 10000).toFixed(2) : '';
-
-    let baseCat = getBaseCategory(dataB.bodemsoortNaam || '');
-    if (baseCat === 'Zand') {
-      baseCat = ['Limburg','Noord-Brabant'].includes(props.provincie)
-              ? 'Zuidelijk zand'
-              : 'Noordelijk, westelijk en centraal zand';
-    }
+    const ha    = props.kadastraleGrootteWaarde
+                ? (props.kadastraleGrootteWaarde / 10000).toFixed(2)
+                : '';
 
     parcels.push({
-      id:          uuid(),
+      id:         uuid(),
       layer,
-      name:        naam,
+      name,
       ha,
-      gewasCode:   props.gewasCode || '',
-      gewasNaam:   props.gewasNaam || '',
-      provincie:   props.provincie,
-      grondsoort:  baseCat,
+      gewasCode:  props.gewasCode  || '',
+      gewasNaam:  props.gewasNaam  || '',
+      // deze blijven beschikbaar voor berekening maar niet zichtbaar:
+      provincie:  props.provincie,
+      grondsoort: bodem.bodemsoortNaam,
       landgebruik: props.landgebruik || 'Onbekend'
     });
 
@@ -121,6 +76,6 @@ map.on('click', async e => {
 
   } catch (err) {
     console.error('Perceel fout:', err);
-    alert('Fout bij ophalen perceel.');
+    alert('Fout bij ophalen perceel. Probeer opnieuw.');
   }
 });
