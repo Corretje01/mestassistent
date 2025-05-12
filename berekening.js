@@ -1,6 +1,6 @@
-// berekening.js — mestberekening voor meerdere percelen
+// berekening.js — mestplaatsingsruimte-berekening
 
-// Laad de grondgebonden stikstofnormen (tabel 2)
+// 1) Laad JSON met grondgebonden stikstofnormen (Tabel 2)
 let stikstofnormen = {};
 fetch('/data/stikstofnormen_tabel2.json')
   .then(res => res.json())
@@ -12,7 +12,7 @@ if (mestForm) {
   mestForm.addEventListener('submit', e => {
     e.preventDefault();
 
-    // 1) Check percelen en normen
+    // Checks
     if (!Array.isArray(parcels) || parcels.length === 0) {
       alert('Selecteer eerst minstens één perceel.');
       return;
@@ -22,12 +22,12 @@ if (mestForm) {
       return;
     }
 
-    // 2) Variabelen voor totalen
+    // Totalen
     let totaalA = 0; // dierlijke mest N
     let totaalB = 0; // grondgebonden N
     let totaalC = 0; // fosfaat P
 
-    // 3) Perceel-loop
+    // Perceel-loop
     parcels.forEach(p => {
       const ha          = parseFloat(p.ha) || 0;
       const grond       = p.grondsoort || 'Zand';
@@ -37,7 +37,7 @@ if (mestForm) {
       // A-norm: vast 170 kg N/ha
       const A_ha = 170;
 
-      // B-norm: uit JSON op basis van code & grondsoort
+      // B-norm: uit JSON op basis van gewasCode & grondsoort
       let entry = stikstofnormen[p.gewasNaam]
                || Object.values(stikstofnormen)
                    .find(o => o.Gewascodes.includes(gewasCode));
@@ -50,17 +50,17 @@ if (mestForm) {
       // C-norm: afhankelijk van landgebruik
       const C_ha = landgebruik.includes('grasland') ? 75 : 40;
 
-      // Optellen per perceel
+      // Optelregels
       totaalA += A_ha * ha;
       totaalB += B_ha * ha;
       totaalC += C_ha * ha;
     });
 
-    // 4) Berekeningen eindresultaat
+    // Conclusies
     const N_max = Math.min(totaalA, totaalB);
     const P_max = totaalC;
 
-    // 5) Render resultaat
+    // Render resultaat
     document.getElementById('resultaat').innerHTML = `
       <div class="resultaat-blok">
         <h2>Berekening A (dierlijke mest N)</h2>
