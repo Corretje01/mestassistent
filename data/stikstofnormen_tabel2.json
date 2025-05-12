@@ -480,15 +480,7 @@
     "Veen": 65
   },
   "Akkerbouwgewassen, overig": {
-    "Gewascodes": [
-      "375",
-      "516",
-      "944",
-      "1927",
-      "2652",
-      "3510",
-      "6802"
-    ],
+    "Gewascodes": ["375", "516", "944", "1927", "2652", "3510", "6802"],
     "Klei": 200,
     "Noordelijk, westelijk en centraal zand": 185,
     "Zuidelijk zand": 148,
@@ -496,10 +488,7 @@
     "Veen": 190
   },
   "Spinazie, 1e teelt": {
-    "Gewascodes": [
-      "2773",
-      "2774"
-    ],
+    "Gewascodes": ["2773", "2774"],
     "Klei": 260,
     "Noordelijk, westelijk en centraal zand": 190,
     "Zuidelijk zand": 152,
@@ -507,9 +496,7 @@
     "Veen": 200
   },
   "Spinazie, volgteelt": {
-    "Gewascodes": [
-      "1022"
-    ],
+    "Gewascodes": ["1022"],
     "Klei": 180,
     "Noordelijk, westelijk en centraal zand": 170,
     "Zuidelijk zand": 136,
@@ -517,14 +504,7 @@
     "Veen": 160
   },
   "Slasoorten, 1e teelt": {
-    "Gewascodes": [
-      "2767",
-      "2768",
-      "2769",
-      "2770",
-      "2771",
-      "2772"
-    ],
+    "Gewascodes": ["2767", "2768", "2769", "2770", "2771", "2772"],
     "Klei": 160,
     "Noordelijk, westelijk en centraal zand": 155,
     "Zuidelijk zand": 124,
@@ -540,9 +520,7 @@
     "Veen": 145
   },
   "Andijvie, 1e teelt": {
-    "Gewascodes": [
-      "2709"
-    ],
+    "Gewascodes": ["2709"],
     "Klei": 155,
     "Noordelijk, westelijk en centraal zand": 150,
     "Zuidelijk zand": 120,
@@ -550,9 +528,7 @@
     "Veen": 160
   },
   "Andijvie, volgteelt": {
-    "Gewascodes": [
-      "2708"
-    ],
+    "Gewascodes": ["2708"],
     "Klei": 80,
     "Noordelijk, westelijk en centraal zand": 75,
     "Zuidelijk zand": 60,
@@ -560,10 +536,7 @@
     "Veen": 95
   },
   "Selderij, bleek/groen": {
-    "Gewascodes": [
-      "2765",
-      "2766"
-    ],
+    "Gewascodes": ["2765", "2766"],
     "Klei": 190,
     "Noordelijk, westelijk en centraal zand": 170,
     "Zuidelijk zand": 136,
@@ -571,12 +544,7 @@
     "Veen": 170
   },
   "Prei": {
-    "Gewascodes": [
-      "2799",
-      "2800",
-      "2801",
-      "2802"
-    ],
+    "Gewascodes": ["2799", "2800", "2801", "2802"],
     "Klei": 200,
     "Noordelijk, westelijk en centraal zand": 185,
     "Zuidelijk zand": 148,
@@ -584,10 +552,7 @@
     "Veen": 190
   },
   "Bladgewassen, overig, eenmalige oogst": {
-    "Gewascodes": [
-      "2791",
-      "2792"
-    ],
+    "Gewascodes": ["2791", "2792"],
     "Klei": 110,
     "Noordelijk, westelijk en centraal zand": 110,
     "Zuidelijk zand": 88,
@@ -603,10 +568,7 @@
     "Veen": 70
   },
   "Spruitkool": {
-    "Gewascodes": [
-      "2777",
-      "2778"
-    ],
+    "Gewascodes": ["2777", "2778"],
     "Klei": 170,
     "Noordelijk, westelijk en centraal zand": 160,
     "Zuidelijk zand": 128,
@@ -614,10 +576,7 @@
     "Veen": 170
   },
   "Witte kool": {
-    "Gewascodes": [
-      "2789",
-      "2790"
-    ],
+    "Gewascodes": ["2789", "2790"],
     "Klei": 160,
     "Noordelijk, westelijk en centraal zand": 150,
     "Zuidelijk zand": 120,
@@ -625,10 +584,7 @@
     "Veen": 160
   },
   "Rode kool": {
-    "Gewascodes": [
-      "2759",
-      "2760"
-    ],
+    "Gewascodes": ["2759", "2760"],
     "Klei": 160,
     "Noordelijk, westelijk en centraal zand": 150,
     "Zuidelijk zand": 120,
@@ -636,10 +592,7 @@
     "Veen": 160
   },
   "Savooiekool": {
-    "Gewascodes": [
-      "2761",
-      "2762"
-    ],
+    "Gewascodes": ["2761", "2762"],
     "Klei": 160,
     "Noordelijk, westelijk en centraal zand": 150,
     "Zuidelijk zand": 120,
@@ -647,10 +600,7 @@
     "Veen": 160
   },
   "Spitskool": {
-    "Gewascodes": [
-      "2775",
-      "2776"
-    ],
+    "Gewascodes": ["2775", "2776"],
     "Klei": 165,
     "Noordelijk, westelijk en centraal zand": 155,
     "Zuidelijk zand": 124,
@@ -658,12 +608,7 @@
     "Veen": 170
   },
   "Bloemkool": {
-    "Gewascodes": [
-      "2795",
-      "2796",
-      "2797",
-      "2798"
-    ],
+    "Gewascodes": ["2795", "2796", "2797", "2798"],
     "Klei": 150,
     "Noordelijk, westelijk en centraal zand": 140,
     "Zuidelijk zand": 112,
@@ -671,10 +616,7 @@
     "Veen": 145
   },
   "Broccoli": {
-    "Gewascodes": [
-      "2719",
-      "2720"
-    ],
+    "Gewascodes": ["2719", "2720"],
     "Klei": 130,
     "Noordelijk, westelijk en centraal zand": 130,
     "Zuidelijk zand": 104,
@@ -682,10 +624,7 @@
     "Veen": 130
   },
   "Chinese kool": {
-    "Gewascodes": [
-      "2721",
-      "2722"
-    ],
+    "Gewascodes": ["2721", "2722"],
     "Klei": 130,
     "Noordelijk, westelijk en centraal zand": 130,
     "Zuidelijk zand": 104,
@@ -693,11 +632,7 @@
     "Veen": 130
   },
   "Boerenkool": {
-    "Gewascodes": [
-      "2715",
-      "2716",
-      "7138"
-    ],
+    "Gewascodes": ["2715", "2716", "7138"],
     "Klei": 150,
     "Noordelijk, westelijk en centraal zand": 150,
     "Zuidelijk zand": 120,
@@ -705,10 +640,7 @@
     "Veen": 150
   },
   "Paksoi": {
-    "Gewascodes": [
-      "2745",
-      "2746"
-    ],
+    "Gewascodes": ["2745", "2746"],
     "Klei": 160,
     "Noordelijk, westelijk en centraal zand": 150,
     "Zuidelijk zand": 120,
@@ -716,10 +648,7 @@
     "Veen": 150
   },
   "Raapstelen": {
-    "Gewascodes": [
-      "2753",
-      "2754"
-    ],
+    "Gewascodes": ["2753", "2754"],
     "Klei": 165,
     "Noordelijk, westelijk en centraal zand": 165,
     "Zuidelijk zand": 132,
@@ -727,20 +656,7 @@
     "Veen": 165
   },
   "Kruiden, bladgewas, eenmalige oogst": {
-    "Gewascodes": [
-      "654",
-      "1019",
-      "1020",
-      "1028",
-      "1029",
-      "1030",
-      "1031",
-      "1032",
-      "1037",
-      "1038",
-      "2743",
-      "6749"
-    ],
+    "Gewascodes": ["654", "1019", "1020", "1028", "1029", "1030", "1031", "1032", "1037", "1038", "2743", "6749"],
     "Klei": 75,
     "Noordelijk, westelijk en centraal zand": 75,
     "Zuidelijk zand": 60,
@@ -756,9 +672,7 @@
     "Veen": 55
   },
   "Kruiden, wortelgewassen": {
-    "Gewascodes": [
-      "652"
-    ],
+    "Gewascodes": ["652"],
     "Klei": 65,
     "Noordelijk, westelijk en centraal zand": 65,
     "Zuidelijk zand": 52,
@@ -766,10 +680,7 @@
     "Veen": 65
   },
   "Kruiden, zaadgewassen": {
-    "Gewascodes": [
-      "655",
-      "2744"
-    ],
+    "Gewascodes": ["655", "2744"],
     "Klei": 75,
     "Noordelijk, westelijk en centraal zand": 75,
     "Zuidelijk zand": 60,
@@ -777,11 +688,7 @@
     "Veen": 75
   },
   "Aardbei (wachtbed, vermeerdering)": {
-    "Gewascodes": [
-      "2700",
-      "2701",
-      "2703"
-    ],
+    "Gewascodes": ["2700", "2701", "2703"],
     "Klei": 275,
     "Noordelijk, westelijk en centraal zand": 260,
     "Zuidelijk zand": 208,
@@ -789,9 +696,7 @@
     "Veen": 270
   },
   "Aardbei (productie)": {
-    "Gewascodes": [
-      "2702"
-    ],
+    "Gewascodes": ["2702"],
     "Klei": 275,
     "Noordelijk, westelijk en centraal zand": 260,
     "Zuidelijk zand": 208,
@@ -799,17 +704,7 @@
     "Veen": 270
   },
   "Komkommerachtigen (augurk, courgette, meloen, pompoen)": {
-    "Gewascodes": [
-      "2723",
-      "2724",
-      "2729",
-      "2730",
-      "2732",
-      "2733",
-      "2734",
-      "2735",
-      "2736"
-    ],
+    "Gewascodes": ["2723", "2724", "2729", "2730", "2732", "2733", "2734", "2735", "2736"],
     "Klei": 180,
     "Noordelijk, westelijk en centraal zand": 160,
     "Zuidelijk zand": 160,
@@ -817,9 +712,7 @@
     "Veen": 160
   },
   "Suikermaïs": {
-    "Gewascodes": [
-      "814"
-    ],
+    "Gewascodes": ["814"],
     "Klei": 200,
     "Noordelijk, westelijk en centraal zand": 185,
     "Zuidelijk zand": 148,
@@ -1388,7 +1281,6 @@
   },
   "Geen norm": {
     "Gewascodes": ["332","335","338","343","662","794","795","1033","1053","1081","1082","1083","1084","1085","1086","1087","1088","1089","1090","1091","1092","1093","1094","1936","2300","2617","2618","2619","2620","2621","2622","2624","2625","2626","2628","2629","2631","2632","2633","2634","2635","2636","2637","2638","2639","2642","2704","2705","2706","2707","3055","3801","3802","6520","6521","6522","6746","6748","6792","6793","6794","6798","6799","6800","6801","6807","6808","6809","7127","7128"],
-    "Klei": 0,
     "Klei": 0,
     "Noordelijk, westelijk en centraal zand": 0,
     "Zuidelijk zand": 0,
