@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Optimaliseer je mestplan</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="header">
+    <nav class="nav">
+      <a href="index.html" class="nav__item">Home</a>
+      <a href="#" class="nav__item nav__item--right">Inloggen</a>
+    </nav>
+  </header>
+
+  <main class="container">
+    <h2>2. Optimaliseer je mestplan</h2>
+    <p>Kies je gewenste mestsoorten en pas de hoeveelheden aan met de schuifknoppen. Gebruik de 'Optimaliseer' functie voor een automatische berekening van jouw ideale mestplan.</p>
+
+    <!-- Stap 1: Selectie mestsoorten -->
+    <section id="mest-selectie" class="card">
+      <h3>Selecteer type mest</h3>
+      <div class="category">
+        <span class="category__label">Drijfmest</span>
+        <button class="btn mest-btn" data-type="drijfmest" data-animal="varken">Varken</button>
+        <button class="btn mest-btn" data-type="drijfmest" data-animal="koe">Koe</button>
+        <button class="btn mest-btn" data-type="drijfmest" data-animal="geit">Geit</button>
+      </div>
+      <div class="category">
+        <span class="category__label">Vaste mest</span>
+        <button class="btn mest-btn" data-type="vastemest" data-animal="varken">Varken</button>
+        <button class="btn mest-btn" data-type="vastemest" data-animal="koe">Koe</button>
+        <button class="btn mest-btn" data-type="vastemest" data-animal="geit">Geit</button>
+        <button class="btn mest-btn" data-type="vastemest" data-animal="kip">Kip</button>
+        <button class="btn mest-btn" data-type="vastemest" data-animal="paard">Paard</button>
+        <button class="btn mest-btn" data-type="vastemest" data-animal="eend">Eend</button>
+      </div>
+      <div class="category">
+        <span class="category__label">Overig</span>
+        <button class="btn mest-btn" data-type="overig" data-animal="compost">Compost</button>
+        <button class="btn mest-btn" data-type="overig" data-animal="champost">Champost</button>
+        <button class="btn mest-btn" data-type="overig" data-animal="digestaat">Digestaat</button>
+      </div>
+    </section>
+
+    <!-- Stap 2: Maak mestplan -->
+    <section id="mestplan" class="card">
+      <h3>Maak mestplan</h3>
+      <button id="optimaliseer-btn" class="btn btn--primary">Optimaliseer</button>
+
+      <div id="sliders-container" class="sliders-grid">
+        <!-- Standaard sliders -->
+        <div class="slider-group">
+          <label for="slider-stikstof">Stikstof <span class="value" id="value-stikstof">0 / 2000 kg</span></label>
+          <input type="range" id="slider-stikstof" min="0" max="2000" step="1" />
+          <input type="checkbox" id="lock-stikstof" />
+        </div>
+        <div class="slider-group">
+          <label for="slider-fosfaat">Fosfaat <span class="value" id="value-fosfaat">0 / 800 kg</span></label>
+          <input type="range" id="slider-fosfaat" min="0" max="800" step="1" />
+          <input type="checkbox" id="lock-fosfaat" />
+        </div>
+        <div class="slider-group">
+          <label for="slider-kalium">Kalium <span class="value" id="value-kalium">0 / 7500 kg</span></label>
+          <input type="range" id="slider-kalium" min="0" max="7500" step="1" />
+          <input type="checkbox" id="lock-kalium" />
+        </div>
+        <div class="slider-group">
+          <label for="slider-organisch">Organische stof <span class="value" id="value-organisch">0 / 3000 kg</span></label>
+          <input type="range" id="slider-organisch" min="0" max="3000" step="1" />
+          <input type="checkbox" id="lock-organisch" />
+        </div>
+        <!-- Dynamische sliders voor geselecteerde mestsoorten komen hier -->
+      </div>
+
+      <!-- Laatste slider: Financiële vergoeding -->
+      <div class="slider-group full-width">
+        <label for="slider-financieel">Geschatte financiële vergoeding <span class="value" id="value-financieel">€0</span></label>
+        <input type="range" id="slider-financieel" min="0" max="20000" step="100" />
+        <input type="checkbox" id="lock-financieel" />
+      </div>
+    </section>
+  </main>
+
+  <script src="mestplan.js"></script>
+</body>
+</html>
