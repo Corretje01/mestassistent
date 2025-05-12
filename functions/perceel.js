@@ -27,7 +27,7 @@ export async function handler(event) {
     srsName:      'EPSG:4326',
     count:        '1',
     bbox,
-    CQL_FILTER:   `CONTAINS(geometry,POINT(${lon} ${lat}))`
+    CQL_FILTER:   `INTERSECTS(geometry,POINT(${lon} ${lat}))`
   });
   const url1  = `${base1}?${params1.toString()}`;
   const json1 = await fetch(url1).then(r => r.json());
@@ -52,7 +52,7 @@ export async function handler(event) {
       srsName:      'EPSG:4326',
       count:        '1',
       bbox,
-      CQL_FILTER:   `CONTAINS(geometry,POINT(${lon} ${lat}))`
+      CQL_FILTER:   `INTERSECTS(geometry,POINT(${lon} ${lat}))`
     });
     const url2  = `${base2}?${params2.toString()}`;
     const gjson = await fetch(url2).then(r => r.json());
@@ -80,7 +80,7 @@ export async function handler(event) {
       srsName:      'EPSG:4326',
       count:        '1',
       bbox,
-      CQL_FILTER:   `CONTAINS(geometry,POINT(${lon} ${lat}))`
+      CQL_FILTER:   `INTERSECTS(geometry,POINT(${lon} ${lat}))`
     });
     const url3  = `${base3}?${params3.toString()}`;
     const pjson = await fetch(url3).then(r => r.json());
