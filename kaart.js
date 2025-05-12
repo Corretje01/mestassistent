@@ -1,6 +1,5 @@
-// kaart.js — initialisatie en percelenlijst
+// kaart.js — initialisatie en percelenlijst (precisie-fix)
 
-// 1) Laad soilMapping (unmodified)
 let soilMapping = [];
 fetch('/data/soilMapping.json')
   .then(r => r.json())
@@ -12,22 +11,69 @@ function getBaseCategory(name) {
   return e?.category || 'Onbekend';
 }
 
-// 2) Map init
 const map = L.map('map').setView([52.1, 5.1], 7);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   attribution: '© OSM contributors'
 }).addTo(map);
 
-// 3) Parcels opslaan
 let parcels = [];
 function uuid() { return 'p_' + Math.random().toString(36).slice(2); }
 
-// 4) Klik op kaart: percelen ophalen
-map.on('click', async e => {
-  const lon = e.latlng.lng.toFixed(6);
-  const lat = e.latlng.lat.toFixed(6);
+function renderParcelList() {
+  const container = document.getElementById('parcelList');
+  if (!container) return;
+  container.innerHTML = '';
 
-  // Deselect klik binnen bestaand perceel
+  parcels.forEach(p => {
+    const item = document.createElement('div');
+    item.className = 'parcel-item';
+
+    // Titel
+    const h3 = document.createElement('h3');
+    h3.textContent = `Perceel ${p.name}`;
+    item.appendChild(h3);
+
+    // Helper voor veld-groep
+    const makeField = (label, val, type='text') => {
+      const fg = document.createElement('div');
+      fg.className = 'field-group';
+      const lbl = document.createElement('label');
+      lbl.textContent = label;
+      const inp = document.createElement('input');
+      inp.type = type;
+      inp.value = val;
+      inp.readOnly = true;
+      fg.append(lbl, inp);
+      return fg;
+    };
+
+    item.appendChild(makeField('Opp. (ha)',  p.ha,        'number'));
+    item.appendChild(makeField('Gewascode',  p.gewasCode));
+    item.appendChild(makeField('Gewasnaam',  p.gewasNaam));
+
+    const btn = document.createElement('button');
+    btn.textContent = 'Verwijder';
+    btn.className = 'remove-btn';
+    btn.onclick = () => removeParcel(p.id);
+    item.appendChild(btn);
+
+    container.appendChild(item);
+  });
+}
+
+function removeParcel(id) {
+  const idx = parcels.findIndex(p => p.id === id);
+  if (idx >= 0) {
+    map.removeLayer(parcels[idx].layer);
+    parcels.splice(idx, 1);
+    renderParcelList();
+  }
+}
+
+map.on('click', async e => {
+  const { lat, lng } = e.latlng;
+
+  // Deselection: klik in bestaand perceel
   for (const p of parcels) {
     if (p.layer.getBounds().contains(e.latlng)) {
       return removeParcel(p.id);
@@ -35,48 +81,47 @@ map.on('click', async e => {
   }
 
   try {
-    // a) perceel
-    const resP = await fetch(`/.netlify/functions/perceel?lon=${lon}&lat=${lat}`);
-    if (!resP.ok) throw new Error(`Perceel-API ${resP.status}`);
+    // 1) Perceel ophalen met originele params en volle precisie
+    const resP = await fetch(`/.netlify/functions/perceel?lat=${lat}&lng=${lng}`);
+    if (!resP.ok) throw new Error(`Perceel-API returned ${resP.status}`);
     const dataP = await resP.json();
     const feat  = dataP.features?.[0];
     if (!feat) throw new Error('Geen perceel gevonden');
 
-    // b) bodemsoort
-    const resB = await fetch(`/.netlify/functions/bodemsoort?lon=${lon}&lat=${lat}`);
-    if (!resB.ok) throw new Error(`Bodemsoort-API ${resB.status}`);
+    // 2) Bodemsoort ophalen met originele params
+    const resB = await fetch(`/.netlify/functions/bodemsoort?lat=${lat}&lng=${lng}`);
+    if (!resB.ok) throw new Error(`Bodemsoort-API returned ${resB.status}`);
     const dataB = await resB.json();
 
-    // polygon tekenen
+    // 3) Polygon tekenen
     const layer = L.geoJSON(feat.geometry, {
       style: { color: '#1e90ff', weight: 2, fillOpacity: 0.2 }
     }).addTo(map);
 
-    // properties
+    // 4) Properties verwerken
     const props = feat.properties;
     const naam  = props.weergavenaam
                 || `${props.kadastraleGemeenteWaarde} ${props.sectie} ${props.perceelnummer}`;
     const opp   = props.kadastraleGrootteWaarde;
-    const ha    = opp!=null ? (opp/10000).toFixed(2) : '';
+    const ha    = opp != null ? (opp / 10000).toFixed(2) : '';
 
-    // bodemsoort categoriseren
     let baseCat = getBaseCategory(dataB.bodemsoortNaam || '');
-    if (baseCat==='Zand') {
+    if (baseCat === 'Zand') {
       baseCat = ['Limburg','Noord-Brabant'].includes(props.provincie)
               ? 'Zuidelijk zand'
               : 'Noordelijk, westelijk en centraal zand';
     }
 
-    // push naar parcels
+    // 5) Parcels-data (zonder NV-gebied)
     parcels.push({
-      id:         uuid(),
+      id:          uuid(),
       layer,
-      name:       naam,
+      name:        naam,
       ha,
-      gewasCode:  props.gewasCode || '',
-      gewasNaam:  props.gewasNaam || '',
-      provincie:  props.provincie,
-      grondsoort: baseCat,
+      gewasCode:   props.gewasCode || '',
+      gewasNaam:   props.gewasNaam || '',
+      provincie:   props.provincie,
+      grondsoort:  baseCat,
       landgebruik: props.landgebruik || 'Onbekend'
     });
 
@@ -87,55 +132,3 @@ map.on('click', async e => {
     alert('Fout bij ophalen perceel.');
   }
 });
-
-// 5) Verwijder helper
-function removeParcel(id) {
-  const idx = parcels.findIndex(p=>p.id===id);
-  if (idx>=0) {
-    map.removeLayer(parcels[idx].layer);
-    parcels.splice(idx,1);
-    renderParcelList();
-  }
-}
-
-// 6) Render alleen titel + 3 velden
-function renderParcelList() {
-  const container = document.getElementById('parcelList');
-  if (!container) return;
-  container.innerHTML = '';
-
-  parcels.forEach(p => {
-    const item = document.createElement('div');
-    item.className = 'parcel-item';
-
-    // titel
-    const h3 = document.createElement('h3');
-    h3.textContent = `Perceel ${p.name}`;
-    item.appendChild(h3);
-
-    // field-groups
-    const fg = (label, val, type='text') => {
-      const div = document.createElement('div');
-      div.className = 'field-group';
-      const lbl = document.createElement('label');
-      lbl.textContent = label;
-      const inp = document.createElement('input');
-      inp.type = type; inp.value = val; inp.readOnly = true;
-      div.append(lbl, inp);
-      return div;
-    };
-
-    item.appendChild(fg('Opp. (ha)',   p.ha,         'number'));
-    item.appendChild(fg('Gewascode',   p.gewasCode));
-    item.appendChild(fg('Gewasnaam',   p.gewasNaam));
-
-    // verwijder knop
-    const btn = document.createElement('button');
-    btn.textContent = 'Verwijder';
-    btn.className = 'remove-btn';
-    btn.onclick = ()=> removeParcel(p.id);
-    item.appendChild(btn);
-
-    container.appendChild(item);
-  });
-}
