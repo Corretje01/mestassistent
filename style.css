@@ -146,11 +146,21 @@ main {
   box-shadow: 0 0 0 3px rgba(39, 174, 96, 0.2);
 }
 
-/* Verberg NV-gebied-veld */
-.field-nvgebied,
+/* -----------------------------------
+   Verberg specifieke velden
+----------------------------------- */
 label[for="nvgebied"],
 input[name="nvgebied"],
-select[name="nvgebied"] {
+select[name="nvgebied"],
+label[for="provincie"],
+input[name="provincie"],
+select[name="provincie"],
+label[for="grondsoort"],
+input[name="grondsoort"],
+select[name="grondsoort"],
+label[for="landgebruik"],
+input[name="landgebruik"],
+select[name="landgebruik"] {
   display: none !important;
 }
 
