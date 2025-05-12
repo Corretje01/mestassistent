@@ -1,105 +1,80 @@
-/* basis en container */
+/* style.css */
+
+/* Algemeen */
 body {
-  font-family: Arial, sans-serif;
-  background-color: #f9f9f9;
+  font-family: sans-serif;
   margin: 0;
   padding: 0;
-}
-#container {
-  max-width: 800px;
-  margin: 2rem auto;
-  background: #fff;
-  padding: 2rem;
-  border-radius: 10px;
-  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+  line-height: 1.5;
+  background: #f9f9f9;
+  color: #333;
 }
 
-/* kaart */
-.map {
-  width: 100%;
-  height: 350px;
-  border-radius: 6px;
-  margin-bottom: 1.5rem;
-}
-
-/* alleen nog nodig voor de submitknop */
-.form-actions {
-  margin-top: 1.5rem;
+header {
+  background: #2c3e50;
+  color: white;
+  padding: 1rem;
   text-align: center;
 }
-.form-actions button {
-  background-color: #007bff;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  padding: 0.8rem 1.2rem;
-  font-size: 1rem;
-  cursor: pointer;
-  width: 100%;
-  max-width: 300px;
-}
-.form-actions button:hover {
-  background-color: #0056b3;
+
+main {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 1rem;
 }
 
-/* resultaat */
-.resultaat-blok {
-  background-color: #e9f7ef;
-  border: 1px solid #c3e6cb;
-  padding: 1rem;
-  margin-top: 1.5rem;
-  border-radius: 6px;
-}
-
-/* parcel-list: dynamische percelen */
-.parcel-list {
-  margin-bottom: 1.5rem;
-}
-.parcel-item {
-  border: 1px solid #ccc;
-  background: #fafafa;
-  padding: 1rem;
-  border-radius: 6px;
+/* Introductie */
+.intro {
+  background: #ecf0f1;
+  padding: 1rem 1.5rem;
+  border-radius: 8px;
   margin-bottom: 1rem;
 }
-.parcel-item .form-group {
-  display: flex;
-  align-items: center;
-  margin-bottom: 0.8rem;
-}
-.parcel-item label {
-  width: 100px;
-  font-weight: bold;
-}
-.parcel-item input,
-.parcel-item select {
-  flex: 1;
-  padding: 0.5rem;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  background: #fff;
-}
-.parcel-item .remove-btn {
-  background: #e74c3c;
-  color: white;
-  border: none;
-  padding: 0.5rem 0.8rem;
-  cursor: pointer;
-  border-radius: 4px;
-  margin-top: 0.5rem;
-}
-.parcel-item .remove-btn:hover {
-  background: #c0392b;
+
+/* Kaart */
+#map {
+  height: 400px;
+  border-radius: 8px;
+  margin-bottom: 1rem;
 }
 
-/* responsive tweaks */
-@media (max-width: 600px) {
-  .parcel-item .form-group {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-  .parcel-item label {
-    width: auto;
-    margin-bottom: 0.3rem;
-  }
+/* Formulier */
+.form-section {
+  margin-bottom: 1.5rem;
+}
+
+.btn {
+  background: #27ae60;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.25rem;
+  font-size: 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.btn:hover {
+  background: #219150;
+}
+
+/* Resultaat */
+.result-section {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+}
+
+.result-section h2 {
+  margin-top: 0;
+  color: #2c3e50;
+}
+
+/* Specifieke uitkomstblokken */
+.resultaat-blok {
+  margin-bottom: 1rem;
+}
+
+.resultaat-blok p {
+  margin: 0.25rem 0;
 }
