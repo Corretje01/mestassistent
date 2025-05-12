@@ -1,4 +1,4 @@
-// kaart.js — initialisatie en percelenlijst (precisie-fix)
+// kaart.js — initialisatie en percelenlijst
 
 let soilMapping = [];
 fetch('/data/soilMapping.json')
@@ -28,21 +28,17 @@ function renderParcelList() {
     const item = document.createElement('div');
     item.className = 'parcel-item';
 
-    // Titel
     const h3 = document.createElement('h3');
     h3.textContent = `Perceel ${p.name}`;
     item.appendChild(h3);
 
-    // Helper voor veld-groep
     const makeField = (label, val, type='text') => {
       const fg = document.createElement('div');
       fg.className = 'field-group';
       const lbl = document.createElement('label');
       lbl.textContent = label;
       const inp = document.createElement('input');
-      inp.type = type;
-      inp.value = val;
-      inp.readOnly = true;
+      inp.type = type; inp.value = val; inp.readOnly = true;
       fg.append(lbl, inp);
       return fg;
     };
@@ -73,7 +69,7 @@ function removeParcel(id) {
 map.on('click', async e => {
   const { lat, lng } = e.latlng;
 
-  // Deselection: klik in bestaand perceel
+  // Deselection bij klik binnen bestaand perceel
   for (const p of parcels) {
     if (p.layer.getBounds().contains(e.latlng)) {
       return removeParcel(p.id);
@@ -81,24 +77,21 @@ map.on('click', async e => {
   }
 
   try {
-    // 1) Perceel ophalen met originele params en volle precisie
-    const resP = await fetch(`/.netlify/functions/perceel?lat=${lat}&lng=${lng}`);
+    // OPGELET: gebruik lon en lat, niet lng
+    const resP = await fetch(`/.netlify/functions/perceel?lon=${lng}&lat=${lat}`);
     if (!resP.ok) throw new Error(`Perceel-API returned ${resP.status}`);
     const dataP = await resP.json();
     const feat  = dataP.features?.[0];
     if (!feat) throw new Error('Geen perceel gevonden');
 
-    // 2) Bodemsoort ophalen met originele params
-    const resB = await fetch(`/.netlify/functions/bodemsoort?lat=${lat}&lng=${lng}`);
+    const resB = await fetch(`/.netlify/functions/bodemsoort?lon=${lng}&lat=${lat}`);
     if (!resB.ok) throw new Error(`Bodemsoort-API returned ${resB.status}`);
     const dataB = await resB.json();
 
-    // 3) Polygon tekenen
     const layer = L.geoJSON(feat.geometry, {
       style: { color: '#1e90ff', weight: 2, fillOpacity: 0.2 }
     }).addTo(map);
 
-    // 4) Properties verwerken
     const props = feat.properties;
     const naam  = props.weergavenaam
                 || `${props.kadastraleGemeenteWaarde} ${props.sectie} ${props.perceelnummer}`;
@@ -112,7 +105,6 @@ map.on('click', async e => {
               : 'Noordelijk, westelijk en centraal zand';
     }
 
-    // 5) Parcels-data (zonder NV-gebied)
     parcels.push({
       id:          uuid(),
       layer,
