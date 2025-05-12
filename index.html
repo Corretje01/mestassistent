@@ -17,7 +17,7 @@
   </header>
 
   <main>
-    <!-- Inleiding -->
+    <!-- Introductie -->
     <section class="intro">
       <p>
         De hoeveelheid mest die je kan plaatsen is afhankelijk van 3 berekeningen:
@@ -44,13 +44,21 @@
       </p>
     </section>
 
-    <!-- Kaart blijft ongewijzigd -->
+    <!-- Kaart -->
     <section id="map"></section>
+
+    <!-- Geselecteerde percelen -->
+    <section class="parcel-list-section">
+      <h2>Geselecteerde percelen</h2>
+      <div id="parcelList" class="parcel-list">
+        <!-- Hier vult kaart.js de lijst met geselecteerde percelen -->
+      </div>
+    </section>
 
     <!-- Formulier om percelen te selecteren en te berekenen -->
     <section class="form-section">
       <form id="mestForm">
-        <!-- hier komen je invoervelden / knoppen uit kaart.js -->
+        <!-- In kaart.js worden hier de invoervelden/knoppen toegevoegd -->
         <button type="submit" class="btn">Bereken gebruiksruimte</button>
       </form>
     </section>
@@ -61,7 +69,7 @@
     </section>
   </main>
 
-  <!-- Leaflet JS blijft zoals voorheen -->
+  <!-- Leaflet en eigen scripts -->
   <script src="https://unpkg.com/leaflet@1.3.1/dist/leaflet.js"></script>
   <script src="kaart.js"></script>
   <script src="berekening.js"></script>
