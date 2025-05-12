@@ -7,25 +7,26 @@ fetch('/data/stikstofnormen_tabel2.json')
   .then(json => stikstofnormen = json)
   .catch(err => console.error('❌ Kan stikstofnormen niet laden:', err));
 
+// 2) Form listener
 const mestForm = document.getElementById('mestForm');
 if (mestForm) {
   mestForm.addEventListener('submit', e => {
     e.preventDefault();
 
-    // 2) Validatie
+    // 3) Validatie: percelen én normen moeten geladen zijn
     if (!Array.isArray(parcels) || parcels.length === 0) {
       alert('Selecteer eerst minstens één perceel.');
       return;
     }
     if (Object.keys(stikstofnormen).length === 0) {
-      alert('Wacht tot de stikstofnormen geladen zijn.');
+      alert('Wacht even tot de stikstofnormen geladen zijn.');
       return;
     }
 
-    // 3) Totalen berekenen
-    let totaalA = 0;  // dierlijke mest N
+    // 4) Totalen berekenen
+    let totaalA = 0;  // N uit dierlijke mest
     let totaalB = 0;  // grondgebonden N
-    let totaalC = 0;  // fosfaat P
+    let totaalC = 0;  // P uit mest
 
     parcels.forEach(p => {
       const ha         = parseFloat(p.ha) || 0;
@@ -33,17 +34,18 @@ if (mestForm) {
       const gewasCode  = p.gewasCode;
       const landgebruik= (p.landgebruik || '').toLowerCase();
 
-      // A-norm = 170 kg N/ha
+      // A-norm per hectare
       const A_ha = 170;
 
-      // B-norm uit JSON
+      // B-norm uit JSON: probeer op gewasnaam, anders via Gewascodes
       const entry = stikstofnormen[p.gewasNaam]
-                  || Object.values(stikstofnormen)
-                       .find(o => o.Gewascodes.includes(gewasCode));
-      if (!entry) return console.warn(`Geen B-norm voor code ${gewasCode}`);
-      const B_ha = entry[grond] ?? entry['Noordelijk, westelijk en centraal zand'];
+        || Object.values(stikstofnormen)
+             .find(o => o.Gewascodes.includes(gewasCode));
+      const B_ha = entry
+        ? (entry[grond] ?? entry['Noordelijk, westelijk en centraal zand'])
+        : 0;
 
-      // C-norm (fosfaat)
+      // C-norm (fosfaat): grasland 75 kg, anders 40 kg per ha
       const C_ha = landgebruik.includes('grasland') ? 75 : 40;
 
       totaalA += A_ha * ha;
@@ -51,11 +53,11 @@ if (mestForm) {
       totaalC += C_ha * ha;
     });
 
-    // 4) Conclusie waarden
+    // 5) Conclusie
     const N_max = Math.min(totaalA, totaalB);
     const P_max = totaalC;
 
-    // 5) Render resultaat **+** knop naar stap 2
+    // 6) Render resultaat **inclusief** knop “Ga naar stap 2”
     document.getElementById('resultaat').innerHTML = `
       <div class="resultaat-blok">
         <p><strong>Totaal N dierlijke mest:</strong> ${totaalA.toFixed(0)} kg N</p>
