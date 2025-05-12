@@ -1,121 +1,85 @@
-const DEBUG = false;
-const LIVE_ERRORS = true;
+// kaart.js — initialisatie en percelenlijst
 
-let soilMapping = [];
-fetch('/data/soilMapping.json')
-  .then(r => r.json()).then(j => soilMapping = j)
-  .catch(err => console.error('❌ Kan soilMapping.json niet laden:', err));
-
-function getBaseCategory(name) {
-  const e = soilMapping.find(x => x.name === name);
-  return e?.category || 'Onbekend';
-}
-
-const map = L.map('map').setView([52.1, 5.1], 7);
+// 1) Map initialisatie (ongewijzigd)
+const map = L.map('map').setView([52.1, 5.2], 8);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  attribution: '© OSM contributors'
+  attribution: '&copy; OpenStreetMap-contributors'
 }).addTo(map);
 
+// 2) Parcels-array
 let parcels = [];
-function uuid() { return 'p_' + Math.random().toString(36).slice(2); }
 
-function renderParcelList() {
-  const container = document.getElementById('parcelList');
-  container.innerHTML = '';
-  parcels.forEach(p => {
-    const div = document.createElement('div');
-    div.className = 'parcel-item';
-    div.dataset.id = p.id;
-    div.innerHTML = `
-      <div class="form-group"><label>Perceel</label><input readonly value="${p.name}"></div>
-      <div class="form-group"><label>Provincie</label><input readonly value="${p.provincie}"></div>
-      <div class="form-group"><label>Grondsoort</label><input readonly value="${p.grondsoort}"></div>
-      <div class="form-group"><label>NV-gebied?</label><input readonly value="${p.nvgebied}"></div>
-      <div class="form-group"><label>Ha (ha)</label><input readonly value="${p.ha}"></div>
-      <div class="form-group"><label>Landgebruik</label><input readonly value="${p.landgebruik}"></div>
-      <div class="form-group"><label>Gewascode</label><input readonly value="${p.gewasCode}"></div>
-      <div class="form-group"><label>Gewas naam</label><input readonly value="${p.gewasNaam}"></div>
-      <button class="remove-btn">Verwijder</button>
-    `;
-    div.querySelector('.remove-btn').onclick = () => removeParcel(p.id);
-    container.append(div);
-  });
-}
-
-function removeParcel(id) {
-  const idx = parcels.findIndex(p => p.id === id);
-  if (idx >= 0) {
-    map.removeLayer(parcels[idx].layer);
-    parcels.splice(idx, 1);
-    renderParcelList();
-  }
-}
-
+// 3) Klik-event: haal perceel- en bodemdata op
 map.on('click', async e => {
-  const lon = e.latlng.lng.toFixed(6);
-  const lat = e.latlng.lat.toFixed(6);
-
-  // Deselecteren
-  for (const p of parcels) {
-    if (p.layer.getBounds().contains(e.latlng)) {
-      return removeParcel(p.id);
-    }
-  }
-
   try {
-    const res  = await fetch(`/.netlify/functions/perceel?lon=${lon}&lat=${lat}`);
-    const data = await res.json();
-    const feat = data.features?.[0];
-    if (!feat) {
-      if (LIVE_ERRORS) alert('Geen perceel gevonden.');
-      return;
-    }
-    console.log('DEBUG kaart properties:', feat.properties);
+    // a) Perceel via Netlify Function
+    const percResp = await fetch(`/functions/perceel?lat=${e.latlng.lat}&lng=${e.latlng.lng}`);
+    const percData = await percResp.json();
+    // b) Bodemsoort via Netlify Function
+    const bodemResp = await fetch(`/functions/bodemsoort?lat=${e.latlng.lat}&lng=${e.latlng.lng}`);
+    const bodemData = await bodemResp.json();
 
-    const layer = L.geoJSON(feat.geometry, {
-      style: { color: '#1e90ff', weight: 2, fillOpacity: 0.2 }
-    }).addTo(map);
+    // Maak p-object zonder NV-gebied
+    const p = {
+      identificatieLokaalID: percData.identificatieLokaalID,
+      ha: percData.surfaceHa,
+      gewasCode: percData.gewasCode,
+      gewasNaam: percData.gewasNaam,
+      grondsoort: bodemData.bodemsoortNaam,
+      landgebruik: percData.landgebruik
+    };
 
-    const props = feat.properties;
-    const name  = props.weergavenaam
-                || `${props.kadastraleGemeenteWaarde} ${props.sectie} ${props.perceelnummer}`;
-    const opp   = props.kadastraleGrootteWaarde;
-    let   ha    = opp != null ? (opp/10000).toFixed(2) : '';
-
-    // Bodemsoort
-    let baseCat = window.huidigeGrond;
-    if (!baseCat || baseCat === 'Onbekend') {
-      try {
-        const pj = await (await fetch(`/.netlify/functions/bodemsoort?lon=${lon}&lat=${lat}`)).json();
-        baseCat = getBaseCategory(pj.grondsoort);
-      } catch {}
-    }
-
-    // Splitsing van 'Zand' naar Zuidelijk vs Noord/West/Centra
-    if (baseCat === 'Zand') {
-      if (props.provincie === 'Limburg' || props.provincie === 'Noord-Brabant') {
-        baseCat = 'Zuidelijk zand';
-      } else {
-        baseCat = 'Noordelijk, westelijk en centraal zand';
-      }
-    }
-
-    parcels.push({
-      id:         uuid(),
-      layer,
-      name,
-      provincie:  props.provincie,
-      grondsoort: baseCat,
-      nvgebied:   window.isNV ? 'Ja' : 'Nee',
-      ha,
-      landgebruik: props.landgebruik   || 'Onbekend',
-      gewasCode:   props.gewasCode     || '',
-      gewasNaam:   props.gewasNaam     || ''
-    });
+    parcels.push(p);
     renderParcelList();
-
   } catch (err) {
     console.error('Perceel fout:', err);
-    if (LIVE_ERRORS) alert('Fout bij ophalen perceel.');
+    alert('Fout bij het ophalen van het perceel.');
   }
 });
+
+// 4) Render de lijst met alleen de vier gevraagde velden
+function renderParcelList() {
+  const container = document.getElementById('parcelList');
+  if (!container) return;
+  container.innerHTML = '';
+
+  parcels.forEach((p, idx) => {
+    const item = document.createElement('div');
+    item.classList.add('parcel-item');
+
+    // Helper: één field-group maken
+    const makeField = (labelText, name, value, type='text') => {
+      const fg = document.createElement('div');
+      fg.classList.add('field-group');
+      const lbl = document.createElement('label');
+      lbl.textContent = labelText;
+      const inp = document.createElement('input');
+      inp.type = type;
+      inp.name = name;
+      inp.value = value;
+      inp.readOnly = true;
+      fg.append(lbl, inp);
+      return fg;
+    };
+
+    // Voeg alleen de velden toe die de gebruiker ziet
+    item.append(
+      makeField('Perceel',      'perceel',    p.identificatieLokaalID),
+      makeField('Opp. (ha)',    'ha',         p.ha,      'number'),
+      makeField('Gewascode',    'gewasCode',  p.gewasCode),
+      makeField('Gewasnaam',    'gewasNaam',  p.gewasNaam)
+    );
+
+    // Verwijder-knop
+    const btn = document.createElement('button');
+    btn.textContent = 'Verwijder';
+    btn.classList.add('remove-parcel');
+    btn.addEventListener('click', () => {
+      parcels.splice(idx, 1);
+      renderParcelList();
+    });
+    item.appendChild(btn);
+
+    container.appendChild(item);
+  });
+}
