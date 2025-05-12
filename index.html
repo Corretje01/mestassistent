@@ -1,53 +1,69 @@
 <!DOCTYPE html>
 <html lang="nl">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>Mestplaatsingsruimte</title>
-  <link rel="stylesheet" href="style.css"/>
-
-  <!-- Leaflet CSS met correcte SRI-hash -->
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Mestplaatsingsruimte 2025</title>
+  <link rel="stylesheet" href="style.css" />
   <link
     rel="stylesheet"
-    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-    crossorigin="anonymous"
+    href="https://unpkg.com/leaflet@1.3.1/dist/leaflet.css"
+    integrity="sha512-Rksm5ZfM7AB6RvR5VbyLN5U2IN3wMTK1ZqMWu4HvunUpMNpZl9+C1aJ0kd0+rLF2Xh2GOSpLMG8PsZChSR7A=="
+    crossorigin=""
   />
-
-  <!-- Leaflet JS met correcte SRI-hash -->
-  <script
-    defer
-    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
-    crossorigin="anonymous"
-  ></script>
-
-  <!-- Turf.js voor accurate point-in-polygon checks -->
-  <script defer src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
-
-  <!-- Onze eigen scripts -->
-  <script defer src="kaart.js"></script>
-  <script defer src="berekening.js"></script>
 </head>
 <body>
-  <div id="container">
-    <h1>Mestplaatsingsruimte-calculator</h1>
+  <header>
+    <h1>Mestplaatsingsruimte 2025</h1>
+  </header>
 
-    <!-- Kaart -->
-    <div id="map" class="map"></div>
+  <main>
+    <!-- Inleiding -->
+    <section class="intro">
+      <p>
+        De hoeveelheid mest die je kan plaatsen is afhankelijk van 3 berekeningen:
+      </p>
+      <ul>
+        <li><strong>A:</strong> Hoeveelheid stikstof (N) uit dierlijke mest</li>
+        <li><strong>B:</strong> Hoeveelheid stikstof (N) uit alle soorten mest</li>
+        <li><strong>C:</strong> Hoeveelheid fosfaat (P) uit alle soorten mest</li>
+      </ul>
+      <p>
+        Stel dat berekening A zegt dat je 2.000 kg N mag plaatsen. Berekening B geeft
+        aan dat je 1.800 kg N mag plaatsen. En berekening C zegt dat je 700 kg P mag
+        plaatsen. Dan kan je dus maximaal <strong>1.800 kg N</strong> en
+        <strong>700 kg P</strong> plaatsen.
+      </p>
+      <p>
+        De berekening met de laagste uitkomst bepaalt dus hoeveel stikstof en/of
+        fosfaat je maximaal kan plaatsen.
+      </p>
+      <p>
+        M.b.v. de vragen in dit formulier kan je 100% zelfstandig uitrekenen hoeveel
+        stikstof en fosfaat je in 2025 kan plaatsen. Klik op “Bereken” om je
+        resultaten per norm te zien.
+      </p>
+    </section>
 
-    <!-- Dynamische lijst van geselecteerde percelen -->
-    <div id="parcelList" class="parcel-list"></div>
+    <!-- Kaart blijft ongewijzigd -->
+    <section id="map"></section>
 
-    <!-- Form met alléén de submitknop -->
-    <form id="mestForm">
-      <div class="form-actions">
-        <button type="submit">Bereken gebruiksruimte voor alle percelen</button>
-      </div>
-    </form>
+    <!-- Formulier om percelen te selecteren en te berekenen -->
+    <section class="form-section">
+      <form id="mestForm">
+        <!-- hier komen je invoervelden / knoppen uit kaart.js -->
+        <button type="submit" class="btn">Bereken gebruiksruimte</button>
+      </form>
+    </section>
 
-    <!-- Resultaat komt hier -->
-    <div id="resultaat" class="resultaat-blok"></div>
-  </div>
+    <!-- Resultaat weergave -->
+    <section id="resultaat" class="result-section">
+      <!-- Wordt door berekening.js gevuld -->
+    </section>
+  </main>
+
+  <script src="https://unpkg.com/leaflet@1.3.1/dist/leaflet.js"></script>
+  <script src="kaart.js"></script>
+  <script src="berekening.js"></script>
 </body>
 </html>
