@@ -1,4 +1,3 @@
-<!-- index.html -->
 <!DOCTYPE html>
 <html lang="nl">
 <head>
@@ -18,24 +17,26 @@
   <main class="container">
     <h2>Stap 1: Gebruiksruimte berekenen</h2>
     <form id="calc-form" class="calc-form">
-      <!-- jouw invoervelden hier -->
+      <div class="field-group">
+        <label for="veld1">Invoer 1</label>
+        <input type="number" id="veld1" name="veld1" required />
+      </div>
+      <div class="field-group">
+        <label for="veld2">Invoer 2</label>
+        <input type="number" id="veld2" name="veld2" required />
+      </div>
       <button type="submit" class="btn btn--primary">Bereken</button>
     </form>
 
-    <!-- Resultaat en conclusie -->
-    <div id="result-container" class="card" style="display:none;">
+    <!-- Resultaat-container, standaard hidden -->
+    <div id="result-container" class="card" hidden>
       <h3>Resultaat</h3>
       <p id="resultaten"></p>
       <h3>Conclusie</h3>
       <p id="conclusie"></p>
 
-      <!-- “Ga naar stap 2”-knop, standaard verborgen -->
-      <button
-        id="step2-btn"
-        class="btn btn--primary"
-        style="display: none; margin-top: 1.5rem;"
-        onclick="window.location.href='mestplan.html'"
-      >
+      <!-- Ga naar stap 2, standaard hidden -->
+      <button id="step2-btn" class="btn btn--primary" hidden>
         Ga naar stap 2
       </button>
     </div>
