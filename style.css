@@ -1,4 +1,4 @@
-/* style.css */
+/* style.css (geüpdatet voor checkbox links naast titel) */
 
 /* 1. CSS-variabelen */
 :root {
@@ -35,19 +35,65 @@ body {
   padding: 1rem 1.5rem;
   display: flex;
   align-items: center;
+  justify-content: space-between;
 }
-.nav__item {
+.nav-logo, .nav__item {
   color: var(--color-white);
   text-decoration: none;
+  font-weight: bold;
+}
+.nav-logo { font-size: 1.25rem; }
+.nav__item {
+  font-size: 0.9rem;
   margin-right: 1rem;
 }
-.nav__item--right {
+.nav__item--right, .btn-login {
   margin-left: auto;
 }
+.btn-login {
+  background: var(--color-yellow);
+  color: var(--color-black);
+  padding: 0.4rem 0.8rem;
+  border-radius: 4px;
+  font-weight: 600;
+}
 
-/* … jouw overige bestaande styles (secties, buttons, kaarten, etc.) … */
+/* 4. Container & titels */
+.container {
+  max-width: 1000px;
+  margin: 2rem auto;
+  padding: 0 1rem;
+}
+h1, h2, h3, p {
+  margin-bottom: 1rem;
+}
+h1 { font-size: 2rem; }
+h2 { font-size: 1.5rem; }
+h3 { font-size: 1.125rem; }
 
-/* Percellijst */
+/* 5. Introductie */
+.intro {
+  background: var(--color-white);
+  padding: 1.5rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  margin-bottom: 2rem;
+}
+.intro ul {
+  margin-left: 1.2rem;
+  list-style: disc;
+}
+
+/* 6. Kaart */
+#map {
+  height: 450px;
+  width: 100%;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  margin-bottom: 2rem;
+}
+
+/* 7. Percellijst */
 .parcel-list-section h2 {
   font-size: 1.25rem;
   margin-bottom: 1rem;
@@ -58,25 +104,70 @@ body {
   gap: 1rem;
   margin-bottom: 2rem;
 }
+.parcel-item {
+  background: var(--color-white);
+  border-radius: 8px;
+  padding: 1rem;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.05);
+}
+.field-group {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 0.75rem;
+}
+.field-group label {
+  font-size: 0.9rem;
+  color: var(--color-gray-dark);
+  margin-bottom: 0.25rem;
+}
+.field-group input {
+  padding: 0.5rem 0.75rem;
+  font-size: 1rem;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  background: var(--color-gray-light);
+}
+.field-group input:focus {
+  outline: none;
+  border-color: var(--color-yellow);
+  box-shadow: 0 0 0 3px rgba(241,196,15,0.2);
+}
+.remove-btn {
+  background: transparent;
+  border: none;
+  color: #e74c3c;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+.remove-btn:hover {
+  text-decoration: underline;
+}
 
-/* Buttons */
-.btn, .btn--primary {
-  display: inline-block;
+/* 8. Formulieren & knoppen */
+.calc-form {
+  display: flex;
+  justify-content: flex-start;
+  margin-bottom: 2rem;
+}
+.btn, .btn-primary, .btn--primary {
+  font-family: inherit;
+  font-weight: 600;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+.btn-primary, .btn--primary {
   background: var(--color-yellow);
   color: var(--color-black);
   padding: 0.75rem 1.5rem;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  text-decoration: none;
-  font-size: 0.9rem;
-  font-weight: bold;
+  margin-bottom: 1rem;
 }
 .btn-primary:hover, .btn--primary:hover {
   background: #d4ac0d;
 }
 
-/* Resultaat-sectie */
+/* 9. Resultaat */
 .result-section {
   background: var(--color-white);
   padding: 1.5rem;
@@ -85,7 +176,7 @@ body {
   margin-bottom: 2rem;
 }
 
-/* MESTPLAN – selectieknoppen */
+/* 10. MESTPLAN – selectieknoppen */
 .category {
   display: flex;
   align-items: center;
@@ -98,27 +189,52 @@ body {
   font-size: 0.9rem;
   margin-right: 0.5rem;
 }
-.mest-btn {
-  background: var(--color-white);
+.btn.mest-btn {
   border: 2px solid var(--color-black);
+  background: var(--color-white);
+  color: var(--color-black);
   padding: 0.5rem 1rem;
+  margin: 0.25rem;
   border-radius: 4px;
-  margin-right: 0.5rem;
-  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
   cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
 }
-.mest-btn.active {
+.btn.mest-btn.active {
   background: var(--color-yellow);
+  border-color: var(--color-yellow);
 }
 
-/* Slider-styling */
-.slider-group {
+/* 11. MESTPLAN – sliders */
+.sliders-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem 2rem;
   margin-bottom: 1.5rem;
 }
-
-/* Jouw bestaande range-styling */
+.slider-group {
+  position: relative;
+  padding-top: 1.5rem;
+  padding-left: 32px; /* meer ruimte voor checkbox en titel */
+}
+.slider-group label {
+  display: block;
+  font-size: 0.9rem;
+  margin-bottom: 0.5rem;
+}
+.slider-group .value {
+  position: absolute;
+  top: 0;
+  right: 0;
+  font-size: 0.9rem;
+}
 .slider-group input[type="range"] {
   width: 100%;
+  -webkit-appearance: none;
+  height: 4px;
+  background: var(--color-yellow);
+  border-radius: 2px;
+  outline: none;
 }
 .slider-group input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
@@ -129,41 +245,32 @@ body {
   cursor: pointer;
 }
 
-/* ==== Nieuwe flex-header styling voor checkbox, label en waarde ==== */
-.slider-group .slider-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 0.5rem;
-}
-
-.slider-group .slider-header input[type="checkbox"] {
-  position: static;
+/* Checkbox-styling voor lock */
+.slider-group input[type="checkbox"] {
+  position: absolute;
+  top: 4px;
+  left: 4px;
   width: 16px;
   height: 16px;
-  margin: 0 0.5rem 0 0;
+  -webkit-appearance: none;
   appearance: none;
   border: 2px solid var(--color-black);
   border-radius: 2px;
+  background: transparent;
   cursor: pointer;
 }
-.slider-group .slider-header input[type="checkbox"]::after {
-  content: "";
+.slider-group input[type="checkbox"]::after {
+  content: '';
   display: block;
   width: 100%;
   height: 100%;
+  text-align: center;
+  line-height: 1;
+  font-size: 12px;
+  color: var(--color-black);
 }
-.slider-group .slider-header input[type="checkbox"]:checked {
-  background: var(--color-yellow);
+.slider-group input[type="checkbox"]:checked::after {
+  /* custom unchecked icon styling */
 }
 
-.slider-group .slider-header label {
-  flex: 1;
-  font-size: 0.9rem;
-  margin: 0;
-}
-.slider-group .slider-header .value {
-  position: static;
-  font-size: 0.9rem;
-  white-space: nowrap;
-}
+/* End of style.css */
