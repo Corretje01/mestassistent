@@ -1,118 +1,74 @@
 // mestplan.js
 
-// Container voor alle sliders
+// referenties
 const slidersContainer = document.getElementById('sliders-container');
 
-// 1) Mest‐knoppen logica: togglen en dynamisch sliders toevoegen/verwijderen
+// 1) Interactie mest-knoppen
 document.querySelectorAll('.mest-btn').forEach(btn => {
   btn.addEventListener('click', () => {
-    const type = btn.dataset.type;
     btn.classList.toggle('active');
+    const key   = `${btn.dataset.type}-${btn.dataset.animal}`;
+    const label = btn.textContent;
     if (btn.classList.contains('active')) {
-      addDynamicSlider(type, capitalize(type), 650);
+      addDynamicSlider(key, label);
     } else {
-      removeDynamicSlider(type);
+      removeDynamicSlider(key);
     }
   });
 });
 
-// 2) Init standaard sliders
+// 2) Standaard sliders (blijft ongewijzigd behalve functie-extractie)
 const standaardSliders = [
-  { id: 'stikstof',  max: 2000, unit: 'kg' },
-  { id: 'fosfaat',   max: 800,  unit: 'kg' },
-  { id: 'kalium',    max: 7500, unit: 'kg' },
+  { id: 'stikstof', max: 2000, unit: 'kg' },
+  { id: 'fosfaat', max: 800,  unit: 'kg' },
+  { id: 'kalium',  max: 7500, unit: 'kg' },
   { id: 'organisch', max: 3000, unit: 'kg' }
 ];
-standaardSliders.forEach(s => initSlider(s.id, s.max, s.unit));
+standaardSliders.forEach(initSlider);
 
-// 3a) Functie om dynamische slider toe te voegen
-function addDynamicSlider(key, label, max) {
-  if (document.getElementById(`slider-${key}`)) return;
-
+// 3) Dynamische sliders
+function addDynamicSlider(key, label) {
+  if (document.getElementById(`slider-${key}`)) return; // dubbel check
+  const maxTon = 650; // voorbeeld maximum in ton
   const group = document.createElement('div');
   group.className = 'slider-group';
   group.id = `group-${key}`;
-
   group.innerHTML = `
-    <div class="slider-header">
-      <input type="checkbox" id="lock-${key}" />
-      <label for="slider-${key}">${label}</label>
-      <span class="value" id="value-${key}">0 / ${max} ton</span>
-    </div>
-    <input
-      type="range"
-      id="slider-${key}"
-      min="0"
-      max="${max}"
-      step="1"
-    />
+    <label for="slider-${key}">${label} <span class="value" id="value-${key}">0 / ${maxTon} ton</span></label>
+    <input type="range" id="slider-${key}" min="0" max="${maxTon}" step="1">
+    <button class="lock-btn unlocked" data-slider="${key}"></button>
   `;
+  // Voeg na de standaard sliders, vóór full-width financial slider
   slidersContainer.appendChild(group);
 
-  const slider    = group.querySelector(`input[type="range"]`);
-  const valueEl   = group.querySelector(`.value`);
-  const lockInput = group.querySelector(`input[type="checkbox"]`);
-
+  const slider = group.querySelector('input[type="range"]');
+  const valueEl = group.querySelector('.value');
+  // live update
   slider.addEventListener('input', () => {
-    valueEl.textContent = `${slider.value} / ${max} ton`;
+    valueEl.textContent = `${slider.value} / ${maxTon} ton`;
   });
-  lockInput.addEventListener('change', () => {
-    slider.disabled = lockInput.checked;
+  // lock/unlock
+  const lockBtn = group.querySelector('.lock-btn');
+  lockBtn.addEventListener('click', () => {
+    const isLocked = lockBtn.classList.toggle('locked');
+    lockBtn.classList.toggle('unlocked', !isLocked);
+    slider.disabled = isLocked;
   });
 }
 
-// 3b) Functie om dynamische slider te verwijderen
 function removeDynamicSlider(key) {
   const group = document.getElementById(`group-${key}`);
   if (group) group.remove();
 }
 
 // 4) Helper voor standaard sliders
-function initSlider(id, max, unit) {
-  const slider  = document.getElementById(`slider-${id}`);
+function initSlider({id, max, unit}) {
+  const slider = document.getElementById(`slider-${id}`);
   const valueEl = document.getElementById(`value-${id}`);
+  // init
   valueEl.textContent = `0 / ${max} ${unit}`;
   slider.addEventListener('input', () => {
     valueEl.textContent = `${slider.value} / ${max} ${unit}`;
   });
-  // Voeg hier eventueel lock‐logic toe als gewenst
-}
-
-// 5) Knop om berekening uit te voeren
-document.getElementById('optimaliseer-btn').addEventListener('click', () => {
-  const resultaat = [];
-
-  // standaard
-  standaardSliders.forEach(s => {
-    resultaat.push({
-      key:    s.id,
-      val:    Number(document.getElementById(`slider-${s.id}`).value),
-      locked: document.getElementById(`lock-${s.id}`).checked
-    });
-  });
-
-  // dynamisch
-  document.querySelectorAll('[id^="group-"]').forEach(group => {
-    const key = group.id.replace('group-', '');
-    resultaat.push({
-      key,
-      val:    Number(group.querySelector('input[type="range"]').value),
-      locked: group.querySelector('input[type="checkbox"]').checked
-    });
-  });
-
-  // financieel
-  resultaat.push({
-    key:    'financieel',
-    val:    Number(document.getElementById('slider-financieel').value),
-    locked: document.getElementById('lock-financieel').checked
-  });
-
-  console.log('Plan-uitkomst:', resultaat);
-  // … verwerk het resultaat verder …
-});
-
-// hulpfunctie
-function capitalize(str) {
-  return str.charAt(0).toUpperCase() + str.slice(1);
+  // je kunt hier straks ook de lock-button toevoegen zoals bij dynamische sliders
 }
