@@ -1,5 +1,12 @@
 // mestplan.js
 
+// mapping van data-type naar nette categorie-naam
+const categoryMap = {
+  drijfmest: 'Drijfmest',
+  vastemest: 'Vaste mest',
+  overig:    'Overig'
+};
+
 // referentie naar container
 const slidersContainer = document.getElementById('sliders-container');
 
@@ -7,8 +14,12 @@ const slidersContainer = document.getElementById('sliders-container');
 document.querySelectorAll('.mest-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     btn.classList.toggle('active');
-    const key   = `${btn.dataset.type}-${btn.dataset.animal}`;
-    const label = btn.textContent;
+
+    const type   = btn.dataset.type;               // drijfmest, vastemest of overig
+    const animal = btn.textContent;                // bijv. "Koe"
+    const key    = `${type}-${btn.dataset.animal}`;
+    const label  = `${categoryMap[type]} ${animal}`; // bijv. "Drijfmest Koe"
+
     if (btn.classList.contains('active')) {
       addDynamicSlider(key, label);
     } else {
@@ -17,7 +28,7 @@ document.querySelectorAll('.mest-btn').forEach(btn => {
   });
 });
 
-// 2) Init standaard sliders
+// 2) Init standaard sliders (ongewijzigd)
 const standaardSliders = [
   { id: 'stikstof',  max: 2000, unit: 'kg' },
   { id: 'fosfaat',   max: 800,  unit: 'kg' },
@@ -26,15 +37,13 @@ const standaardSliders = [
 ];
 standaardSliders.forEach(({id, max, unit}) => initSlider(id, max, unit));
 
-// 3a) Functie om dynamische slider toe te voegen
+// 3a) Functie om dynamische slider toe te voegen (verder ongewijzigd)
 function addDynamicSlider(key, label) {
   if (document.getElementById(`slider-${key}`)) return;
   const maxTon = 650;
   const group = document.createElement('div');
   group.className = 'slider-group';
   group.id = `group-${key}`;
-
-  // **aangepaste structuur met checkbox, label en value op één regel**
   group.innerHTML = `
     <div class="slider-header">
       <input type="checkbox" id="lock-${key}" />
@@ -63,13 +72,13 @@ function addDynamicSlider(key, label) {
   });
 }
 
-// 3b) Functie om dynamische slider te verwijderen
+// 3b) Functie om dynamische slider te verwijderen (ongewijzigd)
 function removeDynamicSlider(key) {
   const group = document.getElementById(`group-${key}`);
   if (group) group.remove();
 }
 
-// 4) Helper voor init standaard sliders
+// 4) Helper voor init standaard sliders (ongewijzigd)
 function initSlider(id, max, unit) {
   const slider  = document.getElementById(`slider-${id}`);
   const valueEl = document.getElementById(`value-${id}`);
@@ -79,14 +88,14 @@ function initSlider(id, max, unit) {
   });
 }
 
-// 5) Knop om mestplan te berekenen
+// 5) Knop om mestplan te berekenen (ongewijzigd)
 document.getElementById('optimaliseer-btn').addEventListener('click', () => {
   const resultaat = [];
 
   standaardSliders.forEach(s => {
     resultaat.push({
-      key: s.id,
-      val: Number(document.getElementById(`slider-${s.id}`).value),
+      key:    s.id,
+      val:    Number(document.getElementById(`slider-${s.id}`).value),
       locked: document.getElementById(`lock-${s.id}`).checked
     });
   });
@@ -95,14 +104,14 @@ document.getElementById('optimaliseer-btn').addEventListener('click', () => {
     const key = group.id.replace('group-', '');
     resultaat.push({
       key,
-      val: Number(group.querySelector('input[type="range"]').value),
+      val:    Number(group.querySelector('input[type="range"]').value),
       locked: group.querySelector('input[type="checkbox"]').checked
     });
   });
 
   resultaat.push({
-    key: 'financieel',
-    val: Number(document.getElementById('slider-financieel').value),
+    key:    'financieel',
+    val:    Number(document.getElementById('slider-financieel').value),
     locked: document.getElementById('lock-financieel').checked
   });
 
