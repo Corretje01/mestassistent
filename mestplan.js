@@ -1,9 +1,9 @@
 // mestplan.js
 
-// referenties
+// referentie naar container
 const slidersContainer = document.getElementById('sliders-container');
 
-// 1) Interactie mest-knoppen
+// 1) Mest-knoppen: toggle en dynamisch sliders toevoegen/verwijderen
 document.querySelectorAll('.mest-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     btn.classList.toggle('active');
@@ -17,58 +17,95 @@ document.querySelectorAll('.mest-btn').forEach(btn => {
   });
 });
 
-// 2) Standaard sliders (blijft ongewijzigd behalve functie-extractie)
+// 2) Init standaard sliders
 const standaardSliders = [
-  { id: 'stikstof', max: 2000, unit: 'kg' },
-  { id: 'fosfaat', max: 800,  unit: 'kg' },
-  { id: 'kalium',  max: 7500, unit: 'kg' },
+  { id: 'stikstof',  max: 2000, unit: 'kg' },
+  { id: 'fosfaat',   max: 800,  unit: 'kg' },
+  { id: 'kalium',    max: 7500, unit: 'kg' },
   { id: 'organisch', max: 3000, unit: 'kg' }
 ];
-standaardSliders.forEach(initSlider);
+standaardSliders.forEach(({id, max, unit}) => initSlider(id, max, unit));
 
-// 3) Dynamische sliders
+// 3a) Functie om dynamische slider toe te voegen
 function addDynamicSlider(key, label) {
-  if (document.getElementById(`slider-${key}`)) return; // dubbel check
-  const maxTon = 650; // voorbeeld maximum in ton
+  if (document.getElementById(`slider-${key}`)) return;
+  const maxTon = 650;
   const group = document.createElement('div');
   group.className = 'slider-group';
   group.id = `group-${key}`;
+
+  // **aangepaste structuur met checkbox, label en value op één regel**
   group.innerHTML = `
-    <label for="slider-${key}">${label} <span class="value" id="value-${key}">0 / ${maxTon} ton</span></label>
-    <input type="range" id="slider-${key}" min="0" max="${maxTon}" step="1">
-    <button class="lock-btn unlocked" data-slider="${key}"></button>
+    <div class="slider-header">
+      <input type="checkbox" id="lock-${key}" />
+      <label for="slider-${key}">${label}</label>
+      <span class="value" id="value-${key}">0 / ${maxTon} ton</span>
+    </div>
+    <input
+      type="range"
+      id="slider-${key}"
+      min="0"
+      max="${maxTon}"
+      step="1"
+    />
   `;
-  // Voeg na de standaard sliders, vóór full-width financial slider
   slidersContainer.appendChild(group);
 
-  const slider = group.querySelector('input[type="range"]');
-  const valueEl = group.querySelector('.value');
-  // live update
+  const slider    = group.querySelector('input[type="range"]');
+  const valueEl   = group.querySelector('.value');
+  const lockInput = group.querySelector('input[type="checkbox"]');
+
   slider.addEventListener('input', () => {
     valueEl.textContent = `${slider.value} / ${maxTon} ton`;
   });
-  // lock/unlock
-  const lockBtn = group.querySelector('.lock-btn');
-  lockBtn.addEventListener('click', () => {
-    const isLocked = lockBtn.classList.toggle('locked');
-    lockBtn.classList.toggle('unlocked', !isLocked);
-    slider.disabled = isLocked;
+  lockInput.addEventListener('change', () => {
+    slider.disabled = lockInput.checked;
   });
 }
 
+// 3b) Functie om dynamische slider te verwijderen
 function removeDynamicSlider(key) {
   const group = document.getElementById(`group-${key}`);
   if (group) group.remove();
 }
 
-// 4) Helper voor standaard sliders
-function initSlider({id, max, unit}) {
-  const slider = document.getElementById(`slider-${id}`);
+// 4) Helper voor init standaard sliders
+function initSlider(id, max, unit) {
+  const slider  = document.getElementById(`slider-${id}`);
   const valueEl = document.getElementById(`value-${id}`);
-  // init
   valueEl.textContent = `0 / ${max} ${unit}`;
   slider.addEventListener('input', () => {
     valueEl.textContent = `${slider.value} / ${max} ${unit}`;
   });
-  // je kunt hier straks ook de lock-button toevoegen zoals bij dynamische sliders
 }
+
+// 5) Knop om mestplan te berekenen
+document.getElementById('optimaliseer-btn').addEventListener('click', () => {
+  const resultaat = [];
+
+  standaardSliders.forEach(s => {
+    resultaat.push({
+      key: s.id,
+      val: Number(document.getElementById(`slider-${s.id}`).value),
+      locked: document.getElementById(`lock-${s.id}`).checked
+    });
+  });
+
+  document.querySelectorAll('[id^="group-"]').forEach(group => {
+    const key = group.id.replace('group-', '');
+    resultaat.push({
+      key,
+      val: Number(group.querySelector('input[type="range"]').value),
+      locked: group.querySelector('input[type="checkbox"]').checked
+    });
+  });
+
+  resultaat.push({
+    key: 'financieel',
+    val: Number(document.getElementById('slider-financieel').value),
+    locked: document.getElementById('lock-financieel').checked
+  });
+
+  console.log('Plan-uitkomst:', resultaat);
+  // … hier je eigen verwerking …
+});
