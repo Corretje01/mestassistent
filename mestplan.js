@@ -1,4 +1,22 @@
 // mestplan.js
+// Haal totaalwaardes op uit URL (nog zonder ze te gebruiken)
+function getQueryParams() {
+  const params = {};
+  window.location.search.substring(1).split('&').forEach(pair => {
+    const [key, value] = pair.split('=');
+    if (key) params[decodeURIComponent(key)] = decodeURIComponent(value);
+  });
+  return params;
+}
+
+const queryParams = getQueryParams();
+const totaalA = Number(queryParams['totaalA']) || null;
+const totaalB = Number(queryParams['totaalB']) || null;
+const totaalC = Number(queryParams['totaalC']) || null;
+
+console.log("TotaalA (N dierlijk):", totaalA);
+console.log("TotaalB (N grondgebonden):", totaalB);
+console.log("TotaalC (P totaal):", totaalC);
 
 // mapping van data-type naar nette categorie-naam
 const categoryMap = {
