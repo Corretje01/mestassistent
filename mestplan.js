@@ -1,5 +1,6 @@
 // mestplan.js
-// Haal totaalwaardes op uit URL (nog zonder ze te gebruiken)
+
+// 0) Hulpfunctie: URL-parameters uitlezen
 function getQueryParams() {
   const params = {};
   window.location.search.substring(1).split('&').forEach(pair => {
@@ -22,46 +23,66 @@ console.log("TotaalA (N dierlijk):", totaalA);
 console.log("TotaalB (N grondgebonden):", totaalB);
 console.log("TotaalC (P totaal):", totaalC);
 
-// mapping van data-type naar nette categorie-naam
+// 0.1) Data containers
+const slidersContainer = document.getElementById('sliders-container');
 const categoryMap = {
   drijfmest: 'Drijfmest',
   vastemest: 'Vaste mest',
   overig:    'Overig'
 };
+const actieveMestData = {}; // per mestsoort key
+let mestsoortenData = {};   // json uit data/mestsoorten.json
 
-// referentie naar container
-const slidersContainer = document.getElementById('sliders-container');
+// 0.2) JSON met mestwaardes laden
+fetch('/data/mestsoorten.json')
+  .then(res => res.json())
+  .then(data => {
+    mestsoortenData = data;
+    console.log("✅ mestsoorten.json geladen", mestsoortenData);
+  })
+  .catch(err => console.error("❌ Kan mestsoorten.json niet laden:", err));
 
-// 1) Mest-knoppen: toggle en dynamisch sliders toevoegen/verwijderen
+// 1) Knoppen logica
+
 document.querySelectorAll('.mest-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     btn.classList.toggle('active');
 
-    const type   = btn.dataset.type;               // drijfmest, vastemest of overig
-    const animal = btn.textContent;                // bijv. "Koe"
-    const key    = `${type}-${btn.dataset.animal}`;
-    const label  = `${categoryMap[type]} ${animal}`; // bijv. "Drijfmest Koe"
+    const type   = btn.dataset.type;
+    const animal = btn.dataset.animal;
+    const key    = `${type}-${animal}`;
+    const label  = `${categoryMap[type]} ${animal}`;
 
     if (btn.classList.contains('active')) {
       addDynamicSlider(key, label);
+
+      // mestwaardes koppelen
+      if (mestsoortenData[type] && mestsoortenData[type][animal]) {
+        actieveMestData[key] = mestsoortenData[type][animal];
+        console.log(`📦 Geselecteerd: ${key}`, actieveMestData[key]);
+      } else {
+        console.warn(`⚠️ Geen mestdata gevonden voor ${key}`);
+      }
+
     } else {
       removeDynamicSlider(key);
+      delete actieveMestData[key];
     }
   });
 });
 
-// 2) Init standaard sliders (ongewijzigd)
+// 2) Init standaard sliders
 const standaardSliders = [
-  { id: 'stikstof',  max: totaalA, unit: 'kg' },
-  { id: 'fosfaat',   max: totaalC,  unit: 'kg' },
-  { id: 'kalium',    max: 7500, unit: 'kg' },
-  { id: 'organisch', max: 3000, unit: 'kg' },
-  { id: 'kunststikstof', max: 5000,   unit: 'kg' },
-  { id: 'financieel', max: 10000,   unit: '€' }
+  { id: 'stikstof',        max: totaalA, unit: 'kg' },
+  { id: 'fosfaat',         max: totaalC, unit: 'kg' },
+  { id: 'kalium',          max: 7500,    unit: 'kg' },
+  { id: 'organisch',       max: 3000,    unit: 'kg' },
+  { id: 'kunststikstof',   max: 5000,    unit: 'kg' },
+  { id: 'financieel',      max: 10000,   unit: '€' }
 ];
 standaardSliders.forEach(({id, max, unit}) => initSlider(id, max, unit));
 
-// 3a) Functie om dynamische slider toe te voegen (verder ongewijzigd)
+// 3a) Dynamische slider toevoegen
 function addDynamicSlider(key, label) {
   if (document.getElementById(`slider-${key}`)) return;
   const maxTon = 650;
@@ -88,43 +109,42 @@ function addDynamicSlider(key, label) {
   const valueEl   = group.querySelector('.value');
   const lockInput = group.querySelector('input[type="checkbox"]');
 
+  slider.value = 0;
   slider.addEventListener('input', () => {
     valueEl.textContent = `${slider.value} / ${maxTon} ton`;
+    // toekomstige stap: koppelen aan andere sliders op basis van actieveMestData[key]
   });
+
   lockInput.addEventListener('change', () => {
     slider.disabled = lockInput.checked;
   });
 }
 
-// 3b) Functie om dynamische slider te verwijderen (ongewijzigd)
+// 3b) Dynamische slider verwijderen
 function removeDynamicSlider(key) {
   const group = document.getElementById(`group-${key}`);
   if (group) group.remove();
 }
 
-// 4) Helper voor init standaard sliders (ongewijzigd)
+// 4) Standaard sliders initialiseren
 function initSlider(id, max, unit) {
   const slider  = document.getElementById(`slider-${id}`);
   const valueEl = document.getElementById(`value-${id}`);
+  const roundedMax = Math.round(max);
+  const startValue = Math.round(roundedMax / 2);
 
-  // Maximale waarde instellen
-  slider.max = Math.round(max);
-
-  // Startwaarde op 50% van max
-  const startValue = Math.round(max / 2);
+  slider.max = roundedMax;
   slider.value = startValue;
+  valueEl.textContent = `${startValue} / ${roundedMax} ${unit}`;
 
-  // UI aanpassen aan startwaarde
-  valueEl.textContent = `${startValue} / ${Math.round(max)} ${unit}`;
-
-  // Bij interactie: update de waarde
   slider.addEventListener('input', () => {
-    const currentVal = Math.min(Number(slider.value), Math.round(max));
-    valueEl.textContent = `${currentVal} / ${Math.round(max)} ${unit}`;
+    const val = Math.min(Number(slider.value), roundedMax);
+    valueEl.textContent = `${val} / ${roundedMax} ${unit}`;
   });
 }
 
-// 5) Knop om mestplan te berekenen (ongewijzigd)
+// 5) Optimaliseer-knop
+
 document.getElementById('optimaliseer-btn').addEventListener('click', () => {
   const resultaat = [];
 
@@ -145,12 +165,5 @@ document.getElementById('optimaliseer-btn').addEventListener('click', () => {
     });
   });
 
-  resultaat.push({
-    key:    'financieel',
-    val:    Number(document.getElementById('slider-financieel').value),
-    locked: document.getElementById('lock-financieel').checked
-  });
-
   console.log('Plan-uitkomst:', resultaat);
-  // … hier je eigen verwerking …
 });
