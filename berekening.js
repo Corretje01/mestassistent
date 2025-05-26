@@ -53,14 +53,14 @@ if (mestForm) {
       totaalC += C_ha * ha;
     });
 
-    // 5) Conclusie (Render resultaat **inclusief** knop “Ga naar stap 2”)
+    // 5) Render conclusie inclusief uitleg
     document.getElementById('resultaat').innerHTML = `
-      <div class="resultaat-blok">
       <h2>Conclusie gebruiksruimte</h2>
-      <div class="resultaat-blok">  
+      <p>Op basis van de geselecteerde percelen is dit de maximale hoeveelheid stikstof en fosfaat die je mag gebruiken:</p>
+      <div class="resultaat-blok">
         <p><strong>Max. stikstof (N) uit dierlijke mest:</strong> ${totaalA.toFixed(0)} kg</p>
         <p><strong>Max. stikstof (N) uit alle soorten mest:</strong> ${totaalB.toFixed(0)} kg</p>
-        <p><strong>Max. fosfaat (P):</strong> ${P_max.toFixed(0)} kg</p>
+        <p><strong>Max. fosfaat (P):</strong> ${totaalC.toFixed(0)} kg</p>
       </div>
       <div style="margin-top:1.5rem; text-align:right;">
         <button
