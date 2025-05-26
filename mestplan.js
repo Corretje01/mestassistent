@@ -87,12 +87,12 @@ document.querySelectorAll('.mest-btn').forEach(btn => {
 
 // 2) Init standaard sliders
 const standaardSliders = [
-  { id: 'stikstof',  max: totaalA, unit: 'kg' },
-  { id: 'fosfaat',   max: totaalC,  unit: 'kg' },
-  { id: 'kalium',    max: 7500, unit: 'kg' },
-  { id: 'organisch', max: 3000, unit: 'kg' },
-  { id: 'kunststikstof', max: 5000,   unit: 'kg' },
-  { id: 'financieel', max: 10000,   unit: '€' }
+  { id: 'stikstof', label: 'Stikstof (N) uit dierlijke mest',  max: totaalA, unit: 'kg' },
+  { id: 'fosfaat', label: 'Fosfaat (P)',   max: totaalC,  unit: 'kg' },
+  { id: 'kalium', label: 'Kalium (K)', max: 7500, unit: 'kg' },
+  { id: 'organisch', label: 'Organische stof', max: 3000, unit: 'kg' },
+  { id: 'kunststikstof', label: 'Stikstof (N) uit kunstmest', max: 5000,   unit: 'kg' },
+  { id: 'financieel', label: 'Geschatte vergoeding', max: 10000,   unit: 'eur' }
 ];
 standaardSliders.forEach(({id, max, unit}) => initSlider(id, max, unit));
 
