@@ -74,7 +74,7 @@ document.querySelectorAll('.mest-btn').forEach(btn => {
   });
 });
 
-// 2) Init standaard sliders (ongewijzigd)
+// 2) Init standaard sliders
 const standaardSliders = [
   { id: 'stikstof',  max: totaalA, unit: 'kg' },
   { id: 'fosfaat',   max: totaalC,  unit: 'kg' },
@@ -85,7 +85,7 @@ const standaardSliders = [
 ];
 standaardSliders.forEach(({id, max, unit}) => initSlider(id, max, unit));
 
-// 3a) Functie om dynamische slider toe te voegen (verder ongewijzigd)
+// 3a) Functie om dynamische slider toe te voegen
 function addDynamicSlider(key, label) {
   if (document.getElementById(`slider-${key}`)) return;
   const maxTon = 650;
@@ -123,27 +123,55 @@ function addDynamicSlider(key, label) {
   });
 }
 
-// 3b) Functie om dynamische slider te verwijderen (ongewijzigd)
+// 3b) Functie om dynamische slider te verwijderen
 function removeDynamicSlider(key) {
   const group = document.getElementById(`group-${key}`);
   if (group) group.remove();
 }
 
-// 4) Helper voor init standaard sliders (ongewijzigd)
+// 4) Helper voor init standaard sliders
 function initSlider(id, max, unit) {
-  const slider  = document.getElementById(`slider-${id}`);
-  const valueEl = document.getElementById(`value-${id}`);
-  valueEl.textContent = `0 / ${max} ${unit}`;
-  slider.max = Math.round(max);
+  if (document.getElementById(`slider-${id}`)) {
+    return; // slider bestaat al (veiligheidscheck)
+  }
+
+  const group = document.createElement('div');
+  group.className = 'slider-group';
+  group.id = `group-${id}`;
+  group.innerHTML = `
+    <div class="slider-header">
+      <input type="checkbox" id="lock-${id}" />
+      <label for="slider-${id}">${id.charAt(0).toUpperCase() + id.slice(1)}</label>
+      <span class="value" id="value-${id}">0 / ${Math.round(max)} ${unit}</span>
+    </div>
+    <input
+      type="range"
+      id="slider-${id}"
+      min="0"
+      max="${Math.round(max)}"
+      step="1"
+    />
+  `;
+  slidersContainer.appendChild(group);
+
+  const slider  = group.querySelector(`#slider-${id}`);
+  const valueEl = group.querySelector(`#value-${id}`);
+
   slider.value = Math.round(max / 2);
+  valueEl.textContent = `${slider.value} / ${Math.round(max)} ${unit}`;
 
   slider.addEventListener('input', () => {
-    const currentVal = Math.min(Number(slider.value), Math.round(max));
-    valueEl.textContent = `${currentVal} / ${Math.round(max)} ${unit}`;
+    const val = Math.min(Number(slider.value), Math.round(max));
+    valueEl.textContent = `${val} / ${Math.round(max)} ${unit}`;
+  });
+
+  const lockInput = group.querySelector(`#lock-${id}`);
+  lockInput.addEventListener('change', () => {
+    slider.disabled = lockInput.checked;
   });
 }
 
-// 5) Knop om mestplan te berekenen (ongewijzigd)
+// 5) Knop om mestplan te berekenen
 document.getElementById('optimaliseer-btn').addEventListener('click', () => {
   const resultaat = [];
 
