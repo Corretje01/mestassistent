@@ -52,8 +52,8 @@ document.querySelectorAll('.mest-btn').forEach(btn => {
 
 // 2) Init standaard sliders (ongewijzigd)
 const standaardSliders = [
-  { id: 'stikstof',  max: 2000, unit: 'kg' },
-  { id: 'fosfaat',   max: 800,  unit: 'kg' },
+  { id: 'stikstof',  max: totaalA, unit: 'kg' },
+  { id: 'fosfaat',   max: totaalC,  unit: 'kg' },
   { id: 'kalium',    max: 7500, unit: 'kg' },
   { id: 'organisch', max: 3000, unit: 'kg' }
 ];
