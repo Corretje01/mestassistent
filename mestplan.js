@@ -1,6 +1,6 @@
 // mestplan.js
 
-// 0) Hulpfunctie: URL-parameters uitlezen
+// Haal totaalwaardes op uit URL (nog zonder ze te gebruiken)
 function getQueryParams() {
   const params = {};
   window.location.search.substring(1).split('&').forEach(pair => {
@@ -23,42 +23,45 @@ console.log("TotaalA (N dierlijk):", totaalA);
 console.log("TotaalB (N grondgebonden):", totaalB);
 console.log("TotaalC (P totaal):", totaalC);
 
-// 0.1) Data containers
-const slidersContainer = document.getElementById('sliders-container');
+// mapping van data-type naar nette categorie-naam
 const categoryMap = {
   drijfmest: 'Drijfmest',
   vastemest: 'Vaste mest',
   overig:    'Overig'
 };
-const actieveMestData = {}; // per mestsoort key
-let mestsoortenData = {};   // json uit data/mestsoorten.json
 
-// 0.2) JSON met mestwaardes laden
+// referentie naar container
+const slidersContainer = document.getElementById('sliders-container');
+
+// globale opslag voor mestdata
+let mestsoortenData = {};
+const actieveMestData = {};
+
+// laad JSON met mestwaardes
 fetch('/data/mestsoorten.json')
   .then(res => res.json())
-  .then(data => {
-    mestsoortenData = data;
-    console.log("✅ mestsoorten.json geladen", mestsoortenData);
+  .then(json => {
+    mestsoortenData = json;
+    console.log('✅ mestsoorten.json geladen:', mestsoortenData);
   })
-  .catch(err => console.error("❌ Kan mestsoorten.json niet laden:", err));
+  .catch(err => console.error('❌ Kan mestsoorten.json niet laden:', err));
 
-// 1) Knoppen logica
-
+// 1) Mest-knoppen: toggle en dynamisch sliders toevoegen/verwijderen
 document.querySelectorAll('.mest-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     btn.classList.toggle('active');
 
-    const type   = btn.dataset.type;
-    const animal = btn.dataset.animal;
-    const key    = `${type}-${animal}`;
-    const label  = `${categoryMap[type]} ${animal}`;
+    const type   = btn.dataset.type;               // drijfmest, vastemest of overig
+    const animal = btn.textContent;                // bijv. "Koe"
+    const key    = `${type}-${btn.dataset.animal}`;
+    const label  = `${categoryMap[type]} ${animal}`; // bijv. "Drijfmest Koe"
 
     if (btn.classList.contains('active')) {
       addDynamicSlider(key, label);
 
       // mestwaardes koppelen
-      if (mestsoortenData[type] && mestsoortenData[type][animal]) {
-        actieveMestData[key] = mestsoortenData[type][animal];
+      if (mestsoortenData[type] && mestsoortenData[type][btn.dataset.animal]) {
+        actieveMestData[key] = mestsoortenData[type][btn.dataset.animal];
         console.log(`📦 Geselecteerd: ${key}`, actieveMestData[key]);
       } else {
         console.warn(`⚠️ Geen mestdata gevonden voor ${key}`);
@@ -71,18 +74,18 @@ document.querySelectorAll('.mest-btn').forEach(btn => {
   });
 });
 
-// 2) Init standaard sliders
+// 2) Init standaard sliders (ongewijzigd)
 const standaardSliders = [
-  { id: 'stikstof',        max: totaalA, unit: 'kg' },
-  { id: 'fosfaat',         max: totaalC, unit: 'kg' },
-  { id: 'kalium',          max: 7500,    unit: 'kg' },
-  { id: 'organisch',       max: 3000,    unit: 'kg' },
-  { id: 'kunststikstof',   max: 5000,    unit: 'kg' },
-  { id: 'financieel',      max: 10000,   unit: '€' }
+  { id: 'stikstof',  max: totaalA, unit: 'kg' },
+  { id: 'fosfaat',   max: totaalC,  unit: 'kg' },
+  { id: 'kalium',    max: 7500, unit: 'kg' },
+  { id: 'organisch', max: 3000, unit: 'kg' },
+  { id: 'kunststikstof', max: 5000,   unit: 'kg' },
+  { id: 'financieel', max: 10000,   unit: '€' }
 ];
 standaardSliders.forEach(({id, max, unit}) => initSlider(id, max, unit));
 
-// 3a) Dynamische slider toevoegen
+// 3a) Functie om dynamische slider toe te voegen (verder ongewijzigd)
 function addDynamicSlider(key, label) {
   if (document.getElementById(`slider-${key}`)) return;
   const maxTon = 650;
@@ -112,7 +115,7 @@ function addDynamicSlider(key, label) {
   slider.value = 0;
   slider.addEventListener('input', () => {
     valueEl.textContent = `${slider.value} / ${maxTon} ton`;
-    // toekomstige stap: koppelen aan andere sliders op basis van actieveMestData[key]
+    // toekomstige stap: gebruik actieveMestData[key] voor berekening
   });
 
   lockInput.addEventListener('change', () => {
@@ -120,31 +123,27 @@ function addDynamicSlider(key, label) {
   });
 }
 
-// 3b) Dynamische slider verwijderen
+// 3b) Functie om dynamische slider te verwijderen (ongewijzigd)
 function removeDynamicSlider(key) {
   const group = document.getElementById(`group-${key}`);
   if (group) group.remove();
 }
 
-// 4) Standaard sliders initialiseren
+// 4) Helper voor init standaard sliders (ongewijzigd)
 function initSlider(id, max, unit) {
   const slider  = document.getElementById(`slider-${id}`);
   const valueEl = document.getElementById(`value-${id}`);
-  const roundedMax = Math.round(max);
-  const startValue = Math.round(roundedMax / 2);
-
-  slider.max = roundedMax;
-  slider.value = startValue;
-  valueEl.textContent = `${startValue} / ${roundedMax} ${unit}`;
+  valueEl.textContent = `0 / ${max} ${unit}`;
+  slider.max = Math.round(max);
+  slider.value = Math.round(max / 2);
 
   slider.addEventListener('input', () => {
-    const val = Math.min(Number(slider.value), roundedMax);
-    valueEl.textContent = `${val} / ${roundedMax} ${unit}`;
+    const currentVal = Math.min(Number(slider.value), Math.round(max));
+    valueEl.textContent = `${currentVal} / ${Math.round(max)} ${unit}`;
   });
 }
 
-// 5) Optimaliseer-knop
-
+// 5) Knop om mestplan te berekenen (ongewijzigd)
 document.getElementById('optimaliseer-btn').addEventListener('click', () => {
   const resultaat = [];
 
@@ -166,4 +165,5 @@ document.getElementById('optimaliseer-btn').addEventListener('click', () => {
   });
 
   console.log('Plan-uitkomst:', resultaat);
+  // … hier je eigen verwerking …
 });
