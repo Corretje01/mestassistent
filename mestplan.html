@@ -56,7 +56,7 @@
         <div class="slider-group">
           <div class="slider-header">
             <input type="checkbox" id="lock-stikstof" />
-            <label for="slider-stikstof">Stikstof</label>
+            <label for="slider-stikstof">Stikstof uit dierlijke mest</label>
             <span class="value" id="value-stikstof">0 / 2000 kg</span>
           </div>
           <input type="range" id="slider-stikstof" min="0" max="2000" step="1" />
@@ -85,17 +85,23 @@
           </div>
           <input type="range" id="slider-organisch" min="0" max="3000" step="1" />
         </div>
-        <!-- Dynamische sliders komen hier, ze gebruiken dezelfde .slider-header structuur -->
-      </div>
-
-      <!-- Laatste slider: Financiële vergoeding -->
-      <div class="slider-group full-width">
-        <div class="slider-header">
-          <input type="checkbox" id="lock-financieel" />
-          <label for="slider-financieel">Geschatte financiële vergoeding</label>
-          <span class="value" id="value-financieel">€0</span>
+         <div class="slider-group">
+          <div class="slider-header">
+            <input type="checkbox" id="lock-kunststikstof" />
+            <label for="slider-kunststikstof">Stikstof uit kunstmest</label>
+            <span class="value" id="value-kunststikstof">0 / 5000</span>
+          </div>
+          <input type="range" id="slider-kunststikstof" min="0" max="5000" step="1" />
+        </div>        
+        <div class="slider-group">
+          <div class="slider-header">
+            <input type="checkbox" id="lock-financieel" />
+            <label for="slider-financieel">Geschatte financiële vergoeding</label>
+            <span class="value" id="value-financieel">0 / €10000</span>
+          </div>
+          <input type="range" id="slider-financieel" min="0" max="10000" step="1" />
         </div>
-        <input type="range" id="slider-financieel" min="0" max="20000" step="100" />
+        <!-- Dynamische sliders komen hier, ze gebruiken dezelfde .slider-header structuur -->
       </div>
     </section>
   </main>
