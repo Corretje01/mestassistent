@@ -104,9 +104,21 @@ function removeDynamicSlider(key) {
 function initSlider(id, max, unit) {
   const slider  = document.getElementById(`slider-${id}`);
   const valueEl = document.getElementById(`value-${id}`);
-  valueEl.textContent = `0 / ${max} ${unit}`;
+
+  // Maximale waarde instellen
+  slider.max = Math.round(max);
+
+  // Startwaarde op 50% van max
+  const startValue = Math.round(max / 2);
+  slider.value = startValue;
+
+  // UI aanpassen aan startwaarde
+  valueEl.textContent = `${startValue} / ${Math.round(max)} ${unit}`;
+
+  // Bij interactie: update de waarde
   slider.addEventListener('input', () => {
-    valueEl.textContent = `${slider.value} / ${max} ${unit}`;
+    const currentVal = Math.min(Number(slider.value), Math.round(max));
+    valueEl.textContent = `${currentVal} / ${Math.round(max)} ${unit}`;
   });
 }
 
