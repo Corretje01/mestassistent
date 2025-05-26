@@ -1,0 +1,70 @@
+{
+  "vaste_mest": {
+    "koe": {
+      "N_kg_per_ton": 6.0,
+      "P_kg_per_ton": 2.5,
+      "K_kg_per_ton": 7.5,
+      "DS_percent": 22.5,
+      "OS_percent": 70.0,
+      "biogaspotentieel_m3_per_ton": 75.0
+    },
+    "varken": {
+      "N_kg_per_ton": 8.5,
+      "P_kg_per_ton": 4.0,
+      "K_kg_per_ton": 6.5,
+      "DS_percent": 30.0,
+      "OS_percent": 75.0,
+      "biogaspotentieel_m3_per_ton": 95.0
+    },
+    "geit": {
+      "N_kg_per_ton": 7.5,
+      "P_kg_per_ton": 3.0,
+      "K_kg_per_ton": 8.5,
+      "DS_percent": 40.0,
+      "OS_percent": 75.0,
+      "biogaspotentieel_m3_per_ton": 87.5
+    },
+    "kip": {
+      "N_kg_per_ton": 20.0,
+      "P_kg_per_ton": 9.5,
+      "K_kg_per_ton": 13.0,
+      "DS_percent": 55.0,
+      "OS_percent": 65.0,
+      "biogaspotentieel_m3_per_ton": 140.0
+    },
+    "paard": {
+      "N_kg_per_ton": 6.5,
+      "P_kg_per_ton": 1.5,
+      "K_kg_per_ton": 7.5,
+      "DS_percent": 35.0,
+      "OS_percent": 65.0,
+      "biogaspotentieel_m3_per_ton": 60.0
+    }
+  },
+  "drijfmest": {
+    "koe": {
+      "N_kg_per_ton": 4.5,
+      "P_kg_per_ton": 1.0,
+      "K_kg_per_ton": 4.5,
+      "DS_percent": 9.5,
+      "OS_percent": 60.0,
+      "biogaspotentieel_m3_per_ton": 27.5
+    },
+    "varken": {
+      "N_kg_per_ton": 5.5,
+      "P_kg_per_ton": 1.5,
+      "K_kg_per_ton": 3.25,
+      "DS_percent": 6.5,
+      "OS_percent": 65.0,
+      "biogaspotentieel_m3_per_ton": 35.0
+    },
+    "geit": {
+      "N_kg_per_ton": 5.0,
+      "P_kg_per_ton": 1.25,
+      "K_kg_per_ton": 5.0,
+      "DS_percent": 8.0,
+      "OS_percent": 65.0,
+      "biogaspotentieel_m3_per_ton": 40.0
+    }
+  }
+}
