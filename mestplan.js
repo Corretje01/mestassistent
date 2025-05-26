@@ -14,6 +14,10 @@ const totaalA = Number(queryParams['totaalA']) || null;
 const totaalB = Number(queryParams['totaalB']) || null;
 const totaalC = Number(queryParams['totaalC']) || null;
 
+if (!totaalA || !totaalB || !totaalC) {
+  alert("Waarschuwing: de gebruiksruimte kon niet worden overgenomen van stap 1.");
+}
+
 console.log("TotaalA (N dierlijk):", totaalA);
 console.log("TotaalB (N grondgebonden):", totaalB);
 console.log("TotaalC (P totaal):", totaalC);
