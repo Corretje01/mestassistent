@@ -35,7 +35,7 @@ const slidersContainer = document.getElementById('sliders-container');
 
 // globale opslag voor mestdata
 let mestsoortenData = {};
-const actieveMestData = {};
+const actieveMestData = {}; // bevat ook tonnage en berekende totalen per soort
 
 // laad JSON met mestwaardes
 fetch('/data/mestsoorten.json')
@@ -52,16 +52,27 @@ document.querySelectorAll('.mest-btn').forEach(btn => {
     btn.classList.toggle('active');
 
     const type   = btn.dataset.type;               // drijfmest, vastemest of overig
-    const animal = btn.textContent;                // bijv. "Koe"
-    const key    = `${type}-${btn.dataset.animal}`;
-    const label  = `${categoryMap[type]} ${animal}`; // bijv. "Drijfmest Koe"
+    const animal = btn.dataset.animal;
+    const key    = `${type}-${animal}`;
+    const label  = `${categoryMap[type]} ${animal}`;
 
     if (btn.classList.contains('active')) {
       addDynamicSlider(key, label);
 
       // mestwaardes koppelen
-      if (mestsoortenData[type] && mestsoortenData[type][btn.dataset.animal]) {
-        actieveMestData[key] = mestsoortenData[type][btn.dataset.animal];
+      if (mestsoortenData[type] && mestsoortenData[type][animal]) {
+        actieveMestData[key] = {
+          ...mestsoortenData[type][animal],
+          ton: 0,
+          totaal: {
+            N: 0,
+            P: 0,
+            K: 0,
+            OS: 0,
+            DS: 0,
+            BG: 0
+          }
+        };
         console.log(`📦 Geselecteerd: ${key}`, actieveMestData[key]);
       } else {
         console.warn(`⚠️ Geen mestdata gevonden voor ${key}`);
@@ -76,12 +87,12 @@ document.querySelectorAll('.mest-btn').forEach(btn => {
 
 // 2) Init standaard sliders
 const standaardSliders = [
-  { id: 'stikstof', label: 'Stikstof (N) uit dierlijke mest',  max: totaalA, unit: 'kg' },
-  { id: 'fosfaat', label: 'Fosfaat (P)',   max: totaalC,  unit: 'kg' },
-  { id: 'kalium', label: 'Kalium (K)',    max: 7500, unit: 'kg' },
-  { id: 'organisch', label: 'Organische stof', max: 3000, unit: 'kg' },
-  { id: 'kunststikstof', label: 'Stikstof uit kunstmest', max: 5000, unit: 'kg' },
-  { id: 'financieel', label: 'Geschatte opbrengsten', max: 10000, unit: 'eur' }
+  { id: 'stikstof',  max: totaalA, unit: 'kg' },
+  { id: 'fosfaat',   max: totaalC,  unit: 'kg' },
+  { id: 'kalium',    max: 7500, unit: 'kg' },
+  { id: 'organisch', max: 3000, unit: 'kg' },
+  { id: 'kunststikstof', max: 5000,   unit: 'kg' },
+  { id: 'financieel', max: 10000,   unit: '€' }
 ];
 standaardSliders.forEach(({id, max, unit}) => initSlider(id, max, unit));
 
@@ -114,8 +125,21 @@ function addDynamicSlider(key, label) {
 
   slider.value = 0;
   slider.addEventListener('input', () => {
-    valueEl.textContent = `${slider.value} / ${maxTon} ton`;
-    // toekomstige stap: gebruik actieveMestData[key] voor berekening
+    const ton = Number(slider.value);
+    valueEl.textContent = `${ton} / ${maxTon} ton`;
+
+    if (actieveMestData[key]) {
+      actieveMestData[key].ton = ton;
+      actieveMestData[key].totaal = {
+        N: ton * actieveMestData[key].N_kg_per_ton,
+        P: ton * actieveMestData[key].P_kg_per_ton,
+        K: ton * actieveMestData[key].K_kg_per_ton,
+        OS: ton * (actieveMestData[key].OS_percent / 100),
+        DS: ton * (actieveMestData[key].DS_percent / 100),
+        BG: ton * actieveMestData[key].biogaspotentieel_m3_per_ton
+      };
+      console.log(`📊 ${key} totaal bij ${ton} ton:`, actieveMestData[key].totaal);
+    }
   });
 
   lockInput.addEventListener('change', () => {
@@ -193,5 +217,6 @@ document.getElementById('optimaliseer-btn').addEventListener('click', () => {
   });
 
   console.log('Plan-uitkomst:', resultaat);
+  console.log('Totaal actieve mestdata:', actieveMestData);
   // … hier je eigen verwerking …
 });
