@@ -87,14 +87,15 @@ document.querySelectorAll('.mest-btn').forEach(btn => {
 
 // 2) Init standaard sliders
 const standaardSliders = [
-  { id: 'stikstof', label: 'Stikstof (N) uit dierlijke mest',  max: totaalA, unit: 'kg' },
-  { id: 'fosfaat', label: 'Fosfaat (P)',   max: totaalC,  unit: 'kg' },
-  { id: 'kalium', label: 'Kalium (K)', max: 7500, unit: 'kg' },
-  { id: 'organisch', label: 'Organische stof', max: 3000, unit: 'kg' },
-  { id: 'kunststikstof', label: 'Stikstof (N) uit kunstmest', max: 5000,   unit: 'kg' },
-  { id: 'financieel', label: 'Geschatte vergoeding', max: 10000,   unit: 'eur' }
+  { id: 'stikstof',        label: 'Stikstof uit dierlijke mest',     max: totaalA, unit: 'kg' },
+  { id: 'fosfaat',         label: 'Fosfaat',                         max: totaalC, unit: 'kg' },
+  { id: 'kalium',          label: 'Kalium',                          max: 7500,    unit: 'kg' },
+  { id: 'organisch',       label: 'Organische stof',                 max: 3000,    unit: 'kg' },
+  { id: 'kunststikstof',   label: 'Stikstof uit kunstmest',          max: 5000,    unit: 'kg' },
+  { id: 'financieel',      label: 'Geschatte financiële vergoeding', max: 10000,   unit: 'eur' }
 ];
-standaardSliders.forEach(({id, max, unit}) => initSlider(id, max, unit));
+
+standaardSliders.forEach(({id, label, max, unit}) => initSlider(id, label, max, unit));
 
 // 3a) Functie om dynamische slider toe te voegen
 function addDynamicSlider(key, label) {
@@ -154,7 +155,7 @@ function removeDynamicSlider(key) {
 }
 
 // 4) Helper voor init standaard sliders
-function initSlider(id, max, unit) {
+function initSlider(id, label, max, unit) {
   if (document.getElementById(`slider-${id}`)) {
     return; // slider bestaat al (veiligheidscheck)
   }
@@ -165,7 +166,7 @@ function initSlider(id, max, unit) {
   group.innerHTML = `
     <div class="slider-header">
       <input type="checkbox" id="lock-${id}" />
-      <label for="slider-${id}">${id.charAt(0).toUpperCase() + id.slice(1)}</label>
+      <label for="slider-${id}">${label || (id.charAt(0).toUpperCase() + id.slice(1))}</label>
       <span class="value" id="value-${id}">0 / ${Math.round(max)} ${unit}</span>
     </div>
     <input
