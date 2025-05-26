@@ -53,20 +53,13 @@ if (mestForm) {
       totaalC += C_ha * ha;
     });
 
-    // 5) Conclusie
-    const N_max = Math.min(totaalA, totaalB);
-    const P_max = totaalC;
-
-    // 6) Render resultaat **inclusief** knop “Ga naar stap 2”
+    // 5) Conclusie (Render resultaat **inclusief** knop “Ga naar stap 2”)
     document.getElementById('resultaat').innerHTML = `
       <div class="resultaat-blok">
-        <p><strong>Totaal N dierlijke mest:</strong> ${totaalA.toFixed(0)} kg N</p>
-        <p><strong>Totaal N grondgebonden:</strong> ${totaalB.toFixed(0)} kg N</p>
-        <p><strong>Totaal P fosfaat:</strong> ${totaalC.toFixed(0)} kg P</p>
-      </div>
       <h2>Conclusie gebruiksruimte</h2>
-      <div class="resultaat-blok">
-        <p><strong>Max. stikstof (N):</strong> ${N_max.toFixed(0)} kg</p>
+      <div class="resultaat-blok">  
+        <p><strong>Max. stikstof (N) uit dierlijke mest:</strong> ${totaalA.toFixed(0)} kg</p>
+        <p><strong>Max. stikstof (N) uit alle soorten mest:</strong> ${totaalB.toFixed(0)} kg</p>
         <p><strong>Max. fosfaat (P):</strong> ${P_max.toFixed(0)} kg</p>
       </div>
       <div style="margin-top:1.5rem; text-align:right;">
