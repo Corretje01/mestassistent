@@ -56,6 +56,7 @@ const standaardSliders = [
   { id: 'fosfaat',   max: totaalC,  unit: 'kg' },
   { id: 'kalium',    max: 7500, unit: 'kg' },
   { id: 'organisch', max: 3000, unit: 'kg' }
+  { id: 'kunststikstof', max: 1000,   unit: 'kg' }
 ];
 standaardSliders.forEach(({id, max, unit}) => initSlider(id, max, unit));
 
