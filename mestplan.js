@@ -80,8 +80,8 @@ const standaardSliders = [
   { id: 'fosfaat', label: 'Fosfaat (P)',   max: totaalC,  unit: 'kg' },
   { id: 'kalium', label: 'Kalium (K)',    max: 7500, unit: 'kg' },
   { id: 'organisch', label: 'Organische stof', max: 3000, unit: 'kg' },
-  { id: 'kunststikstof', label: 'Stikstof uit kunstmest', max: 5000,   unit: 'kg' },
-  { id: 'financieel', label: 'Financiële plaatje', max: 10000,   unit: 'eur' }
+  { id: 'kunststikstof', label: 'Stikstof uit kunstmest', max: 5000, unit: 'kg' },
+  { id: 'financieel', label: 'Geschatte opbrengsten', max: 10000, min: -10000, unit: 'eur' }
 ];
 standaardSliders.forEach(({id, max, unit}) => initSlider(id, max, unit));
 
