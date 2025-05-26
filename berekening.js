@@ -65,7 +65,7 @@ if (mestForm) {
       <div style="margin-top:1.5rem; text-align:right;">
         <button
           class="btn btn-primary"
-          onclick="window.location.href='mestplan.html'"
+          onclick="window.location.href='mestplan.html?max_stikstof=' + ${totaalA.toFixed(0)} + '&max_fosfaat=' + ${totaalC.toFixed(0)}"
         >
           Ga naar stap 2
         </button>
