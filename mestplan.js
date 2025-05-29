@@ -165,7 +165,24 @@ function initSlider(id, label, max, unit) {
 }
 
 function updateStandaardSliders() {
-  const totalen = { stikstof: 0, fosfaat: 0, kalium: 0, organisch: 0 };
+  updateStikstofSlider();
+}
+
+function updateStikstofSlider() {
+  let totaalN = 0;
+
+  for (const key in actieveMestData) {
+    totaalN += actieveMestData[key]?.totaal?.N || 0;
+  }
+
+  const stikstofSlider = document.getElementById('slider-stikstof');
+  const stikstofLabel  = document.getElementById('value-stikstof');
+
+  if (stikstofSlider && stikstofLabel) {
+    stikstofSlider.value = Math.round(totaalN);
+    stikstofLabel.textContent = `${Math.round(totaalN)} / ${stikstofSlider.max} kg`;
+  }
+};
 
   for (const key in actieveMestData) {
     const mest = actieveMestData[key];
