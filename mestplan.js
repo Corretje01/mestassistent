@@ -23,21 +23,16 @@ console.log("TotaalA (N dierlijk):", totaalA);
 console.log("TotaalB (N grondgebonden):", totaalB);
 console.log("TotaalC (P totaal):", totaalC);
 
-// mapping van data-type naar nette categorie-naam
 const categoryMap = {
   drijfmest: 'Drijfmest',
   vastemest: 'Vaste mest',
   overig:    'Overig'
 };
 
-// referentie naar container
 const slidersContainer = document.getElementById('sliders-container');
-
-// globale opslag voor mestdata
 let mestsoortenData = {};
-const actieveMestData = {}; // bevat ook tonnage en berekende totalen per soort
+const actieveMestData = {};
 
-// laad JSON met mestwaardes
 fetch('/data/mestsoorten.json')
   .then(res => res.json())
   .then(json => {
@@ -46,12 +41,11 @@ fetch('/data/mestsoorten.json')
   })
   .catch(err => console.error('❌ Kan mestsoorten.json niet laden:', err));
 
-// 1) Mest-knoppen: toggle en dynamisch sliders toevoegen/verwijderen
 document.querySelectorAll('.mest-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     btn.classList.toggle('active');
 
-    const type   = btn.dataset.type;               // drijfmest, vastemest of overig
+    const type   = btn.dataset.type;
     const animal = btn.dataset.animal;
     const key    = `${type}-${animal}`;
     const label  = `${categoryMap[type]} ${animal}`;
@@ -59,19 +53,11 @@ document.querySelectorAll('.mest-btn').forEach(btn => {
     if (btn.classList.contains('active')) {
       addDynamicSlider(key, label);
 
-      // mestwaardes koppelen
       if (mestsoortenData[type] && mestsoortenData[type][animal]) {
         actieveMestData[key] = {
           ...mestsoortenData[type][animal],
           ton: 0,
-          totaal: {
-            N: 0,
-            P: 0,
-            K: 0,
-            OS: 0,
-            DS: 0,
-            BG: 0
-          }
+          totaal: { N: 0, P: 0, K: 0, OS: 0, DS: 0, BG: 0 }
         };
         console.log(`📦 Geselecteerd: ${key}`, actieveMestData[key]);
       } else {
@@ -81,23 +67,21 @@ document.querySelectorAll('.mest-btn').forEach(btn => {
     } else {
       removeDynamicSlider(key);
       delete actieveMestData[key];
+      updateStandaardSliders();
     }
   });
 });
 
-// 2) Init standaard sliders
 const standaardSliders = [
-  { id: 'stikstof',        label: 'Stikstof uit dierlijke mest',     max: totaalA, unit: 'kg' },
-  { id: 'fosfaat',         label: 'Fosfaat',                         max: totaalC, unit: 'kg' },
-  { id: 'kalium',          label: 'Kalium',                          max: 7500,    unit: 'kg' },
-  { id: 'organisch',       label: 'Organische stof',                 max: 3000,    unit: 'kg' },
-  { id: 'kunststikstof',   label: 'Stikstof uit kunstmest',          max: 5000,    unit: 'kg' },
-  { id: 'financieel',      label: 'Geschatte financiële vergoeding', max: 10000,   unit: 'eur' }
+  { id: 'stikstof',        label: 'Stikstof uit dierlijke mest', max: totaalA, unit: 'kg' },
+  { id: 'fosfaat',         label: 'Fosfaat',                     max: totaalC, unit: 'kg' },
+  { id: 'kalium',          label: 'Kalium',                      max: 7500,    unit: 'kg' },
+  { id: 'organisch',       label: 'Organische stof',             max: 3000,    unit: 'kg' },
+  { id: 'kunststikstof',   label: 'Stikstof uit kunstmest',      max: 5000,    unit: 'kg' },
+  { id: 'financieel',      label: 'Geschatte financiële waarde', max: 10000,   unit: '€' }
 ];
-
 standaardSliders.forEach(({id, label, max, unit}) => initSlider(id, label, max, unit));
 
-// 3a) Functie om dynamische slider toe te voegen
 function addDynamicSlider(key, label) {
   if (document.getElementById(`slider-${key}`)) return;
   const maxTon = 650;
@@ -107,16 +91,10 @@ function addDynamicSlider(key, label) {
   group.innerHTML = `
     <div class="slider-header">
       <input type="checkbox" id="lock-${key}" />
-      <label for="slider-${key}">${label}</label>
+      <label for="slider-${key}"">${label}</label>
       <span class="value" id="value-${key}">0 / ${maxTon} ton</span>
     </div>
-    <input
-      type="range"
-      id="slider-${key}"
-      min="0"
-      max="${maxTon}"
-      step="1"
-    />
+    <input type="range" id="slider-${key}" min="0" max="${maxTon}" step="1" />
   `;
   slidersContainer.appendChild(group);
 
@@ -139,7 +117,7 @@ function addDynamicSlider(key, label) {
         DS: ton * (actieveMestData[key].DS_percent / 100),
         BG: ton * actieveMestData[key].biogaspotentieel_m3_per_ton
       };
-      console.log(`📊 ${key} totaal bij ${ton} ton:`, actieveMestData[key].totaal);
+      updateStandaardSliders();
     }
   });
 
@@ -148,17 +126,13 @@ function addDynamicSlider(key, label) {
   });
 }
 
-// 3b) Functie om dynamische slider te verwijderen
 function removeDynamicSlider(key) {
   const group = document.getElementById(`group-${key}`);
   if (group) group.remove();
 }
 
-// 4) Helper voor init standaard sliders
 function initSlider(id, label, max, unit) {
-  if (document.getElementById(`slider-${id}`)) {
-    return; // slider bestaat al (veiligheidscheck)
-  }
+  if (document.getElementById(`slider-${id}`)) return;
 
   const group = document.createElement('div');
   group.className = 'slider-group';
@@ -169,13 +143,7 @@ function initSlider(id, label, max, unit) {
       <label for="slider-${id}">${label || (id.charAt(0).toUpperCase() + id.slice(1))}</label>
       <span class="value" id="value-${id}">0 / ${Math.round(max)} ${unit}</span>
     </div>
-    <input
-      type="range"
-      id="slider-${id}"
-      min="0"
-      max="${Math.round(max)}"
-      step="1"
-    />
+    <input type="range" id="slider-${id}" min="0" max="${Math.round(max)}" step="1" />
   `;
   slidersContainer.appendChild(group);
 
@@ -196,7 +164,27 @@ function initSlider(id, label, max, unit) {
   });
 }
 
-// 5) Knop om mestplan te berekenen
+function updateStandaardSliders() {
+  const totalen = { stikstof: 0, fosfaat: 0, kalium: 0, organisch: 0 };
+
+  for (const key in actieveMestData) {
+    const mest = actieveMestData[key];
+    totalen.stikstof += mest.totaal.N;
+    totalen.fosfaat  += mest.totaal.P;
+    totalen.kalium   += mest.totaal.K;
+    totalen.organisch+= mest.totaal.OS;
+  }
+
+  for (const id in totalen) {
+    const slider  = document.getElementById(`slider-${id}`);
+    const valueEl = document.getElementById(`value-${id}`);
+    if (slider && valueEl) {
+      slider.value = Math.round(totalen[id]);
+      valueEl.textContent = `${Math.round(totalen[id])} / ${slider.max} kg`;
+    }
+  }
+}
+
 document.getElementById('optimaliseer-btn').addEventListener('click', () => {
   const resultaat = [];
 
@@ -219,5 +207,4 @@ document.getElementById('optimaliseer-btn').addEventListener('click', () => {
 
   console.log('Plan-uitkomst:', resultaat);
   console.log('Totaal actieve mestdata:', actieveMestData);
-  // … hier je eigen verwerking …
 });
