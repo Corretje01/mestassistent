@@ -46,6 +46,38 @@ fetch('/data/mestsoorten.json')
   })
   .catch(err => console.error('❌ Kan mestsoorten.json niet laden:', err));
 
+// functie om standaard sliders bij te werken
+function updateStandardSliders() {
+  let totalN = 0, totalP = 0, totalK = 0, totalOS = 0;
+
+  for (const key in actieveMestData) {
+    const totaal = actieveMestData[key].totaal;
+    if (!totaal) continue;
+    totalN  += totaal.N;
+    totalP  += totaal.P;
+    totalK  += totaal.K;
+    totalOS += totaal.OS;
+  }
+
+  const updates = [
+    { id: 'stikstof',  val: totalN },
+    { id: 'fosfaat',   val: totalP },
+    { id: 'kalium',    val: totalK },
+    { id: 'organisch', val: totalOS }
+  ];
+
+  updates.forEach(({id, val}) => {
+    const slider = document.getElementById(`slider-${id}`);
+    const valueEl = document.getElementById(`value-${id}`);
+    const lock = document.getElementById(`lock-${id}`);
+    if (slider && valueEl && lock && !lock.checked) {
+      const rounded = Math.round(val);
+      slider.value = rounded;
+      valueEl.textContent = `${rounded} / ${slider.max} kg`;
+    }
+  });
+}
+
 // 1) Mest-knoppen: toggle en dynamisch sliders toevoegen/verwijderen
 document.querySelectorAll('.mest-btn').forEach(btn => {
   btn.addEventListener('click', () => {
@@ -74,6 +106,7 @@ document.querySelectorAll('.mest-btn').forEach(btn => {
           }
         };
         console.log(`📦 Geselecteerd: ${key}`, actieveMestData[key]);
+        updateStandardSliders();
       } else {
         console.warn(`⚠️ Geen mestdata gevonden voor ${key}`);
       }
@@ -81,6 +114,7 @@ document.querySelectorAll('.mest-btn').forEach(btn => {
     } else {
       removeDynamicSlider(key);
       delete actieveMestData[key];
+      updateStandardSliders();
     }
   });
 });
@@ -140,6 +174,7 @@ function addDynamicSlider(key, label) {
         BG: ton * actieveMestData[key].biogaspotentieel_m3_per_ton
       };
       console.log(`📊 ${key} totaal bij ${ton} ton:`, actieveMestData[key].totaal);
+      updateStandardSliders();
     }
   });
 
