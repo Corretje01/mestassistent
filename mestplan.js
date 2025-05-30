@@ -66,6 +66,13 @@ document.querySelectorAll('.mest-btn').forEach(btn => {
     addDynamicSlider(key, label);
 
     const jsonType = jsonKeyMap[type];
+
+    // Uitsluiten van mestsoort 'eend'
+    if (animal === 'eend') {
+      console.warn(`⚠️ 'eend' wordt overgeslagen zoals aangegeven.`);
+      return;
+    }
+
     if (mestsoortenData[jsonType] && mestsoortenData[jsonType][animal]) {
         actieveMestData[key] = {
           ...mestsoortenData[type][animal],
