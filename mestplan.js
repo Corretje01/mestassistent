@@ -46,174 +46,12 @@ fetch('/data/mestsoorten.json')
   })
   .catch(err => console.error('❌ Kan mestsoorten.json niet laden:', err));
 
-// functie om standaard sliders bij te werken
-function updateStandardSliders() {
-  // Debugging entry
-  console.log('[DEBUG] updateStandardSliders() gestart');
-
-  let totalN = 0, totalP = 0, totalK = 0, totalOS = 0;
-
-  for (const key in actieveMestData) {
-    const totaal = actieveMestData[key].totaal;
-    if (!totaal) continue;
-    totalN  += totaal.N;
-    totalP  += totaal.P;
-    totalK  += totaal.K;
-    totalOS += totaal.OS;
-  }
-
-  console.log('[DEBUG] Berekende totalen:', { totalN, totalP, totalK, totalOS });
-
-  const updates = [
-    { id: 'stikstof',  val: totalN },
-    { id: 'fosfaat',   val: totalP },
-    { id: 'kalium',    val: totalK },
-    { id: 'organisch', val: totalOS }
-  ];
-
-  updates.forEach(({id, val}) => {
-    const slider = document.getElementById(`slider-${id}`);
-    const valueEl = document.getElementById(`value-${id}`);
-    const lock = document.getElementById(`lock-${id}`);
-
-    if (slider && valueEl && lock) {
-      console.log(`[DEBUG] ${id} gevonden, lock: ${lock.checked}`);
-      if (!lock.checked) {
-        const rounded = Math.round(val);
-        slider.value = rounded;
-        valueEl.textContent = `${rounded} / ${slider.max} kg`;
-        console.log(`[DEBUG] ${id} bijgewerkt naar ${rounded}`);
-      }
-    } else {
-      console.warn(`[DEBUG] Slider-elementen niet gevonden voor ${id}`);
-    }
-  });
-}
-
-  console.log('[DEBUG] Totalen berekend:', { totalN, totalP, totalK, totalOS });
-
-  const updates = [
-    { id: 'stikstof',  val: totalN },
-    { id: 'fosfaat',   val: totalP },
-    { id: 'kalium',    val: totalK },
-    { id: 'organisch', val: totalOS }
-  ];
-
-  updates.forEach(({id, val}) => {
-    const slider = document.getElementById(`slider-${id}`);
-    const valueEl = document.getElementById(`value-${id}`);
-    const lock = document.getElementById(`lock-${id}`);
-    console.log(`[DEBUG] Verwerk slider: ${id}`, { sliderBestaat: !!slider, valueElBestaat: !!valueEl, lockBestaat: !!lock, lockStatus: lock?.checked });
-    if (slider && valueEl && lock && !lock.checked) {
-      const rounded = Math.round(val);
-      slider.value = rounded;
-      valueEl.textContent = `${rounded} / ${slider.max} kg`;
-      console.log(`[DEBUG] Slider ${id} bijgewerkt naar`, rounded);
-    }
-  });
-}
-
-  console.log('📊 Totale waarden:', { totalN, totalP, totalK, totalOS });
-
-  const updates = [
-    { id: 'stikstof',  val: totalN },
-    { id: 'fosfaat',   val: totalP },
-    { id: 'kalium',    val: totalK },
-    { id: 'organisch', val: totalOS }
-  ];
-
-  updates.forEach(({id, val}) => {
-    const slider = document.getElementById(`slider-${id}`);
-    const valueEl = document.getElementById(`value-${id}`);
-    const lock = document.getElementById(`lock-${id}`);
-    console.log(`🔍 Slider check voor ${id}:`, { sliderExists: !!slider, valueElExists: !!valueEl, lockExists: !!lock, isLocked: lock?.checked });
-    if (slider && valueEl && lock && !lock.checked) {
-      const rounded = Math.round(val);
-      slider.value = rounded;
-      valueEl.textContent = `${rounded} / ${slider.max} kg`;
-      console.log(`✅ ${id} bijgewerkt naar ${rounded} kg`);
-    }
-  });
-}
-
-  console.log('[DEBUG] Totale waarden — N:', totalN, 'P:', totalP, 'K:', totalK, 'OS:', totalOS);
-
-  const updates = [
-    { id: 'stikstof',  val: totalN },
-    { id: 'fosfaat',   val: totalP },
-    { id: 'kalium',    val: totalK },
-    { id: 'organisch', val: totalOS }
-  ];
-
-  updates.forEach(({id, val}) => {
-    const slider = document.getElementById(`slider-${id}`);
-    const valueEl = document.getElementById(`value-${id}`);
-    const lock = document.getElementById(`lock-${id}`);
-
-    console.log(`[DEBUG] Verwerk slider-${id} | bestaat:`, !!slider, '| gelocked:', lock?.checked);
-
-    if (slider && valueEl && lock && !lock.checked) {
-      const rounded = Math.round(val);
-      slider.value = rounded;
-      valueEl.textContent = `${rounded} / ${slider.max} kg`;
-      console.log(`[DEBUG] Bijgewerkt slider-${id} naar`, rounded);
-    }
-  });
-}
-
-  console.log('📊 Totale waardes:', {
-    stikstof: totalN,
-    fosfaat: totalP,
-    kalium: totalK,
-    organisch: totalOS
-  });
-
-  const updates = [
-    { id: 'stikstof',  val: totalN },
-    { id: 'fosfaat',   val: totalP },
-    { id: 'kalium',    val: totalK },
-    { id: 'organisch', val: totalOS }
-  ];
-
-  updates.forEach(({id, val}) => {
-    const slider = document.getElementById(`slider-${id}`);
-    const valueEl = document.getElementById(`value-${id}`);
-    const lock = document.getElementById(`lock-${id}`);
-    console.log(`🔎 Check slider ${id}:`, { sliderExists: !!slider, valueElExists: !!valueEl, locked: lock?.checked });
-    if (slider && valueEl && lock && !lock.checked) {
-      const rounded = Math.round(val);
-      slider.value = rounded;
-      valueEl.textContent = `${rounded} / ${slider.max} kg`;
-      console.log(`✅ Bijgewerkt slider ${id} naar ${rounded}`);
-    }
-  });
-}
-
-  const updates = [
-    { id: 'stikstof',  val: totalN },
-    { id: 'fosfaat',   val: totalP },
-    { id: 'kalium',    val: totalK },
-    { id: 'organisch', val: totalOS }
-  ];
-
-  updates.forEach(({id, val}) => {
-    const slider = document.getElementById(`slider-${id}`);
-    const valueEl = document.getElementById(`value-${id}`);
-    const lock = document.getElementById(`lock-${id}`);
-    if (slider && valueEl && lock && !lock.checked) {
-      const rounded = Math.round(val);
-      slider.value = rounded;
-      valueEl.textContent = `${rounded} / ${slider.max} kg`;
-    }
-  });
-}
-
 // 1) Mest-knoppen: toggle en dynamisch sliders toevoegen/verwijderen
 document.querySelectorAll('.mest-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     btn.classList.toggle('active');
 
-    const type   = btn.dataset.type;               // drijfmest, vastemest of overig
+    const type   = btn.dataset.type;
     const animal = btn.dataset.animal;
     const key    = `${type}-${animal}`;
     const label  = `${categoryMap[type]} ${animal}`;
@@ -221,7 +59,6 @@ document.querySelectorAll('.mest-btn').forEach(btn => {
     if (btn.classList.contains('active')) {
       addDynamicSlider(key, label);
 
-      // mestwaardes koppelen
       if (mestsoortenData[type] && mestsoortenData[type][animal]) {
         actieveMestData[key] = {
           ...mestsoortenData[type][animal],
@@ -261,10 +98,39 @@ const standaardSliders = [
 
 standaardSliders.forEach(({id, label, max, unit}) => initSlider(id, label, max, unit));
 
-// Zorg dat sliders bestaan voordat we ze updaten
-updateStandardSliders();
+function updateStandardSliders() {
+  let totalN = 0, totalP = 0, totalK = 0, totalOS = 0;
 
-// 3a) Functie om dynamische slider toe te voegen
+  for (const key in actieveMestData) {
+    const mest = actieveMestData[key];
+    if (mest?.totaal) {
+      totalN  += mest.totaal.N;
+      totalP  += mest.totaal.P;
+      totalK  += mest.totaal.K;
+      totalOS += mest.totaal.OS;
+    }
+  }
+
+  const totalen = [
+    { id: 'stikstof',  value: totalN },
+    { id: 'fosfaat',   value: totalP },
+    { id: 'kalium',    value: totalK },
+    { id: 'organisch', value: totalOS }
+  ];
+
+  totalen.forEach(({id, value}) => {
+    const slider = document.getElementById(`slider-${id}`);
+    const valueEl = document.getElementById(`value-${id}`);
+    const lock = document.getElementById(`lock-${id}`);
+
+    if (slider && valueEl && lock && !lock.checked) {
+      const rounded = Math.round(value);
+      slider.value = rounded;
+      valueEl.textContent = `${rounded} / ${slider.max} kg`;
+    }
+  });
+}
+
 function addDynamicSlider(key, label) {
   if (document.getElementById(`slider-${key}`)) return;
   const maxTon = 650;
@@ -297,16 +163,16 @@ function addDynamicSlider(key, label) {
     valueEl.textContent = `${ton} / ${maxTon} ton`;
 
     if (actieveMestData[key]) {
-      actieveMestData[key].ton = ton;
-      actieveMestData[key].totaal = {
-        N: ton * actieveMestData[key].N_kg_per_ton,
-        P: ton * actieveMestData[key].P_kg_per_ton,
-        K: ton * actieveMestData[key].K_kg_per_ton,
-        OS: ton * (actieveMestData[key].OS_percent / 100),
-        DS: ton * (actieveMestData[key].DS_percent / 100),
-        BG: ton * actieveMestData[key].biogaspotentieel_m3_per_ton
+      const data = actieveMestData[key];
+      data.ton = ton;
+      data.totaal = {
+        N: ton * data.N_kg_per_ton,
+        P: ton * data.P_kg_per_ton,
+        K: ton * data.K_kg_per_ton,
+        OS: ton * (data.OS_percent / 100),
+        DS: ton * (data.DS_percent / 100),
+        BG: ton * data.biogaspotentieel_m3_per_ton
       };
-      console.log(`📊 ${key} totaal bij ${ton} ton:`, actieveMestData[key].totaal);
       updateStandardSliders();
     }
   });
@@ -316,17 +182,13 @@ function addDynamicSlider(key, label) {
   });
 }
 
-// 3b) Functie om dynamische slider te verwijderen
 function removeDynamicSlider(key) {
   const group = document.getElementById(`group-${key}`);
   if (group) group.remove();
 }
 
-// 4) Helper voor init standaard sliders
 function initSlider(id, label, max, unit) {
-  if (document.getElementById(`slider-${id}`)) {
-    return; // slider bestaat al (veiligheidscheck)
-  }
+  if (document.getElementById(`slider-${id}`)) return;
 
   const group = document.createElement('div');
   group.className = 'slider-group';
@@ -364,7 +226,6 @@ function initSlider(id, label, max, unit) {
   });
 }
 
-// 5) Knop om mestplan te berekenen
 document.getElementById('optimaliseer-btn').addEventListener('click', () => {
   const resultaat = [];
 
@@ -387,5 +248,4 @@ document.getElementById('optimaliseer-btn').addEventListener('click', () => {
 
   console.log('Plan-uitkomst:', resultaat);
   console.log('Totaal actieve mestdata:', actieveMestData);
-  // … hier je eigen verwerking …
 });
