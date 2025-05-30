@@ -63,6 +63,15 @@ document.querySelectorAll('.mest-btn').forEach(btn => {
     const label  = `${categoryMap[type]} ${animal}`;
 
     if (btn.classList.contains('active')) {
+    if (type === 'vastemest' && animal === 'eend') {
+      console.warn(`⏭️ Eend wordt overgeslagen.`);
+      return;
+    }
+
+    addDynamicSlider(key, label);
+
+    const jsonType = jsonKeyMap[type];
+    if (mestsoortenData[jsonType] && mestsoortenData[jsonType][animal]) {
     addDynamicSlider(key, label);
 
     const jsonType = jsonKeyMap[type] || type;
