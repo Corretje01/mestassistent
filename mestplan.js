@@ -48,7 +48,7 @@ fetch('/data/mestsoorten.json')
 
 // functie om standaard sliders bij te werken
 function updateStandardSliders() {
-  console.log('🔁 updateStandardSliders() aangeroepen');
+  console.log('[DEBUG] updateStandardSliders() aangeroepen');
   let totalN = 0, totalP = 0, totalK = 0, totalOS = 0;
 
   for (const key in actieveMestData) {
@@ -59,6 +59,29 @@ function updateStandardSliders() {
     totalK  += totaal.K;
     totalOS += totaal.OS;
   }
+
+  console.log('[DEBUG] Totalen berekend:', { totalN, totalP, totalK, totalOS });
+
+  const updates = [
+    { id: 'stikstof',  val: totalN },
+    { id: 'fosfaat',   val: totalP },
+    { id: 'kalium',    val: totalK },
+    { id: 'organisch', val: totalOS }
+  ];
+
+  updates.forEach(({id, val}) => {
+    const slider = document.getElementById(`slider-${id}`);
+    const valueEl = document.getElementById(`value-${id}`);
+    const lock = document.getElementById(`lock-${id}`);
+    console.log(`[DEBUG] Verwerk slider: ${id}`, { sliderBestaat: !!slider, valueElBestaat: !!valueEl, lockBestaat: !!lock, lockStatus: lock?.checked });
+    if (slider && valueEl && lock && !lock.checked) {
+      const rounded = Math.round(val);
+      slider.value = rounded;
+      valueEl.textContent = `${rounded} / ${slider.max} kg`;
+      console.log(`[DEBUG] Slider ${id} bijgewerkt naar`, rounded);
+    }
+  });
+}
 
   console.log('📊 Totale waarden:', { totalN, totalP, totalK, totalOS });
 
