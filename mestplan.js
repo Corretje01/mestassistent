@@ -67,6 +67,12 @@ document.querySelectorAll('.mest-btn').forEach(btn => {
 
     const jsonType = jsonKeyMap[type];
 
+    // Uitsluiten van eend bij vaste mest
+    if (jsonType === 'vaste_mest' && animal === 'eend') {
+      console.warn(`⚠️ Eend wordt overgeslagen (${key})`);
+      return;
+    }
+
     // Uitsluiten van mestsoort 'eend'
     if (animal === 'eend') {
       console.warn(`⚠️ 'eend' wordt overgeslagen zoals aangegeven.`);
