@@ -23,9 +23,9 @@ console.log("TotaalA (N dierlijk):", totaalA);
 console.log("TotaalB (N grondgebonden):", totaalB);
 console.log("TotaalC (P totaal):", totaalC);
 
-// mapping van data-type naar nette categorie-naam
+// mapping -naam
 const categoryMap = {
-  drijfmest: 'Drijfmest',
+  drijfmest: 'Drijfmest',van data-type naar nette categorie
   vastemest: 'Vaste mest',
   overig:    'Overig'
 };
@@ -65,7 +65,12 @@ document.querySelectorAll('.mest-btn').forEach(btn => {
     if (btn.classList.contains('active')) {
     addDynamicSlider(key, label);
 
-    const jsonType = jsonKeyMap[type];
+    const jsonType = jsonKeyMap[type] || type;
+
+    if (!jsonType || !mestsoortenData[jsonType]) {
+      console.warn(`❌ Ongeldige mestsoort of ontbrekende JSON-key: ${type} → ${jsonType}`);
+      return;
+    }
 
     // Uitsluiten van eend bij vaste mest
     if (jsonType === 'vaste_mest' && animal === 'eend') {
