@@ -131,6 +131,9 @@ const standaardSliders = [
 
 standaardSliders.forEach(({id, label, max, unit}) => initSlider(id, label, max, unit));
 
+// Zorg dat sliders bestaan voordat we ze updaten
+updateStandardSliders();
+
 // 3a) Functie om dynamische slider toe te voegen
 function addDynamicSlider(key, label) {
   if (document.getElementById(`slider-${key}`)) return;
