@@ -47,6 +47,12 @@ fetch('/data/mestsoorten.json')
   .catch(err => console.error('❌ Kan mestsoorten.json niet laden:', err));
 
 // 1) Mest-knoppen: toggle en dynamisch sliders toevoegen/verwijderen
+const jsonKeyMap = {
+  vastemest: 'vaste_mest',
+  drijfmest: 'drijfmest',
+  overig:    'overig'
+};
+
 document.querySelectorAll('.mest-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     btn.classList.toggle('active');
@@ -57,9 +63,10 @@ document.querySelectorAll('.mest-btn').forEach(btn => {
     const label  = `${categoryMap[type]} ${animal}`;
 
     if (btn.classList.contains('active')) {
-      addDynamicSlider(key, label);
+    addDynamicSlider(key, label);
 
-      if (mestsoortenData[type] && mestsoortenData[type][animal]) {
+    const jsonType = jsonKeyMap[type];
+    if (mestsoortenData[jsonType] && mestsoortenData[jsonType][animal]) {
         actieveMestData[key] = {
           ...mestsoortenData[type][animal],
           ton: 0,
@@ -75,7 +82,7 @@ document.querySelectorAll('.mest-btn').forEach(btn => {
         console.log(`📦 Geselecteerd: ${key}`, actieveMestData[key]);
         updateStandardSliders();
       } else {
-        console.warn(`⚠️ Geen mestdata gevonden voor ${key}`);
+        console.warn(`⚠️ Geen mestdata gevonden voor ${key} (type: ${jsonType})`);
       }
 
     } else {
