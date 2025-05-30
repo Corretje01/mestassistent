@@ -52,9 +52,9 @@
     },
     "varken": {
       "N_kg_per_ton": 5.5,
-      "P_kg_per_ton": 1.5,
-      "K_kg_per_ton": 3.25,
-      "DS_percent": 6.5,
+      "P_kg_per_ton": 3.5,
+      "K_kg_per_ton": 5.25,
+      "DS_percent": 6.75,
       "OS_percent": 65.0,
       "biogaspotentieel_m3_per_ton": 35.0
     },
