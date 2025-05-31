@@ -112,6 +112,30 @@ function updateStandardSliders() {
     }
   }
 
+  const kunstmestN = Math.max(0, totaalB - totalN);
+
+  const totalen = [
+    { id: 'stikstof',        value: totalN },
+    { id: 'fosfaat',         value: totalP },
+    { id: 'kalium',          value: totalK },
+    { id: 'organisch',       value: totalOS },
+    { id: 'kunststikstof',   value: kunstmestN }
+  ];
+
+  totalen.forEach(({id, value}) => {
+    const slider = document.getElementById(`slider-${id}`);
+    const valueEl = document.getElementById(`value-${id}`);
+    const lock = document.getElementById(`lock-${id}`);
+
+    if (slider && valueEl && lock && !lock.checked) {
+      const rounded = Math.round(value);
+      slider.value = rounded;
+      valueEl.textContent = `${rounded} / ${slider.max} kg`;
+    }
+  });
+}
+  }
+
   const totalen = [
     { id: 'stikstof',  value: totalN },
     { id: 'fosfaat',   value: totalP },
