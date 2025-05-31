@@ -112,30 +112,6 @@ function updateStandardSliders() {
     }
   }
 
-  const kunstmestN = Math.max(0, totaalB - totalN);
-
-  const totalen = [
-    { id: 'stikstof',        value: totalN },
-    { id: 'fosfaat',         value: totalP },
-    { id: 'kalium',          value: totalK },
-    { id: 'organisch',       value: totalOS },
-    { id: 'kunststikstof',   value: kunstmestN }
-  ];
-
-  totalen.forEach(({id, value}) => {
-    const slider = document.getElementById(`slider-${id}`);
-    const valueEl = document.getElementById(`value-${id}`);
-    const lock = document.getElementById(`lock-${id}`);
-
-    if (slider && valueEl && lock && !lock.checked) {
-      const rounded = Math.round(value);
-      slider.value = rounded;
-      valueEl.textContent = `${rounded} / ${slider.max} kg`;
-    }
-  });
-}
-  }
-
   const totalen = [
     { id: 'stikstof',  value: totalN },
     { id: 'fosfaat',   value: totalP },
@@ -242,15 +218,7 @@ function initSlider(id, label, max, unit) {
 
   slider.addEventListener('input', () => {
     const val = Math.min(Number(slider.value), Math.round(max));
-    if (id === 'kunststikstof') {
-  const dierlijk = document.getElementById('slider-stikstof');
-  const dierlijkVal = dierlijk ? Number(dierlijk.value) : 0;
-  const nieuwVal = Math.max(0, Math.round(max - dierlijkVal));
-  slider.value = nieuwVal;
-  valueEl.textContent = `${nieuwVal} / ${Math.round(max)} ${unit}`;
-} else {
-  valueEl.textContent = `${val} / ${Math.round(max)} ${unit}`;
-}
+    valueEl.textContent = `${val} / ${Math.round(max)} ${unit}`;
   });
 
   const lockInput = group.querySelector(`#lock-${id}`);
