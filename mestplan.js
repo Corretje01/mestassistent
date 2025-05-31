@@ -23,21 +23,23 @@ console.log("TotaalA (N dierlijk):", totaalA);
 console.log("TotaalB (N grondgebonden):", totaalB);
 console.log("TotaalC (P totaal):", totaalC);
 
-// mapping -naam
 const categoryMap = {
-  drijfmest: 'Drijfmest',van data-type naar nette categorie
+  drijfmest: 'Drijfmest',
   vastemest: 'Vaste mest',
   overig:    'Overig'
 };
 
-// referentie naar container
+const jsonKeyMap = {
+  vastemest: 'vaste_mest',
+  drijfmest: 'drijfmest',
+  overig:    'overig'
+};
+
 const slidersContainer = document.getElementById('sliders-container');
 
-// globale opslag voor mestdata
 let mestsoortenData = {};
-const actieveMestData = {}; // bevat ook tonnage en berekende totalen per soort
+const actieveMestData = {};
 
-// laad JSON met mestwaardes
 fetch('/data/mestsoorten.json')
   .then(res => res.json())
   .then(json => {
@@ -45,13 +47,6 @@ fetch('/data/mestsoorten.json')
     console.log('✅ mestsoorten.json geladen:', mestsoortenData);
   })
   .catch(err => console.error('❌ Kan mestsoorten.json niet laden:', err));
-
-// 1) Mest-knoppen: toggle en dynamisch sliders toevoegen/verwijderen
-const jsonKeyMap = {
-  vastemest: 'vaste_mest',
-  drijfmest: 'drijfmest',
-  overig:    'overig'
-};
 
 document.querySelectorAll('.mest-btn').forEach(btn => {
   btn.addEventListener('click', () => {
@@ -61,41 +56,14 @@ document.querySelectorAll('.mest-btn').forEach(btn => {
     const animal = btn.dataset.animal;
     const key    = `${type}-${animal}`;
     const label  = `${categoryMap[type]} ${animal}`;
+    const jsonType = jsonKeyMap[type];
 
     if (btn.classList.contains('active')) {
-    if (type === 'vastemest' && animal === 'eend') {
-      console.warn(`⏭️ Eend wordt overgeslagen.`);
-      return;
-    }
+      addDynamicSlider(key, label);
 
-    addDynamicSlider(key, label);
-
-    const jsonType = jsonKeyMap[type];
-    if (mestsoortenData[jsonType] && mestsoortenData[jsonType][animal]) {
-    addDynamicSlider(key, label);
-
-    const jsonType = jsonKeyMap[type] || type;
-
-    if (!jsonType || !mestsoortenData[jsonType]) {
-      console.warn(`❌ Ongeldige mestsoort of ontbrekende JSON-key: ${type} → ${jsonType}`);
-      return;
-    }
-
-    // Uitsluiten van eend bij vaste mest
-    if (jsonType === 'vaste_mest' && animal === 'eend') {
-      console.warn(`⚠️ Eend wordt overgeslagen (${key})`);
-      return;
-    }
-
-    // Uitsluiten van mestsoort 'eend'
-    if (animal === 'eend') {
-      console.warn(`⚠️ 'eend' wordt overgeslagen zoals aangegeven.`);
-      return;
-    }
-
-    if (mestsoortenData[jsonType] && mestsoortenData[jsonType][animal]) {
+      if (mestsoortenData[jsonType] && mestsoortenData[jsonType][animal]) {
         actieveMestData[key] = {
-          ...mestsoortenData[type][animal],
+          ...mestsoortenData[jsonType][animal],
           ton: 0,
           totaal: {
             N: 0,
@@ -109,7 +77,7 @@ document.querySelectorAll('.mest-btn').forEach(btn => {
         console.log(`📦 Geselecteerd: ${key}`, actieveMestData[key]);
         updateStandardSliders();
       } else {
-        console.warn(`⚠️ Geen mestdata gevonden voor ${key} (type: ${jsonType})`);
+        console.warn(`⚠️ Geen mestdata gevonden voor ${key}`);
       }
 
     } else {
@@ -120,7 +88,6 @@ document.querySelectorAll('.mest-btn').forEach(btn => {
   });
 });
 
-// 2) Init standaard sliders
 const standaardSliders = [
   { id: 'stikstof',        label: 'Stikstof uit dierlijke mest',     max: totaalA, unit: 'kg' },
   { id: 'fosfaat',         label: 'Fosfaat',                         max: totaalC, unit: 'kg' },
