@@ -79,7 +79,6 @@ document.querySelectorAll('.mest-btn').forEach(btn => {
       } else {
         console.warn(`⚠️ Geen mestdata gevonden voor ${key}`);
       }
-
     } else {
       removeDynamicSlider(key);
       delete actieveMestData[key];
@@ -147,7 +146,6 @@ function updateStandardSliders() {
     kunstValue.textContent = `${kunstmestActueel} / ${Math.round(kunstmestMax)} kg`;
   }
 }
-
   }
 
   const totalen = [
