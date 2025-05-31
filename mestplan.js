@@ -242,7 +242,15 @@ function initSlider(id, label, max, unit) {
 
   slider.addEventListener('input', () => {
     const val = Math.min(Number(slider.value), Math.round(max));
-    valueEl.textContent = `${val} / ${Math.round(max)} ${unit}`;
+    if (id === 'kunststikstof') {
+  const dierlijk = document.getElementById('slider-stikstof');
+  const dierlijkVal = dierlijk ? Number(dierlijk.value) : 0;
+  const nieuwVal = Math.max(0, Math.round(max - dierlijkVal));
+  slider.value = nieuwVal;
+  valueEl.textContent = `${nieuwVal} / ${Math.round(max)} ${unit}`;
+} else {
+  valueEl.textContent = `${val} / ${Math.round(max)} ${unit}`;
+}
   });
 
   const lockInput = group.querySelector(`#lock-${id}`);
