@@ -88,10 +88,11 @@ document.querySelectorAll('.mest-btn').forEach(btn => {
 });
 
 function createStandaardSliders(totaalA, totaalB, totaalC) {
+  const maxKalium = totaalB * 1.25;
   return [
     { id: 'stikstof',        label: 'Stikstof uit dierlijke mest',     max: totaalA, unit: 'kg' },
     { id: 'fosfaat',         label: 'Fosfaat',                         max: totaalC, unit: 'kg' },
-    { id: 'kalium',          label: 'Kalium',                          max: 7500,    unit: 'kg' },
+    { id: 'kalium', label: 'Kalium', max: maxKalium, unit: 'kg' },
     { id: 'organisch',       label: 'Organische stof',                 max: 3000,    unit: 'kg' },
     { id: 'kunststikstof',   label: 'Stikstof uit kunstmest',          max: totaalB, unit: 'kg' },
     { id: 'financieel',      label: 'Geschatte financiële vergoeding', max: 10000,   unit: 'eur' }
