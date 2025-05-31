@@ -135,18 +135,18 @@ function updateStandardSliders() {
   ];
 
   totalen.forEach(({id, value}) => {
-    const slider = document.getElementById(`slider-${id}`);
-    const valueEl = document.getElementById(`value-${id}`);
-    const lock = document.getElementById(`lock-${id}`);
+    const sliderEl = document.getElementById(`slider-${id}`);
+    const valueElem = document.getElementById(`value-${id}`);
+    const lockElem = document.getElementById(`lock-${id}`);
     const unit = standaardSliders.find(s => s.id === id)?.unit || 'kg';
     const slider = document.getElementById(`slider-${id}`);
     const valueEl = document.getElementById(`value-${id}`);
     const lock = document.getElementById(`lock-${id}`);
 
-    if (slider && valueEl && lock && !lock.checked) {
+    if (sliderEl && valueElem && lockElem && !lockElem.checked) {
       const rounded = Math.round(value);
-      slider.value = rounded;
-      valueEl.textContent = `${rounded} / ${slider.max} ${unit}`;
+      sliderEl.value = rounded;
+      valueElem.textContent = `${rounded} / ${sliderEl.max} ${unit}`;
     }
   });
 }
