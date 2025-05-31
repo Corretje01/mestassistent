@@ -147,6 +147,7 @@ function updateStandardSliders() {
     kunstValue.textContent = `${kunstmestActueel} / ${Math.round(kunstmestMax)} kg`;
   }
 }
+
   }
 
   const totalen = [
