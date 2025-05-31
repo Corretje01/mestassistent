@@ -180,6 +180,7 @@ function addDynamicSlider(key, label) {
     if (actieveMestData[key]) {
       const data = actieveMestData[key];
       data.ton = ton;
+      const transportkosten = 10; // EUR per ton (voor toekomstige uitbreiding)
       data.totaal = {
         N: ton * data.N_kg_per_ton,
         P: ton * data.P_kg_per_ton,
@@ -187,7 +188,7 @@ function addDynamicSlider(key, label) {
         OS: ton * (data.OS_percent / 100),
         DS: ton * (data.DS_percent / 100),
         BG: ton * data.biogaspotentieel_m3_per_ton,
-        FIN: ton * data.Inkoopprijs_per_ton
+        FIN: ton * (data.Inkoopprijs_per_ton - 10) // inkoopprijs minus €10 transportkosten per ton
       };
       updateStandardSliders();
     }
