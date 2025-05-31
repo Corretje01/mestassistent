@@ -130,6 +130,43 @@ function updateStandardSliders() {
       valueEl.textContent = `${rounded} / ${slider.max} kg`;
     }
   });
+
+  // Specifiek: update slider voor kunststikstof op basis van totaalB - stikstof
+  const stikstofSlider = document.getElementById('slider-stikstof');
+  const kunstSlider = document.getElementById('slider-kunststikstof');
+  const kunstValue = document.getElementById('value-kunststikstof');
+  const kunstLock = document.getElementById('lock-kunststikstof');
+
+  if (stikstofSlider && kunstSlider && kunstValue && kunstLock && !kunstLock.checked) {
+    const stikstofWaarde = Number(stikstofSlider.value);
+    const kunstmestMax = Math.max(0, totaalB - stikstofWaarde);
+    const kunstmestActueel = Math.min(Number(kunstSlider.value), Math.round(kunstmestMax));
+
+    kunstSlider.max = Math.round(totaalB);
+    kunstSlider.value = kunstmestActueel;
+    kunstValue.textContent = `${kunstmestActueel} / ${Math.round(totaalB)} kg`;
+  }
+}
+  }
+
+  const totalen = [
+    { id: 'stikstof',  value: totalN },
+    { id: 'fosfaat',   value: totalP },
+    { id: 'kalium',    value: totalK },
+    { id: 'organisch', value: totalOS }
+  ];
+
+  totalen.forEach(({id, value}) => {
+    const slider = document.getElementById(`slider-${id}`);
+    const valueEl = document.getElementById(`value-${id}`);
+    const lock = document.getElementById(`lock-${id}`);
+
+    if (slider && valueEl && lock && !lock.checked) {
+      const rounded = Math.round(value);
+      slider.value = rounded;
+      valueEl.textContent = `${rounded} / ${slider.max} kg`;
+    }
+  });
 }
 
 function addDynamicSlider(key, label) {
