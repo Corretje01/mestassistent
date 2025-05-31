@@ -129,7 +129,8 @@ function updateStandardSliders() {
     { id: 'stikstof',  value: totalN },
     { id: 'fosfaat',   value: totalP },
     { id: 'kalium',    value: totalK },
-    { id: 'organisch', value: totalOS }
+    { id: 'organisch', value: totalOS },
+    { id: 'financieel', value: Object.values(actieveMestData).reduce((sum, m) => sum + (m?.totaal?.FIN || 0), 0) }
   ];
 
   totalen.forEach(({id, value}) => {
@@ -185,7 +186,8 @@ function addDynamicSlider(key, label) {
         K: ton * data.K_kg_per_ton,
         OS: ton * (data.OS_percent / 100),
         DS: ton * (data.DS_percent / 100),
-        BG: ton * data.biogaspotentieel_m3_per_ton
+        BG: ton * data.biogaspotentieel_m3_per_ton,
+        FIN: ton * data.Inkoopprijs_per_ton
       };
       updateStandardSliders();
     }
