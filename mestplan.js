@@ -138,11 +138,15 @@ function updateStandardSliders() {
     const slider = document.getElementById(`slider-${id}`);
     const valueEl = document.getElementById(`value-${id}`);
     const lock = document.getElementById(`lock-${id}`);
+    const unit = standaardSliders.find(s => s.id === id)?.unit || 'kg';
+    const slider = document.getElementById(`slider-${id}`);
+    const valueEl = document.getElementById(`value-${id}`);
+    const lock = document.getElementById(`lock-${id}`);
 
     if (slider && valueEl && lock && !lock.checked) {
       const rounded = Math.round(value);
       slider.value = rounded;
-      valueEl.textContent = `${rounded} / ${slider.max} kg`;
+      valueEl.textContent = `${rounded} / ${slider.max} ${unit}`;
     }
   });
 }
