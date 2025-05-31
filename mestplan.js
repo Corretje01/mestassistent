@@ -131,7 +131,6 @@ function updateStandardSliders() {
     }
   });
 
-  // Specifiek: update slider voor kunststikstof op basis van totaalB - stikstof
   const stikstofSlider = document.getElementById('slider-stikstof');
   const kunstSlider = document.getElementById('slider-kunststikstof');
   const kunstValue = document.getElementById('value-kunststikstof');
