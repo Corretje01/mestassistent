@@ -154,11 +154,24 @@ function updateStandardSliders() {
 function addDynamicSlider(key, label) {
   if (document.getElementById(`slider-${key}`)) return;
   let maxTon = 650;
-  if (key === 'drijfmest-koe' && mestsoortenData['drijfmest'] && mestsoortenData['drijfmest']['koe']) {
-    const data = mestsoortenData['drijfmest']['koe'];
-    const maxN = totaalA / data.N_kg_per_ton;
-    const maxP = totaalC / data.P_kg_per_ton;
-    maxTon = Math.floor(Math.min(maxN, maxP));
+  const limiterMap = {
+    'drijfmest-koe': ['drijfmest', 'koe'],
+    'drijfmest-varken': ['drijfmest', 'varken'],
+    'vastemest-varken': ['vaste_mest', 'varken'],
+    'vastemest-koe': ['vaste_mest', 'koe'],
+    'vastemest-geit': ['vaste_mest', 'geit'],
+    'vastemest-kip': ['vaste_mest', 'kip'],
+    'vastemest-paard': ['vaste_mest', 'paard']
+  };
+
+  if (limiterMap[key]) {
+    const [type, animal] = limiterMap[key];
+    if (mestsoortenData[type] && mestsoortenData[type][animal]) {
+      const data = mestsoortenData[type][animal];
+      const maxN = totaalA / data.N_kg_per_ton;
+      const maxP = totaalC / data.P_kg_per_ton;
+      maxTon = Math.floor(Math.min(maxN, maxP));
+    }
   }
   const group = document.createElement('div');
   group.className = 'slider-group';
