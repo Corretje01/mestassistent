@@ -6,7 +6,7 @@
       "K_kg_per_ton": 7.5,
       "DS_percent": 22.5,
       "OS_percent": 70.0,
-      "biogaspotentieel_m3_per_ton": 75.0,
+      "Biogaspotentieel_m3_per_ton": 75.0,
       "Inkoopprijs_per_ton": 22.00 
     },
     "varken": {
@@ -15,7 +15,7 @@
       "K_kg_per_ton": 6.5,
       "DS_percent": 30.0,
       "OS_percent": 75.0,
-      "biogaspotentieel_m3_per_ton": 95.0,
+      "Biogaspotentieel_m3_per_ton": 95.0,
       "Inkoopprijs_per_ton": 27.00 
     },
     "geit": {
@@ -24,7 +24,7 @@
       "K_kg_per_ton": 8.5,
       "DS_percent": 40.0,
       "OS_percent": 75.0,
-      "biogaspotentieel_m3_per_ton": 87.5,
+      "Biogaspotentieel_m3_per_ton": 87.5,
       "Inkoopprijs_per_ton": 25.00 
     },
     "kip": {
@@ -33,7 +33,7 @@
       "K_kg_per_ton": 13.0,
       "DS_percent": 55.0,
       "OS_percent": 65.0,
-      "biogaspotentieel_m3_per_ton": 140.0,
+      "Biogaspotentieel_m3_per_ton": 140.0,
       "Inkoopprijs_per_ton": 15.00 
     },
     "paard": {
@@ -42,7 +42,7 @@
       "K_kg_per_ton": 7.5,
       "DS_percent": 35.0,
       "OS_percent": 65.0,
-      "biogaspotentieel_m3_per_ton": 60.0,
+      "Biogaspotentieel_m3_per_ton": 60.0,
       "Inkoopprijs_per_ton": 25.00
     }
   },
@@ -53,7 +53,7 @@
       "K_kg_per_ton": 4.5,
       "DS_percent": 9.5,
       "OS_percent": 60.0,
-      "biogaspotentieel_m3_per_ton": 27.5,
+      "Biogaspotentieel_m3_per_ton": 27.5,
       "Inkoopprijs_per_ton": 28.33
     },
     "varken": {
@@ -62,7 +62,7 @@
       "K_kg_per_ton": 5.25,
       "DS_percent": 6.75,
       "OS_percent": 65.0,
-      "biogaspotentieel_m3_per_ton": 35.0,
+      "Biogaspotentieel_m3_per_ton": 35.0,
       "Inkoopprijs_per_ton": 32.50
     }
   }
