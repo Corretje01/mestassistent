@@ -153,7 +153,13 @@ function updateStandardSliders() {
 
 function addDynamicSlider(key, label) {
   if (document.getElementById(`slider-${key}`)) return;
-  const maxTon = 650;
+  let maxTon = 650;
+  if (key === 'drijfmest-koe' && mestsoortenData['drijfmest'] && mestsoortenData['drijfmest']['koe']) {
+    const data = mestsoortenData['drijfmest']['koe'];
+    const maxN = totaalA / data.N_kg_per_ton;
+    const maxP = totaalC / data.P_kg_per_ton;
+    maxTon = Math.floor(Math.min(maxN, maxP));
+  }
   const group = document.createElement('div');
   group.className = 'slider-group';
   group.id = `group-${key}`;
