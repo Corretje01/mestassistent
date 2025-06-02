@@ -168,9 +168,11 @@ function addDynamicSlider(key, label) {
     const [type, animal] = limiterMap[key];
     if (mestsoortenData[type] && mestsoortenData[type][animal]) {
       const data = mestsoortenData[type][animal];
+      if (data.N_kg_per_ton && data.P_kg_per_ton) {
       const maxN = totaalA / data.N_kg_per_ton;
       const maxP = totaalC / data.P_kg_per_ton;
       maxTon = Math.floor(Math.min(maxN, maxP));
+    }
     }
   }
   const group = document.createElement('div');
