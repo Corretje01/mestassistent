@@ -95,7 +95,7 @@ function createStandaardSliders(totaalA, totaalB, totaalC) {
     { id: 'kalium', label: 'Kalium', max: maxKalium, unit: 'kg' },
     { id: 'organisch',       label: 'Organische stof',                 max: 3000,    unit: 'kg' },
     { id: 'kunststikstof',   label: 'Stikstof uit kunstmest',          max: totaalB, unit: 'kg' },
-    { id: 'financieel',      label: 'Geschatte financiële vergoeding', max: 10000,   unit: 'eur' }
+    { id: 'financieel',      label: 'Geschatte kosten', max: 10000,   unit: 'eur' }
   ];
 }
 
