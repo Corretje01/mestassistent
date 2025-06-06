@@ -65,5 +65,34 @@
       "Biogaspotentieel_m3_per_ton": 35.0,
       "Inkoopprijs_per_ton": 32.50
     }
+  },
+  "overig": {
+    "digestaat": {
+      "N_kg_per_ton": 4.5,
+      "P_kg_per_ton": 1.5,
+      "K_kg_per_ton": 5.0,
+      "DS_percent": 8.0,
+      "OS_percent": 60.0,
+      "Biogaspotentieel_m3_per_ton": 0.0,
+      "Inkoopprijs_per_ton": 35.00
+    },
+    "champost": {
+      "N_kg_per_ton": 6.0,
+      "P_kg_per_ton": 3.0,
+      "K_kg_per_ton": 10.0,
+      "DS_percent": 35.0,
+      "OS_percent": 35.0,
+      "Biogaspotentieel_m3_per_ton": 0.0,
+      "Inkoopprijs_per_ton": 1.00
+    },
+    "compost": {
+      "N_kg_per_ton": 7.0,
+      "P_kg_per_ton": 3.0,
+      "K_kg_per_ton": 8.0,
+      "DS_percent": 40.00,
+      "OS_percent": 40.0,
+      "Biogaspotentieel_m3_per_ton": 00.0,
+      "Inkoopprijs_per_ton": 5.00
+    }
   }
 }
