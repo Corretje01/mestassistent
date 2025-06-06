@@ -95,7 +95,7 @@ function createStandaardSliders(totaalA, totaalB, totaalC) {
     { id: 'kalium', label: 'Kalium', max: maxKalium, unit: 'kg' },
     { id: 'organisch',       label: 'Organische stof',                 max: 3000,    unit: 'kg' },
     { id: 'kunststikstof',   label: 'Stikstof uit kunstmest',          max: totaalB, unit: 'kg' },
-    { id: 'financieel',      label: 'Geschatte kosten', max: 10000,   unit: 'eur' }
+    { id: 'financieel',      label: 'Geschatte financiële vergoeding', max: 10000,   unit: 'eur' }
   ];
 }
 
@@ -161,7 +161,10 @@ function addDynamicSlider(key, label) {
     'vastemest-koe': ['vaste_mest', 'koe'],
     'vastemest-geit': ['vaste_mest', 'geit'],
     'vastemest-kip': ['vaste_mest', 'kip'],
-    'vastemest-paard': ['vaste_mest', 'paard']
+    'vastemest-paard': ['vaste_mest', 'paard'],
+    'overig-digestaat': ['overig', 'digestaat'],
+    'overig-champost': ['overig', 'champost'],
+    'overig-compost': ['overig', 'compost']
   };
 
   if (limiterMap[key]) {
@@ -214,7 +217,7 @@ function addDynamicSlider(key, label) {
         OS: ton * (data.OS_percent / 100),
         DS: ton * (data.DS_percent / 100),
         BG: ton * data.biogaspotentieel_m3_per_ton,
-        FIN: ton * (data.Inkoopprijs_per_ton + 10) // inkoopprijs minus €10 transportkosten per ton
+        FIN: ton * (data.Inkoopprijs_per_ton - 10) // inkoopprijs minus €10 transportkosten per ton
       };
       updateStandardSliders();
     }
