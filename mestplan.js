@@ -217,7 +217,7 @@ function addDynamicSlider(key, label) {
         OS: ton * (data.OS_percent / 100),
         DS: ton * (data.DS_percent / 100),
         BG: ton * data.biogaspotentieel_m3_per_ton,
-        FIN: ton * (data.Inkoopprijs_per_ton - 10) // inkoopprijs minus €10 transportkosten per ton
+        FIN: ton * (data.Inkoopprijs_per_ton + 10) // inkoopprijs minus €10 transportkosten per ton
       };
       updateStandardSliders();
     }
