@@ -156,6 +156,10 @@ function updateStandardSliders() {
       } else {
         // Visueel slotje is al aanwezig — geen update toepassen
         console.log(`🔒 Nutriëntslider '${id}' is gelocked; update genegeerd.`);
+
+        // ⏬ VISUELE FEEDBACK TOEVOEGEN
+        sliderEl.classList.add('shake');
+        setTimeout(() => sliderEl.classList.remove('shake'), 300);
       }
     }
   });
