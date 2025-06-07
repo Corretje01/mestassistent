@@ -189,14 +189,24 @@ function verdeelCompensatieOverMestsoorten(vergrendeldeNutrient, veroorzakerKey,
   for (const key of compenseerders) {
     const mest = actieveMestData[key];
     const nutrientPerTon = mest[`${vergrendeldeNutrient}_kg_per_ton`];
+
+    if (!nutrientPerTon || nutrientPerTon === 0) {
+      console.warn(`⚠️ Mestsoort '${key}' heeft geen waarde voor ${vergrendeldeNutrient}; compensatie niet mogelijk.`);
+      wijzigingMogelijk = false;
+      break;
+    }
+
     const deltaTon = -kgPerMestsoort / nutrientPerTon;
     const nieuweTon = mest.ton + deltaTon;
 
     if (nieuweTon < 0 || nieuweTon > 650) {
+      console.warn(`🚫 Compensatie voor '${key}' ongeldig: ${nieuweTon.toFixed(1)} ton`);
       wijzigingMogelijk = false;
       break;
     }
+
     nieuweTonwaarden[key] = nieuweTon;
+    console.log(`✅ Compensatie voor '${key}': ${mest.ton.toFixed(1)} → ${nieuweTon.toFixed(1)} ton`);
   }
 
   if (!wijzigingMogelijk) {
@@ -208,8 +218,9 @@ function verdeelCompensatieOverMestsoorten(vergrendeldeNutrient, veroorzakerKey,
     const slider = document.getElementById(`slider-${key}`);
     const value = document.getElementById(`value-${key}`);
     if (slider && value) {
-      slider.value = Math.round(nieuweTon);
-      value.textContent = `${Math.round(nieuweTon)} / ${slider.max} ton`;
+      const afgerond = Math.round(nieuweTon * 10) / 10;  // afronding op 1 decimaal
+      slider.value = afgerond;
+      value.textContent = `${afgerond} / ${slider.max} ton`;
       slider.dispatchEvent(new Event('input'));
     }
   }
@@ -315,7 +326,7 @@ function addDynamicSlider(key, label) {
       id="slider-${key}"
       min="0"
       max="${maxTon}"
-      step="1"
+      step="0.1"
     />
   `;
   slidersContainer.appendChild(group);
@@ -327,7 +338,7 @@ function addDynamicSlider(key, label) {
   slider.value = 0;
   slider.addEventListener('input', () => {
     const ton = Number(slider.value);
-    valueEl.textContent = `${ton} / ${maxTon} ton`;
+    valueEl.textContent = `${ton.toFixed(1)} / ${maxTon} ton`;
 
     if (actieveMestData[key]) {
       const data = actieveMestData[key];
