@@ -14,6 +14,19 @@ function isLocked(sliderId) {
   return lock?.checked === true;
 }
 
+function formatSliderValue(value, unit, isFinancieel = false) {
+  const formatted = value.toLocaleString('nl-NL', {
+    minimumFractionDigits: isFinancieel ? 0 : 1,
+    maximumFractionDigits: isFinancieel ? 0 : 1
+  });
+
+  if (isFinancieel) {
+    return `€ ${formatted},-`;
+  } else {
+    return `${formatted} ${unit}`;
+  }
+}
+
 const queryParams = getQueryParams();
 const totaalA = Number(queryParams['totaalA']) || null;
 const totaalB = Number(queryParams['totaalB']) || null;
@@ -276,7 +289,10 @@ function updateStandardSliders() {
           : Math.round(value * 10) / 10;  // 1 decimaal
 
         sliderEl.value = afgerond;
-        valueElem.textContent = `${afgerond} / ${sliderEl.max} ${unit}`;
+        const formattedVal = formatSliderValue(afgerond, unit, isFinancieel);
+        const formattedMax = formatSliderValue(Number(sliderEl.max), unit, isFinancieel);
+        valueElem.textContent = `${formattedVal} / ${formattedMax}`;
+
       } else {
         // Visueel slotje is al aanwezig — geen update toepassen
         console.log(`🔒 Nutriëntslider '${id}' is gelocked; update genegeerd.`);
@@ -342,7 +358,7 @@ function addDynamicSlider(key, label) {
   slider.value = 0;
   slider.addEventListener('input', () => {
     const ton = Number(slider.value);
-    valueEl.textContent = `${ton.toFixed(1)} / ${maxTon} ton`;
+    valueEl.textContent = `${formatSliderValue(ton, 'ton')} / ${formatSliderValue(maxTon, 'ton')}`;
 
     if (actieveMestData[key]) {
       const data = actieveMestData[key];
