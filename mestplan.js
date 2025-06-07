@@ -374,10 +374,19 @@ function addDynamicSlider(key, label) {
       const geslaagd = compenseerVergrendeldNutrient(key);
 
       if (geslaagd === false) {
-        // Herstel ton als compensatie is mislukt
+        console.warn(`❌ Compensatie mislukt – wijziging aan '${key}' wordt teruggedraaid.`);
+
+        // Herstel vorige waarde
         slider.value = oudeTon;
         actieveMestData[key].ton = oudeTon;
         valueEl.textContent = `${formatSliderValue(oudeTon, 'ton')} / ${formatSliderValue(maxTon, 'ton')}`;
+
+        // 🔒 Bevries deze mestslider zelf
+        slider.disabled = true;
+        valueEl.classList.add('shake');
+
+        setTimeout(() => valueEl.classList.remove('shake'), 500);
+
         return;
       }
 
