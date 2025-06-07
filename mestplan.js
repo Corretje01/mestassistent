@@ -254,7 +254,7 @@ function updateStandardSliders() {
     }
   }
 
-  const totaalToegestaneN = 300; // ← eventueel dynamisch maken
+  const totaalToegestaneN = Number(document.getElementById('stikstof-doel')?.value) || 0;
   const remainingN = Math.max(0, totaalToegestaneN - totalN);
 
   const kunstmestSlider = document.getElementById('slider-kunststikstof');
