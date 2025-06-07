@@ -244,19 +244,13 @@ function verdeelCompensatieOverMestsoorten(vergrendeldeNutrient, veroorzakerKey,
     return false;
   }
 
-  // Stap 3: sliders aanpassen
+  // Stap 3: nieuwe waardes toepassen via helper
   for (const [key, nieuweTon] of Object.entries(nieuweTonwaarden)) {
-    const slider = document.getElementById(`slider-${key}`);
-    const value = document.getElementById(`value-${key}`);
-    if (slider && value) {
-      const afgerond = Math.round(nieuweTon * 10) / 10;
-      slider.value = afgerond;
-      value.textContent = `${afgerond} / ${slider.max} ton`;
-      slider.dispatchEvent(new Event('input'));
-    }
+    stelMesthoeveelheidIn(key, nieuweTon);
   }
-  updateStandardSliders();
-  
+
+  updateStandardSliders(); // herbereken alle nutriënten
+
   return true;
 }
 
@@ -321,6 +315,33 @@ function updateStandardSliders() {
       }
     }
   });
+}
+
+function stelMesthoeveelheidIn(key, nieuweTon) {
+  if (!actieveMestData[key]) return;
+
+  const data = actieveMestData[key];
+  data.ton = nieuweTon;
+
+  const ton = nieuweTon;
+  const transportkosten = 10; // EUR per ton
+  data.totaal = {
+    N: ton * data.N_kg_per_ton,
+    P: ton * data.P_kg_per_ton,
+    K: ton * data.K_kg_per_ton,
+    OS: ton * (data.OS_percent / 100),
+    DS: ton * (data.DS_percent / 100),
+    BG: ton * data.biogaspotentieel_m3_per_ton,
+    FIN: ton * (data.Inkoopprijs_per_ton + 10)
+  };
+
+  const slider = document.getElementById(`slider-${key}`);
+  const value  = document.getElementById(`value-${key}`);
+  if (slider && value) {
+    const afgerond = Math.round(ton * 10) / 10;
+    slider.value = afgerond;
+    value.textContent = `${afgerond} / ${slider.max} ton`;
+  }
 }
 
 function addDynamicSlider(key, label) {
