@@ -254,7 +254,7 @@ function updateStandardSliders() {
     }
   }
 
-  const totaalToegestaneN = Number(document.getElementById('stikstof-doel')?.value) || 0;
+  const totaalToegestaneN = totaalA;  // ✅ stikstof uit URL-query
   const remainingN = Math.max(0, totaalToegestaneN - totalN);
 
   const kunstmestSlider = document.getElementById('slider-kunststikstof');
@@ -271,39 +271,32 @@ function updateStandardSliders() {
   }
 
   const totalen = [
-    { id: 'stikstof',  value: totalN },
-    { id: 'fosfaat',   value: totalP },
-    { id: 'kalium',    value: totalK },
-    { id: 'organisch', value: totalOS },
+    { id: 'stikstof',   value: totalN },
+    { id: 'fosfaat',    value: totalP },
+    { id: 'kalium',     value: totalK },
+    { id: 'organisch',  value: totalOS },
     { id: 'financieel', value: Object.values(actieveMestData).reduce((sum, m) => sum + (m?.totaal?.FIN || 0), 0) }
   ];
 
-  totalen.forEach(({id, value}) => {
-    const sliderEl = document.getElementById(`slider-${id}`);
+  totalen.forEach(({ id, value }) => {
+    const sliderEl  = document.getElementById(`slider-${id}`);
     const valueElem = document.getElementById(`value-${id}`);
-    const lockElem = document.getElementById(`lock-${id}`);
+    const lockElem  = document.getElementById(`lock-${id}`);
     const unit = standaardSliders.find(s => s.id === id)?.unit || 'kg';
-    const slider = document.getElementById(`slider-${id}`);
-    const valueEl = document.getElementById(`value-${id}`);
-    const lock = document.getElementById(`lock-${id}`);
 
     if (sliderEl && valueElem) {
       if (!isLocked(id)) {
         const isFinancieel = id === 'financieel';
         const afgerond = isFinancieel
-          ? Math.round(value)  // hele euro’s
-          : Math.round(value * 10) / 10;  // 1 decimaal
+          ? Math.round(value)
+          : Math.round(value * 10) / 10;
 
         sliderEl.value = afgerond;
         const formattedVal = formatSliderValue(afgerond, unit, isFinancieel);
         const formattedMax = formatSliderValue(Number(sliderEl.max), unit, isFinancieel);
         valueElem.textContent = `${formattedVal} / ${formattedMax}`;
-
       } else {
-        // Visueel slotje is al aanwezig — geen update toepassen
         console.log(`🔒 Nutriëntslider '${id}' is gelocked; update genegeerd.`);
-
-        // ⏬ VISUELE FEEDBACK TOEVOEGEN
         sliderEl.classList.add('shake');
         setTimeout(() => sliderEl.classList.remove('shake'), 300);
       }
