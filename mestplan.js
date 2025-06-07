@@ -254,6 +254,9 @@ function updateStandardSliders() {
     }
   }
 
+  const totaalToegestaneN = 300; // ← eventueel dynamisch maken
+  const remainingN = Math.max(0, totaalToegestaneN - totalN);
+
   const kunstmestSlider = document.getElementById('slider-kunststikstof');
   const kunstmestValue  = document.getElementById('value-kunststikstof');
   const kunstmestLock   = document.getElementById('lock-kunststikstof');
@@ -261,7 +264,10 @@ function updateStandardSliders() {
   if (kunstmestSlider && kunstmestValue && kunstmestLock && !kunstmestLock.checked) {
     const afgerond = Math.round(remainingN * 10) / 10;
     kunstmestSlider.value = afgerond;
-    kunstmestValue.textContent = `${afgerond} / ${kunstmestSlider.max} kg`;
+
+    const formattedVal = formatSliderValue(afgerond, 'kg');
+    const formattedMax = formatSliderValue(Number(kunstmestSlider.max), 'kg');
+    kunstmestValue.textContent = `${formattedVal} / ${formattedMax}`;
   }
 
   const totalen = [
