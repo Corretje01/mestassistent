@@ -190,7 +190,6 @@ function compenseerVergrendeldeNutriënten(changedKey) {
       return false;
     }
 
-
 function verdeelCompensatie(veroorzakerKey, deltaMap, mestKeys) {
   const compenseerbare = mestKeys.filter(k => k !== veroorzakerKey && !isLocked(k));
   if (compenseerbare.length === 0) return false;
