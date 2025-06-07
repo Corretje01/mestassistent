@@ -381,9 +381,9 @@ function addDynamicSlider(key, label) {
         actieveMestData[key].ton = oudeTon;
         valueEl.textContent = `${formatSliderValue(oudeTon, 'ton')} / ${formatSliderValue(maxTon, 'ton')}`;
 
-        // ✨ Shake-effect voor visuele feedback
-        valueEl.classList.add('shake');
-        setTimeout(() => valueEl.classList.remove('shake'), 500);
+        // ✨ Shake-effect op de SLIDER zelf
+        slider.classList.add('shake');
+        setTimeout(() => slider.classList.remove('shake'), 500);
 
         return;
       }
