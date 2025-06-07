@@ -270,7 +270,11 @@ function updateStandardSliders() {
 
     if (sliderEl && valueElem) {
       if (!isLocked(id)) {
-        const afgerond = Math.round(value * 10) / 10;
+        const isFinancieel = id === 'financieel';
+        const afgerond = isFinancieel
+          ? Math.round(value)  // hele euro’s
+          : Math.round(value * 10) / 10;  // 1 decimaal
+
         sliderEl.value = afgerond;
         valueElem.textContent = `${afgerond} / ${sliderEl.max} ${unit}`;
       } else {
