@@ -9,6 +9,11 @@ function getQueryParams() {
   return params;
 }
 
+function isLocked(sliderId) {
+  const lock = document.getElementById(`lock-${sliderId}`);
+  return lock?.checked === true;
+}
+
 const queryParams = getQueryParams();
 const totaalA = Number(queryParams['totaalA']) || null;
 const totaalB = Number(queryParams['totaalB']) || null;
@@ -143,10 +148,15 @@ function updateStandardSliders() {
     const valueEl = document.getElementById(`value-${id}`);
     const lock = document.getElementById(`lock-${id}`);
 
-    if (sliderEl && valueElem && lockElem && !lockElem.checked) {
-      const rounded = Math.round(value);
-      sliderEl.value = rounded;
-      valueElem.textContent = `${rounded} / ${sliderEl.max} ${unit}`;
+    if (sliderEl && valueElem) {
+      if (!isLocked(id)) {
+        const rounded = Math.round(value);
+        sliderEl.value = rounded;
+        valueElem.textContent = `${rounded} / ${sliderEl.max} ${unit}`;
+      } else {
+        // Visueel slotje is al aanwezig — geen update toepassen
+        console.log(`🔒 Nutriëntslider '${id}' is gelocked; update genegeerd.`);
+      }
     }
   });
 }
