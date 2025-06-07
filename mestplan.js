@@ -121,45 +121,31 @@ const standaardSliders = createStandaardSliders(totaalA, totaalB, totaalC);
 
 standaardSliders.forEach(({id, label, max, unit}) => initSlider(id, label, max, unit));
 
-function compenseerVergrendeldNutrient(changedKey) {
-  const lockedNutrient = 'stikstof';
-  if (!isLocked(lockedNutrient)) return;
+function compenseerVergrendeldeNutriënten(changedKey) {
+  const lockedNutriënten = ['stikstof', 'fosfaat', 'kalium', 'organisch']
+    .filter(nut => isLocked(nut));
+
+  if (lockedNutriënten.length === 0) return true;
 
   const mestKeys = Object.keys(actieveMestData);
-  if (mestKeys.length < 2) {
-    console.warn("🚫 Slechts één mestsoort actief bij gelockte stikstof – wijziging niet toegestaan.");
-    // Terugdraaien van de wijziging
-    const oudeTon = actieveMestData[changedKey]?.ton || 0;
-    stelMesthoeveelheidIn(changedKey, oudeTon);
-    return;
-  }
+  if (mestKeys.length < 2) return false;
 
-  const slider = document.getElementById(`slider-${lockedNutrient}`);
-  const lockedN = Number(slider?.value || 0);
-
-  // ⛳️ Oude waarde opslaan om eventueel terug te kunnen zetten
   const oudeTon = actieveMestData[changedKey]?.ton || 0;
+  const lockedWaarden = getLockedNutriëntenWaarden();
 
-  // Herbereken huidig totaal stikstof
-  const huidigTotaalN = mestKeys.reduce((totaal, key) => {
-    const mest = actieveMestData[key];
-    return totaal + mest.ton * mest.N_kg_per_ton;
-  }, 0);
+  const huidig = berekenTotaleNutriënten();
+  const deltaMap = {};
 
-  const deltaN = huidigTotaalN - lockedN;
-  if (Math.abs(deltaN) < 0.1) return;
-
-  const succes = verdeelCompensatieOverMestsoorten(
-    lockedNutrient,
-    changedKey,
-    deltaN,
-    mestKeys
-  );
-
-  if (!succes) {
-    console.warn(`🔄 Compensatie mislukt – wijziging aan '${changedKey}' wordt teruggedraaid.`);
-    stelMesthoeveelheidIn(changedKey, oudeTon);
+  for (const nut of lockedNutriënten) {
+    deltaMap[nut] = huidig[nut] - lockedWaarden[nut];
+    if (Math.abs(deltaMap[nut]) < 0.1) delete deltaMap[nut]; // tolerantie
   }
+
+  if (Object.keys(deltaMap).length === 0) return true;
+
+  const succes = verdeelCompensatie(changedKey, deltaMap, mestKeys);
+  if (!succes) stelMesthoeveelheidIn(changedKey, oudeTon);
+  return succes;
 }
 
 function verdeelCompensatieOverMestsoorten(nutriënt, veroorzakerKey, delta, mestKeys) {
