@@ -130,7 +130,20 @@ function getLockedNutriëntenWaarden() {
   return waarden;
 }
 
-function berekenTotaleNutriënten() {
+function overschrijdtMaxToegestaneWaarden(nutriënten, nutriëntenInclKunstmest) {
+  if (totaalA && nutriënten.stikstof > totaalA) {
+    return 'stikstof uit dierlijke mest (totaalA overschreden)';
+  }
+  if (totaalC && nutriënten.fosfaat > totaalC) {
+    return 'fosfaat (totaalC overschreden)';
+  }
+  if (totaalB && nutriëntenInclKunstmest.stikstof > totaalB) {
+    return 'totale stikstof (totaalB overschreden)';
+  }
+  return null;
+}
+
+function berekenTotaleNutriënten(inclusiefKunstmest = false) {
   const totals = { stikstof: 0, fosfaat: 0, kalium: 0, organisch: 0 };
   for (const key in actieveMestData) {
     const mest = actieveMestData[key];
@@ -139,6 +152,12 @@ function berekenTotaleNutriënten() {
     totals.kalium   += mest.totaal?.K || 0;
     totals.organisch+= mest.totaal?.OS || 0;
   }
+
+  if (inclusiefKunstmest) {
+    const extraN = Number(document.getElementById('slider-kunststikstof')?.value || 0);
+    totals.stikstof += extraN;
+  }
+
   return totals;
 }
 
@@ -155,19 +174,22 @@ function compenseerVergrendeldeNutriënten(changedKey) {
   const lockedWaarden = getLockedNutriëntenWaarden();
 
   const huidig = berekenTotaleNutriënten();
-  const deltaMap = {};
+  const huidigInclusiefKunstmest = berekenTotaleNutriënten(true);
+  const overschrijding = overschrijdtMaxToegestaneWaarden(huidig, huidigInclusiefKunstmest);
+    if (overschrijding) {
+      console.warn(`🚫 Overschrijding van ${overschrijding} – wijziging geweigerd.`);
+      stelMesthoeveelheidIn(changedKey, oudeTon);
 
-  for (const nut of lockedNutriënten) {
-    deltaMap[nut] = huidig[nut] - lockedWaarden[nut];
-    if (Math.abs(deltaMap[nut]) < 0.1) delete deltaMap[nut]; // tolerantie
-  }
+      // Shake-effect op de mestslider
+      const slider = document.getElementById(`slider-${changedKey}`);
+      if (slider) {
+        slider.classList.add('shake');
+        setTimeout(() => slider.classList.remove('shake'), 400);
+      }
 
-  if (Object.keys(deltaMap).length === 0) return true;
+      return false;
+    }
 
-  const succes = verdeelCompensatie(changedKey, deltaMap, mestKeys);
-  if (!succes) stelMesthoeveelheidIn(changedKey, oudeTon);
-  return succes;
-}
 
 function verdeelCompensatie(veroorzakerKey, deltaMap, mestKeys) {
   const compenseerbare = mestKeys.filter(k => k !== veroorzakerKey && !isLocked(k));
