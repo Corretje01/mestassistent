@@ -154,9 +154,15 @@ function compenseerVergrendeldNutrient(changedKey) {
 }
 
 function verdeelCompensatieOverMestsoorten(vergrendeldeNutrient, veroorzakerKey, deltaKg, actieveKeys) {
-  const compenseerders = actieveKeys.filter(key => key !== veroorzakerKey);
+  const compenseerders = actieveKeys.filter(key =>
+    key !== veroorzakerKey && !isLocked(key)
+  );
 
-  // Stap 1: bereken totale correctiecapaciteit op basis van nutrient per ton
+  if (compenseerders.length === 0) {
+    console.warn("❌ Geen mestsoorten beschikbaar voor compensatie (allemaal gelocked?).");
+    return false;
+  }
+
   let totalCapacity = 0;
   const vermogenPerSoort = {};
 
@@ -172,11 +178,10 @@ function verdeelCompensatieOverMestsoorten(vergrendeldeNutrient, veroorzakerKey,
   }
 
   if (totalCapacity === 0) {
-    console.warn("❌ Geen compenseerbare mestsoorten beschikbaar voor correctie.");
+    console.warn("❌ Geen compenseerbare mestsoorten met bruikbare nutrientwaarden.");
     return false;
   }
 
-  // Stap 2: bereken per mestsoort het benodigde delta in tonnen
   const nieuweTonwaarden = {};
   let wijzigingMogelijk = true;
 
@@ -200,18 +205,13 @@ function verdeelCompensatieOverMestsoorten(vergrendeldeNutrient, veroorzakerKey,
     console.log(`✅ Proportionele correctie voor '${key}': ${mest.ton.toFixed(1)} → ${nieuweTon.toFixed(1)} ton`);
   }
 
-  if (!wijzigingMogelijk) {
-    console.warn("❌ Proportionele compensatie niet mogelijk – wijziging geannuleerd.");
-    return false;
-  }
+  if (!wijzigingMogelijk) return false;
 
-  // Stap 3: nieuwe waardes toepassen via helper
   for (const [key, nieuweTon] of Object.entries(nieuweTonwaarden)) {
     stelMesthoeveelheidIn(key, nieuweTon);
   }
 
-  updateStandardSliders(); // herbereken alle nutriënten
-
+  updateStandardSliders();
   return true;
 }
 
