@@ -194,22 +194,39 @@ function compenseerVergrendeldNutrient(changedKey) {
 
 function verdeelCompensatieOverMestsoorten(vergrendeldeNutrient, veroorzakerKey, deltaKg, actieveKeys) {
   const compenseerders = actieveKeys.filter(key => key !== veroorzakerKey);
-  const kgPerMestsoort = deltaKg / compenseerders.length;
 
+  // Stap 1: bereken totale correctiecapaciteit op basis van nutrient per ton
+  let totalCapacity = 0;
+  const vermogenPerSoort = {};
+
+  for (const key of compenseerders) {
+    const mest = actieveMestData[key];
+    const vermogen = Math.abs(mest[`${vergrendeldeNutrient}_kg_per_ton`] || 0);
+    if (vermogen === 0) {
+      console.warn(`⚠️ Mestsoort '${key}' heeft geen ${vergrendeldeNutrient}_kg_per_ton; overslaan`);
+      continue;
+    }
+    vermogenPerSoort[key] = vermogen;
+    totalCapacity += vermogen;
+  }
+
+  if (totalCapacity === 0) {
+    console.warn("❌ Geen compenseerbare mestsoorten beschikbaar voor correctie.");
+    return false;
+  }
+
+  // Stap 2: bereken per mestsoort het benodigde delta in tonnen
   const nieuweTonwaarden = {};
   let wijzigingMogelijk = true;
 
   for (const key of compenseerders) {
     const mest = actieveMestData[key];
-    const nutrientPerTon = mest[`${vergrendeldeNutrient}_kg_per_ton`];
+    const vermogen = vermogenPerSoort[key];
+    if (!vermogen) continue;
 
-    if (!nutrientPerTon || nutrientPerTon === 0) {
-      console.warn(`⚠️ Mestsoort '${key}' heeft geen waarde voor ${vergrendeldeNutrient}; compensatie niet mogelijk.`);
-      wijzigingMogelijk = false;
-      break;
-    }
-
-    const deltaTon = -kgPerMestsoort / nutrientPerTon;
+    const aandeel = vermogen / totalCapacity;
+    const deltaKgVoorKey = deltaKg * aandeel;
+    const deltaTon = -deltaKgVoorKey / vermogen;
     const nieuweTon = mest.ton + deltaTon;
 
     if (nieuweTon < 0 || nieuweTon > 650) {
@@ -219,7 +236,7 @@ function verdeelCompensatieOverMestsoorten(vergrendeldeNutrient, veroorzakerKey,
     }
 
     nieuweTonwaarden[key] = nieuweTon;
-    console.log(`✅ Compensatie voor '${key}': ${mest.ton.toFixed(1)} → ${nieuweTon.toFixed(1)} ton`);
+    console.log(`✅ Proportionele correctie voor '${key}': ${mest.ton.toFixed(1)} → ${nieuweTon.toFixed(1)} ton`);
   }
 
   if (!wijzigingMogelijk) {
@@ -227,11 +244,12 @@ function verdeelCompensatieOverMestsoorten(vergrendeldeNutrient, veroorzakerKey,
     return false;
   }
 
+  // Stap 3: sliders aanpassen
   for (const [key, nieuweTon] of Object.entries(nieuweTonwaarden)) {
     const slider = document.getElementById(`slider-${key}`);
     const value = document.getElementById(`value-${key}`);
     if (slider && value) {
-      const afgerond = Math.round(nieuweTon * 10) / 10;  // afronding op 1 decimaal
+      const afgerond = Math.round(nieuweTon * 10) / 10;
       slider.value = afgerond;
       value.textContent = `${afgerond} / ${slider.max} ton`;
       slider.dispatchEvent(new Event('input'));
