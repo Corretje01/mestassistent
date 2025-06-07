@@ -128,46 +128,30 @@ function compenseerVergrendeldNutrient(changedKey) {
   const mestKeys = Object.keys(actieveMestData);
   if (mestKeys.length < 2) return;
 
-  const [keyA, keyB] = mestKeys;
-  const changedIsA = changedKey === keyA;
-  const mestA = actieveMestData[changedIsA ? keyA : keyB];
-  const mestB = actieveMestData[changedIsA ? keyB : keyA];
-  const oudeTonA = mestA.ton;
-
-  const nPerTonA = mestA.N_kg_per_ton;
-  const nPerTonB = mestB.N_kg_per_ton;
-
   const slider = document.getElementById(`slider-${lockedNutrient}`);
   const lockedN = Number(slider?.value || 0);
 
-  const huidigA = mestA.ton;
-  const huidigB = mestB.ton;
-  const totaalNuitA = huidigA * nPerTonA;
-  const totaalNuitB = huidigB * nPerTonB;
-  const huidigTotaalN = totaalNuitA + totaalNuitB;
+  const huidigTotaalN = mestKeys.reduce((totaal, key) => {
+    const mest = actieveMestData[key];
+    return totaal + mest.ton * mest.N_kg_per_ton;
+  }, 0);
 
-  if (mestKeys.length === 2) {
-    const deltaN = huidigTotaalN - lockedN;
-    if (Math.abs(deltaN) < 0.1) return;
+  const deltaN = huidigTotaalN - lockedN;
+  if (Math.abs(deltaN) < 0.1) return;
 
-    const deltaB = -deltaN / nPerTonB;
-    const nieuwB = huidigB + deltaB;
+  const succes = verdeelCompensatieOverMestsoorten(
+    lockedNutrient,
+    changedKey,
+    deltaN,
+    mestKeys
+  );
 
-    if (nieuwB < 0 || nieuwB > 650) {
-      console.warn("❌ Compensatie niet mogelijk, zou mesthoeveelheid negatief maken.");
-      return;
-    }
-
-    const sliderB = document.getElementById(`slider-${changedIsA ? keyB : keyA}`);
-    const valueB = document.getElementById(`value-${changedIsA ? keyB : keyA}`);
-    if (sliderB && valueB) {
-      sliderB.value = Math.round(nieuwB);
-      valueB.textContent = `${Math.round(nieuwB)} / ${sliderB.max} ton`;
-      sliderB.dispatchEvent(new Event('input'));
-    }
-
-    return;
+  if (!succes) {
+    console.warn(`🔄 Wijziging aan '${changedKey}' is teruggedraaid vanwege onhaalbare compensatie.`);
+    const origineleTon = actieveMestData[changedKey]?.ton || 0;
+    stelMesthoeveelheidIn(changedKey, origineleTon);
   }
+}
 
   // Nieuw: 3 of meer mestsoorten actief
   const deltaN = huidigTotaalN - lockedN;
