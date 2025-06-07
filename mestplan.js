@@ -255,7 +255,8 @@ function verdeelCompensatieOverMestsoorten(vergrendeldeNutrient, veroorzakerKey,
       slider.dispatchEvent(new Event('input'));
     }
   }
-
+  updateStandardSliders();
+  
   return true;
 }
 
