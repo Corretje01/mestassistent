@@ -264,22 +264,22 @@ function updateStandardSliders() {
   if (kunstmestSlider && kunstmestValue && kunstmestLock && !kunstmestLock.checked) {
     const afgerond = Math.round(remainingN * 10) / 10;
     kunstmestSlider.value = afgerond;
-
-    const formattedVal = formatSliderValue(afgerond, 'kg');
-    const formattedMax = formatSliderValue(Number(kunstmestSlider.max), 'kg');
-    kunstmestValue.textContent = `${formattedVal} / ${formattedMax}`;
+    kunstmestValue.textContent = `${afgerond.toLocaleString('nl-NL')} / ${Number(kunstmestSlider.max).toLocaleString('nl-NL')} kg`;
   }
 
   const totalen = [
-    { id: 'stikstof',  value: totalN },
-    { id: 'fosfaat',   value: totalP },
-    { id: 'kalium',    value: totalK },
+    { id: 'stikstof', value: totalN },
+    { id: 'fosfaat', value: totalP },
+    { id: 'kalium', value: totalK },
     { id: 'organisch', value: totalOS },
-    { id: 'financieel', value: Object.values(actieveMestData).reduce((sum, m) => sum + (m?.totaal?.FIN || 0), 0) }
+    {
+      id: 'financieel',
+      value: Object.values(actieveMestData).reduce((sum, m) => sum + (m?.totaal?.FIN || 0), 0)
+    }
   ];
 
   totalen.forEach(({ id, value }) => {
-    const sliderEl  = document.getElementById(`slider-${id}`);
+    const sliderEl = document.getElementById(`slider-${id}`);
     const valueElem = document.getElementById(`value-${id}`);
     const unit = standaardSliders.find(s => s.id === id)?.unit || 'kg';
 
@@ -291,11 +291,11 @@ function updateStandardSliders() {
           : Math.round(value * 10) / 10;
 
         sliderEl.value = afgerond;
+
         const formattedVal = formatSliderValue(afgerond, unit, isFinancieel);
         const formattedMax = formatSliderValue(Number(sliderEl.max), unit, isFinancieel);
         valueElem.textContent = `${formattedVal} / ${formattedMax}`;
       } else {
-        console.log(`🔒 Nutriëntslider '${id}' is gelocked; update genegeerd.`);
         sliderEl.classList.add('shake');
         setTimeout(() => sliderEl.classList.remove('shake'), 300);
       }
