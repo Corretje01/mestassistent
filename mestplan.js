@@ -254,7 +254,7 @@ function updateStandardSliders() {
     }
   }
 
-  const totaalToegestaneN = totaalA;  // ✅ stikstof uit URL-query
+  const totaalToegestaneN = totaalA || 0;
   const remainingN = Math.max(0, totaalToegestaneN - totalN);
 
   const kunstmestSlider = document.getElementById('slider-kunststikstof');
@@ -271,17 +271,16 @@ function updateStandardSliders() {
   }
 
   const totalen = [
-    { id: 'stikstof',   value: totalN },
-    { id: 'fosfaat',    value: totalP },
-    { id: 'kalium',     value: totalK },
-    { id: 'organisch',  value: totalOS },
+    { id: 'stikstof',  value: totalN },
+    { id: 'fosfaat',   value: totalP },
+    { id: 'kalium',    value: totalK },
+    { id: 'organisch', value: totalOS },
     { id: 'financieel', value: Object.values(actieveMestData).reduce((sum, m) => sum + (m?.totaal?.FIN || 0), 0) }
   ];
 
   totalen.forEach(({ id, value }) => {
     const sliderEl  = document.getElementById(`slider-${id}`);
     const valueElem = document.getElementById(`value-${id}`);
-    const lockElem  = document.getElementById(`lock-${id}`);
     const unit = standaardSliders.find(s => s.id === id)?.unit || 'kg';
 
     if (sliderEl && valueElem) {
