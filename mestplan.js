@@ -20,7 +20,7 @@ function formatSliderValue(value, unit, isFinancieel = false) {
     maximumFractionDigits: isFinancieel ? 0 : 1
   });
 
-  if (isFinancieel) {
+  if (isFinancieel || unit === 'eur') {
     return `€ ${formatted},-`;
   } else {
     return `${formatted} ${unit}`;
@@ -400,7 +400,7 @@ function initSlider(id, label, max, unit) {
     <div class="slider-header">
       <input type="checkbox" id="lock-${id}" />
       <label for="slider-${id}">${label || (id.charAt(0).toUpperCase() + id.slice(1))}</label>
-      <span class="value" id="value-${id}">0 / ${Math.round(max)} ${unit}</span>
+      <span class="value" id="value-${id}">0</span>
     </div>
     <input
       type="range"
@@ -415,12 +415,21 @@ function initSlider(id, label, max, unit) {
   const slider  = group.querySelector(`#slider-${id}`);
   const valueEl = group.querySelector(`#value-${id}`);
 
-  slider.value = Math.round(max / 2);
-  valueEl.textContent = `${slider.value} / ${Math.round(max)} ${unit}`;
+  const isFinancieel = id === 'financieel';
+
+  slider.value = isFinancieel
+    ? 0
+    : Math.round(max * 5) / 10;  // default op halve max voor niet-financieel
+
+  const formattedStart = formatSliderValue(Number(slider.value), unit, isFinancieel);
+  const formattedMax   = formatSliderValue(Number(slider.max), unit, isFinancieel);
+  valueEl.textContent = `${formattedStart} / ${formattedMax}`;
 
   slider.addEventListener('input', () => {
-    const val = Math.min(Number(slider.value), Math.round(max));
-    valueEl.textContent = `${val} / ${Math.round(max)} ${unit}`;
+    const val = Number(slider.value);
+    const formattedVal = formatSliderValue(val, unit, isFinancieel);
+    const formattedMax = formatSliderValue(Number(slider.max), unit, isFinancieel);
+    valueEl.textContent = `${formattedVal} / ${formattedMax}`;
   });
 
   const lockInput = group.querySelector(`#lock-${id}`);
