@@ -108,6 +108,50 @@ const standaardSliders = createStandaardSliders(totaalA, totaalB, totaalC);
 
 standaardSliders.forEach(({id, label, max, unit}) => initSlider(id, label, max, unit));
 
+function compenseerVergrendeldNutrient(changedKey) {
+  const lockedNutrient = 'stikstof';
+  if (!isLocked(lockedNutrient)) return;
+
+  const mestKeys = Object.keys(actieveMestData);
+  if (mestKeys.length !== 2) return;
+
+  const [keyA, keyB] = mestKeys;
+  const changedIsA = changedKey === keyA;
+  const mestA = actieveMestData[changedIsA ? keyA : keyB];
+  const mestB = actieveMestData[changedIsA ? keyB : keyA];
+
+  const nPerTonA = mestA.N_kg_per_ton;
+  const nPerTonB = mestB.N_kg_per_ton;
+
+  const slider = document.getElementById(`slider-${lockedNutrient}`);
+  const lockedN = Number(slider?.value || 0);
+
+  const huidigA = mestA.ton;
+  const huidigB = mestB.ton;
+  const totaalNuitA = huidigA * nPerTonA;
+  const totaalNuitB = huidigB * nPerTonB;
+  const huidigTotaalN = totaalNuitA + totaalNuitB;
+
+  const deltaN = huidigTotaalN - lockedN;
+  if (Math.abs(deltaN) < 0.1) return;
+
+  const deltaB = -deltaN / nPerTonB;
+  const nieuwB = huidigB + deltaB;
+
+  if (nieuwB < 0 || nieuwB > 650) {
+    console.warn("❌ Compensatie niet mogelijk, zou mesthoeveelheid negatief maken.");
+    return;
+  }
+
+  const sliderB = document.getElementById(`slider-${changedIsA ? keyB : keyA}`);
+  const valueB = document.getElementById(`value-${changedIsA ? keyB : keyA}`);
+  if (sliderB && valueB) {
+    sliderB.value = Math.round(nieuwB);
+    valueB.textContent = `${Math.round(nieuwB)} / ${sliderB.max} ton`;
+    sliderB.dispatchEvent(new Event('input'));
+  }
+}
+
 function updateStandardSliders() {
   let totalN = 0, totalP = 0, totalK = 0, totalOS = 0;
 
@@ -233,6 +277,9 @@ function addDynamicSlider(key, label) {
         BG: ton * data.biogaspotentieel_m3_per_ton,
         FIN: ton * (data.Inkoopprijs_per_ton + 10) // inkoopprijs plus €10 transportkosten per ton
       };
+
+      compenseerVergrendeldNutrient(key);
+  
       updateStandardSliders();
     }
   });
