@@ -162,65 +162,51 @@ function compenseerVergrendeldNutrient(changedKey) {
   }
 }
 
-function verdeelCompensatieOverMestsoorten(vergrendeldeNutrient, veroorzakerKey, deltaKg, actieveKeys) {
-  const compenseerders = actieveKeys.filter(key =>
-    key !== veroorzakerKey && !isLocked(key)
-  );
+function verdeelCompensatieOverMestsoorten(nutriënt, veroorzakerKey, delta, mestKeys) {
+  const actieveKeys = mestKeys.filter(key => key !== veroorzakerKey && !isLocked(key));
+  if (actieveKeys.length === 0) return false;
 
-  if (compenseerders.length === 0) {
-    console.warn("❌ Geen mestsoorten beschikbaar voor compensatie (allemaal gelocked?).");
-    return false;
-  }
-
-  let totalCapacity = 0;
-  const vermogenPerSoort = {};
-
-  for (const key of compenseerders) {
+  const totalNutriëntPerTon = actieveKeys.reduce((sum, key) => {
     const mest = actieveMestData[key];
-    const vermogen = Math.abs(mest[`${vergrendeldeNutrient}_kg_per_ton`] || 0);
-    if (vermogen === 0) {
-      console.warn(`⚠️ Mestsoort '${key}' heeft geen ${vergrendeldeNutrient}_kg_per_ton; overslaan`);
-      continue;
-    }
-    vermogenPerSoort[key] = vermogen;
-    totalCapacity += vermogen;
-  }
+    return sum + mest[`${nutriënt[0].toUpperCase()}_kg_per_ton`] || 0;
+  }, 0);
 
-  if (totalCapacity === 0) {
-    console.warn("❌ Geen compenseerbare mestsoorten met bruikbare nutrientwaarden.");
-    return false;
-  }
+  if (totalNutriëntPerTon === 0) return false;
 
-  const nieuweTonwaarden = {};
-  let wijzigingMogelijk = true;
-
-  for (const key of compenseerders) {
+  for (const key of actieveKeys) {
     const mest = actieveMestData[key];
-    const vermogen = vermogenPerSoort[key];
-    if (!vermogen) continue;
+    const nPerTon = mest[`${nutriënt[0].toUpperCase()}_kg_per_ton`] || 0;
+    const aandeel = nPerTon / totalNutriëntPerTon;
+    const correctie = -delta * aandeel / nPerTon; // hoeveelheid ton aanpassing
 
-    const aandeel = vermogen / totalCapacity;
-    const deltaKgVoorKey = deltaKg * aandeel;
-    const deltaTon = -deltaKgVoorKey / vermogen;
-    const nieuweTon = mest.ton + deltaTon;
+    const nieuwTon = mest.ton + correctie;
 
-    if (nieuweTon < 0 || nieuweTon > 650) {
-      console.warn(`🚫 Compensatie voor '${key}' ongeldig: ${nieuweTon.toFixed(1)} ton`);
-      wijzigingMogelijk = false;
-      break;
+    // blokkeer negatieve of onrealistische waarden
+    if (nieuwTon < 0 || nieuwTon > 650) return false;
+
+    // ✅ werk data + slider bij
+    mest.ton = nieuwTon;
+    const transportkosten = 10;
+    mest.totaal = {
+      N: nieuwTon * mest.N_kg_per_ton,
+      P: nieuwTon * mest.P_kg_per_ton,
+      K: nieuwTon * mest.K_kg_per_ton,
+      OS: nieuwTon * (mest.OS_percent / 100),
+      DS: nieuwTon * (mest.DS_percent / 100),
+      BG: nieuwTon * mest.biogaspotentieel_m3_per_ton,
+      FIN: nieuwTon * (mest.Inkoopprijs_per_ton + 10)
+    };
+
+    // ✅ update slider-UI
+    const slider = document.getElementById(`slider-${key}`);
+    const value  = document.getElementById(`value-${key}`);
+    if (slider && value) {
+      slider.value = Math.round(nieuwTon * 10) / 10;
+      value.textContent = `${slider.value} / ${slider.max} ton`;
+      slider.dispatchEvent(new Event('input'));
     }
-
-    nieuweTonwaarden[key] = nieuweTon;
-    console.log(`✅ Proportionele correctie voor '${key}': ${mest.ton.toFixed(1)} → ${nieuweTon.toFixed(1)} ton`);
   }
 
-  if (!wijzigingMogelijk) return false;
-
-  for (const [key, nieuweTon] of Object.entries(nieuweTonwaarden)) {
-    stelMesthoeveelheidIn(key, nieuweTon);
-  }
-
-  updateStandardSliders();
   return true;
 }
 
