@@ -11,7 +11,11 @@ function getQueryParams() {
 
 function isLocked(sliderId) {
   const lock = document.getElementById(`lock-${sliderId}`);
-  return lock?.checked === true;
+  if (!lock) {
+    console.warn(`⚠️ Lock-element voor '${sliderId}' niet gevonden`);
+    return false;
+  }
+  return lock.checked === true;
 }
 
 function formatSliderValue(value, unit, isFinancieel = false) {
@@ -105,6 +109,10 @@ document.querySelectorAll('.mest-btn').forEach(btn => {
   });
 });
 
+function getNutriëntenWaarden({ inclusiefKunstmest = false } = {}) {
+  return berekenTotaleNutriënten(inclusiefKunstmest);
+}
+
 function createStandaardSliders(totaalA, totaalB, totaalC) {
   const maxKalium = totaalB * 1.25;
   return [
@@ -168,14 +176,21 @@ function compenseerVergrendeldeNutriënten(changedKey) {
   if (lockedNutriënten.length === 0) return true;
 
   const mestKeys = Object.keys(actieveMestData);
-  if (mestKeys.length < 2) return false;
+  if (mestKeys.length < 2) {
+    console.warn("⛔️ Compensatie niet mogelijk – slechts één mestsoort actief.");
+    return false;
+  }
 
   const oudeTon = actieveMestData[changedKey]?.ton || 0;
   const lockedWaarden = getLockedNutriëntenWaarden();
 
-  const huidig = berekenTotaleNutriënten();
-  const huidigInclusiefKunstmest = berekenTotaleNutriënten(true);
-  const overschrijding = overschrijdtMaxToegestaneWaarden(huidig, huidigInclusiefKunstmest);
+  const berekend = {
+    zonder: berekenTotaleNutriënten(),
+    met: berekenTotaleNutriënten(true)
+  };
+
+  const overschrijding = overschrijdtMaxToegestaneWaarden(berekend.zonder, berekend.met);
+  
     if (overschrijding) {
       console.warn(`🚫 Overschrijding van ${overschrijding} – wijziging geweigerd.`);
       stelMesthoeveelheidIn(changedKey, oudeTon);
