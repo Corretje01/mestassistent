@@ -185,8 +185,8 @@ function compenseerVergrendeldeNutriënten(changedKey) {
   const lockedWaarden = getLockedNutriëntenWaarden();
 
   const berekend = {
-    zonder: berekenTotaleNutriënten(),
-    met: berekenTotaleNutriënten(true)
+    zonder: getNutriëntenWaarden(),
+    met: getNutriëntenWaarden({ inclusiefKunstmest: true })
   };
 
   const overschrijding = overschrijdtMaxToegestaneWaarden(berekend.zonder, berekend.met);
@@ -307,23 +307,25 @@ function updateStandardSliders() {
   });
 }
 
-function stelMesthoeveelheidIn(key, nieuweTon) {
-  if (!actieveMestData[key]) return;
-
-  const data = actieveMestData[key];
-  data.ton = nieuweTon;
-
-  const ton = nieuweTon;
-  const transportkosten = 10; // EUR per ton
-  data.totaal = {
+function berekenMestWaardenPerTon(data, ton) {
+  const transportkosten = 10;
+  return {
     N: ton * data.N_kg_per_ton,
     P: ton * data.P_kg_per_ton,
     K: ton * data.K_kg_per_ton,
     OS: ton * (data.OS_percent / 100),
     DS: ton * (data.DS_percent / 100),
     BG: ton * data.biogaspotentieel_m3_per_ton,
-    FIN: ton * (data.Inkoopprijs_per_ton + 10)
+    FIN: ton * (data.Inkoopprijs_per_ton + transportkosten)
   };
+}
+
+function stelMesthoeveelheidIn(key, nieuweTon) {
+  if (!actieveMestData[key]) return;
+
+  const data = actieveMestData[key];
+  data.ton = nieuweTon;
+  data.totaal = berekenMestWaardenPerTon(data, nieuweTon);
 
   const slider = document.getElementById(`slider-${key}`);
   const value  = document.getElementById(`value-${key}`);
@@ -393,17 +395,7 @@ function addDynamicSlider(key, label) {
       // Probeer ton toe te passen
       actieveMestData[key].ton = nieuweTon;
       const data = actieveMestData[key];
-      const ton = nieuweTon;
-      const transportkosten = 10;
-      data.totaal = {
-        N: ton * data.N_kg_per_ton,
-        P: ton * data.P_kg_per_ton,
-        K: ton * data.K_kg_per_ton,
-        OS: ton * (data.OS_percent / 100),
-        DS: ton * (data.DS_percent / 100),
-        BG: ton * data.biogaspotentieel_m3_per_ton,
-        FIN: ton * (data.Inkoopprijs_per_ton + 10)
-      };
+      data.totaal = berekenMestWaardenPerTon(data, nieuweTon);
 
       const geslaagd = compenseerVergrendeldeNutriënten(key);
 
