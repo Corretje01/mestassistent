@@ -222,36 +222,30 @@ function compenseerVergrendeldeNutriënten(changedKey) {
   return true;
 }
 
-function verdeelCompensatie(veroorzakerKey, deltaMapOrigineel, mestKeys) {
+function verdeelCompensatie(veroorzakerKey, deltaMap, mestKeys) {
+  const nutriëntKeyMap = {
+    stikstof:  'N_kg_per_ton',
+    fosfaat:   'P_kg_per_ton',
+    kalium:    'K_kg_per_ton',
+    organisch: 'OS_percent' // percentage, dus bij berekening delen door 100
+  };
+
   const compenseerbare = mestKeys.filter(k => k !== veroorzakerKey && !isLocked(k));
-  if (compenseerbare.length === 0) {
-    console.warn('❌ Geen compenseerbare mestsoorten beschikbaar.');
-    return false;
-  }
-
-  const significantie = 0.2;  // minimale afwijking in kg voor correctie
-  const maxCorrectiePerMest = 100; // max ton die een enkele mest mag aanpassen
-
-  // Filter deltaMap op relevante afwijkingen
-  const deltaMap = {};
-  for (const nut in deltaMapOrigineel) {
-    if (Math.abs(deltaMapOrigineel[nut]) >= significantie) {
-      deltaMap[nut] = deltaMapOrigineel[nut];
-    }
-  }
-  if (Object.keys(deltaMap).length === 0) {
-    console.log('🔍 Geen significante afwijking om te compenseren.');
-    return true; // geen actie nodig
-  }
+  if (compenseerbare.length === 0) return false;
 
   const correcties = {};
   for (const key of compenseerbare) correcties[key] = 0;
 
   for (const nut in deltaMap) {
-    const veld = `${nut[0].toUpperCase()}_kg_per_ton`;
+    const keyInData = nutriëntKeyMap[nut];
+    if (!keyInData) continue;
 
-    const totalPerTon = compenseerbare.reduce((sum, key) =>
-      sum + (actieveMestData[key][veld] || 0), 0);
+    // Bereken de totale 'kg per ton' van alle compenseerbare mestsoorten voor dit nutriënt
+    const totalPerTon = compenseerbare.reduce((sum, key) => {
+      const val = actieveMestData[key]?.[keyInData] || 0;
+      return sum + (nut === 'organisch' ? val / 100 : val); // OS is %
+    }, 0);
+
     if (totalPerTon === 0) {
       console.warn(`⚠️ Geen nutriëntinhoud voor ${nut} in compenseerbare mest.`);
       return false;
@@ -259,32 +253,28 @@ function verdeelCompensatie(veroorzakerKey, deltaMapOrigineel, mestKeys) {
 
     for (const key of compenseerbare) {
       const mest = actieveMestData[key];
-      const val = mest[veld] || 0;
+      let val = mest?.[keyInData] || 0;
+      if (nut === 'organisch') val = val / 100; // OS is in %
+
       const aandeel = val / totalPerTon;
-      const brutocorrectie = -deltaMap[nut] * aandeel / (val || 1);
-      const correctie = Math.max(Math.min(brutocorrectie, maxCorrectiePerMest), -maxCorrectiePerMest);
+      const correctie = -deltaMap[nut] * aandeel / (val || 1); // bescherm tegen 0
       correcties[key] += correctie;
     }
   }
 
-  // Valideer correcties
+  // Valideer alle correcties
   for (const key of compenseerbare) {
-    const huidig = actieveMestData[key].ton;
-    const nieuw = huidig + correcties[key];
-    if (nieuw < 0 || nieuw > 650) {
-      console.warn(`🚫 Correctie van ${key} zou buiten bereik vallen: ${nieuw} ton`);
-      return false;
-    }
+    const nieuwTon = actieveMestData[key].ton + correcties[key];
+    if (nieuwTon < 0 || nieuwTon > 650) return false;
   }
 
-  // Pas correcties toe
+  // Voer correcties uit
   for (const key of compenseerbare) {
     const mest = actieveMestData[key];
     const nieuwTon = mest.ton + correcties[key];
     stelMesthoeveelheidIn(key, nieuwTon);
   }
 
-  console.log('✅ Compensatie uitgevoerd:', correcties);
   return true;
 }
 
