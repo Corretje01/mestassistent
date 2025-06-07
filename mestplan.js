@@ -357,7 +357,7 @@ function addDynamicSlider(key, label) {
         FIN: ton * (data.Inkoopprijs_per_ton + 10)
       };
 
-      const geslaagd = compenseerVergrendeldNutrient(key);
+      const geslaagd = compenseerVergrendeldeNutriënten(key);
 
       if (geslaagd === false) {
         console.warn(`❌ Compensatie mislukt – wijziging aan '${key}' wordt teruggedraaid.`);
