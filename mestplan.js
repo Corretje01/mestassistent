@@ -28,9 +28,9 @@ function formatSliderValue(value, unit, isFinancieel = false) {
 }
 
 const queryParams = getQueryParams();
-const totaalA = Number(queryParams['totaalA']) || null;
-const totaalB = Number(queryParams['totaalB']) || null;
-const totaalC = Number(queryParams['totaalC']) || null;
+const totaalA = queryParams['totaalA'] !== undefined ? Number(queryParams['totaalA']) : null;
+const totaalB = queryParams['totaalB'] !== undefined ? Number(queryParams['totaalB']) : null;
+const totaalC = queryParams['totaalC'] !== undefined ? Number(queryParams['totaalC']) : null;
 
 if (!totaalA || !totaalB || !totaalC) {
   alert("Waarschuwing: de gebruiksruimte kon niet worden overgenomen van stap 1.");
