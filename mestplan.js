@@ -148,49 +148,38 @@ function compenseerVergrendeldeNutriënten(changedKey) {
   return succes;
 }
 
-function verdeelCompensatieOverMestsoorten(nutriënt, veroorzakerKey, delta, mestKeys) {
-  const actieveKeys = mestKeys.filter(key => key !== veroorzakerKey && !isLocked(key));
-  if (actieveKeys.length === 0) return false;
+function verdeelCompensatie(veroorzakerKey, deltaMap, mestKeys) {
+  const compenseerbare = mestKeys.filter(k => k !== veroorzakerKey && !isLocked(k));
+  if (compenseerbare.length === 0) return false;
 
-  const totalNutriëntPerTon = actieveKeys.reduce((sum, key) => {
-    const mest = actieveMestData[key];
-    return sum + mest[`${nutriënt[0].toUpperCase()}_kg_per_ton`] || 0;
-  }, 0);
+  const correcties = {};
+  for (const key of compenseerbare) correcties[key] = 0;
 
-  if (totalNutriëntPerTon === 0) return false;
+  for (const nut in deltaMap) {
+    const totalPerTon = compenseerbare.reduce((sum, key) =>
+      sum + (actieveMestData[key][`${nut[0].toUpperCase()}_kg_per_ton`] || 0), 0);
+    if (totalPerTon === 0) return false;
 
-  for (const key of actieveKeys) {
-    const mest = actieveMestData[key];
-    const nPerTon = mest[`${nutriënt[0].toUpperCase()}_kg_per_ton`] || 0;
-    const aandeel = nPerTon / totalNutriëntPerTon;
-    const correctie = -delta * aandeel / nPerTon; // hoeveelheid ton aanpassing
-
-    const nieuwTon = mest.ton + correctie;
-
-    // blokkeer negatieve of onrealistische waarden
-    if (nieuwTon < 0 || nieuwTon > 650) return false;
-
-    // ✅ werk data + slider bij
-    mest.ton = nieuwTon;
-    const transportkosten = 10;
-    mest.totaal = {
-      N: nieuwTon * mest.N_kg_per_ton,
-      P: nieuwTon * mest.P_kg_per_ton,
-      K: nieuwTon * mest.K_kg_per_ton,
-      OS: nieuwTon * (mest.OS_percent / 100),
-      DS: nieuwTon * (mest.DS_percent / 100),
-      BG: nieuwTon * mest.biogaspotentieel_m3_per_ton,
-      FIN: nieuwTon * (mest.Inkoopprijs_per_ton + 10)
-    };
-
-    // ✅ update slider-UI
-    const slider = document.getElementById(`slider-${key}`);
-    const value  = document.getElementById(`value-${key}`);
-    if (slider && value) {
-      slider.value = Math.round(nieuwTon * 10) / 10;
-      value.textContent = `${slider.value} / ${slider.max} ton`;
-      slider.dispatchEvent(new Event('input'));
+    for (const key of compenseerbare) {
+      const mest = actieveMestData[key];
+      const val = mest[`${nut[0].toUpperCase()}_kg_per_ton`] || 0;
+      const aandeel = val / totalPerTon;
+      const correctie = -deltaMap[nut] * aandeel / (val || 1); // bescherm tegen 0
+      correcties[key] += correctie;
     }
+  }
+
+  // Valideer alle correcties
+  for (const key of compenseerbare) {
+    const nieuwTon = actieveMestData[key].ton + correcties[key];
+    if (nieuwTon < 0 || nieuwTon > 650) return false;
+  }
+
+  // Voer correcties uit
+  for (const key of compenseerbare) {
+    const mest = actieveMestData[key];
+    const nieuwTon = mest.ton + correcties[key];
+    stelMesthoeveelheidIn(key, nieuwTon);
   }
 
   return true;
