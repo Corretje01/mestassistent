@@ -246,9 +246,9 @@ function updateStandardSliders() {
   const kunstmestLock   = document.getElementById('lock-kunststikstof');
 
   if (kunstmestSlider && kunstmestValue && kunstmestLock && !kunstmestLock.checked) {
-    const remainingN = Math.max(0, totaalB - totalN);
-    kunstmestSlider.value = Math.round(remainingN);
-    kunstmestValue.textContent = `${Math.round(remainingN)} / ${kunstmestSlider.max} kg`;
+    const afgerond = Math.round(remainingN * 10) / 10;
+    kunstmestSlider.value = afgerond;
+    kunstmestValue.textContent = `${afgerond} / ${kunstmestSlider.max} kg`;
   }
 
   const totalen = [
@@ -270,9 +270,9 @@ function updateStandardSliders() {
 
     if (sliderEl && valueElem) {
       if (!isLocked(id)) {
-        const rounded = Math.round(value);
-        sliderEl.value = rounded;
-        valueElem.textContent = `${rounded} / ${sliderEl.max} ${unit}`;
+        const afgerond = Math.round(value * 10) / 10;
+        sliderEl.value = afgerond;
+        valueElem.textContent = `${afgerond} / ${sliderEl.max} ${unit}`;
       } else {
         // Visueel slotje is al aanwezig — geen update toepassen
         console.log(`🔒 Nutriëntslider '${id}' is gelocked; update genegeerd.`);
@@ -387,7 +387,7 @@ function initSlider(id, label, max, unit) {
       id="slider-${id}"
       min="0"
       max="${Math.round(max)}"
-      step="1"
+      step="0.1"
     />
   `;
   slidersContainer.appendChild(group);
