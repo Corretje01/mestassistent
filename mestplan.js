@@ -153,29 +153,6 @@ function compenseerVergrendeldNutrient(changedKey) {
   }
 }
 
-  // Nieuw: 3 of meer mestsoorten actief
-  const deltaN = huidigTotaalN - lockedN;
-  if (Math.abs(deltaN) < 0.1) return;
-
-  const succes = verdeelCompensatieOverMestsoorten(
-    lockedNutrient,
-    changedKey,
-    deltaN,
-    mestKeys
-  );
-
-  if (!succes) {
-    console.warn(`🔄 Wijziging aan '${changedKey}' is teruggedraaid vanwege onhaalbare compensatie.`);
-    const slider = document.getElementById(`slider-${changedKey}`);
-    const value = document.getElementById(`value-${changedKey}`);
-    if (slider && value && oudeTonA !== undefined) {
-      slider.value = Math.round(oudeTonA);
-      value.textContent = `${Math.round(oudeTonA)} / ${slider.max} ton`;
-      slider.dispatchEvent(new Event('input'));
-    }
-  }
-}
-
 function verdeelCompensatieOverMestsoorten(vergrendeldeNutrient, veroorzakerKey, deltaKg, actieveKeys) {
   const compenseerders = actieveKeys.filter(key => key !== veroorzakerKey);
 
