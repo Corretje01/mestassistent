@@ -121,6 +121,15 @@ const standaardSliders = createStandaardSliders(totaalA, totaalB, totaalC);
 
 standaardSliders.forEach(({id, label, max, unit}) => initSlider(id, label, max, unit));
 
+function getLockedNutriëntenWaarden() {
+  const waarden = {};
+  ['stikstof', 'fosfaat', 'kalium', 'organisch'].forEach(nut => {
+    const slider = document.getElementById(`slider-${nut}`);
+    waarden[nut] = Number(slider?.value || 0);
+  });
+  return waarden;
+}
+
 function compenseerVergrendeldeNutriënten(changedKey) {
   const lockedNutriënten = ['stikstof', 'fosfaat', 'kalium', 'organisch']
     .filter(nut => isLocked(nut));
