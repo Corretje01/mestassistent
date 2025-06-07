@@ -381,10 +381,8 @@ function addDynamicSlider(key, label) {
         actieveMestData[key].ton = oudeTon;
         valueEl.textContent = `${formatSliderValue(oudeTon, 'ton')} / ${formatSliderValue(maxTon, 'ton')}`;
 
-        // 🔒 Bevries deze mestslider zelf
-        slider.disabled = true;
+        // ✨ Shake-effect voor visuele feedback
         valueEl.classList.add('shake');
-
         setTimeout(() => valueEl.classList.remove('shake'), 500);
 
         return;
