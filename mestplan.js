@@ -366,13 +366,15 @@ function addDynamicSlider(key, label) {
 
   slider.value = 0;
   slider.addEventListener('input', () => {
-    const ton = Number(slider.value);
-    valueEl.textContent = `${formatSliderValue(ton, 'ton')} / ${formatSliderValue(maxTon, 'ton')}`;
+    const nieuweTon = Number(slider.value);
+    const oudeTon = actieveMestData[key]?.ton || 0;
 
     if (actieveMestData[key]) {
+      // Probeer ton toe te passen
+      actieveMestData[key].ton = nieuweTon;
       const data = actieveMestData[key];
-      data.ton = ton;
-      const transportkosten = 10; // EUR per ton (voor toekomstige uitbreiding)
+      const ton = nieuweTon;
+      const transportkosten = 10;
       data.totaal = {
         N: ton * data.N_kg_per_ton,
         P: ton * data.P_kg_per_ton,
@@ -380,11 +382,21 @@ function addDynamicSlider(key, label) {
         OS: ton * (data.OS_percent / 100),
         DS: ton * (data.DS_percent / 100),
         BG: ton * data.biogaspotentieel_m3_per_ton,
-        FIN: ton * (data.Inkoopprijs_per_ton + 10) // inkoopprijs plus €10 transportkosten per ton
+        FIN: ton * (data.Inkoopprijs_per_ton + 10)
       };
 
-      compenseerVergrendeldNutrient(key);
-  
+      const geslaagd = compenseerVergrendeldNutrient(key);
+
+      if (geslaagd === false) {
+        // Herstel ton als compensatie is mislukt
+        slider.value = oudeTon;
+        actieveMestData[key].ton = oudeTon;
+        valueEl.textContent = `${formatSliderValue(oudeTon, 'ton')} / ${formatSliderValue(maxTon, 'ton')}`;
+        return;
+      }
+
+      // Bij succes: werk UI bij
+      valueEl.textContent = `${formatSliderValue(nieuweTon, 'ton')} / ${formatSliderValue(maxTon, 'ton')}`;
       updateStandardSliders();
     }
   });
