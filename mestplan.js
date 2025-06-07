@@ -345,7 +345,7 @@ function stelMesthoeveelheidIn(key, nieuweTon) {
   const slider = document.getElementById(`slider-${key}`);
   const value  = document.getElementById(`value-${key}`);
   if (slider && value) {
-    const afgerond = Math.round(ton * 10) / 10;
+    const afgerond = Math.round(nieuweTon * 10) / 10;
     slider.value = afgerond;
     value.textContent = `${afgerond} / ${slider.max} ton`;
   }
