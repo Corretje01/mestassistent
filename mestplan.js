@@ -126,11 +126,21 @@ function compenseerVergrendeldNutrient(changedKey) {
   if (!isLocked(lockedNutrient)) return;
 
   const mestKeys = Object.keys(actieveMestData);
-  if (mestKeys.length < 2) return;
+  if (mestKeys.length < 2) {
+    console.warn("🚫 Slechts één mestsoort actief bij gelockte stikstof – wijziging niet toegestaan.");
+    // Terugdraaien van de wijziging
+    const oudeTon = actieveMestData[changedKey]?.ton || 0;
+    stelMesthoeveelheidIn(changedKey, oudeTon);
+    return;
+  }
 
   const slider = document.getElementById(`slider-${lockedNutrient}`);
   const lockedN = Number(slider?.value || 0);
 
+  // ⛳️ Oude waarde opslaan om eventueel terug te kunnen zetten
+  const oudeTon = actieveMestData[changedKey]?.ton || 0;
+
+  // Herbereken huidig totaal stikstof
   const huidigTotaalN = mestKeys.reduce((totaal, key) => {
     const mest = actieveMestData[key];
     return totaal + mest.ton * mest.N_kg_per_ton;
@@ -147,9 +157,8 @@ function compenseerVergrendeldNutrient(changedKey) {
   );
 
   if (!succes) {
-    console.warn(`🔄 Wijziging aan '${changedKey}' is teruggedraaid vanwege onhaalbare compensatie.`);
-    const origineleTon = actieveMestData[changedKey]?.ton || 0;
-    stelMesthoeveelheidIn(changedKey, origineleTon);
+    console.warn(`🔄 Compensatie mislukt – wijziging aan '${changedKey}' wordt teruggedraaid.`);
+    stelMesthoeveelheidIn(changedKey, oudeTon);
   }
 }
 
