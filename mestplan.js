@@ -185,17 +185,29 @@ function compenseerVergrendeldeNutriënten(changedKey) {
   const lockedWaarden = getLockedNutriëntenWaarden();
 
   const berekend = {
-    zonder: getNutriëntenWaarden(),
-    met: getNutriëntenWaarden({ inclusiefKunstmest: true })
+    zonder: berekenTotaleNutriënten(),
+    met: berekenTotaleNutriënten(true)
   };
 
-  const overschrijding = overschrijdtMaxToegestaneWaarden(berekend.zonder, berekend.met);
-  
-    if (overschrijding) {
-      console.warn(`🚫 Overschrijding van ${overschrijding} – wijziging geweigerd.`);
+  // 👉 STAP 1B: Blokkeer verandering van gelockte waarden
+  for (const nut of lockedNutriënten) {
+    if (Math.abs(berekend.met[nut] - lockedWaarden[nut]) > 0.01) {
+      console.warn(`🔒 Vergrendeld nutriënt '${nut}' zou veranderen – poging tot compensatie...`);
+
+      // 👉 STAP 2A: Probeer eerst te compenseren via andere mestsoorten
+      const deltaMap = {};
+      deltaMap[nut] = berekend.met[nut] - lockedWaarden[nut];
+
+      const gecompenseerd = verdeelCompensatie(changedKey, deltaMap, mestKeys);
+      if (gecompenseerd) {
+        console.log(`✅ Compensatie succesvol toegepast voor '${nut}'.`);
+        return true;
+      }
+
+      // ❌ Compensatie faalt – wijzig terugdraaien
+      console.warn(`❌ Compensatie niet mogelijk – wijziging wordt teruggedraaid.`);
       stelMesthoeveelheidIn(changedKey, oudeTon);
 
-      // Shake-effect op de mestslider
       const slider = document.getElementById(`slider-${changedKey}`);
       if (slider) {
         slider.classList.add('shake');
@@ -204,6 +216,9 @@ function compenseerVergrendeldeNutriënten(changedKey) {
 
       return false;
     }
+  }
+
+  // ✅ Geen probleem – verandering toegestaan
   return true;
 }
 
