@@ -130,6 +130,18 @@ function getLockedNutriëntenWaarden() {
   return waarden;
 }
 
+function berekenTotaleNutriënten() {
+  const totals = { stikstof: 0, fosfaat: 0, kalium: 0, organisch: 0 };
+  for (const key in actieveMestData) {
+    const mest = actieveMestData[key];
+    totals.stikstof += mest.totaal?.N || 0;
+    totals.fosfaat  += mest.totaal?.P || 0;
+    totals.kalium   += mest.totaal?.K || 0;
+    totals.organisch+= mest.totaal?.OS || 0;
+  }
+  return totals;
+}
+
 function compenseerVergrendeldeNutriënten(changedKey) {
   const lockedNutriënten = ['stikstof', 'fosfaat', 'kalium', 'organisch']
     .filter(nut => isLocked(nut));
