@@ -113,12 +113,13 @@ function compenseerVergrendeldNutrient(changedKey) {
   if (!isLocked(lockedNutrient)) return;
 
   const mestKeys = Object.keys(actieveMestData);
-  if (mestKeys.length !== 2) return;
+  if (mestKeys.length < 2) return;
 
   const [keyA, keyB] = mestKeys;
   const changedIsA = changedKey === keyA;
   const mestA = actieveMestData[changedIsA ? keyA : keyB];
   const mestB = actieveMestData[changedIsA ? keyB : keyA];
+  const oudeTonA = mestA.ton;
 
   const nPerTonA = mestA.N_kg_per_ton;
   const nPerTonB = mestB.N_kg_per_ton;
@@ -132,24 +133,88 @@ function compenseerVergrendeldNutrient(changedKey) {
   const totaalNuitB = huidigB * nPerTonB;
   const huidigTotaalN = totaalNuitA + totaalNuitB;
 
-  const deltaN = huidigTotaalN - lockedN;
-  if (Math.abs(deltaN) < 0.1) return;
+  if (mestKeys.length === 2) {
+    const deltaN = huidigTotaalN - lockedN;
+    if (Math.abs(deltaN) < 0.1) return;
 
-  const deltaB = -deltaN / nPerTonB;
-  const nieuwB = huidigB + deltaB;
+    const deltaB = -deltaN / nPerTonB;
+    const nieuwB = huidigB + deltaB;
 
-  if (nieuwB < 0 || nieuwB > 650) {
-    console.warn("❌ Compensatie niet mogelijk, zou mesthoeveelheid negatief maken.");
+    if (nieuwB < 0 || nieuwB > 650) {
+      console.warn("❌ Compensatie niet mogelijk, zou mesthoeveelheid negatief maken.");
+      return;
+    }
+
+    const sliderB = document.getElementById(`slider-${changedIsA ? keyB : keyA}`);
+    const valueB = document.getElementById(`value-${changedIsA ? keyB : keyA}`);
+    if (sliderB && valueB) {
+      sliderB.value = Math.round(nieuwB);
+      valueB.textContent = `${Math.round(nieuwB)} / ${sliderB.max} ton`;
+      sliderB.dispatchEvent(new Event('input'));
+    }
+
     return;
   }
 
-  const sliderB = document.getElementById(`slider-${changedIsA ? keyB : keyA}`);
-  const valueB = document.getElementById(`value-${changedIsA ? keyB : keyA}`);
-  if (sliderB && valueB) {
-    sliderB.value = Math.round(nieuwB);
-    valueB.textContent = `${Math.round(nieuwB)} / ${sliderB.max} ton`;
-    sliderB.dispatchEvent(new Event('input'));
+  // Nieuw: 3 of meer mestsoorten actief
+  const deltaN = huidigTotaalN - lockedN;
+  if (Math.abs(deltaN) < 0.1) return;
+
+  const succes = verdeelCompensatieOverMestsoorten(
+    lockedNutrient,
+    changedKey,
+    deltaN,
+    mestKeys
+  );
+
+  if (!succes) {
+    console.warn(`🔄 Wijziging aan '${changedKey}' is teruggedraaid vanwege onhaalbare compensatie.`);
+    const slider = document.getElementById(`slider-${changedKey}`);
+    const value = document.getElementById(`value-${changedKey}`);
+    if (slider && value && oudeTonA !== undefined) {
+      slider.value = Math.round(oudeTonA);
+      value.textContent = `${Math.round(oudeTonA)} / ${slider.max} ton`;
+      slider.dispatchEvent(new Event('input'));
+    }
   }
+}
+
+function verdeelCompensatieOverMestsoorten(vergrendeldeNutrient, veroorzakerKey, deltaKg, actieveKeys) {
+  const compenseerders = actieveKeys.filter(key => key !== veroorzakerKey);
+  const kgPerMestsoort = deltaKg / compenseerders.length;
+
+  const nieuweTonwaarden = {};
+  let wijzigingMogelijk = true;
+
+  for (const key of compenseerders) {
+    const mest = actieveMestData[key];
+    const nutrientPerTon = mest[`${vergrendeldeNutrient}_kg_per_ton`];
+    const deltaTon = -kgPerMestsoort / nutrientPerTon;
+    const nieuweTon = mest.ton + deltaTon;
+
+    if (nieuweTon < 0 || nieuweTon > 650) {
+      wijzigingMogelijk = false;
+      break;
+    }
+    nieuweTonwaarden[key] = nieuweTon;
+  }
+
+  if (!wijzigingMogelijk) {
+    console.warn("❌ Proportionele compensatie niet mogelijk – wijziging geannuleerd.");
+    return false;
+  }
+
+  for (const [key, nieuweTon] of Object.entries(nieuweTonwaarden)) {
+    const slider = document.getElementById(`slider-${key}`);
+    const value = document.getElementById(`value-${key}`);
+    if (slider && value) {
+      slider.value = Math.round(nieuweTon);
+      value.textContent = `${Math.round(nieuweTon)} / ${slider.max} ton`;
+      slider.dispatchEvent(new Event('input'));
+    }
+  }
+
+  return true;
 }
 
 function updateStandardSliders() {
