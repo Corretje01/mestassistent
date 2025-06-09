@@ -179,7 +179,7 @@ function compenseerVergrendeldeNutriënten(changedKey, oudeTonHandmatig) {
     return false;
   }
 
-  const oudeTon = oudeTonHandmatig ?? actieveMestData[changedKey]?.ton || 0;
+  const oudeTon = (oudeTonHandmatig ?? actieveMestData[changedKey]?.ton) || 0;
   const nieuweTon = actieveMestData[changedKey]?.ton || oudeTon;
   const deltaTon = nieuweTon - oudeTon;
 
