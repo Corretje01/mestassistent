@@ -112,10 +112,17 @@ function getNutriëntenWaarden({ inclusiefKunstmest = false } = {}) {
   return berekenTotaleNutriënten(inclusiefKunstmest);
 }
 
+function bepaalMaxStikstofDierlijk() {
+  const geselecteerdeKunstmest = Number(document.getElementById('slider-kunststikstof')?.value || 0);
+  return Math.min(totaalA, totaalB - geselecteerdeKunstmest);
+}
+
 function createStandaardSliders(totaalA, totaalB, totaalC) {
   const maxKalium = totaalB * 1.25;
+  const maxStikstofDierlijk = bepaalMaxStikstofDierlijk();
+
   return [
-    { id: 'stikstof',        label: 'Stikstof uit dierlijke mest',     max: totaalA,     unit: 'kg' },
+    { id: 'stikstof',        label: 'Stikstof uit dierlijke mest',     max: maxStikstofDierlijk, unit: 'kg' },
     { id: 'fosfaat',         label: 'Fosfaat',                         max: totaalC,     unit: 'kg' },
     { id: 'kalium',          label: 'Kalium',                          max: maxKalium,   unit: 'kg' },
     { id: 'organisch',       label: 'Organische stof',                 max: 3000,        unit: 'kg' },
@@ -127,6 +134,13 @@ function createStandaardSliders(totaalA, totaalB, totaalC) {
 const standaardSliders = createStandaardSliders(totaalA, totaalB, totaalC);
 
 standaardSliders.forEach(({id, label, max, unit}) => initSlider(id, label, max, unit));
+
+const kunstmestSlider = document.getElementById('slider-kunststikstof');
+if (kunstmestSlider) {
+  kunstmestSlider.addEventListener('input', () => {
+    updateMaxStikstofSlider();
+  });
+}
 
 function getLockedNutriëntenWaarden() {
   const waarden = {};
@@ -311,6 +325,24 @@ function verdeelCompensatie(veroorzakerKey, deltaMap, mestKeys) {
   }
 
   return true;
+}
+
+function updateMaxStikstofSlider() {
+  const geselecteerdeKunstmest = Number(document.getElementById('slider-kunststikstof')?.value || 0);
+  const stikstofSlider = document.getElementById('slider-stikstof');
+  const valueEl = document.getElementById('value-stikstof');
+
+  if (!stikstofSlider || !valueEl) return;
+
+  const nieuweMax = Math.min(totaalA, totaalB - geselecteerdeKunstmest);
+  stikstofSlider.max = nieuweMax;
+
+  const huidigeWaarde = Number(stikstofSlider.value);
+  const afgerond = Math.round(huidigeWaarde * 10) / 10;
+  const formattedVal = formatSliderValue(afgerond, 'kg');
+  const formattedMax = formatSliderValue(nieuweMax, 'kg');
+
+  valueEl.textContent = `${formattedVal} / ${formattedMax}`;
 }
 
 function updateStandardSliders() {
