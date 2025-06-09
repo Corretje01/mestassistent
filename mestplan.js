@@ -168,7 +168,7 @@ function berekenTotaleNutriënten(inclusiefKunstmest = false) {
   return totals;
 }
 
-function compenseerVergrendeldeNutriënten(changedKey, oudeTon) {
+function compenseerVergrendeldeNutriënten(changedKey, oudeTonHandmatig) {
   const lockedNutriënten = ['stikstof', 'fosfaat', 'kalium', 'organisch']
     .filter(nut => isLocked(nut));
   if (lockedNutriënten.length === 0) return true;
@@ -441,7 +441,7 @@ function addDynamicSlider(key, label) {
   // Slider event
   slider.addEventListener('input', () => {
     const nieuweTon = Number(slider.value);
-    const oudeTon = actieveMestData[key]?.ton || 0;
+    const oudeTon = oudeTonHandmatig ?? actieveMestData[changedKey]?.ton || 0;
 
     if (Math.abs(nieuweTon - oudeTon) < 0.0001) return;
 
