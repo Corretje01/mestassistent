@@ -257,10 +257,13 @@ function verdeelCompensatie(veroorzakerKey, deltaMap, mestKeys) {
       if (nut === 'organisch') val = val / 100; // OS is in %
 
       const aandeel = val / totalPerTon;
-      const correctie = -deltaMap[nut] * aandeel / (val || 1); // bescherm tegen 0
+      if (val === 0) return false; // extra bescherming tegen onverwachte situaties
+      const correctie = -deltaMap[nut] * aandeel / val;
       correcties[key] += correctie;
     }
   }
+
+  console.log("🧪 Compensatievoorstel:", correcties);
 
   // Valideer alle correcties
   for (const key of compenseerbare) {
