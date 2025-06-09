@@ -224,65 +224,70 @@ function compenseerVergrendeldeNutriënten(changedKey) {
   return false;
 }
 
-function verdeelCompensatie(veroorzakerKey, deltaMap, mestKeys) {
+function compenseerVergrendeldeNutriënten(changedKey) {
+  const lockedNutriënten = ['stikstof', 'fosfaat', 'kalium', 'organisch']
+    .filter(nut => isLocked(nut));
+  if (lockedNutriënten.length === 0) return true;
+
+  const mestKeys = Object.keys(actieveMestData);
+  if (mestKeys.length < 2) {
+    console.warn("⛔️ Compensatie niet mogelijk – slechts één mestsoort actief.");
+    return false;
+  }
+
+  const oudeTon = actieveMestData[changedKey]?.ton || 0;
+  const nieuweTon = Number(document.getElementById(`slider-${changedKey}`)?.value || oudeTon);
+  const deltaTon = nieuweTon - oudeTon;
+
+  if (Math.abs(deltaTon) < 0.0001) {
+    return true; // geen werkelijke wijziging
+  }
+
+  const mest = actieveMestData[changedKey];
+  const deltaMap = {};
+
   const nutriëntKeyMap = {
     stikstof:  'N_kg_per_ton',
     fosfaat:   'P_kg_per_ton',
     kalium:    'K_kg_per_ton',
-    organisch: 'OS_percent' // percentage → eerst delen door 100
+    organisch: 'OS_percent' // als % → delen door 100
   };
 
-  const compenseerbare = mestKeys.filter(k => k !== veroorzakerKey && !isLocked(k));
-  if (compenseerbare.length === 0) return false;
-
-  const correcties = {};
-  for (const key of compenseerbare) correcties[key] = 0;
-
-  for (const nut in deltaMap) {
+  for (const nut of lockedNutriënten) {
     const keyInData = nutriëntKeyMap[nut];
     if (!keyInData) continue;
 
-    const totalBijdrage = compenseerbare.reduce((sum, key) => {
-      const val = actieveMestData[key]?.[keyInData] || 0;
-      return sum + (nut === 'organisch' ? val / 100 : val);
-    }, 0);
+    let gehalte = mest[keyInData] || 0;
+    if (nut === 'organisch') gehalte = gehalte / 100;
 
-    if (totalBijdrage === 0) {
-      console.warn(`⚠️ Geen inhoud voor ${nut} in compenseerbare mest.`);
-      return false;
-    }
-
-    for (const key of compenseerbare) {
-      const mest = actieveMestData[key];
-      let bijdrage = mest?.[keyInData] || 0;
-      if (nut === 'organisch') bijdrage = bijdrage / 100;
-
-      const aandeel = bijdrage / totalBijdrage;
-      const delta = deltaMap[nut]; // positief = teveel → omlaag
-      const correctieTon = -1 * delta * aandeel / (bijdrage || 1);
-
-      correcties[key] += correctieTon;
+    const verschil = deltaTon * gehalte;
+    if (Math.abs(verschil) > 0.01) {
+      deltaMap[nut] = verschil;
+      console.warn(`🔒 Vergrendeld nutriënt '${nut}' zou veranderen – verschil: ${verschil.toFixed(2)} → poging tot compensatie...`);
     }
   }
 
-  // Valideer
-  for (const key of compenseerbare) {
-    const huidig = actieveMestData[key].ton;
-    const nieuw = huidig + correcties[key];
-    if (nieuw < 0 || nieuw > 650) {
-      console.warn(`⛔️ Correctie voor '${key}' ongeldig (${nieuw.toFixed(1)} ton) – buiten bereik.`);
-      return false;
-    }
+  if (Object.keys(deltaMap).length === 0) {
+    return true; // geen gelockte waarden die veranderen
   }
 
-  console.log("🧪 Compensatievoorstel:", correcties);
-
-  for (const key of compenseerbare) {
-    const nieuwTon = actieveMestData[key].ton + correcties[key];
-    stelMesthoeveelheidIn(key, nieuwTon);
+  const gecompenseerd = verdeelCompensatie(changedKey, deltaMap, mestKeys);
+  if (gecompenseerd) {
+    console.log(`✅ Compensatie succesvol toegepast.`);
+    return true;
   }
 
-  return true;
+  // ❌ Compensatie mislukt – wijzig terugdraaien
+  console.warn(`❌ Compensatie niet mogelijk – wijziging wordt teruggedraaid.`);
+  stelMesthoeveelheidIn(changedKey, oudeTon);
+
+  const slider = document.getElementById(`slider-${changedKey}`);
+  if (slider) {
+    slider.classList.add('shake');
+    setTimeout(() => slider.classList.remove('shake'), 400);
+  }
+
+  return false;
 }
 
 function updateStandardSliders() {
