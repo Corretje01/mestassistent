@@ -526,11 +526,7 @@ function initSlider(id, label, max, unit) {
   const slider  = group.querySelector(`#slider-${id}`);
   const valueEl = group.querySelector(`#value-${id}`);
 
-  const isFinancieel = id === 'financieel';
-
-  slider.value = isFinancieel
-    ? 0
-    : Math.round(max * 5) / 10;  // default op halve max voor niet-financieel
+  slider.value = 0;
 
   const formattedStart = formatSliderValue(Number(slider.value), unit, isFinancieel);
   const formattedMax   = formatSliderValue(Number(slider.max), unit, isFinancieel);
