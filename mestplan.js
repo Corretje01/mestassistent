@@ -185,41 +185,43 @@ function compenseerVergrendeldeNutriënten(changedKey) {
   const lockedWaarden = getLockedNutriëntenWaarden();
 
   const berekend = {
-    zonder: berekenTotaleNutriënten(),
-    met: berekenTotaleNutriënten(true)
+    zonder: berekenTotaleNutriënten(),           // zonder kunstmest
+    met:    berekenTotaleNutriënten(true)        // met kunstmest en aangepaste mesthoeveelheid
   };
 
-  // 👉 STAP 1B: Blokkeer verandering van gelockte waarden
+  // 👉 Verzamel alle afwijkingen op gelockte nutriënten
+  const deltaMap = {};
   for (const nut of lockedNutriënten) {
-    if (Math.abs(berekend.met[nut] - lockedWaarden[nut]) > 0.01) {
-      console.warn(`🔒 Vergrendeld nutriënt '${nut}' zou veranderen – poging tot compensatie...`);
-
-      // 👉 STAP 2A: Probeer eerst te compenseren via andere mestsoorten
-      const deltaMap = {};
-      deltaMap[nut] = berekend.met[nut] - lockedWaarden[nut];
-
-      const gecompenseerd = verdeelCompensatie(changedKey, deltaMap, mestKeys);
-      if (gecompenseerd) {
-        console.log(`✅ Compensatie succesvol toegepast voor '${nut}'.`);
-        return true;
-      }
-
-      // ❌ Compensatie faalt – wijzig terugdraaien
-      console.warn(`❌ Compensatie niet mogelijk – wijziging wordt teruggedraaid.`);
-      stelMesthoeveelheidIn(changedKey, oudeTon);
-
-      const slider = document.getElementById(`slider-${changedKey}`);
-      if (slider) {
-        slider.classList.add('shake');
-        setTimeout(() => slider.classList.remove('shake'), 400);
-      }
-
-      return false;
+    const verschil = berekend.met[nut] - lockedWaarden[nut];
+    if (Math.abs(verschil) > 0.01) {
+      deltaMap[nut] = verschil;
+      console.warn(`🔒 Vergrendeld nutriënt '${nut}' zou veranderen – verschil: ${verschil.toFixed(2)} → poging tot compensatie...`);
     }
   }
 
-  // ✅ Geen probleem – verandering toegestaan
-  return true;
+  // ✅ Als geen gelockte waarden afwijken: wijzig is toegestaan
+  if (Object.keys(deltaMap).length === 0) {
+    return true;
+  }
+
+  // 👉 Probeer te compenseren
+  const gecompenseerd = verdeelCompensatie(changedKey, deltaMap, mestKeys);
+  if (gecompenseerd) {
+    console.log(`✅ Compensatie succesvol toegepast.`);
+    return true;
+  }
+
+  // ❌ Compensatie mislukt – wijzig terugdraaien
+  console.warn(`❌ Compensatie niet mogelijk – wijziging wordt teruggedraaid.`);
+  stelMesthoeveelheidIn(changedKey, oudeTon);
+
+  const slider = document.getElementById(`slider-${changedKey}`);
+  if (slider) {
+    slider.classList.add('shake');
+    setTimeout(() => slider.classList.remove('shake'), 400);
+  }
+
+  return false;
 }
 
 function verdeelCompensatie(veroorzakerKey, deltaMap, mestKeys) {
@@ -227,7 +229,7 @@ function verdeelCompensatie(veroorzakerKey, deltaMap, mestKeys) {
     stikstof:  'N_kg_per_ton',
     fosfaat:   'P_kg_per_ton',
     kalium:    'K_kg_per_ton',
-    organisch: 'OS_percent' // percentage, dus delen door 100
+    organisch: 'OS_percent' // percentage → eerst delen door 100
   };
 
   const compenseerbare = mestKeys.filter(k => k !== veroorzakerKey && !isLocked(k));
@@ -236,49 +238,52 @@ function verdeelCompensatie(veroorzakerKey, deltaMap, mestKeys) {
   const correcties = {};
   for (const key of compenseerbare) correcties[key] = 0;
 
+  // 👉 Loop door elk vergrendeld nutriënt waarvoor compensatie nodig is
   for (const nut in deltaMap) {
-    if (!isLocked(nut)) continue; // 🔒 Alleen vergrendelde nutriënten compenseren
-
     const keyInData = nutriëntKeyMap[nut];
     if (!keyInData) continue;
 
-    const totalPerTon = compenseerbare.reduce((sum, key) => {
+    // ⛳️ Totale beschikbare bijdrage van compenseerbare mestsoorten (kg/ton of %)
+    const totalBijdrage = compenseerbare.reduce((sum, key) => {
       const val = actieveMestData[key]?.[keyInData] || 0;
       return sum + (nut === 'organisch' ? val / 100 : val);
     }, 0);
 
-    if (totalPerTon === 0) {
-      console.warn(`⚠️ Geen nutriëntinhoud voor ${nut} in compenseerbare mest.`);
+    if (totalBijdrage === 0) {
+      console.warn(`⚠️ Geen nutriëntinhoud voor ${nut} in compenseerbare mestsoorten.`);
       return false;
     }
 
+    // ➗ Verdeeld evenredig over mestsoorten met bijdrage naar verhouding
     for (const key of compenseerbare) {
       const mest = actieveMestData[key];
-      let val = mest?.[keyInData] || 0;
-      if (nut === 'organisch') val /= 100;
+      let bijdrage = mest?.[keyInData] || 0;
+      if (nut === 'organisch') bijdrage = bijdrage / 100;
 
-      const aandeel = val / totalPerTon;
-      const benodigdeKg = deltaMap[nut] * aandeel;
-      const correctieInTon = -benodigdeKg / (val || 1); // 🔁 kg → ton
+      const aandeel = bijdrage / totalBijdrage;
+      const gewensteDeltaNut = deltaMap[nut]; // positief = teveel → dus negatieve correctie
+      const benodigdeTonnen = -gewensteDeltaNut * aandeel / (bijdrage || 1); // bescherming tegen 0
 
-      correcties[key] += correctieInTon;
+      correcties[key] += benodigdeTonnen;
     }
   }
 
-  // 💡 Debug: toon voorgestelde correcties
-  console.log("🧪 Compensatievoorstel:", correcties);
-
-  // Valideer of alle correcties realistisch zijn
+  // ✅ Valideer alle correcties
   for (const key of compenseerbare) {
-    const huidigTon = actieveMestData[key].ton;
-    const nieuwTon = huidigTon + correcties[key];
-    if (nieuwTon < -0.01 || nieuwTon > 650) return false; // Tolerantie voor afronding
+    const huidig = actieveMestData[key].ton;
+    const nieuw = huidig + correcties[key];
+    if (nieuw < 0 || nieuw > 650) {
+      console.warn(`⛔️ Correctie voor '${key}' ongeldig (${nieuw.toFixed(1)} ton) – buiten grenzen.`);
+      return false;
+    }
   }
 
-  // Voer correcties uit
+  // 🧪 Debug output
+  console.log("🧪 Compensatievoorstel:", correcties);
+
+  // ✅ Voer correcties uit
   for (const key of compenseerbare) {
-    const mest = actieveMestData[key];
-    const nieuwTon = mest.ton + correcties[key];
+    const nieuwTon = actieveMestData[key].ton + correcties[key];
     stelMesthoeveelheidIn(key, nieuwTon);
   }
 
