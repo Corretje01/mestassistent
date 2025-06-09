@@ -409,49 +409,48 @@ function updateStandardSliders() {
     }
   }
 
-        // 🔄 Update de max-waarde van stikstof uit dierlijke mest (na kunstmestslider)
-        const stikstofSlider = document.getElementById('slider-stikstof');
-        const stikstofValue  = document.getElementById('value-stikstof');
+      // 🔄 Update de max-waarde van stikstof uit dierlijke mest (na kunstmestslider)
+      const stikstofSlider = document.getElementById('slider-stikstof');
+      const stikstofValue  = document.getElementById('value-stikstof');
 
-        if (stikstofSlider && stikstofValue) {
-          const huidigeWaarde = Number(stikstofSlider.value || 0);
-          const berekendeMax = bepaalMaxStikstofDierlijk();
+      if (stikstofSlider && stikstofValue) {
+         const huidigeWaarde = Number(stikstofSlider.value || 0);
+         const berekendeMax = bepaalMaxStikstofDierlijk();
 
-          const veiligeMax = isLocked('stikstof')
-            ? Math.max(huidigeWaarde, berekendeMax)  // verlaag max niet onder lockwaarde
-            : berekendeMax;
+         const veiligeMax = isLocked('stikstof')
+           ? Math.max(huidigeWaarde, berekendeMax)  // verlaag max niet onder lockwaarde
+           : berekendeMax;
 
-          stikstofSlider.max = veiligeMax;
+         stikstofSlider.max = veiligeMax;
 
-          // ✅ Alleen aanpassen als niet gelocked
-          if (!isLocked('stikstof')) {
-            stikstofSlider.value = Math.min(huidigeWaarde, veiligeMax);
-          } else if (huidigeWaarde > veiligeMax) {
-            // ❗️Kunstmest beïnvloedt locked stikstof → shake kunstmest
-            const kunstSlider = document.getElementById('slider-kunststikstof');
-            const kunstValue  = document.getElementById('value-kunststikstof');
+         // ✅ Alleen aanpassen als niet gelocked
+         if (!isLocked('stikstof')) {
+           stikstofSlider.value = Math.min(huidigeWaarde, veiligeMax);
+         } else if (huidigeWaarde > veiligeMax) {
+           // ❗️Kunstmest beïnvloedt locked stikstof → shake kunstmest
+           const kunstSlider = document.getElementById('slider-kunststikstof');
+           const kunstValue  = document.getElementById('value-kunststikstof');
 
-            if (kunstSlider && kunstValue) {
-              kunstSlider.classList.add('shake');
-              setTimeout(() => kunstSlider.classList.remove('shake'), 400);
+           if (kunstSlider && kunstValue) {
+             kunstSlider.classList.add('shake');
+             setTimeout(() => kunstSlider.classList.remove('shake'), 400);
 
-              const maxKunstmest = Math.max(0, totaalB - huidigeWaarde);
-              kunstSlider.value = maxKunstmest;
+             const maxKunstmest = Math.max(0, totaalB - huidigeWaarde);
+             kunstSlider.value = maxKunstmest;
 
-              const formattedVal = formatSliderValue(maxKunstmest, 'kg');
-              const formattedMax = formatSliderValue(Number(kunstSlider.max), 'kg');
-              kunstValue.textContent = `${formattedVal} / ${formattedMax}`;
-            }
-          }
-
-          // 🎯 UI-bijwerking
-          const afgerond = Math.round(Number(stikstofSlider.value) * 10) / 10;
-          const formattedVal = formatSliderValue(afgerond, 'kg');
-          const formattedMax = formatSliderValue(veiligeMax, 'kg');
-          stikstofValue.textContent = `${formattedVal} / ${formattedMax}`;
-        }
-      }
-    }
+             const formattedVal = formatSliderValue(maxKunstmest, 'kg');
+             const formattedMax = formatSliderValue(Number(kunstSlider.max), 'kg');
+             kunstValue.textContent = `${formattedVal} / ${formattedMax}`;
+           }
+         }
+      
+         // 🎯 UI-bijwerking
+         const afgerond = Math.round(Number(stikstofSlider.value) * 10) / 10;
+         const formattedVal = formatSliderValue(afgerond, 'kg');
+         const formattedMax = formatSliderValue(veiligeMax, 'kg');
+         stikstofValue.textContent = `${formattedVal} / ${formattedMax}`;
+       }
+    }  
   }
 }
 
