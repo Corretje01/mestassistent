@@ -303,24 +303,25 @@ function verdeelCompensatie(veroorzakerKey, deltaMap, mestKeys) {
 }
 
 function updateStandardSliders() {
-  let totalN = 0, totalP = 0, totalK = 0, totalOS = 0;
+  let totalN = 0, totalP = 0, totalK = 0, totalOS = 0, totalFIN = 0;
 
-  for (const key in actieveMestData) {
-    const mest = actieveMestData[key];
+  for (const mest of Object.values(actieveMestData)) {
     if (mest?.totaal) {
-      totalN  += mest.totaal.N;
-      totalP  += mest.totaal.P;
-      totalK  += mest.totaal.K;
-      totalOS += mest.totaal.OS;
+      totalN  += mest.totaal.N || 0;
+      totalP  += mest.totaal.P || 0;
+      totalK  += mest.totaal.K || 0;
+      totalOS += mest.totaal.OS || 0;
+      totalFIN += mest.totaal.FIN || 0;
     }
   }
 
-  const totaalToegestaneN = totaalA;  // ✅ stikstof uit URL-query
-  const remainingN = Math.max(0, totaalToegestaneN - totalN);
-
+  // 👇 Kunstmest automatisch bijstellen (indien niet gelocked)
   const kunstmestSlider = document.getElementById('slider-kunststikstof');
   const kunstmestValue  = document.getElementById('value-kunststikstof');
   const kunstmestLock   = document.getElementById('lock-kunststikstof');
+
+  const totaalToegestaneN = totaalA;  // 🔗 uit URL-query
+  const remainingN = Math.max(0, totaalToegestaneN - totalN);
 
   if (kunstmestSlider && kunstmestValue && kunstmestLock && !kunstmestLock.checked) {
     const afgerond = Math.round(remainingN * 10) / 10;
@@ -331,38 +332,36 @@ function updateStandardSliders() {
     kunstmestValue.textContent = `${formattedVal} / ${formattedMax}`;
   }
 
+  // 👇 Update de nutrient- en financieel sliders
   const totalen = [
     { id: 'stikstof',   value: totalN },
     { id: 'fosfaat',    value: totalP },
     { id: 'kalium',     value: totalK },
     { id: 'organisch',  value: totalOS },
-    { id: 'financieel', value: Object.values(actieveMestData).reduce((sum, m) => sum + (m?.totaal?.FIN || 0), 0) }
+    { id: 'financieel', value: totalFIN }
   ];
 
-  totalen.forEach(({ id, value }) => {
+  for (const { id, value } of totalen) {
     const sliderEl  = document.getElementById(`slider-${id}`);
     const valueElem = document.getElementById(`value-${id}`);
-    const lockElem  = document.getElementById(`lock-${id}`);
-    const unit = standaardSliders.find(s => s.id === id)?.unit || 'kg';
+    const unit      = standaardSliders.find(s => s.id === id)?.unit || 'kg';
+    const isFin     = id === 'financieel';
 
-    if (sliderEl && valueElem) {
-      if (!isLocked(id)) {
-        const isFinancieel = id === 'financieel';
-        const afgerond = isFinancieel
-          ? Math.round(value)
-          : Math.round(value * 10) / 10;
+    if (!sliderEl || !valueElem) continue;
 
-        sliderEl.value = afgerond;
-        const formattedVal = formatSliderValue(afgerond, unit, isFinancieel);
-        const formattedMax = formatSliderValue(Number(sliderEl.max), unit, isFinancieel);
-        valueElem.textContent = `${formattedVal} / ${formattedMax}`;
-      } else {
-        console.log(`🔒 Nutriëntslider '${id}' is gelocked; update genegeerd.`);
-        sliderEl.classList.add('shake');
-        setTimeout(() => sliderEl.classList.remove('shake'), 300);
-      }
+    if (!isLocked(id)) {
+      const afgerond = isFin ? Math.round(value) : Math.round(value * 10) / 10;
+      sliderEl.value = afgerond;
+
+      const formattedVal = formatSliderValue(afgerond, unit, isFin);
+      const formattedMax = formatSliderValue(Number(sliderEl.max), unit, isFin);
+      valueElem.textContent = `${formattedVal} / ${formattedMax}`;
+    } else {
+      console.log(`🔒 Nutriëntslider '${id}' is gelocked; update genegeerd.`);
+      sliderEl.classList.add('shake');
+      setTimeout(() => sliderEl.classList.remove('shake'), 300);
     }
-  });
+  }
 }
 
 function berekenMestWaardenPerTon(data, ton) {
