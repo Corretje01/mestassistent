@@ -311,8 +311,8 @@ h3 { font-size: 1.125rem; }
   }
 
   .btn.mest-btn {
-    flex: 1 1 calc(33.333% - 0.5rem); /* max 3 per rij */
-    max-width: calc(33.333% - 0.5rem);
+    flex: 1 1 calc(50% - 0.5rem); /* max 2 per rij */
+    max-width: calc(50% - 0.5rem);
     text-align: left;
     box-sizing: border-box;
   }
