@@ -227,7 +227,7 @@ function verdeelCompensatie(veroorzakerKey, deltaMap, mestKeys) {
     stikstof:  'N_kg_per_ton',
     fosfaat:   'P_kg_per_ton',
     kalium:    'K_kg_per_ton',
-    organisch: 'OS_percent' // percentage, dus bij berekening delen door 100
+    organisch: 'OS_percent' // percentage, dus delen door 100
   };
 
   const compenseerbare = mestKeys.filter(k => k !== veroorzakerKey && !isLocked(k));
@@ -237,13 +237,14 @@ function verdeelCompensatie(veroorzakerKey, deltaMap, mestKeys) {
   for (const key of compenseerbare) correcties[key] = 0;
 
   for (const nut in deltaMap) {
+    if (!isLocked(nut)) continue; // 🔒 Alleen vergrendelde nutriënten compenseren
+
     const keyInData = nutriëntKeyMap[nut];
     if (!keyInData) continue;
 
-    // Bereken de totale 'kg per ton' van alle compenseerbare mestsoorten voor dit nutriënt
     const totalPerTon = compenseerbare.reduce((sum, key) => {
       const val = actieveMestData[key]?.[keyInData] || 0;
-      return sum + (nut === 'organisch' ? val / 100 : val); // OS is %
+      return sum + (nut === 'organisch' ? val / 100 : val);
     }, 0);
 
     if (totalPerTon === 0) {
@@ -254,21 +255,24 @@ function verdeelCompensatie(veroorzakerKey, deltaMap, mestKeys) {
     for (const key of compenseerbare) {
       const mest = actieveMestData[key];
       let val = mest?.[keyInData] || 0;
-      if (nut === 'organisch') val = val / 100; // OS is in %
+      if (nut === 'organisch') val /= 100;
 
       const aandeel = val / totalPerTon;
-      if (val === 0) return false; // extra bescherming tegen onverwachte situaties
-      const correctie = -deltaMap[nut] * aandeel / val;
-      correcties[key] += correctie;
+      const benodigdeKg = deltaMap[nut] * aandeel;
+      const correctieInTon = -benodigdeKg / (val || 1); // 🔁 kg → ton
+
+      correcties[key] += correctieInTon;
     }
   }
 
+  // 💡 Debug: toon voorgestelde correcties
   console.log("🧪 Compensatievoorstel:", correcties);
 
-  // Valideer alle correcties
+  // Valideer of alle correcties realistisch zijn
   for (const key of compenseerbare) {
-    const nieuwTon = actieveMestData[key].ton + correcties[key];
-    if (nieuwTon < 0 || nieuwTon > 650) return false;
+    const huidigTon = actieveMestData[key].ton;
+    const nieuwTon = huidigTon + correcties[key];
+    if (nieuwTon < -0.01 || nieuwTon > 650) return false; // Tolerantie voor afronding
   }
 
   // Voer correcties uit
