@@ -384,6 +384,7 @@ function stelMesthoeveelheidIn(key, nieuweTon) {
 
 function addDynamicSlider(key, label) {
   if (document.getElementById(`slider-${key}`)) return;
+
   let maxTon = 650;
   const limiterMap = {
     'drijfmest-koe': ['drijfmest', 'koe'],
@@ -400,15 +401,14 @@ function addDynamicSlider(key, label) {
 
   if (limiterMap[key]) {
     const [type, animal] = limiterMap[key];
-    if (mestsoortenData[type] && mestsoortenData[type][animal]) {
-      const data = mestsoortenData[type][animal];
-      if (data.N_kg_per_ton && data.P_kg_per_ton) {
+    const data = mestsoortenData?.[type]?.[animal];
+    if (data?.N_kg_per_ton && data?.P_kg_per_ton) {
       const maxN = totaalA / data.N_kg_per_ton;
       const maxP = totaalC / data.P_kg_per_ton;
       maxTon = Math.floor(Math.min(maxN, maxP));
     }
-    }
   }
+
   const group = document.createElement('div');
   group.className = 'slider-group';
   group.id = `group-${key}`;
@@ -418,13 +418,7 @@ function addDynamicSlider(key, label) {
       <label for="slider-${key}">${label}</label>
       <span class="value" id="value-${key}">0 / ${maxTon} ton</span>
     </div>
-    <input
-      type="range"
-      id="slider-${key}"
-      min="0"
-      max="${maxTon}"
-      step="0.1"
-    />
+    <input type="range" id="slider-${key}" min="0" max="${maxTon}" step="0.1" />
   `;
   slidersContainer.appendChild(group);
 
@@ -433,48 +427,38 @@ function addDynamicSlider(key, label) {
   const lockInput = group.querySelector('input[type="checkbox"]');
 
   slider.value = 0;
+
   slider.addEventListener('input', () => {
     const nieuweTon = Number(slider.value);
-    const oudeTon = actieveMestData[key]?.ton || 0;
+    const oudeData = actieveMestData[key];
+    const oudeTon = oudeData?.ton || 0;
 
     if (Math.abs(nieuweTon - oudeTon) < 0.0001) {
-      // Geen werkelijke wijziging – negeer input
-      return;
+      return; // Geen daadwerkelijke wijziging
     }
 
-    if (actieveMestData[key]) {
-      // Eerst *niet* toepassen – eerst proberen te compenseren
-      const tijdelijk = { ...actieveMestData[key] };
+    if (oudeData) {
+      // Maak een kopie met nieuwe waarde, maar pas nog niet toe
+      const tijdelijk = { ...oudeData };
       tijdelijk.ton = nieuweTon;
       tijdelijk.totaal = berekenMestWaardenPerTon(tijdelijk, nieuweTon);
 
-      const backup = actieveMestData[key];
+      // Tijdelijk toepassen voor evaluatie
       actieveMestData[key] = tijdelijk;
 
       const geslaagd = compenseerVergrendeldeNutriënten(key);
 
       if (!geslaagd) {
-        actieveMestData[key] = backup;
-      } else {
-        actieveMestData[key] = tijdelijk;
-      }
-
-      if (geslaagd === false) {
-        console.warn(`❌ Compensatie mislukt – wijziging aan '${key}' wordt teruggedraaid.`);
-
-        // Herstel vorige waarde
+        // Zet terug naar originele toestand
+        actieveMestData[key] = oudeData;
         slider.value = oudeTon;
-        actieveMestData[key].ton = oudeTon;
         valueEl.textContent = `${formatSliderValue(oudeTon, 'ton')} / ${formatSliderValue(maxTon, 'ton')}`;
-
-        // ✨ Shake-effect op de SLIDER zelf
         slider.classList.add('shake');
         setTimeout(() => slider.classList.remove('shake'), 500);
-
         return;
       }
 
-      // Bij succes: werk UI bij
+      // Succes – update UI en data is al goed
       valueEl.textContent = `${formatSliderValue(nieuweTon, 'ton')} / ${formatSliderValue(maxTon, 'ton')}`;
       updateStandardSliders();
     }
