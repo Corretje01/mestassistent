@@ -432,6 +432,11 @@ function addDynamicSlider(key, label) {
     const nieuweTon = Number(slider.value);
     const oudeTon = actieveMestData[key]?.ton || 0;
 
+    if (Math.abs(nieuweTon - oudeTon) < 0.0001) {
+      // Geen werkelijke wijziging – negeer input
+      return;
+    }
+
     if (actieveMestData[key]) {
       // Probeer ton toe te passen
       actieveMestData[key].ton = nieuweTon;
