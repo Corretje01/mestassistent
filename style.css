@@ -294,3 +294,24 @@ h3 { font-size: 1.125rem; }
 .shake {
   animation: shake 0.3s ease-in-out;
 }
+
+@media (max-width: 768px) {
+  .sliders-grid {
+    grid-template-columns: 1fr !important; /* sliders onder elkaar */
+  }
+
+  .category {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .category__label {
+    width: 100%;
+    margin-bottom: 0.25rem;
+  }
+
+  .btn.mest-btn {
+    width: 100%;
+    text-align: left;
+  }
+}
