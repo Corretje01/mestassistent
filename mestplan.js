@@ -222,16 +222,20 @@ function compenseerVergrendeldeNutriënten(changedKey, oudeTonHandmatig) {
   }
 
   // ❌ Compensatie mislukt – wijzig terugdraaien
-  console.warn(`❌ Compensatie niet mogelijk – wijziging wordt teruggedraaid.`);
-  stelMesthoeveelheidIn(changedKey, oudeTon);
+console.warn(`❌ Compensatie niet mogelijk – wijziging wordt teruggedraaid.`);
+stelMesthoeveelheidIn(changedKey, oudeTon);
 
-  const slider = document.getElementById(`slider-${changedKey}`);
-  if (slider) {
+// 🎯 Shake-effect op ALLE gelockte sliders (mest én nutriënten)
+document.querySelectorAll('[id^="slider-"]').forEach(slider => {
+  const key = slider.id.replace('slider-', '');
+  const lock = document.getElementById(`lock-${key}`);
+  if (lock?.checked) {
     slider.classList.add('shake');
     setTimeout(() => slider.classList.remove('shake'), 400);
   }
+});
 
-  return false;
+return false;
 }
 
 function verdeelCompensatie(veroorzakerKey, deltaMap, mestKeys) {
