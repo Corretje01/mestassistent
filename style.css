@@ -301,8 +301,8 @@ h3 { font-size: 1.125rem; }
   }
 
   .category {
-    flex-direction: column;
-    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 0.5rem;
   }
 
   .category__label {
@@ -311,7 +311,9 @@ h3 { font-size: 1.125rem; }
   }
 
   .btn.mest-btn {
-    width: 100%;
+    flex: 1 1 calc(33.333% - 0.5rem); /* max 3 per rij */
+    max-width: calc(33.333% - 0.5rem);
     text-align: left;
+    box-sizing: border-box;
   }
 }
