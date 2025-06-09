@@ -405,8 +405,7 @@ function updateStandardSliders() {
       valueElem.textContent = `${formattedVal} / ${formattedMax}`;
     } else {
       console.log(`🔒 Nutriëntslider '${id}' is gelocked; update genegeerd.`);
-      sliderEl.classList.add('shake');
-      setTimeout(() => sliderEl.classList.remove('shake'), 300);
+      // Geen shake bij standaard update, alleen bij mislukte wijziging
     }
   }
   
