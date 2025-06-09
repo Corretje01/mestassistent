@@ -103,7 +103,6 @@ document.querySelectorAll('.mest-btn').forEach(btn => {
 
     } else {
       removeDynamicSlider(key);
-      delete actieveMestData[key];
       updateStandardSliders();
     }
   });
@@ -484,6 +483,9 @@ function addDynamicSlider(key, label) {
 function removeDynamicSlider(key) {
   const group = document.getElementById(`group-${key}`);
   if (group) group.remove();
+
+  delete actieveMestData[key];
+  updateStandardSliders(); // 💡 Totale nutriëntwaarden bijwerken
 }
 
 function initSlider(id, label, max, unit) {
