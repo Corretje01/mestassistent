@@ -331,8 +331,9 @@ function updateStandardSliders() {
   const kunstmestValue  = document.getElementById('value-kunststikstof');
   const kunstmestLock   = document.getElementById('lock-kunststikstof');
 
-  const totaalToegestaneN = totaalA;  // 🔗 uit URL-query
-  const remainingN = Math.max(0, totaalToegestaneN - totalN);
+  const geselecteerdeKunstmest = Number(document.getElementById('slider-kunststikstof')?.value || 0);
+  const totaalToegestaneN_dierlijk = Math.min(totaalA, totaalB - geselecteerdeKunstmest);
+  const remainingN = Math.max(0, totaalToegestaneN_dierlijk - totalN);
 
   if (kunstmestSlider && kunstmestValue && kunstmestLock && !kunstmestLock.checked) {
     const afgerond = Math.round(remainingN * 10) / 10;
@@ -528,7 +529,6 @@ function initSlider(id, label, max, unit) {
 
   const isFinancieel = id === 'financieel';
   slider.value = 0;
-
 
   const formattedStart = formatSliderValue(Number(slider.value), unit, isFinancieel);
   const formattedMax   = formatSliderValue(Number(slider.max), unit, isFinancieel);
