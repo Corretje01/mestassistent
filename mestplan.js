@@ -526,7 +526,9 @@ function initSlider(id, label, max, unit) {
   const slider  = group.querySelector(`#slider-${id}`);
   const valueEl = group.querySelector(`#value-${id}`);
 
+  const isFinancieel = id === 'financieel';
   slider.value = 0;
+
 
   const formattedStart = formatSliderValue(Number(slider.value), unit, isFinancieel);
   const formattedMax   = formatSliderValue(Number(slider.max), unit, isFinancieel);
