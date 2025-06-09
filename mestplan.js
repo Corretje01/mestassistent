@@ -368,7 +368,10 @@ function updateStandardSliders() {
   const remainingN = Math.max(0, totaalToegestaneN_dierlijk - totalN);
 
   if (kunstmestSlider && kunstmestValue && kunstmestLock && !kunstmestLock.checked) {
-    const afgerond = Math.round(remainingN * 10) / 10;
+    const huidigeWaarde = Number(kunstmestSlider.value);
+    const nieuweWaarde  = Math.min(huidigeWaarde, remainingN);
+    const afgerond      = Math.round(nieuweWaarde * 10) / 10;
+
     kunstmestSlider.value = afgerond;
 
     const formattedVal = formatSliderValue(afgerond, 'kg');
@@ -405,6 +408,21 @@ function updateStandardSliders() {
       sliderEl.classList.add('shake');
       setTimeout(() => sliderEl.classList.remove('shake'), 300);
     }
+  }
+  
+    // 🔄 Update de max-waarde van stikstof uit dierlijke mest (na kunstmestslider)
+  const stikstofSlider = document.getElementById('slider-stikstof');
+  const stikstofValue  = document.getElementById('value-stikstof');
+  if (stikstofSlider && stikstofValue) {
+    const nieuweMax = bepaalMaxStikstofDierlijk();
+    stikstofSlider.max = nieuweMax;
+
+    const huidigeWaarde = Number(stikstofSlider.value);
+    const afgerond = Math.round(huidigeWaarde * 10) / 10;
+    const formattedVal = formatSliderValue(afgerond, 'kg');
+    const formattedMax = formatSliderValue(nieuweMax, 'kg');
+
+    stikstofValue.textContent = `${formattedVal} / ${formattedMax}`;
   }
 }
 
