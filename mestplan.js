@@ -396,7 +396,6 @@ function stelMesthoeveelheidIn(key, nieuweTon) {
 function addDynamicSlider(key, label) {
   if (document.getElementById(`slider-${key}`)) return;
 
-  // Bepaal maximum tonnage
   let maxTon = 650;
   const limiterMap = {
     'drijfmest-koe': ['drijfmest', 'koe'],
@@ -411,15 +410,18 @@ function addDynamicSlider(key, label) {
     'overig-compost': ['overig', 'compost']
   };
 
-  const [type, animal] = limiterMap[key] || [];
-  const mestData = mestsoortenData[type]?.[animal];
-  if (mestData?.N_kg_per_ton && mestData?.P_kg_per_ton) {
-    const maxN = totaalA / mestData.N_kg_per_ton;
-    const maxP = totaalC / mestData.P_kg_per_ton;
-    maxTon = Math.floor(Math.min(maxN, maxP));
+  // Bereken maxTon op basis van N en P restricties
+  if (limiterMap[key]) {
+    const [type, animal] = limiterMap[key];
+    const data = mestsoortenData?.[type]?.[animal];
+    if (data?.N_kg_per_ton && data?.P_kg_per_ton) {
+      const maxN = totaalA / data.N_kg_per_ton;
+      const maxP = totaalC / data.P_kg_per_ton;
+      maxTon = Math.floor(Math.min(maxN, maxP));
+    }
   }
 
-  // Genereer HTML
+  // Maak slidergroep HTML
   const group = document.createElement('div');
   group.className = 'slider-group';
   group.id = `group-${key}`;
@@ -433,40 +435,48 @@ function addDynamicSlider(key, label) {
   `;
   slidersContainer.appendChild(group);
 
-  // Elementreferenties
-  const slider = group.querySelector(`#slider-${key}`);
-  const valueEl = group.querySelector(`#value-${key}`);
-  const lockInput = group.querySelector(`#lock-${key}`);
+  const slider    = group.querySelector('input[type="range"]');
+  const valueEl   = group.querySelector('.value');
+  const lockInput = group.querySelector('input[type="checkbox"]');
 
-  // Slider event
+  // Initialiseer slider op 0
+  slider.value = 0;
+
+  // 📦 Event: Bij verschuiven van de mestslider
   slider.addEventListener('input', () => {
     const nieuweTon = Number(slider.value);
-    const oudeTon = oudeTonHandmatig ?? actieveMestData[changedKey]?.ton || 0;
+    const oudeData = actieveMestData[key];
+    const oudeTon = oudeData?.ton || 0;
 
-    if (Math.abs(nieuweTon - oudeTon) < 0.0001) return;
+    if (Math.abs(nieuweTon - oudeTon) < 0.0001) return; // geen werkelijke wijziging
 
-    const tijdelijk = { ...actieveMestData[key], ton: nieuweTon };
-    tijdelijk.totaal = berekenMestWaardenPerTon(tijdelijk, nieuweTon);
+    if (oudeData) {
+      // Maak een tijdelijke kopie van de data
+      const tijdelijk = { ...oudeData, ton: nieuweTon };
+      tijdelijk.totaal = berekenMestWaardenPerTon(tijdelijk, nieuweTon);
 
-    const backup = actieveMestData[key];
-    actieveMestData[key] = tijdelijk;
+      // Backup voor eventueel terugzetten
+      const backup = actieveMestData[key];
+      actieveMestData[key] = tijdelijk;
 
-    const geslaagd = compenseerVergrendeldeNutriënten(key);
-    actieveMestData[key] = geslaagd ? tijdelijk : backup;
+      const geslaagd = compenseerVergrendeldeNutriënten(key, oudeTon);
+      actieveMestData[key] = geslaagd ? tijdelijk : backup;
 
-    if (!geslaagd) {
-      slider.value = oudeTon;
-      valueEl.textContent = `${formatSliderValue(oudeTon, 'ton')} / ${formatSliderValue(maxTon, 'ton')}`;
-      slider.classList.add('shake');
-      setTimeout(() => slider.classList.remove('shake'), 500);
-      return;
+      if (!geslaagd) {
+        slider.value = oudeTon;
+        valueEl.textContent = `${formatSliderValue(oudeTon, 'ton')} / ${formatSliderValue(maxTon, 'ton')}`;
+        slider.classList.add('shake');
+        setTimeout(() => slider.classList.remove('shake'), 500);
+        return;
+      }
+
+      // Succes – werk UI bij
+      valueEl.textContent = `${formatSliderValue(nieuweTon, 'ton')} / ${formatSliderValue(maxTon, 'ton')}`;
+      updateStandardSliders();
     }
-
-    valueEl.textContent = `${formatSliderValue(nieuweTon, 'ton')} / ${formatSliderValue(maxTon, 'ton')}`;
-    updateStandardSliders();
   });
 
-  // Lock checkbox event
+  // 📦 Event: vergrendelen/unlocken van mestslider
   lockInput.addEventListener('change', () => {
     slider.disabled = lockInput.checked;
   });
