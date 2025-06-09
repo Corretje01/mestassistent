@@ -225,15 +225,22 @@ function compenseerVergrendeldeNutriënten(changedKey, oudeTonHandmatig) {
 console.warn(`❌ Compensatie niet mogelijk – wijziging wordt teruggedraaid.`);
 stelMesthoeveelheidIn(changedKey, oudeTon);
 
-// 🎯 Shake-effect op ALLE gelockte sliders (mest én nutriënten)
+// 🎯 Shake-effect op ALLE gelockte sliders (nutriënten én mest)
 document.querySelectorAll('[id^="slider-"]').forEach(slider => {
-  const key = slider.id.replace('slider-', '');
-  const lock = document.getElementById(`lock-${key}`);
+  const id = slider.id.replace('slider-', '');
+  const lock = document.getElementById(`lock-${id}`);
   if (lock?.checked) {
     slider.classList.add('shake');
     setTimeout(() => slider.classList.remove('shake'), 400);
   }
 });
+
+// 🎯 Shake-effect op de slider die je probeerde te wijzigen
+const slider = document.getElementById(`slider-${changedKey}`);
+if (slider) {
+  slider.classList.add('shake');
+  setTimeout(() => slider.classList.remove('shake'), 400);
+}
 
 return false;
 }
