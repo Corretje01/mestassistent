@@ -158,15 +158,14 @@ standaardSliders.forEach(({id, label, max, unit}) => {
       updateFromNutrients();
     });
   }
-});
 
-const kunstmestSlider = document.getElementById('slider-kunststikstof');
-if (kunstmestSlider) {
-  kunstmestSlider.addEventListener('input', () => {
-    userModifiedKunstmest = true;
-    updateMaxStikstofSlider();
-  });
-}
+  const kunstmestSlider = document.getElementById('slider-kunststikstof');
+  if (kunstmestSlider) {
+    kunstmestSlider.addEventListener('input', () => {
+      userModifiedKunstmest = true;
+      updateMaxStikstofSlider();
+    });
+  }
 
 function getLockedNutriëntenWaarden() {
   const waarden = {};
