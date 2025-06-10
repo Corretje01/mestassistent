@@ -663,7 +663,7 @@ function updateFromNutrients(changedId, newValue, huidigeNutriënten, huidigeMes
   // 1. Doelwaarden samenstellen
   const doelwaarden = { ...huidigeNutriënten, [changedId]: newValue };
 
-  // 2. Locked nutriënten opsporen
+  // 2. Locked nutriënten bepalen
   const nutriënten = ['stikstof', 'fosfaat', 'kalium', 'organisch', 'kunststikstof', 'kosten'];
   const lockedNutriënten = nutriënten.filter(id => isLocked(id));
 
@@ -673,28 +673,27 @@ function updateFromNutrients(changedId, newValue, huidigeNutriënten, huidigeMes
   }
 
   // 3. Beschikbare mestsoorten bepalen
-  const beschikbareMestsoorten = huidigeMestverdeling
+  const beschikbareMest = huidigeMestverdeling
     .filter(m => !m.locked)
     .map(m => m.id);
 
   if (DEBUG_MODE) {
-    console.log('🐄 Beschikbare mestsoorten (niet gelockt):', beschikbareMestsoorten);
+    console.log('🐄 Beschikbare mestsoorten:', beschikbareMest);
   }
 
   // 4. Optimalisatie uitvoeren
-  const huidigeMestverdeling = Object.fromEntries(
-     Object.entries(actieveMestData).map(([id, d]) => [id, d.ton])
+  const huidigeVerdeling = Object.fromEntries(
+    huidigeMestverdeling.map(m => [m.id, m.ton])
   );
-    
+
   const nieuweVerdeling = berekenOptimaleMestverdeling(
     doelwaarden,
     beschikbareMest,
     lockedNutriënten,
-    huidigeMestverdeling
-   );
-   ;
+    huidigeVerdeling
+  );
 
-  // 5. Resultaat controleren en toepassen
+  // 5. Validatie
   if (!nieuweVerdeling || Object.values(nieuweVerdeling).every(v => v === 0)) {
     if (DEBUG_MODE) {
       console.warn('❌ Geen geldige verdeling gevonden. Nutriëntaanpassing niet toegepast.');
