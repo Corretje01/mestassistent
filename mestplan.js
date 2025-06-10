@@ -498,7 +498,7 @@ function berekenMestWaardenPerTon(data, ton) {
   };
 }
 
-function stelMesthoeveelheidIn(key, nieuweTon) {
+function stelMesthoeveelheidIn(key, nieuweTon, source = 'auto') {
   if (!actieveMestData[key]) return;
 
   const data = actieveMestData[key];
@@ -511,6 +511,11 @@ function stelMesthoeveelheidIn(key, nieuweTon) {
     const afgerond = Math.round(nieuweTon * 10) / 10;
     slider.value = afgerond;
     value.textContent = `${afgerond} / ${slider.max} ton`;
+
+    // 🚨 Trigger downstream updates als de slider handmatig wordt aangepast
+    if (source === 'auto') {
+      onSliderChange(key, afgerond, 'auto');
+    }
   }
 }
 
@@ -757,6 +762,11 @@ function berekenOptimaleMestverdeling(doelwaarden, mestKeys, lockedNutriënten =
     oplossing = {};
     mestKeys.forEach((mestId, i) => {
       const waarde = Math.max(0, oplossingArray[i]);
+      
+      if (DEBUG_MODE) {
+        console.log(`💧 ${mestId}: berekend ${oplossingArray[i]} → toegepast ${waarde}`);
+      }
+
       oplossing[mestId] = Math.round(waarde * 100) / 100; // afronden op 0.01
     });
 
