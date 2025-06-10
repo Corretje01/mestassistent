@@ -400,12 +400,12 @@ function updateStandardSliders() {
   const kunstmestLock   = document.getElementById('lock-kunststikstof');
 
   const geselecteerdeKunstmest = Number(kunstmestSlider?.value || 0);
-  const totaalToegestaneN_dierlijk = Math.min(totaalA, totaalB - geselecteerdeKunstmest);
-  const remainingN = Math.max(0, totaalToegestaneN_dierlijk - totalN);
+  const totalN_dierlijk = totalN; // = totaal stikstof uit dierlijke mest
+  const maxKunstmest = Math.max(0, totaalB - totalN_dierlijk);
 
   if (kunstmestSlider && kunstmestValue && kunstmestLock && !kunstmestLock.checked) {
     const huidigeWaarde = Number(kunstmestSlider.value);
-    const nieuweWaarde  = Math.min(huidigeWaarde, remainingN);
+    const nieuweWaarde = Math.min(huidigeWaarde, maxKunstmest);
     const stikstofGelocked = isLocked('stikstof');
     const stikstofSlider = document.getElementById('slider-stikstof');
     const currentStikstofWaarde = Number(stikstofSlider?.value || 0);
