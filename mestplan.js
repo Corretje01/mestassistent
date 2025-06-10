@@ -706,7 +706,7 @@ function updateFromNutrients(changedId, newValue, huidigeNutriënten, huidigeMes
   }
 }
 
-function berekenOptimaleMestverdeling(doelwaarden, mestKeys, lockedNutriënten = []) {
+function berekenOptimaleMestverdeling(doelwaarden, mestKeys, lockedNutriënten = [], huidigeVerdeling = {}) {
   if (DEBUG_MODE) {
     console.log('📐 [berekenOptimaleMestverdeling] Gestart');
     console.log('🎯 Doelwaarden:', doelwaarden);
@@ -716,7 +716,6 @@ function berekenOptimaleMestverdeling(doelwaarden, mestKeys, lockedNutriënten =
 
   const nutrienten = ['stikstof', 'fosfaat', 'kalium', 'organisch', 'kosten'];
 
-  // 1. Bouw A-matrix en b-vector
   const A = [];
   const b = [];
 
@@ -726,7 +725,6 @@ function berekenOptimaleMestverdeling(doelwaarden, mestKeys, lockedNutriënten =
       const waarde = actieveMestData[mestId]?.[nut] || 0;
       row.push(waarde);
     });
-
     A.push(row);
     b.push(doelwaarden[nut] || 0);
   });
@@ -736,12 +734,10 @@ function berekenOptimaleMestverdeling(doelwaarden, mestKeys, lockedNutriënten =
 
   let oplossing;
   try {
-    // 2. Least squares oplossing
     const pseudoInverse = math.pinv(matrixA);
     const vectorX = math.multiply(pseudoInverse, vectorB);
     const oplossingArray = vectorX.toArray();
 
-    // 3. Controleer locked nutriënten op tolerantie (±10 kg)
     const tolerantie = 10;
     const gerealiseerd = math.multiply(matrixA, vectorX).toArray();
 
@@ -758,19 +754,22 @@ function berekenOptimaleMestverdeling(doelwaarden, mestKeys, lockedNutriënten =
       return null;
     }
 
-    // 4. Zet om naar mestverdeling
     oplossing = {};
     mestKeys.forEach((mestId, i) => {
-      const waarde = Math.max(0, oplossingArray[i]);
-      
-      if (DEBUG_MODE) {
-        console.log(`💧 ${mestId}: berekend ${oplossingArray[i]} → toegepast ${waarde}`);
-      }
+      const solverTon = Math.max(0, oplossingArray[i]);
+      const bestaandTon = huidigeVerdeling[mestId] || 0;
+      const gecombineerd = 0.5 * solverTon + 0.5 * bestaandTon;
+      const afgerond = Math.round(gecombineerd * 100) / 100;
 
-      oplossing[mestId] = Math.round(waarde * 100) / 100; // afronden op 0.01
+      oplossing[mestId] = afgerond;
+
+      if (DEBUG_MODE) {
+        console.log(`💧 ${mestId}: solver=${solverTon}, bestaand=${bestaandTon}, → toegepast=${afgerond}`);
+      }
     });
 
     return oplossing;
+
   } catch (err) {
     console.error('❌ [berekenOptimaleMestverdeling] Matrixoplossing faalde:', err);
     return null;
