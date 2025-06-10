@@ -417,42 +417,45 @@ function updateStandardSliders() {
     const huidigeWaarde = Number(stikstofSlider.value || 0);
     const berekendeMax  = bepaalMaxStikstofDierlijk();
 
+    // 🔒 Als gelocked → max mag niet lager worden dan huidige waarde
     const veiligeMax = isLocked('stikstof')
-      ? Math.max(huidigeWaarde, berekendeMax)  // max mag niet < waarde
+      ? Math.max(huidigeWaarde, berekendeMax)
       : berekendeMax;
 
     stikstofSlider.max = veiligeMax;
 
-    // ✅ Waarde nooit aanpassen bij lock
-    if (!isLocked('stikstof')) {
-      stikstofSlider.value = Math.min(huidigeWaarde, veiligeMax);
-    } else if (huidigeWaarde > veiligeMax) {
-      // ❌ Conflict: kunstmest overschrijdt vergrendeld dierlijk stikstof
-      const kunstSlider = document.getElementById('slider-kunststikstof');
-      const kunstValue  = document.getElementById('value-kunststikstof');
-  
-      if (kunstSlider && kunstValue) {
-        const maxKunstmest = Math.max(0, totaalB - huidigeWaarde);
-        kunstSlider.value = maxKunstmest;
+    if (isLocked('stikstof')) {
+      // ❗️Conflict: kunstmestslider zou stikstof verlagen onder lockwaarde
+      if (berekendeMax < huidigeWaarde) {
+        const kunstSlider = document.getElementById('slider-kunststikstof');
+        const kunstValue  = document.getElementById('value-kunststikstof');
+        if (kunstSlider && kunstValue) {
+          // Bereken max kunstmest zodat stikstof minimaal op huidige waarde kan blijven
+          const maxKunstmest = Math.max(0, totaalB - huidigeWaarde);
+          kunstSlider.value = maxKunstmest;
 
-        // Shake de kunstmestslider
-        kunstSlider.classList.add('shake');
-        setTimeout(() => kunstSlider.classList.remove('shake'), 400);
+          // Shake kunstmest
+          kunstSlider.classList.add('shake');
+          setTimeout(() => kunstSlider.classList.remove('shake'), 400);
 
-        const formattedVal = formatSliderValue(maxKunstmest, 'kg');
-        const formattedMax = formatSliderValue(Number(kunstSlider.max), 'kg');
-        kunstValue.textContent = `${formattedVal} / ${formattedMax}`;
+          // Waarde opnieuw formatteren
+          const formattedVal = formatSliderValue(maxKunstmest, 'kg');
+          const formattedMax = formatSliderValue(Number(kunstSlider.max), 'kg');
+          kunstValue.textContent = `${formattedVal} / ${formattedMax}`;
+        }
       }
+    } else {
+      // 💡 Niet gelocked: waarde aanpassen als deze groter is dan max
+      stikstofSlider.value = Math.min(huidigeWaarde, veiligeMax);
     }
 
-    // 🎯 UI-bijwerking
+    // UI-update (altijd uitvoeren)
     const afgerond = Math.round(Number(stikstofSlider.value) * 10) / 10;
     const formattedVal = formatSliderValue(afgerond, 'kg');
     const formattedMax = formatSliderValue(veiligeMax, 'kg');
     stikstofValue.textContent = `${formattedVal} / ${formattedMax}`;
   }
 }
-
 
 function berekenMestWaardenPerTon(data, ton) {
   const transportkosten = 10;
