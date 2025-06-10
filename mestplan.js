@@ -137,6 +137,18 @@ const standaardSliders = createStandaardSliders(totaalA, totaalB, totaalC);
 standaardSliders.forEach(({id, label, max, unit}) => {
   initSlider(id, label, max, unit);
 
+  const slider = document.getElementById(`slider-${id}`);
+  if (!slider) return;
+
+  // Alleen toepassen op sliders met logische impact
+  if (['stikstof', 'fosfaat', 'kalium', 'organisch', 'kunststikstof'].includes(id)) {
+    slider.addEventListener('input', () => {
+      const val = Number(slider.value);
+      onSliderChange(id, val, 'user');
+    });
+  }
+});
+
   // Bidirectionele sync bij nutriënt-aanpassing
   const slider = document.getElementById(`slider-${id}`);
   if (slider && ['stikstof', 'fosfaat', 'kalium', 'organisch'].includes(id)) {
@@ -557,47 +569,10 @@ function addDynamicSlider(key, label) {
 
   slider.value = 0;
 
-  slider.addEventListener('input', () => {
-    const nieuweTon = Number(slider.value);
-    const oudeData = actieveMestData[key];
-    const oudeTon = oudeData?.ton || 0;
-
-    if (Math.abs(nieuweTon - oudeTon) < 0.0001) return;
-
-    if (oudeData) {
-      const tijdelijk = { ...oudeData, ton: nieuweTon };
-      tijdelijk.totaal = berekenMestWaardenPerTon(tijdelijk, nieuweTon);
-
-      const backup = actieveMestData[key];
-      actieveMestData[key] = tijdelijk;
-
-      const nutNaWijziging = berekenTotaleNutriënten(false);
-      const nutInclKunstmest = berekenTotaleNutriënten(true);
-      const overschrijding = overschrijdtMaxToegestaneWaarden(nutNaWijziging, nutInclKunstmest);
-
-      if (overschrijding) {
-        console.warn(`❌ Limiet overschreden: ${overschrijding}`);
-        actieveMestData[key] = backup;
-        stelMesthoeveelheidIn(key, oudeTon);
-        slider.classList.add('shake');
-        setTimeout(() => slider.classList.remove('shake'), 400);
-        return;
-      }
-
-      const geslaagd = compenseerVergrendeldeNutriënten(key, oudeTon);
-      actieveMestData[key] = geslaagd ? tijdelijk : backup;
-
-      if (!geslaagd) {
-        stelMesthoeveelheidIn(key, oudeTon);
-        slider.classList.add('shake');
-        setTimeout(() => slider.classList.remove('shake'), 400);
-        return;
-      }
-
-      stelMesthoeveelheidIn(key, nieuweTon);
-      updateStandardSliders();
-    }
-  });
+slider.addEventListener('input', () => {
+  const nieuweTon = Number(slider.value);
+  onSliderChange(key, nieuweTon, 'user');
+});
 
   lockInput.addEventListener('change', () => {
     slider.disabled = lockInput.checked;
@@ -757,5 +732,26 @@ function berekenOptimaleMestverdeling(doelwaarden, mestKeys) {
     console.error("❌ Matrixoplossing mislukt:", e);
     return null;
   }
+}
+
+// --- [ STAP 1: Centrale update-controller + loggingmodus ] ---
+
+const DEBUG_MODE = true;
+
+/**
+ * Centrale router voor sliders. Wordt aangesproken bij elke gebruikersactie.
+ * @param {string} sliderId - de id van de slider (bv. 'stikstof', 'drijfmest-koe')
+ * @param {number} newValue - de nieuwe waarde die is ingevoerd door gebruiker
+ * @param {'user'|'auto'} source - wie triggert dit? (user = handmatig, auto = herberekening)
+ */
+function onSliderChange(sliderId, newValue, source = 'user') {
+  if (suppressAutoUpdate) return;
+  lastUpdateSource = source;
+
+  if (DEBUG_MODE) {
+    console.log(`🟡 onSliderChange: ${sliderId} → ${newValue} (bron: ${source})`);
+  }
+
+  // Binnen de volgende stappen gaan we hier per slidergroep (nutriënt of mest) beslissingen nemen
 }
 
