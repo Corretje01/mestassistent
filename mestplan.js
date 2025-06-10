@@ -414,12 +414,13 @@ function updateStandardSliders() {
   const stikstofValue  = document.getElementById('value-stikstof');
 
   if (stikstofSlider && stikstofValue) {
-    const huidigeWaarde = Number(stikstofSlider.value || 0);
-    const berekendeMax  = bepaalMaxStikstofDierlijk();
-
+    const sliderWaarde = Number(stikstofSlider.value || 0);
+    const berekendeMax = bepaalMaxStikstofDierlijk();
     const isGelocked = isLocked('stikstof');
+    
+    const echteStikstofWaarde = totalN; // waarde uit actieve mestdata
     const veiligeMax = isGelocked
-      ? Math.max(huidigeWaarde, berekendeMax)
+      ? Math.max(echteStikstofWaarde, berekendeMax)
       : berekendeMax;
 
     stikstofSlider.max = veiligeMax;
