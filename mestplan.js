@@ -516,7 +516,6 @@ function addDynamicSlider(key, label) {
     'overig-compost': ['overig', 'compost']
   };
 
-  // Bereken maxTon op basis van N en P restricties
   if (limiterMap[key]) {
     const [type, animal] = limiterMap[key];
     const data = mestsoortenData?.[type]?.[animal];
@@ -527,7 +526,6 @@ function addDynamicSlider(key, label) {
     }
   }
 
-  // Maak slidergroep HTML
   const group = document.createElement('div');
   group.className = 'slider-group';
   group.id = `group-${key}`;
@@ -545,71 +543,50 @@ function addDynamicSlider(key, label) {
   const valueEl   = group.querySelector('.value');
   const lockInput = group.querySelector('input[type="checkbox"]');
 
-  // Initialiseer slider op 0
   slider.value = 0;
 
-  // 📦 Event: Bij verschuiven van de mestslider
-  slider.addEventListener('input', e => {
-    // Interne bescherming tegen illegale updates
-    if (slider.dataset.preventNext === "true") {
-      e.preventDefault();
-      e.stopImmediatePropagation();
-      slider.dataset.preventNext = "false";
-      return;
-    }
-
+  slider.addEventListener('input', () => {
     const nieuweTon = Number(slider.value);
     const oudeData = actieveMestData[key];
     const oudeTon = oudeData?.ton || 0;
 
-    if (Math.abs(nieuweTon - oudeTon) < 0.0001) return; // geen werkelijke wijziging
+    if (Math.abs(nieuweTon - oudeTon) < 0.0001) return;
 
     if (oudeData) {
-      // Maak een tijdelijke kopie van de data
       const tijdelijk = { ...oudeData, ton: nieuweTon };
       tijdelijk.totaal = berekenMestWaardenPerTon(tijdelijk, nieuweTon);
 
-      // Backup voor eventueel terugzetten
       const backup = actieveMestData[key];
       actieveMestData[key] = tijdelijk;
 
-      // Bereken nutriënten na deze wijziging
-      const nutNaWijziging = berekenTotaleNutriënten(false); // alleen dierlijk
+      const nutNaWijziging = berekenTotaleNutriënten(false);
       const nutInclKunstmest = berekenTotaleNutriënten(true);
       const overschrijding = overschrijdtMaxToegestaneWaarden(nutNaWijziging, nutInclKunstmest);
-      
+
       if (overschrijding) {
-        console.warn(`❌ Wijziging geweigerd: ${overschrijding}`);
-      
-        // Zet slider geforceerd terug
-        slider.dataset.preventNext = "true"; // voorkom eindeloze loop
-        slider.value = oudeTon;
-        
-        valueEl.textContent = `${formatSliderValue(oudeTon, 'ton')} / ${formatSliderValue(maxTon, 'ton')}`;
+        console.warn(`❌ Limiet overschreden: ${overschrijding}`);
+        actieveMestData[key] = backup;
+        stelMesthoeveelheidIn(key, oudeTon);
         slider.classList.add('shake');
-        setTimeout(() => slider.classList.remove('shake'), 500);
+        setTimeout(() => slider.classList.remove('shake'), 400);
         return;
       }
-      
-      // Probeer vergrendelde nutriënten te compenseren
+
       const geslaagd = compenseerVergrendeldeNutriënten(key, oudeTon);
       actieveMestData[key] = geslaagd ? tijdelijk : backup;
 
       if (!geslaagd) {
-        slider.value = oudeTon;
-        valueEl.textContent = `${formatSliderValue(oudeTon, 'ton')} / ${formatSliderValue(maxTon, 'ton')}`;
+        stelMesthoeveelheidIn(key, oudeTon);
         slider.classList.add('shake');
-        setTimeout(() => slider.classList.remove('shake'), 500);
+        setTimeout(() => slider.classList.remove('shake'), 400);
         return;
       }
 
-      // Succes – werk UI bij
-      valueEl.textContent = `${formatSliderValue(nieuweTon, 'ton')} / ${formatSliderValue(maxTon, 'ton')}`;
+      stelMesthoeveelheidIn(key, nieuweTon);
       updateStandardSliders();
     }
   });
 
-  // 📦 Event: vergrendelen/unlocken van mestslider
   lockInput.addEventListener('change', () => {
     slider.disabled = lockInput.checked;
   });
