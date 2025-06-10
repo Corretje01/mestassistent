@@ -417,39 +417,39 @@ function updateStandardSliders() {
     const huidigeWaarde = Number(stikstofSlider.value || 0);
     const berekendeMax  = bepaalMaxStikstofDierlijk();
 
-    // 🔒 Als gelocked → max mag niet lager worden dan huidige waarde
-    const veiligeMax = isLocked('stikstof')
+    const isGelocked = isLocked('stikstof');
+    const veiligeMax = isGelocked
       ? Math.max(huidigeWaarde, berekendeMax)
       : berekendeMax;
 
     stikstofSlider.max = veiligeMax;
 
-    if (isLocked('stikstof')) {
-      // ❗️Conflict: kunstmestslider zou stikstof verlagen onder lockwaarde
+    if (isGelocked) {
       if (berekendeMax < huidigeWaarde) {
         const kunstSlider = document.getElementById('slider-kunststikstof');
         const kunstValue  = document.getElementById('value-kunststikstof');
         if (kunstSlider && kunstValue) {
-          // Bereken max kunstmest zodat stikstof minimaal op huidige waarde kan blijven
           const maxKunstmest = Math.max(0, totaalB - huidigeWaarde);
           kunstSlider.value = maxKunstmest;
 
-          // Shake kunstmest
+          // Shake kunstmestslider
           kunstSlider.classList.add('shake');
           setTimeout(() => kunstSlider.classList.remove('shake'), 400);
 
-          // Waarde opnieuw formatteren
+          // Update waarde display
           const formattedVal = formatSliderValue(maxKunstmest, 'kg');
           const formattedMax = formatSliderValue(Number(kunstSlider.max), 'kg');
           kunstValue.textContent = `${formattedVal} / ${formattedMax}`;
         }
       }
+  
+      // Geen wijziging van de waarde zelf
     } else {
-      // 💡 Niet gelocked: waarde aanpassen als deze groter is dan max
-      stikstofSlider.value = Math.min(huidigeWaarde, veiligeMax);
+      const nieuweWaarde = Math.min(huidigeWaarde, veiligeMax);
+      stikstofSlider.value = nieuweWaarde;
     }
 
-    // UI-update (altijd uitvoeren)
+    // Altijd UI-waarde bijwerken
     const afgerond = Math.round(Number(stikstofSlider.value) * 10) / 10;
     const formattedVal = formatSliderValue(afgerond, 'kg');
     const formattedMax = formatSliderValue(veiligeMax, 'kg');
