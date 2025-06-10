@@ -405,58 +405,59 @@ function updateStandardSliders() {
       valueElem.textContent = `${formattedVal} / ${formattedMax}`;
     } else {
       console.log(`🔒 Nutriëntslider '${id}' is gelocked; update genegeerd.`);
-      // geen shake hier – alleen bij mislukte acties
     }
   }
 
-  // 🔄 Update de max-waarde van stikstof uit dierlijke mest (na kunstmestslider)
+  // 🔄 Update stikstofslider max én behandel lockconflict met kunstmest
   const stikstofSlider = document.getElementById('slider-stikstof');
   const stikstofValue  = document.getElementById('value-stikstof');
 
   if (stikstofSlider && stikstofValue) {
-    const sliderWaarde = Number(stikstofSlider.value || 0);
-    const berekendeMax = bepaalMaxStikstofDierlijk();
-    const isGelocked = isLocked('stikstof');
-    
-    const echteStikstofWaarde = totalN; // waarde uit actieve mestdata
-    const veiligeMax = isGelocked
-      ? Math.max(echteStikstofWaarde, berekendeMax)
-      : berekendeMax;
+    const sliderWaarde  = Number(stikstofSlider.value || 0);
+    const berekendeMax  = bepaalMaxStikstofDierlijk();
+    const isGelocked    = isLocked('stikstof');
+    const veiligeMax    = isGelocked ? Math.max(totalN, berekendeMax) : berekendeMax;
 
     stikstofSlider.max = veiligeMax;
 
     if (isGelocked) {
-      if (berekendeMax < huidigeWaarde) {
-        const kunstSlider = document.getElementById('slider-kunststikstof');
-        const kunstValue  = document.getElementById('value-kunststikstof');
-        if (kunstSlider && kunstValue) {
-          const maxKunstmest = Math.max(0, totaalB - huidigeWaarde);
-          kunstSlider.value = maxKunstmest;
+      // 🔐 Lock staat aan, controleer op conflict
+      if (berekendeMax < totalN) {
+        const maxKunstmest = Math.max(0, totaalB - totalN);
+        kunstmestSlider.value = maxKunstmest;
 
-          // Shake kunstmestslider
-          kunstSlider.classList.add('shake');
-          setTimeout(() => kunstSlider.classList.remove('shake'), 400);
+        // 🎯 Shake kunstmestslider
+        kunstmestSlider.classList.add('shake');
+        setTimeout(() => kunstmestSlider.classList.remove('shake'), 400);
 
-          // Update waarde display
-          const formattedVal = formatSliderValue(maxKunstmest, 'kg');
-          const formattedMax = formatSliderValue(Number(kunstSlider.max), 'kg');
-          kunstValue.textContent = `${formattedVal} / ${formattedMax}`;
-        }
+        // 🎯 Shake alle gelockte sliders
+        document.querySelectorAll('[id^="slider-"]').forEach(slider => {
+          const id = slider.id.replace('slider-', '');
+          const lock = document.getElementById(`lock-${id}`);
+          if (lock?.checked) {
+            slider.classList.add('shake');
+            setTimeout(() => slider.classList.remove('shake'), 400);
+          }
+        });
+
+        // Update UI van kunstmestslider
+        const afgerondK = Math.round(maxKunstmest * 10) / 10;
+        const formattedVal = formatSliderValue(afgerondK, 'kg');
+        const formattedMax = formatSliderValue(Number(kunstmestSlider.max), 'kg');
+        kunstmestValue.textContent = `${formattedVal} / ${formattedMax}`;
       }
-  
-      // Geen wijziging van de waarde zelf
-    } else {
-      const nieuweWaarde = Math.min(huidigeWaarde, veiligeMax);
-      stikstofSlider.value = nieuweWaarde;
-      const afgerond = Math.round(nieuweWaarde * 10) / 10;
+
+      // ❌ stikstofSlider.value NIET wijzigen
+      const afgerond = Math.round(totalN * 10) / 10;
       const formattedVal = formatSliderValue(afgerond, 'kg');
       const formattedMax = formatSliderValue(veiligeMax, 'kg');
       stikstofValue.textContent = `${formattedVal} / ${formattedMax}`;
-    }
+    } else {
+      // 🔓 Niet gelocked → waarde mag aangepast worden
+      const nieuweWaarde = Math.min(sliderWaarde, veiligeMax);
+      stikstofSlider.value = nieuweWaarde;
 
-    if (isGelocked) {
-       // Alleen UI bijwerken (waarde behouden)
-      const afgerond = Math.round(huidigeWaarde * 10) / 10;
+      const afgerond = Math.round(nieuweWaarde * 10) / 10;
       const formattedVal = formatSliderValue(afgerond, 'kg');
       const formattedMax = formatSliderValue(veiligeMax, 'kg');
       stikstofValue.textContent = `${formattedVal} / ${formattedMax}`;
