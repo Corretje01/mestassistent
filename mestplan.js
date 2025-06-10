@@ -682,7 +682,17 @@ function updateFromNutrients(changedId, newValue, huidigeNutriënten, huidigeMes
   }
 
   // 4. Optimalisatie uitvoeren
-  const nieuweVerdeling = berekenOptimaleMestverdeling(doelwaarden, beschikbareMestsoorten, lockedNutriënten);
+  const huidigeMestverdeling = Object.fromEntries(
+     Object.entries(actieveMestData).map(([id, d]) => [id, d.ton])
+  );
+    
+  const nieuweVerdeling = berekenOptimaleMestverdeling(
+    doelwaarden,
+    beschikbareMest,
+    lockedNutriënten,
+    huidigeMestverdeling
+   );
+   ;
 
   // 5. Resultaat controleren en toepassen
   if (!nieuweVerdeling || Object.values(nieuweVerdeling).every(v => v === 0)) {
