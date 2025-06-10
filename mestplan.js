@@ -549,7 +549,15 @@ function addDynamicSlider(key, label) {
   slider.value = 0;
 
   // 📦 Event: Bij verschuiven van de mestslider
-  slider.addEventListener('input', () => {
+  slider.addEventListener('input', e => {
+    // Interne bescherming tegen illegale updates
+    if (slider.dataset.preventNext === "true") {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      slider.dataset.preventNext = "false";
+      return;
+    }
+
     const nieuweTon = Number(slider.value);
     const oudeData = actieveMestData[key];
     const oudeTon = oudeData?.ton || 0;
@@ -572,7 +580,11 @@ function addDynamicSlider(key, label) {
       
       if (overschrijding) {
         console.warn(`❌ Wijziging geweigerd: ${overschrijding}`);
+      
+        // Zet slider geforceerd terug
+        slider.dataset.preventNext = "true"; // voorkom eindeloze loop
         slider.value = oudeTon;
+        
         valueEl.textContent = `${formatSliderValue(oudeTon, 'ton')} / ${formatSliderValue(maxTon, 'ton')}`;
         slider.classList.add('shake');
         setTimeout(() => slider.classList.remove('shake'), 500);
