@@ -565,6 +565,21 @@ function addDynamicSlider(key, label) {
       const backup = actieveMestData[key];
       actieveMestData[key] = tijdelijk;
 
+      // Bereken nutriënten na deze wijziging
+      const nutNaWijziging = berekenTotaleNutriënten(false); // alleen dierlijk
+      const nutInclKunstmest = berekenTotaleNutriënten(true);
+      const overschrijding = overschrijdtMaxToegestaneWaarden(nutNaWijziging, nutInclKunstmest);
+      
+      if (overschrijding) {
+        console.warn(`❌ Wijziging geweigerd: ${overschrijding}`);
+        slider.value = oudeTon;
+        valueEl.textContent = `${formatSliderValue(oudeTon, 'ton')} / ${formatSliderValue(maxTon, 'ton')}`;
+        slider.classList.add('shake');
+        setTimeout(() => slider.classList.remove('shake'), 500);
+        return;
+      }
+      
+      // Probeer vergrendelde nutriënten te compenseren
       const geslaagd = compenseerVergrendeldeNutriënten(key, oudeTon);
       actieveMestData[key] = geslaagd ? tijdelijk : backup;
 
