@@ -394,36 +394,40 @@ function updateStandardSliders() {
     }
   }
 
-  // 👇 Kunstmest automatisch bijstellen (indien niet gelocked)
   const kunstmestSlider = document.getElementById('slider-kunststikstof');
   const kunstmestValue  = document.getElementById('value-kunststikstof');
   const kunstmestLock   = document.getElementById('lock-kunststikstof');
 
-  const geselecteerdeKunstmest = Number(kunstmestSlider?.value || 0);
-  const totalN_dierlijk = totalN; // = totaal stikstof uit dierlijke mest
-  const maxKunstmest = Math.max(0, totaalB - totalN_dierlijk);
+  const huidigeWaarde = Number(kunstmestSlider?.value || 0);
+  const maxKunstmest = Math.max(0, totaalB - totalN);
 
   if (kunstmestSlider && kunstmestValue && kunstmestLock && !kunstmestLock.checked) {
-    const huidigeWaarde = Number(kunstmestSlider.value);
-    const nieuweWaarde = Math.min(huidigeWaarde, maxKunstmest);
     const stikstofGelocked = isLocked('stikstof');
     const stikstofSlider = document.getElementById('slider-stikstof');
     const currentStikstofWaarde = Number(stikstofSlider?.value || 0);
     const maxKunstmestVoorStikstofLock = Math.max(0, totaalB - currentStikstofWaarde);
-  
-    // 🔒 Als stikstof gelocked is en huidige kunstmest overschrijdt wat mogelijk is
+
     if (stikstofGelocked && huidigeWaarde > maxKunstmestVoorStikstofLock) {
-      kunstmestSlider.value = maxKunstmestVoorStikstofLock;
       const afgerond = Math.round(maxKunstmestVoorStikstofLock * 10) / 10;
+      kunstmestSlider.value = afgerond;
+
       const formattedVal = formatSliderValue(afgerond, 'kg');
       const formattedMax = formatSliderValue(Number(kunstmestSlider.max), 'kg');
       kunstmestValue.textContent = `${formattedVal} / ${formattedMax}`;
+
       kunstmestSlider.classList.add('shake');
       setTimeout(() => kunstmestSlider.classList.remove('shake'), 400);
       userModifiedKunstmest = false;
-    } else if (!userModifiedKunstmest) {
-      const afgerond = Math.round(nieuweWaarde * 10) / 10;
+    } else if (!userModifiedKunstmest && huidigeWaarde > maxKunstmest) {
+      const afgerond = Math.round(maxKunstmest * 10) / 10;
       kunstmestSlider.value = afgerond;
+
+      const formattedVal = formatSliderValue(afgerond, 'kg');
+      const formattedMax = formatSliderValue(Number(kunstmestSlider.max), 'kg');
+      kunstmestValue.textContent = `${formattedVal} / ${formattedMax}`;
+    } else {
+      // Alleen UI bijwerken zonder waarde aanpassing
+      const afgerond = Math.round(huidigeWaarde * 10) / 10;
       const formattedVal = formatSliderValue(afgerond, 'kg');
       const formattedMax = formatSliderValue(Number(kunstmestSlider.max), 'kg');
       kunstmestValue.textContent = `${formattedVal} / ${formattedMax}`;
@@ -455,7 +459,6 @@ function updateStandardSliders() {
       const formattedMax = formatSliderValue(Number(sliderEl.max), unit, isFin);
       valueElem.textContent = `${formattedVal} / ${formattedMax}`;
     } else {
-      // Alleen UI max bijwerken, waarde niet
       const huidigeWaarde = Number(sliderEl.value || 0);
       const formattedVal = formatSliderValue(huidigeWaarde, unit, isFin);
       const formattedMax = formatSliderValue(Number(sliderEl.max), unit, isFin);
@@ -463,7 +466,6 @@ function updateStandardSliders() {
     }
   }
 
-  // ⛳ Max van stikstofslider bijwerken, waarde blijft ongemoeid
   updateMaxStikstofSlider();
   userModifiedKunstmest = false;
 }
