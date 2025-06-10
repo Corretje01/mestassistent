@@ -447,13 +447,19 @@ function updateStandardSliders() {
     } else {
       const nieuweWaarde = Math.min(huidigeWaarde, veiligeMax);
       stikstofSlider.value = nieuweWaarde;
+      const afgerond = Math.round(nieuweWaarde * 10) / 10;
+      const formattedVal = formatSliderValue(afgerond, 'kg');
+      const formattedMax = formatSliderValue(veiligeMax, 'kg');
+      stikstofValue.textContent = `${formattedVal} / ${formattedMax}`;
     }
 
-    // Altijd UI-waarde bijwerken
-    const afgerond = Math.round(Number(stikstofSlider.value) * 10) / 10;
-    const formattedVal = formatSliderValue(afgerond, 'kg');
-    const formattedMax = formatSliderValue(veiligeMax, 'kg');
-    stikstofValue.textContent = `${formattedVal} / ${formattedMax}`;
+    if (isGelocked) {
+       // Alleen UI bijwerken (waarde behouden)
+      const afgerond = Math.round(huidigeWaarde * 10) / 10;
+      const formattedVal = formatSliderValue(afgerond, 'kg');
+      const formattedMax = formatSliderValue(veiligeMax, 'kg');
+      stikstofValue.textContent = `${formattedVal} / ${formattedMax}`;
+    }
   }
 }
 
