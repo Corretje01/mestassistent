@@ -58,6 +58,8 @@ const jsonKeyMap = {
 
 const slidersContainer = document.getElementById('sliders-container');
 
+let lastUpdateSource = null;
+let suppressAutoUpdate = false;
 let mestsoortenData = {};
 const actieveMestData = {};
 let userModifiedKunstmest = false;
@@ -150,7 +152,6 @@ standaardSliders.forEach(({id, label, max, unit}) => {
 });
 
   // Bidirectionele sync bij nutriënt-aanpassing
-  const slider = document.getElementById(`slider-${id}`);
   if (slider && ['stikstof', 'fosfaat', 'kalium', 'organisch'].includes(id)) {
     slider.addEventListener('input', () => {
       if (suppressAutoUpdate || lastUpdateSource === 'fertilizer') return;
@@ -656,9 +657,6 @@ document.getElementById('optimaliseer-btn').addEventListener('click', () => {
 });
 
 // --- [ BIDIRECTIONELE SYNC: Nutriënt ➜ Mesthoeveelheden ] ---
-
-let lastUpdateSource = null;
-let suppressAutoUpdate = false;
 
 function updateFromNutrients() {
   if (suppressAutoUpdate) return;
