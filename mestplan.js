@@ -151,15 +151,6 @@ standaardSliders.forEach(({id, label, max, unit}) => {
   }
 });
 
-  // Bidirectionele sync bij nutriënt-aanpassing
-  if (slider && ['stikstof', 'fosfaat', 'kalium', 'organisch'].includes(id)) {
-    slider.addEventListener('input', () => {
-      if (suppressAutoUpdate || lastUpdateSource === 'fertilizer') return;
-      lastUpdateSource = 'nutrient';
-      updateFromNutrients();
-    });
-  }
-
   const kunstmestSlider = document.getElementById('slider-kunststikstof');
   if (kunstmestSlider) {
     kunstmestSlider.addEventListener('input', () => {
