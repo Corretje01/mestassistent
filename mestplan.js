@@ -733,24 +733,315 @@ function berekenOptimaleMestverdeling(doelwaarden, mestKeys) {
   }
 }
 
-// --- [ STAP 1: Centrale update-controller + loggingmodus ] ---
+// --- [ STAP 3: Volledige eerste versie van onSliderChange() ] ---
 
 const DEBUG_MODE = true;
 
 /**
  * Centrale router voor sliders. Wordt aangesproken bij elke gebruikersactie.
- * @param {string} sliderId - de id van de slider (bv. 'stikstof', 'drijfmest-koe')
- * @param {number} newValue - de nieuwe waarde die is ingevoerd door gebruiker
- * @param {'user'|'auto'} source - wie triggert dit? (user = handmatig, auto = herberekening)
+ * @param {string} sliderId - bv. 'stikstof', 'drijfmest-koe'
+ * @param {number} newValue - nieuwe waarde van de slider
+ * @param {'user'|'auto'} source - bron van de wijziging
  */
 function onSliderChange(sliderId, newValue, source = 'user') {
+  if (typeof suppressAutoUpdate === 'undefined') {
+    console.warn("⚠️ suppressAutoUpdate niet gedefinieerd – wordt nu aangemaakt.");
+    suppressAutoUpdate = false;
+  }
+
   if (suppressAutoUpdate) return;
+  suppressAutoUpdate = true;
   lastUpdateSource = source;
 
   if (DEBUG_MODE) {
-    console.log(`🟡 onSliderChange: ${sliderId} → ${newValue} (bron: ${source})`);
+    console.log(`🟡 [onSliderChange] ${sliderId} → ${newValue} (bron: ${source})`);
   }
 
-  // Binnen de volgende stappen gaan we hier per slidergroep (nutriënt of mest) beslissingen nemen
+  // 🔎 Type slider bepalen: mestsoort of nutriënt?
+  const isNutriënt = ['stikstof', 'fosfaat', 'kalium', 'organisch', 'kunststikstof'].includes(sliderId);
+  const isMestsoort = actieveMestData[sliderId] !== undefined;
+
+  if (!isNutriënt && !isMestsoort) {
+    console.warn(`❓ onSliderChange: onbekende sliderId: ${sliderId}`);
+    suppressAutoUpdate = false;
+    return;
+  }
+
+  // ⛔️ Hard-lock controleren vóór enige actie
+  if (!enforceLocks(sliderId, newValue)) {
+    suppressAutoUpdate = false;
+    return;
+  }
+  
+  if (!enforceBoundaries(sliderId, newValue)) {
+    suppressAutoUpdate = false;
+    return;
+  }
+  
+  if (isNutriënt) {
+    if (sliderId === 'kunststikstof') {
+      const toegestaan = verwerkKunstmestStikstof(newValue);
+      if (!toegestaan) {
+        suppressAutoUpdate = false;
+        return;
+      }
+    }
+  
+    const slider = document.getElementById(`slider-${sliderId}`);
+    if (slider && !isLocked(sliderId)) {
+      slider.value = newValue;
+    }
+  
+    if (DEBUG_MODE) {
+      console.log(`🔁 Nutriënt-aanpassing: ${sliderId} = ${newValue} → updateFromNutrients()`);
+    }
+  
+    updateFromNutrients();
+  }
+
+  if (isMestsoort) {
+    const maxToelaatbaar = bepaalMaxToelaatbareTon(sliderId);
+    const sliderEl = document.getElementById(`slider-${sliderId}`);
+    if (sliderEl) {
+      sliderEl.max = maxToelaatbaar;
+    }
+  
+    const oudeTon = actieveMestData[sliderId]?.ton || 0;
+    const tijdelijk = { ...actieveMestData[sliderId], ton: newValue };
+    tijdelijk.totaal = berekenMestWaardenPerTon(tijdelijk, newValue);
+    const backup = actieveMestData[sliderId];
+    actieveMestData[sliderId] = tijdelijk;
+  
+    const nutNa = berekenTotaleNutriënten(false);
+    const nutInclKunstmest = berekenTotaleNutriënten(true);
+    const overschrijding = overschrijdtMaxToegestaneWaarden(nutNa, nutInclKunstmest);
+  
+    if (overschrijding) {
+      if (DEBUG_MODE) {
+        console.warn(`❌ Overschrijding mestgrens bij ${sliderId}: ${overschrijding}`);
+      }
+      actieveMestData[sliderId] = backup;
+      stelMesthoeveelheidIn(sliderId, oudeTon);
+      triggerShakeEffect(sliderId);
+      suppressAutoUpdate = false;
+      return;
+    }
+  
+    const succes = compenseerVergrendeldeNutriënten(sliderId, oudeTon);
+    actieveMestData[sliderId] = succes ? tijdelijk : backup;
+  
+    if (!succes) {
+      stelMesthoeveelheidIn(sliderId, oudeTon);
+      triggerShakeEffect(sliderId);
+      suppressAutoUpdate = false;
+      return;
+    }
+  
+    stelMesthoeveelheidIn(sliderId, newValue);
+    updateStandardSliders();
+  }
+  
+  updateDebugOverlay();
+  suppressAutoUpdate = false;
 }
+
+function triggerShakeEffect(sliderId) {
+  const el = document.getElementById(`slider-${sliderId}`);
+  if (el) {
+    el.classList.add('shake');
+    setTimeout(() => el.classList.remove('shake'), 400);
+  }
+}
+
+/**
+ * Controleert of een slider vergrendeld is en blokkeert de wijziging indien nodig.
+ * @param {string} id - slider-id zoals 'stikstof' of 'drijfmest-koe'
+ * @param {number} nieuweWaarde - de voorgestelde nieuwe waarde
+ * @returns {boolean} true als wijziging toegestaan is, false als geblokkeerd
+ */
+function enforceLocks(id, nieuweWaarde) {
+  if (!isLocked(id)) return true;
+
+  const huidige = document.getElementById(`slider-${id}`)?.value;
+  const verschil = Math.abs(nieuweWaarde - Number(huidige || 0));
+
+  if (verschil > 0.0001) {
+    if (DEBUG_MODE) {
+      console.warn(`⛔️ Wijziging geblokkeerd: '${id}' is vergrendeld (huidig: ${huidige}, voorstel: ${nieuweWaarde})`);
+    }
+    triggerShakeEffect(id);
+    revertSliderToPreviousValue(id);
+    return false;
+  }
+
+  return true;
+}
+
+/**
+ * Zet slider visueel terug naar huidige DOM-waarde (bij vergrendeling)
+ * @param {string} id - slider-id
+ */
+function revertSliderToPreviousValue(id) {
+  const slider = document.getElementById(`slider-${id}`);
+  if (!slider) return;
+
+  const huidigeWaarde = Number(slider.value || 0);
+  slider.value = huidigeWaarde;
+
+  const valueSpan = document.getElementById(`value-${id}`);
+  const unit = standaardSliders.find(s => s.id === id)?.unit || 'kg';
+  const isFin = id === 'financieel';
+
+  const formattedVal = formatSliderValue(huidigeWaarde, unit, isFin);
+  const formattedMax = formatSliderValue(Number(slider.max), unit, isFin);
+  valueSpan.textContent = `${formattedVal} / ${formattedMax}`;
+}
+
+/**
+ * Controleert of een waarde binnen geldige grenzen valt.
+ * Bij overschrijding: shake, rollback, logging.
+ * @param {string} id - slider-id (bijv. 'stikstof', 'drijfmest-koe')
+ * @param {number} waarde - voorgestelde nieuwe waarde
+ * @returns {boolean} true als toegestaan, false bij overschrijding
+ */
+function enforceBoundaries(id, waarde) {
+  const slider = document.getElementById(`slider-${id}`);
+  if (!slider) return true; // geen element = geen grenscheck
+
+  const min = Number(slider.min ?? 0);
+  const max = Number(slider.max ?? 650); // default max voor mest
+
+  const ondergrens = waarde < min - 0.001;
+  const bovengrens = waarde > max + 0.001;
+
+  if (!ondergrens && !bovengrens) return true;
+
+  if (DEBUG_MODE) {
+    const grensType = ondergrens ? 'ondergrens' : 'bovengrens';
+    console.warn(`⛔️ ${id}: ${grensType} overschreden (${waarde} buiten ${min}–${max})`);
+  }
+
+  triggerShakeEffect(id);
+  revertSliderToPreviousValue(id);
+  return false;
+}
+
+/**
+ * Berekent de maximale toegestane tonnage voor een mestsoort o.b.v. huidige gebruiksruimte.
+ * @param {string} key - bijv. 'drijfmest-koe'
+ * @returns {number} maximale toegestane tonnage, default 650
+ */
+function bepaalMaxToelaatbareTon(key) {
+  const mest = actieveMestData[key];
+  if (!mest) return 650;
+
+  const N = mest.N_kg_per_ton || 0;
+  const P = mest.P_kg_per_ton || 0;
+
+  let maxN = Infinity;
+  let maxP = Infinity;
+
+  if (N > 0 && totaalA) {
+    maxN = totaalA / N;
+  }
+
+  if (P > 0 && totaalC) {
+    maxP = totaalC / P;
+  }
+
+  const maxTon = Math.floor(Math.min(maxN, maxP, 650));
+  return Math.max(0, maxTon);
+}
+
+/**
+ * Voert logica uit bij wijziging van kunstmest-stikstof, inclusief vergrendelingscontrole
+ * @param {number} nieuweWaarde - voorgestelde hoeveelheid kunststikstof
+ * @returns {boolean} true = toegestaan, false = geblokkeerd
+ */
+function verwerkKunstmestStikstof(nieuweWaarde) {
+  const stikstofSlider = document.getElementById('slider-stikstof');
+  if (!stikstofSlider) return true;
+
+  const stikstofLocked = isLocked('stikstof');
+  const huidigDierlijk = Number(stikstofSlider.value || 0);
+  const maxDierlijkToegestaan = Math.min(totaalA, totaalB - nieuweWaarde);
+
+  if (stikstofLocked && huidigDierlijk > maxDierlijkToegestaan) {
+    if (DEBUG_MODE) {
+      console.warn(`⛔️ Kunststikstof zou stikstof-lock overschrijden. (${huidigDierlijk} > ${maxDierlijkToegestaan})`);
+    }
+    triggerShakeEffect('kunststikstof');
+    revertSliderToPreviousValue('kunststikstof');
+    return false;
+  }
+
+  return true;
+}
+
+function initDebugOverlay() {
+  if (!DEBUG_MODE) return;
+
+  // Voeg HTML-element toe
+  const overlay = document.createElement('div');
+  overlay.id = 'debug-overlay';
+  document.body.appendChild(overlay);
+
+  // Voeg CSS-styling toe
+  const style = document.createElement('style');
+  style.innerHTML = `
+    #debug-overlay {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: rgba(0,0,0,0.85);
+      color: #00ff7f;
+      font-family: monospace;
+      font-size: 12px;
+      padding: 8px 12px;
+      max-height: 24vh;
+      overflow-y: auto;
+      z-index: 9999;
+      white-space: pre-wrap;
+      display: block;
+    }
+  `;
+  document.head.appendChild(style);
+
+  // Voeg updatefunctie toe aan global scope
+  window.updateDebugOverlay = function () {
+    const el = document.getElementById('debug-overlay');
+    if (!el) return;
+
+    const nut = berekenTotaleNutriënten(true);
+    const locked = [
+      'stikstof', 'fosfaat', 'kalium', 'organisch', 'kunststikstof'
+    ].map(id => ({
+      id,
+      val: document.getElementById(`slider-${id}`)?.value || '-',
+      locked: isLocked(id) ? '✅' : '❌'
+    }));
+
+    const mestregels = Object.entries(actieveMestData)
+      .map(([k, v]) => `- ${k}: ${v.ton.toFixed(1)} ton`).join('\n');
+
+    const vrijeStikstofruimte = totaalB - (Number(document.getElementById('slider-kunststikstof')?.value || 0));
+
+    el.textContent =
+      `🧪 [DEBUG OVERLAY]\n` +
+      `Totaal N: ${nut.stikstof?.toFixed(1) || '?'} / ${totaalA}\n` +
+      `Totaal P: ${nut.fosfaat?.toFixed(1) || '?'} / ${totaalC}\n` +
+      `Kunstmest-stikstof: ${Number(document.getElementById('slider-kunststikstof')?.value || 0)} → max dierlijk: ${vrijeStikstofruimte}\n\n` +
+      `🔒 Locks:\n` +
+      locked.map(l => `• ${l.id}: ${l.val} (${l.locked})`).join('\n') +
+      `\n\n🚛 Mestsoorten:\n${mestregels}`;
+  };
+}
+
+if (DEBUG_MODE) {
+  initDebugOverlay();
+  updateDebugOverlay();
+}
+
+
 
