@@ -829,8 +829,15 @@ function onSliderChange(sliderId, newValue, source = 'user') {
     if (DEBUG_MODE) {
       console.log(`🔁 Nutriënt-aanpassing: ${sliderId} = ${newValue} → updateFromNutrients()`);
     }
-  
-    updateFromNutrients();
+
+    const huidigeNutriënten = berekenTotaleNutriënten(true);
+    const huidigeMestverdeling = Object.entries(actieveMestData).map(([id, data]) => ({
+      id,
+      ton: data.ton,
+      locked: isLocked(id)
+    }));
+    
+    updateFromNutrients(sliderId, newValue, huidigeNutriënten, huidigeMestverdeling);
   }
 
   if (isMestsoort) {
