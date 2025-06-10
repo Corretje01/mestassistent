@@ -649,75 +649,120 @@ document.getElementById('optimaliseer-btn').addEventListener('click', () => {
 
 // --- [ BIDIRECTIONELE SYNC: Nutriënt ➜ Mesthoeveelheden ] ---
 
-function updateFromNutrients() {
-  if (suppressAutoUpdate) return;
-  suppressAutoUpdate = true;
-  lastUpdateSource = "nutrient";
+function updateFromNutrients(changedId, newValue, huidigeNutriënten, huidigeMestverdeling) {
+  if (DEBUG_MODE) {
+    console.log('▶️ [updateFromNutrients] Gestart');
+    console.log('🔧 Gewijzigde nutriënt:', changedId, 'Nieuwe waarde:', newValue);
+  }
 
-  const gewensteWaarden = getLockedNutriëntenWaarden();
-  const mestKeys = Object.keys(actieveMestData);
-  if (mestKeys.length === 0) {
-    console.warn("⚠️ Geen mestsoorten actief voor herverdeling");
-    suppressAutoUpdate = false;
+  // 1. Doelwaarden samenstellen
+  const doelwaarden = { ...huidigeNutriënten, [changedId]: newValue };
+
+  // 2. Locked nutriënten opsporen
+  const nutriënten = ['stikstof', 'fosfaat', 'kalium', 'organisch', 'kunststikstof', 'kosten'];
+  const lockedNutriënten = nutriënten.filter(id => isLocked(id));
+
+  if (DEBUG_MODE) {
+    console.log('🔒 Locked nutriënten:', lockedNutriënten);
+    console.log('🎯 Doelwaarden:', doelwaarden);
+  }
+
+  // 3. Beschikbare mestsoorten bepalen
+  const beschikbareMestsoorten = huidigeMestverdeling
+    .filter(m => !m.locked)
+    .map(m => m.id);
+
+  if (DEBUG_MODE) {
+    console.log('🐄 Beschikbare mestsoorten (niet gelockt):', beschikbareMestsoorten);
+  }
+
+  // 4. Optimalisatie uitvoeren
+  const nieuweVerdeling = berekenOptimaleMestverdeling(doelwaarden, beschikbareMestsoorten, lockedNutriënten);
+
+  // 5. Resultaat controleren en toepassen
+  if (!nieuweVerdeling || Object.values(nieuweVerdeling).every(v => v === 0)) {
+    if (DEBUG_MODE) {
+      console.warn('❌ Geen geldige verdeling gevonden. Nutriëntaanpassing niet toegepast.');
+    }
     return;
   }
 
-  const oplossingsVector = berekenOptimaleMestverdeling(gewensteWaarden, mestKeys);
-
-  if (!oplossingsVector) {
-    console.warn("❌ Geen oplossing gevonden voor gewenste nutriëntwaarden.");
-    suppressAutoUpdate = false;
-    return;
+  if (DEBUG_MODE) {
+    console.log('✅ Nieuwe mestverdeling:', nieuweVerdeling);
   }
 
-  mestKeys.forEach((key, i) => {
-    stelMesthoeveelheidIn(key, oplossingsVector[i]);
+  // 6. Doorvoeren in sliders + data
+  Object.entries(nieuweVerdeling).forEach(([mestId, ton]) => {
+    stelMesthoeveelheidIn(mestId, ton, 'auto');
   });
 
-  updateStandardSliders();
-
-  // 🧪 Debug: toon gewenste vs actuele waarden
-  console.table({
-    gewenste: gewensteWaarden,
-    huidig: berekenTotaleNutriënten(false),
-    mesttonnages: Object.fromEntries(Object.entries(actieveMestData).map(([k,v]) => [k, v.ton]))
-  });
-
-  suppressAutoUpdate = false;
+  if (DEBUG_MODE) {
+    updateDebugOverlay();
+  }
 }
 
-function berekenOptimaleMestverdeling(doelwaarden, mestKeys) {
+function berekenOptimaleMestverdeling(doelwaarden, mestKeys, lockedNutriënten = []) {
+  if (DEBUG_MODE) {
+    console.log('📐 [berekenOptimaleMestverdeling] Gestart');
+    console.log('🎯 Doelwaarden:', doelwaarden);
+    console.log('🔒 Soft-locked nutriënten:', lockedNutriënten);
+    console.log('📦 Beschikbare mest:', mestKeys);
+  }
+
+  const nutrienten = ['stikstof', 'fosfaat', 'kalium', 'organisch', 'kosten'];
+
+  // 1. Bouw A-matrix en b-vector
   const A = [];
   const b = [];
 
-  ['stikstof', 'fosfaat', 'kalium', 'organisch'].forEach(nut => {
-    if (isLocked(nut)) {
-      const rij = [];
-      for (const key of mestKeys) {
-        const mest = actieveMestData[key];
-        switch (nut) {
-          case 'stikstof':  rij.push(mest.N_kg_per_ton || 0); break;
-          case 'fosfaat':   rij.push(mest.P_kg_per_ton || 0); break;
-          case 'kalium':    rij.push(mest.K_kg_per_ton || 0); break;
-          case 'organisch': rij.push((mest.OS_percent || 0) / 100); break;
-        }
-      }
-      A.push(rij);
-      b.push(doelwaarden[nut]);
-    }
+  nutrienten.forEach(nut => {
+    const row = [];
+    mestKeys.forEach(mestId => {
+      const waarde = actieveMestData[mestId]?.[nut] || 0;
+      row.push(waarde);
+    });
+
+    A.push(row);
+    b.push(doelwaarden[nut] || 0);
   });
 
-  if (A.length === 0) return null;
+  const matrixA = math.matrix(A);
+  const vectorB = math.matrix(b);
 
+  let oplossing;
   try {
-    const AT = math.transpose(A);
-    const ATA = math.multiply(AT, A);
-    const ATb = math.multiply(AT, b);
-    const oplossing = math.lusolve(ATA, ATb).map(e => e[0]);
+    // 2. Least squares oplossing
+    const pseudoInverse = math.pinv(matrixA);
+    const vectorX = math.multiply(pseudoInverse, vectorB);
+    const oplossingArray = vectorX.toArray();
 
-    return oplossing.map(v => Math.max(0, v)); // negatieve tonnages vermijden
-  } catch (e) {
-    console.error("❌ Matrixoplossing mislukt:", e);
+    // 3. Controleer locked nutriënten op tolerantie (±10 kg)
+    const tolerantie = 10;
+    const gerealiseerd = math.multiply(matrixA, vectorX).toArray();
+
+    const voldoet = lockedNutriënten.every((nut, i) => {
+      const index = nutrienten.indexOf(nut);
+      const verschil = Math.abs(gerealiseerd[index] - (doelwaarden[nut] || 0));
+      return verschil <= tolerantie;
+    });
+
+    if (!voldoet) {
+      if (DEBUG_MODE) {
+        console.warn('⚠️ Locked nutriëntoverschrijding buiten tolerantie. Afgebroken.');
+      }
+      return null;
+    }
+
+    // 4. Zet om naar mestverdeling
+    oplossing = {};
+    mestKeys.forEach((mestId, i) => {
+      const waarde = Math.max(0, oplossingArray[i]);
+      oplossing[mestId] = Math.round(waarde * 100) / 100; // afronden op 0.01
+    });
+
+    return oplossing;
+  } catch (err) {
+    console.error('❌ [berekenOptimaleMestverdeling] Matrixoplossing faalde:', err);
     return null;
   }
 }
