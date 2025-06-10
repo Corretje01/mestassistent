@@ -60,6 +60,7 @@ const slidersContainer = document.getElementById('sliders-container');
 
 let mestsoortenData = {};
 const actieveMestData = {};
+let userModifiedKunstmest = false;
 
 fetch('/data/mestsoorten.json')
   .then(res => res.json())
@@ -138,6 +139,7 @@ standaardSliders.forEach(({id, label, max, unit}) => initSlider(id, label, max, 
 const kunstmestSlider = document.getElementById('slider-kunststikstof');
 if (kunstmestSlider) {
   kunstmestSlider.addEventListener('input', () => {
+    userModifiedKunstmest = true;
     updateMaxStikstofSlider();
   });
 }
@@ -404,13 +406,28 @@ function updateStandardSliders() {
   if (kunstmestSlider && kunstmestValue && kunstmestLock && !kunstmestLock.checked) {
     const huidigeWaarde = Number(kunstmestSlider.value);
     const nieuweWaarde  = Math.min(huidigeWaarde, remainingN);
-    const afgerond      = Math.round(nieuweWaarde * 10) / 10;
-
-    kunstmestSlider.value = afgerond;
-
-    const formattedVal = formatSliderValue(afgerond, 'kg');
-    const formattedMax = formatSliderValue(Number(kunstmestSlider.max), 'kg');
-    kunstmestValue.textContent = `${formattedVal} / ${formattedMax}`;
+    const stikstofGelocked = isLocked('stikstof');
+    const stikstofSlider = document.getElementById('slider-stikstof');
+    const currentStikstofWaarde = Number(stikstofSlider?.value || 0);
+    const maxKunstmestVoorStikstofLock = Math.max(0, totaalB - currentStikstofWaarde);
+  
+    // 🔒 Als stikstof gelocked is en huidige kunstmest overschrijdt wat mogelijk is
+    if (stikstofGelocked && huidigeWaarde > maxKunstmestVoorStikstofLock) {
+      kunstmestSlider.value = maxKunstmestVoorStikstofLock;
+      const afgerond = Math.round(maxKunstmestVoorStikstofLock * 10) / 10;
+      const formattedVal = formatSliderValue(afgerond, 'kg');
+      const formattedMax = formatSliderValue(Number(kunstmestSlider.max), 'kg');
+      kunstmestValue.textContent = `${formattedVal} / ${formattedMax}`;
+      kunstmestSlider.classList.add('shake');
+      setTimeout(() => kunstmestSlider.classList.remove('shake'), 400);
+      userModifiedKunstmest = false;
+    } else if (!userModifiedKunstmest) {
+      const afgerond = Math.round(nieuweWaarde * 10) / 10;
+      kunstmestSlider.value = afgerond;
+      const formattedVal = formatSliderValue(afgerond, 'kg');
+      const formattedMax = formatSliderValue(Number(kunstmestSlider.max), 'kg');
+      kunstmestValue.textContent = `${formattedVal} / ${formattedMax}`;
+    }
   }
 
   // 👇 Update de nutriënten- en financieelsliders
@@ -448,6 +465,7 @@ function updateStandardSliders() {
 
   // ⛳ Max van stikstofslider bijwerken, waarde blijft ongemoeid
   updateMaxStikstofSlider();
+  userModifiedKunstmest = false;
 }
 
 function berekenMestWaardenPerTon(data, ton) {
