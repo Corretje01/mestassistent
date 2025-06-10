@@ -134,7 +134,19 @@ function createStandaardSliders(totaalA, totaalB, totaalC) {
 
 const standaardSliders = createStandaardSliders(totaalA, totaalB, totaalC);
 
-standaardSliders.forEach(({id, label, max, unit}) => initSlider(id, label, max, unit));
+standaardSliders.forEach(({id, label, max, unit}) => {
+  initSlider(id, label, max, unit);
+
+  // Bidirectionele sync bij nutriënt-aanpassing
+  const slider = document.getElementById(`slider-${id}`);
+  if (slider && ['stikstof', 'fosfaat', 'kalium', 'organisch'].includes(id)) {
+    slider.addEventListener('input', () => {
+      if (suppressAutoUpdate || lastUpdateSource === 'fertilizer') return;
+      lastUpdateSource = 'nutrient';
+      updateFromNutrients();
+    });
+  }
+});
 
 const kunstmestSlider = document.getElementById('slider-kunststikstof');
 if (kunstmestSlider) {
@@ -668,3 +680,82 @@ document.getElementById('optimaliseer-btn').addEventListener('click', () => {
   console.log('Plan-uitkomst:', resultaat);
   console.log('Totaal actieve mestdata:', actieveMestData);
 });
+
+// --- [ BIDIRECTIONELE SYNC: Nutriënt ➜ Mesthoeveelheden ] ---
+
+let lastUpdateSource = null;
+let suppressAutoUpdate = false;
+
+function updateFromNutrients() {
+  if (suppressAutoUpdate) return;
+  suppressAutoUpdate = true;
+  lastUpdateSource = "nutrient";
+
+  const gewensteWaarden = getLockedNutriëntenWaarden();
+  const mestKeys = Object.keys(actieveMestData);
+  if (mestKeys.length === 0) {
+    console.warn("⚠️ Geen mestsoorten actief voor herverdeling");
+    suppressAutoUpdate = false;
+    return;
+  }
+
+  const oplossingsVector = berekenOptimaleMestverdeling(gewensteWaarden, mestKeys);
+
+  if (!oplossingsVector) {
+    console.warn("❌ Geen oplossing gevonden voor gewenste nutriëntwaarden.");
+    suppressAutoUpdate = false;
+    return;
+  }
+
+  mestKeys.forEach((key, i) => {
+    stelMesthoeveelheidIn(key, oplossingsVector[i]);
+  });
+
+  updateStandardSliders();
+
+  // 🧪 Debug: toon gewenste vs actuele waarden
+  console.table({
+    gewenste: gewensteWaarden,
+    huidig: berekenTotaleNutriënten(false),
+    mesttonnages: Object.fromEntries(Object.entries(actieveMestData).map(([k,v]) => [k, v.ton]))
+  });
+
+  suppressAutoUpdate = false;
+}
+
+function berekenOptimaleMestverdeling(doelwaarden, mestKeys) {
+  const A = [];
+  const b = [];
+
+  ['stikstof', 'fosfaat', 'kalium', 'organisch'].forEach(nut => {
+    if (isLocked(nut)) {
+      const rij = [];
+      for (const key of mestKeys) {
+        const mest = actieveMestData[key];
+        switch (nut) {
+          case 'stikstof':  rij.push(mest.N_kg_per_ton || 0); break;
+          case 'fosfaat':   rij.push(mest.P_kg_per_ton || 0); break;
+          case 'kalium':    rij.push(mest.K_kg_per_ton || 0); break;
+          case 'organisch': rij.push((mest.OS_percent || 0) / 100); break;
+        }
+      }
+      A.push(rij);
+      b.push(doelwaarden[nut]);
+    }
+  });
+
+  if (A.length === 0) return null;
+
+  try {
+    const AT = math.transpose(A);
+    const ATA = math.multiply(AT, A);
+    const ATb = math.multiply(AT, b);
+    const oplossing = math.lusolve(ATA, ATb).map(e => e[0]);
+
+    return oplossing.map(v => Math.max(0, v)); // negatieve tonnages vermijden
+  } catch (e) {
+    console.error("❌ Matrixoplossing mislukt:", e);
+    return null;
+  }
+}
+
