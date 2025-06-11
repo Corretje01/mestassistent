@@ -772,16 +772,20 @@ function berekenOptimaleMestverdeling(doelwaarden, beschikbareMest, lockedNutri�
 
   vectorX.toArray().forEach((ton, i) => {
     const mestId = beschikbareMest[i];
-    const tonnage = Math.max(0, Math.round(ton * 10) / 10); // geen negatieve waarden
+    const tonnage = Math.round(ton * 10) / 10; // laat negatieve waarden voorlopig toe
     const max = bepaalMaxToelaatbareTon(mestId);
     const min = 0;
-
+  
     if (tonnage < min || tonnage > max) {
-      if (DEBUG_MODE) console.warn(`⛔️ Correctie voor '${mestId}' ongeldig (${tonnage} ton) – buiten grenzen.`);
+      if (DEBUG_MODE) {
+        console.warn(`⛔️ Correctie voor '${mestId}' ongeldig (${tonnage} ton) – buiten grenzen.`);
+      }
       geldigeOplossing = false;
     } else {
       resultaat[mestId] = tonnage;
-      if (DEBUG_MODE) console.log(`💧 ${mestId}: berekend ${ton} → toegepast ${tonnage}`);
+      if (DEBUG_MODE) {
+        console.log(`💧 ${mestId}: berekend ${ton} → toegepast ${tonnage}`);
+      }
     }
   });
 
