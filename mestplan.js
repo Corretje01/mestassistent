@@ -729,12 +729,14 @@ function berekenOptimaleMestverdeling(doelwaarden, beschikbareMest, lockedNutri�
   }
 
   const nutrienten = ['stikstof', 'fosfaat', 'kalium', 'organisch', 'kunststikstof', 'kosten'];
-  const relevanteNutriënten = nutrienten.filter(n => doelwaarden[n] !== undefined);
-
+  
   const A = []; // mestsoorten → nutriënten
   const b = [];
 
-  for (let nut of relevanteNutriënten) {
+  for (let nut of nutrienten) {
+    const isRelevant = nut === changedNutriënt || lockedNutriënten.includes(nut);
+    if (!isRelevant || doelwaarden[nut] === undefined) continue;
+  
     const rij = [];
     for (let mest of beschikbareMest) {
       const eenheid = actieveMestData[mest];
