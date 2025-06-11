@@ -686,11 +686,16 @@ function updateFromNutrients(changedId, newValue, huidigeNutriënten, huidigeMes
     huidigeMestverdeling.map(m => [m.id, m.ton])
   );
 
+  const huidigeTonnages = Object.fromEntries(
+  huidigeMestverdeling.map(m => [m.id, m.ton])
+  );
+  
   const nieuweVerdeling = berekenOptimaleMestverdeling(
     doelwaarden,
     beschikbareMest,
     lockedNutriënten,
-    huidigeVerdeling
+    huidigeTonnages,
+    changedId // 🔁 dit is belangrijk voor gewichten!
   );
 
   // 5. Validatie
@@ -715,75 +720,72 @@ function updateFromNutrients(changedId, newValue, huidigeNutriënten, huidigeMes
   }
 }
 
-function berekenOptimaleMestverdeling(doelwaarden, mestKeys, lockedNutriënten = [], huidigeVerdeling = {}) {
+function berekenOptimaleMestverdeling(doelwaarden, beschikbareMest, lockedNutriënten = [], huidigeTonnage = {}) {
   if (DEBUG_MODE) {
     console.log('📐 [berekenOptimaleMestverdeling] Gestart');
     console.log('🎯 Doelwaarden:', doelwaarden);
     console.log('🔒 Soft-locked nutriënten:', lockedNutriënten);
-    console.log('📦 Beschikbare mest:', mestKeys);
+    console.log('📦 Beschikbare mest:', beschikbareMest);
   }
 
-  const nutrienten = ['stikstof', 'fosfaat', 'kalium', 'organisch', 'kosten'];
+  const nutrienten = ['stikstof', 'fosfaat', 'kalium', 'organisch', 'kunststikstof', 'kosten'];
+  const relevanteNutriënten = nutrienten.filter(n => doelwaarden[n] !== undefined);
 
-  const A = [];
+  const A = []; // mestsoorten → nutriënten
   const b = [];
 
-  nutrienten.forEach(nut => {
-    const row = [];
-    mestKeys.forEach(mestId => {
-      const waarde = actieveMestData[mestId]?.[nut] || 0;
-      row.push(waarde);
-    });
-    A.push(row);
-    b.push(doelwaarden[nut] || 0);
-  });
-
-  const matrixA = math.matrix(A);
-  const vectorB = math.matrix(b);
-
-  let oplossing;
-  try {
-    const pseudoInverse = math.pinv(matrixA);
-    const vectorX = math.multiply(pseudoInverse, vectorB);
-    const oplossingArray = vectorX.toArray();
-
-    const tolerantie = 10;
-    const gerealiseerd = math.multiply(matrixA, vectorX).toArray();
-
-    const voldoet = lockedNutriënten.every((nut, i) => {
-      const index = nutrienten.indexOf(nut);
-      const verschil = Math.abs(gerealiseerd[index] - (doelwaarden[nut] || 0));
-      return verschil <= tolerantie;
-    });
-
-    if (!voldoet) {
-      if (DEBUG_MODE) {
-        console.warn('⚠️ Locked nutriëntoverschrijding buiten tolerantie. Afgebroken.');
-      }
-      return null;
+  for (let nut of relevanteNutriënten) {
+    const rij = [];
+    for (let mest of beschikbareMest) {
+      const eenheid = actieveMestData[mest];
+      rij.push(eenheid?.[nut] || 0);
     }
+    A.push(rij);
+    b.push(doelwaarden[nut]);
+  }
 
-    oplossing = {};
-    mestKeys.forEach((mestId, i) => {
-      const solverTon = Math.max(0, oplossingArray[i]);
-      const bestaandTon = huidigeVerdeling[mestId] || 0;
-      const gecombineerd = 0.5 * solverTon + 0.5 * bestaandTon;
-      const afgerond = Math.round(gecombineerd * 100) / 100;
-
-      oplossing[mestId] = afgerond;
-
-      if (DEBUG_MODE) {
-        console.log(`💧 ${mestId}: solver=${solverTon}, bestaand=${bestaandTon}, → toegepast=${afgerond}`);
-      }
-    });
-
-    return oplossing;
-
-  } catch (err) {
-    console.error('❌ [berekenOptimaleMestverdeling] Matrixoplossing faalde:', err);
+  if (A.length === 0 || A[0].length === 0) {
+    if (DEBUG_MODE) console.warn('⚠️ Matrix A of b is leeg – geen oplossing mogelijk');
     return null;
   }
+
+  // Weegmatrix: geef 1 aan changed nutriënt, 0.1 aan rest
+  const gewichten = relevanteNutriënten.map(n => lockedNutriënten.includes(n) ? 100 : (n === changedNutriënt ? 1 : 0.1));
+  const gewogenA = A.map((row, i) => row.map(val => val * gewichten[i]));
+  const gewogenB = b.map((val, i) => val * gewichten[i]);
+
+  const matrixA = math.matrix(gewogenA);
+  const vectorB = math.matrix(gewogenB);
+
+  let vectorX;
+  try {
+    vectorX = math.multiply(math.pinv(matrixA), vectorB);
+  } catch (e) {
+    if (DEBUG_MODE) console.warn('❌ Matrix-oplossing gefaald:', e);
+    return null;
+  }
+
+  const resultaat = {};
+  let geldigeOplossing = true;
+
+  vectorX.toArray().forEach((ton, i) => {
+    const mestId = beschikbareMest[i];
+    const tonnage = Math.max(0, Math.round(ton * 10) / 10); // geen negatieve waarden
+    const max = bepaalMaxToelaatbareTon(mestId);
+    const min = 0;
+
+    if (tonnage < min || tonnage > max) {
+      if (DEBUG_MODE) console.warn(`⛔️ Correctie voor '${mestId}' ongeldig (${tonnage} ton) – buiten grenzen.`);
+      geldigeOplossing = false;
+    } else {
+      resultaat[mestId] = tonnage;
+      if (DEBUG_MODE) console.log(`💧 ${mestId}: berekend ${ton} → toegepast ${tonnage}`);
+    }
+  });
+
+  return geldigeOplossing ? resultaat : null;
 }
+
 
 // --- [ STAP 3: Volledige eerste versie van onSliderChange() ] ---
 
