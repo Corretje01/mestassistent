@@ -720,7 +720,7 @@ function updateFromNutrients(changedId, newValue, huidigeNutriënten, huidigeMes
   }
 }
 
-function berekenOptimaleMestverdeling(doelwaarden, beschikbareMest, lockedNutriënten = [], huidigeTonnage = {}) {
+function berekenOptimaleMestverdeling(doelwaarden, beschikbareMest, lockedNutriënten = [], huidigeTonnage = {}, changedNutriënt) {
   if (DEBUG_MODE) {
     console.log('📐 [berekenOptimaleMestverdeling] Gestart');
     console.log('🎯 Doelwaarden:', doelwaarden);
