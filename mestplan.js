@@ -681,24 +681,21 @@ function updateFromNutrients(changedId, newValue, huidigeNutriënten, huidigeMes
     console.log('🐄 Beschikbare mestsoorten:', beschikbareMest);
   }
 
-  // 4. Optimalisatie uitvoeren
+  // 4. Huidige mesthoeveelheden ophalen
   const huidigeVerdeling = Object.fromEntries(
     huidigeMestverdeling.map(m => [m.id, m.ton])
   );
 
-  const huidigeTonnages = Object.fromEntries(
-  huidigeMestverdeling.map(m => [m.id, m.ton])
-  );
-  
+  // 5. Optimalisatie uitvoeren
   const nieuweVerdeling = berekenOptimaleMestverdeling(
     doelwaarden,
     beschikbareMest,
     lockedNutriënten,
-    huidigeTonnages,
-    changedId // 🔁 dit is belangrijk voor gewichten!
+    huidigeVerdeling,
+    changedId
   );
 
-  // 5. Validatie
+  // 6. Validatie
   if (!nieuweVerdeling || Object.values(nieuweVerdeling).every(v => v === 0)) {
     if (DEBUG_MODE) {
       console.warn('❌ Geen geldige verdeling gevonden. Nutriëntaanpassing niet toegepast.');
@@ -710,7 +707,7 @@ function updateFromNutrients(changedId, newValue, huidigeNutriënten, huidigeMes
     console.log('✅ Nieuwe mestverdeling:', nieuweVerdeling);
   }
 
-  // 6. Doorvoeren in sliders + data
+  // 7. Doorvoeren in sliders + data
   Object.entries(nieuweVerdeling).forEach(([mestId, ton]) => {
     stelMesthoeveelheidIn(mestId, ton, 'auto');
   });
@@ -720,7 +717,13 @@ function updateFromNutrients(changedId, newValue, huidigeNutriënten, huidigeMes
   }
 }
 
-function berekenOptimaleMestverdeling(doelwaarden, beschikbareMest, lockedNutriënten = [], huidigeTonnage = {}, changedNutriënt) {
+function berekenOptimaleMestverdeling(
+  doelwaarden,
+  beschikbareMest,
+  lockedNutriënten = [],
+  huidigeTonnage = {},
+  changedNutriënt
+) {
   if (DEBUG_MODE) {
     console.log('📐 [berekenOptimaleMestverdeling] Gestart');
     console.log('🎯 Doelwaarden:', doelwaarden);
@@ -729,14 +732,12 @@ function berekenOptimaleMestverdeling(doelwaarden, beschikbareMest, lockedNutri�
   }
 
   const nutrienten = ['stikstof', 'fosfaat', 'kalium', 'organisch', 'kunststikstof', 'kosten'];
-  
-  const A = []; // mestsoorten → nutriënten
+  const relevanteNutriënten = nutrienten.filter(n => doelwaarden[n] != null); // ✅ correcte check
+
+  const A = []; // matrix: mestsoorten → nutriënten
   const b = [];
 
-  for (let nut of nutrienten) {
-    const isRelevant = nut === changedNutriënt || lockedNutriënten.includes(nut);
-    if (!isRelevant || doelwaarden[nut] === undefined) continue;
-  
+  for (let nut of relevanteNutriënten) {
     const rij = [];
     for (let mest of beschikbareMest) {
       const eenheid = actieveMestData[mest];
@@ -751,8 +752,10 @@ function berekenOptimaleMestverdeling(doelwaarden, beschikbareMest, lockedNutri�
     return null;
   }
 
-  // Weegmatrix: geef 1 aan changed nutriënt, 0.1 aan rest
-  const gewichten = relevanteNutriënten.map(n => lockedNutriënten.includes(n) ? 100 : (n === changedNutriënt ? 1 : 0.1));
+  // 🎯 Gewichtsmatrix instellen: changedNutriënt krijgt voorrang
+  const gewichten = relevanteNutriënten.map(n =>
+    lockedNutriënten.includes(n) ? 100 : (n === changedNutriënt ? 1 : 0.1)
+  );
   const gewogenA = A.map((row, i) => row.map(val => val * gewichten[i]));
   const gewogenB = b.map((val, i) => val * gewichten[i]);
 
@@ -772,26 +775,23 @@ function berekenOptimaleMestverdeling(doelwaarden, beschikbareMest, lockedNutri�
 
   vectorX.toArray().forEach((ton, i) => {
     const mestId = beschikbareMest[i];
-    const tonnage = Math.round(ton * 10) / 10; // laat negatieve waarden voorlopig toe
+    const tonnage = Math.max(0, Math.round(ton * 10) / 10); // Geen negatieve waarden
     const max = bepaalMaxToelaatbareTon(mestId);
     const min = 0;
-  
+
     if (tonnage < min || tonnage > max) {
-      if (DEBUG_MODE) {
+      if (DEBUG_MODE)
         console.warn(`⛔️ Correctie voor '${mestId}' ongeldig (${tonnage} ton) – buiten grenzen.`);
-      }
       geldigeOplossing = false;
     } else {
       resultaat[mestId] = tonnage;
-      if (DEBUG_MODE) {
-        console.log(`💧 ${mestId}: berekend ${ton} → toegepast ${tonnage}`);
-      }
+      if (DEBUG_MODE)
+        console.log(`💧 ${mestId}: berekend ${ton.toFixed(3)} → toegepast ${tonnage}`);
     }
   });
 
   return geldigeOplossing ? resultaat : null;
 }
-
 
 // --- [ STAP 3: Volledige eerste versie van onSliderChange() ] ---
 
