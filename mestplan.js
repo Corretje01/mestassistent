@@ -722,7 +722,7 @@ function berekenOptimaleMestverdeling(
   beschikbareMest,
   lockedNutriënten = [],
   huidigeTonnage = {},
-  changedNutriënt
+  changedNutriënt = null
 ) {
   if (DEBUG_MODE) {
     console.log('📐 [berekenOptimaleMestverdeling] Gestart');
@@ -732,9 +732,9 @@ function berekenOptimaleMestverdeling(
   }
 
   const nutrienten = ['stikstof', 'fosfaat', 'kalium', 'organisch', 'kunststikstof', 'kosten'];
-  const relevanteNutriënten = nutrienten.filter(n => doelwaarden[n] != null); // ✅ correcte check
+  const relevanteNutriënten = nutrienten.filter(n => doelwaarden[n] != null);
 
-  const A = []; // matrix: mestsoorten → nutriënten
+  const A = [];
   const b = [];
 
   for (let nut of relevanteNutriënten) {
@@ -752,10 +752,11 @@ function berekenOptimaleMestverdeling(
     return null;
   }
 
-  // 🎯 Gewichtsmatrix instellen: changedNutriënt krijgt voorrang
+  // Gewichten
   const gewichten = relevanteNutriënten.map(n =>
-    lockedNutriënten.includes(n) ? 100 : (n === changedNutriënt ? 1 : 0.1)
+    lockedNutriënten.includes(n) ? 100 : (changedNutriënt && n === changedNutriënt ? 1 : 0.1)
   );
+
   const gewogenA = A.map((row, i) => row.map(val => val * gewichten[i]));
   const gewogenB = b.map((val, i) => val * gewichten[i]);
 
@@ -775,11 +776,10 @@ function berekenOptimaleMestverdeling(
 
   vectorX.toArray().forEach((ton, i) => {
     const mestId = beschikbareMest[i];
-    const tonnage = Math.max(0, Math.round(ton * 10) / 10); // Geen negatieve waarden
+    const tonnage = Math.max(0, Math.round(ton * 10) / 10);
     const max = bepaalMaxToelaatbareTon(mestId);
-    const min = 0;
 
-    if (tonnage < min || tonnage > max) {
+    if (tonnage > max) {
       if (DEBUG_MODE)
         console.warn(`⛔️ Correctie voor '${mestId}' ongeldig (${tonnage} ton) – buiten grenzen.`);
       geldigeOplossing = false;
