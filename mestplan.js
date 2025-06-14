@@ -144,7 +144,7 @@ standaardSliders.forEach(({id, label, max, unit}) => {
 
   // 👇 Alleen sliders met effect op berekening
   if (['stikstof', 'fosfaat', 'kalium', 'organisch', 'kunststikstof'].includes(id)) {
-        let startWaarde = Number(slider.value);
+    let startWaarde = Number(slider.value);
     let vorigeWaarde = startWaarde;
     let heeftBeweegd = false;
     
