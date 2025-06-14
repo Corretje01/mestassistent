@@ -660,63 +660,84 @@ function updateFromNutrients(changedId, newValue, huidigeNutriënten, huidigeMes
     console.log('🔧 Gewijzigde nutriënt:', changedId, 'Nieuwe waarde:', newValue);
   }
 
-  // 1. Doelwaarden samenstellen
-  const doelwaarden = { ...huidigeNutriënten, [changedId]: newValue };
+  const nutriëntKeyMap = {
+    stikstof: 'N_kg_per_ton',
+    fosfaat: 'P_kg_per_ton',
+    kalium: 'K_kg_per_ton',
+    organisch: 'OS_percent',
+    financieel: 'FIN_per_ton'  // virtueel veld, moeten we zelf opbouwen
+  };
 
-  // 2. Locked nutriënten bepalen
-  const nutriënten = ['stikstof', 'fosfaat', 'kalium', 'organisch', 'kunststikstof', 'kosten'];
-  const lockedNutriënten = nutriënten.filter(id => isLocked(id));
-
-  if (DEBUG_MODE) {
-    console.log('🔒 Locked nutriënten:', lockedNutriënten);
-    console.log('🎯 Doelwaarden:', doelwaarden);
-  }
-
-  // 3. Beschikbare mestsoorten bepalen
-  const beschikbareMest = huidigeMestverdeling
-    .filter(m => !m.locked)
-    .map(m => m.id);
-
-  if (DEBUG_MODE) {
-    console.log('🐄 Beschikbare mestsoorten:', beschikbareMest);
-  }
-
-  // 4. Huidige mesthoeveelheden ophalen
-  const huidigeVerdeling = Object.fromEntries(
-    huidigeMestverdeling.map(m => [m.id, m.ton])
-  );
-
-  // 5. Optimalisatie uitvoeren
-  const nieuweVerdeling = berekenOptimaleMestverdeling(
-    doelwaarden,
-    beschikbareMest,
-    lockedNutriënten,
-    huidigeVerdeling,
-    changedId
-  );
-
-  // 6. Validatie
-  if (!nieuweVerdeling || Object.values(nieuweVerdeling).every(v => v === 0)) {
-    if (DEBUG_MODE) {
-      console.warn('❌ Geen geldige verdeling gevonden. Nutriëntaanpassing niet toegepast.');
-    }
+  if (!nutriëntKeyMap[changedId]) {
+    console.warn(`⚠️ Nutriënt '${changedId}' wordt (nog) niet ondersteund in terugkoppeling.`);
     return;
   }
 
-  if (DEBUG_MODE) {
-    console.log('✅ Nieuwe mestverdeling:', nieuweVerdeling);
+  // 1. Stel actieve en aanpasbare mestsoorten vast
+  const beschikbareMest = huidigeMestverdeling
+    .filter(m => !m.locked && actieveMestData[m.id])
+    .map(m => m.id);
+
+  if (beschikbareMest.length === 0) {
+    console.warn(`❌ Geen mestsoorten beschikbaar voor terugkoppeling.`);
+    return;
   }
 
-  // 7. Doorvoeren in sliders + data
-  Object.entries(nieuweVerdeling).forEach(([mestId, ton]) => {
-    stelMesthoeveelheidIn(mestId, ton, 'auto');
+  // 2. Bepaal huidig totaal nutriënt
+  let totaalHuidig = 0;
+  const bijdragePerMest = {};
+
+  for (const id of beschikbareMest) {
+    const mest = actieveMestData[id];
+    let gehalte = 0;
+
+    if (changedId === 'financieel') {
+      gehalte = (mest.Inkoopprijs_per_ton || 0) + 10; // + transport
+    } else if (changedId === 'organisch') {
+      gehalte = (mest[nutriëntKeyMap[changedId]] || 0) / 100;
+    } else {
+      gehalte = mest[nutriëntKeyMap[changedId]] || 0;
+    }
+
+    const bijdrage = mest.ton * gehalte;
+    bijdragePerMest[id] = { gehalte, bijdrage };
+    totaalHuidig += bijdrage;
+  }
+
+  const delta = newValue - totaalHuidig;
+
+  if (Math.abs(delta) < 0.01) {
+    if (DEBUG_MODE) console.log('ℹ️ Geen significante wijziging.');
+    return;
+  }
+
+  // 3. Bereken proportionele correctie
+  const totaleBijdrage = Object.values(bijdragePerMest).reduce((sum, x) => sum + x.bijdrage, 0);
+  if (totaleBijdrage === 0) {
+    console.warn(`⚠️ Geen bruikbare bijdrage aan ${changedId} vanuit actieve mest.`);
+    return;
+  }
+
+  const nieuweVerdeling = {};
+
+  for (const id of beschikbareMest) {
+    const mest = actieveMestData[id];
+    const { gehalte, bijdrage } = bijdragePerMest[id];
+    const aandeel = bijdrage / totaleBijdrage;
+
+    const corrigeerNut = delta * aandeel;
+    const corrigeerTon = gehalte > 0 ? corrigeerNut / gehalte : 0;
+
+    const nieuweTon = Math.max(0, mest.ton + corrigeerTon);
+    nieuweVerdeling[id] = nieuweTon;
+  }
+
+  // 4. Doorvoeren
+  Object.entries(nieuweVerdeling).forEach(([id, ton]) => {
+    stelMesthoeveelheidIn(id, ton, 'auto');
   });
 
   updateStandardSliders();
-  
-  if (DEBUG_MODE) {
-    updateDebugOverlay();
-  }
 }
 
 function berekenOptimaleMestverdeling(
