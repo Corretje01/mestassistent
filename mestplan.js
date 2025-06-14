@@ -142,11 +142,19 @@ standaardSliders.forEach(({id, label, max, unit}) => {
   const slider = document.getElementById(`slider-${id}`);
   if (!slider) return;
 
-  // Alleen toepassen op sliders met logische impact
+  // 👇 Alleen sliders met effect op berekening
   if (['stikstof', 'fosfaat', 'kalium', 'organisch', 'kunststikstof'].includes(id)) {
+    let laatsteWaarde = Number(slider.value);
+
+    slider.addEventListener('mousedown', () => {
+      laatsteWaarde = Number(slider.value);
+    });
+
     slider.addEventListener('input', () => {
-      const val = Number(slider.value);
-      onSliderChange(id, val, 'user');
+      const nieuweWaarde = Number(slider.value);
+      if (Math.abs(nieuweWaarde - laatsteWaarde) < 0.001) return; // voorkom ghost-trigger
+      laatsteWaarde = nieuweWaarde;
+      onSliderChange(id, nieuweWaarde, 'user');
     });
   }
 });
