@@ -712,6 +712,8 @@ function updateFromNutrients(changedId, newValue, huidigeNutriënten, huidigeMes
     stelMesthoeveelheidIn(mestId, ton, 'auto');
   });
 
+  updateStandardSliders();
+  
   if (DEBUG_MODE) {
     updateDebugOverlay();
   }
