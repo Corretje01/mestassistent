@@ -654,11 +654,18 @@ document.getElementById('optimaliseer-btn').addEventListener('click', () => {
 
 // --- [ BIDIRECTIONELE SYNC: Nutriënt ➜ Mesthoeveelheden ] ---
 
-function updateFromNutrients(changedId, newValue, huidigeNutriënten, huidigeMestverdeling) {
+function updateFromNutrients(changedId, newValue) {
   if (DEBUG_MODE) {
     console.log('▶️ [updateFromNutrients] Gestart');
     console.log('🔧 Gewijzigde nutriënt:', changedId, 'Nieuwe waarde:', newValue);
   }
+
+  const huidigeNutriënten = berekenTotaleNutriënten(true); // 🔄 Opnieuw ophalen!
+  const huidigeMestverdeling = Object.entries(actieveMestData).map(([id, data]) => ({
+    id,
+    ton: data.ton,
+    locked: isLocked(id)
+  }));
 
   const nutriëntKeyMap = {
     stikstof: 'N_kg_per_ton',
@@ -886,7 +893,7 @@ function onSliderChange(sliderId, newValue, source = 'user') {
       locked: isLocked(id)
     }));
     
-    updateFromNutrients(sliderId, newValue, huidigeNutriënten, huidigeMestverdeling);
+    updateFromNutrients(sliderId, newValue);
   }
 
   if (isMestsoort) {
