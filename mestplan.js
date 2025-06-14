@@ -144,17 +144,32 @@ standaardSliders.forEach(({id, label, max, unit}) => {
 
   // 👇 Alleen sliders met effect op berekening
   if (['stikstof', 'fosfaat', 'kalium', 'organisch', 'kunststikstof'].includes(id)) {
-    let laatsteWaarde = Number(slider.value);
-
+        let startWaarde = Number(slider.value);
+    let vorigeWaarde = startWaarde;
+    let heeftBeweegd = false;
+    
     slider.addEventListener('mousedown', () => {
-      laatsteWaarde = Number(slider.value);
+      startWaarde = Number(slider.value);
+      vorigeWaarde = startWaarde;
+      heeftBeweegd = false;
     });
-
+    
     slider.addEventListener('input', () => {
-      const nieuweWaarde = Number(slider.value);
-      if (Math.abs(nieuweWaarde - laatsteWaarde) < 0.001) return; // voorkom ghost-trigger
-      laatsteWaarde = nieuweWaarde;
-      onSliderChange(id, nieuweWaarde, 'user');
+      const huidigeWaarde = Number(slider.value);
+    
+      const verschilVanafStart = Math.abs(huidigeWaarde - startWaarde);
+      if (verschilVanafStart < 0.1 && !heeftBeweegd) {
+        return; // wachten op echte beweging
+      }
+    
+      if (!heeftBeweegd) {
+        heeftBeweegd = true;
+      }
+    
+      if (Math.abs(huidigeWaarde - vorigeWaarde) >= 0.1) {
+        vorigeWaarde = huidigeWaarde;
+        onSliderChange(id, huidigeWaarde, 'user');
+      }
     });
   }
 });
