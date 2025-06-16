@@ -709,6 +709,7 @@ function berekenTotaleNutriëntenZonderLocked() {
 }
 
 function updateFromNutrients(changedId, newValue) {
+  updateStandardSliders();
   if (DEBUG_MODE) console.log(`🔧 [DEBUG] updateFromNutrients START voor ${changedId} → gewenste waarde: ${newValue}`);
   const currentNutriënten = berekenTotaleNutriënten();
   if (DEBUG_MODE) console.log('📊 huidige nutriënten volgens berekening:', currentNutriënten);
