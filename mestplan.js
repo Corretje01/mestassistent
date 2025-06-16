@@ -157,27 +157,20 @@ standaardSliders.forEach(({id, label, max, unit}) => {
     });
     
     slider.addEventListener('input', () => {
-      const huidigeWaarde = Number(slider.value);
+      requestAnimationFrame(() => {
+        const huidigeWaarde = Number(slider.value);
     
-      const verschilVanafStart = Math.abs(huidigeWaarde - startWaarde);
-      if (verschilVanafStart < 0.1 && !heeftBeweegd) return;
+        const verschilVanafStart = Math.abs(huidigeWaarde - startWaarde);
+        if (verschilVanafStart < 0.1 && !heeftBeweegd) return;
     
-      if (!heeftBeweegd) heeftBeweegd = true;
+        if (!heeftBeweegd) heeftBeweegd = true;
     
-      if (Math.abs(huidigeWaarde - vorigeWaarde) >= 0.1) {
-        vorigeWaarde = huidigeWaarde;
+        if (Math.abs(huidigeWaarde - vorigeWaarde) >= 0.1) {
+          vorigeWaarde = huidigeWaarde;
     
-        // Stel update uit naar render-timing van browser
-        pendingUserSliderUpdate = { id, waarde: huidigeWaarde };
-    
-        requestAnimationFrame(() => {
-          if (pendingUserSliderUpdate) {
-            const { id, waarde } = pendingUserSliderUpdate;
-            pendingUserSliderUpdate = null;
-            onSliderChange(id, waarde, 'user');
-          }
-        });
-      }
+          onSliderChange(id, huidigeWaarde, 'user');
+        }
+      });
     });
   }
 });
