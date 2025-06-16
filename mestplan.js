@@ -158,18 +158,22 @@ standaardSliders.forEach(({id, label, max, unit}) => {
       const huidigeWaarde = Number(slider.value);
     
       const verschilVanafStart = Math.abs(huidigeWaarde - startWaarde);
-      if (verschilVanafStart < 0.1 && !heeftBeweegd) {
-        return; // wachten op echte beweging
-      }
+      if (verschilVanafStart < 0.1 && !heeftBeweegd) return;
     
-      if (!heeftBeweegd) {
-        heeftBeweegd = true;
-      }
+      if (!heeftBeweegd) heeftBeweegd = true;
     
       if (Math.abs(huidigeWaarde - vorigeWaarde) >= 0.1) {
         vorigeWaarde = huidigeWaarde;
+    
+        // Stel update uit naar render-timing van browser
+        pendingUserSliderUpdate = { id, waarde: huidigeWaarde };
+    
         requestAnimationFrame(() => {
-          onSliderChange(id, huidigeWaarde, 'user');
+          if (pendingUserSliderUpdate) {
+            const { id, waarde } = pendingUserSliderUpdate;
+            pendingUserSliderUpdate = null;
+            onSliderChange(id, waarde, 'user');
+          }
         });
       }
     });
@@ -874,7 +878,7 @@ function berekenOptimaleMestverdeling(
 // --- [ STAP 3: Volledige eerste versie van onSliderChange() ] ---
 
 const DEBUG_MODE = true;
-
+let pendingUserSliderUpdate = null;
 /**
  * Centrale router voor sliders. Wordt aangesproken bij elke gebruikersactie.
  * @param {string} sliderId - bv. 'stikstof', 'drijfmest-koe'
