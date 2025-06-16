@@ -168,7 +168,9 @@ standaardSliders.forEach(({id, label, max, unit}) => {
     
       if (Math.abs(huidigeWaarde - vorigeWaarde) >= 0.1) {
         vorigeWaarde = huidigeWaarde;
-        onSliderChange(id, huidigeWaarde, 'user');
+        requestAnimationFrame(() => {
+          onSliderChange(id, huidigeWaarde, 'user');
+        });
       }
     });
   }
