@@ -1,5 +1,7 @@
 // mestplan.js
 
+const DEBUG_MODE = true;
+
 function getQueryParams() {
   const params = {};
   window.location.search.substring(1).split('&').forEach(pair => {
@@ -40,9 +42,9 @@ if (!totaalA || !totaalB || !totaalC) {
   alert("Waarschuwing: de gebruiksruimte kon niet worden overgenomen van stap 1.");
 }
 
-console.log("TotaalA (N dierlijk):", totaalA);
-console.log("TotaalB (N grondgebonden):", totaalB);
-console.log("TotaalC (P totaal):", totaalC);
+if (DEBUG_MODE) console.log("TotaalA (N dierlijk):", totaalA);
+if (DEBUG_MODE) console.log("TotaalB (N grondgebonden):", totaalB);
+if (DEBUG_MODE) console.log("TotaalC (P totaal):", totaalC);
 
 const categoryMap = {
   drijfmest: 'Drijfmest',
@@ -68,7 +70,7 @@ fetch('/data/mestsoorten.json')
   .then(res => res.json())
   .then(json => {
     mestsoortenData = json;
-    console.log('✅ mestsoorten.json geladen:', mestsoortenData);
+    if (DEBUG_MODE) console.log('✅ mestsoorten.json geladen:', mestsoortenData);
   })
   .catch(err => console.error('❌ Kan mestsoorten.json niet laden:', err));
 
@@ -98,7 +100,7 @@ document.querySelectorAll('.mest-btn').forEach(btn => {
             BG: 0
           }
         };
-        console.log(`📦 Geselecteerd: ${key}`, actieveMestData[key]);
+        if (DEBUG_MODE) console.log(`📦 Geselecteerd: ${key}`, actieveMestData[key]);
         updateStandardSliders();
       } else {
         console.warn(`⚠️ Geen mestdata gevonden voor ${key}`);
@@ -277,7 +279,7 @@ function compenseerVergrendeldeNutriënten(changedKey, oudeTonHandmatig) {
 
   const gecompenseerd = verdeelCompensatie(changedKey, deltaMap, mestKeys);
   if (gecompenseerd) {
-    console.log(`✅ Compensatie succesvol toegepast.`);
+    if (DEBUG_MODE) console.log(`✅ Compensatie succesvol toegepast.`);
     return true;
   }
 
@@ -361,8 +363,8 @@ function verdeelCompensatie(veroorzakerKey, deltaMap, mestKeys) {
   }
 
   // 🧪 Debug logs vóór toepassen
-  console.log("🔁 DeltaMap:", deltaMap);
-  console.log("🔄 Correcties per mestsoort:", correcties);
+  if (DEBUG_MODE) console.log("🔁 DeltaMap:", deltaMap);
+  if (DEBUG_MODE) console.log("🔄 Correcties per mestsoort:", correcties);
 
   // Pas correcties toe
   for (const key of compenseerbare) {
@@ -677,8 +679,8 @@ document.getElementById('optimaliseer-btn').addEventListener('click', () => {
     });
   });
 
-  console.log('Plan-uitkomst:', resultaat);
-  console.log('Totaal actieve mestdata:', actieveMestData);
+  if (DEBUG_MODE) console.log('Plan-uitkomst:', resultaat);
+  if (DEBUG_MODE) console.log('Totaal actieve mestdata:', actieveMestData);
 });
 
 // --- [ BIDIRECTIONELE SYNC: Nutriënt ➜ Mesthoeveelheden ] ---
@@ -707,6 +709,11 @@ function berekenTotaleNutriëntenZonderLocked() {
 }
 
 function updateFromNutrients(changedId, newValue) {
+  if (DEBUG_MODE) console.log(`🔧 [DEBUG] updateFromNutrients START voor ${changedId} → gewenste waarde: ${newValue}`);
+  const currentNutriënten = berekenTotaleNutriënten();
+  if (DEBUG_MODE) console.log('📊 huidige nutriënten volgens berekening:', currentNutriënten);
+  if (DEBUG_MODE) console.log('📐 verschil (delta):', newValue - currentNutriënten[changedId]);
+  
   if (DEBUG_MODE) {
     console.log('▶️ [updateFromNutrients] Gestart');
     console.log('🔧 Gewijzigde nutriënt:', changedId, 'Nieuwe waarde:', newValue);
@@ -877,7 +884,6 @@ function berekenOptimaleMestverdeling(
 
 // --- [ STAP 3: Volledige eerste versie van onSliderChange() ] ---
 
-const DEBUG_MODE = true;
 let pendingUserSliderUpdate = null;
 /**
  * Centrale router voor sliders. Wordt aangesproken bij elke gebruikersactie.
@@ -886,6 +892,12 @@ let pendingUserSliderUpdate = null;
  * @param {'user'|'auto'} source - bron van de wijziging
  */
 function onSliderChange(sliderId, newValue, source = 'user') {
+  if (DEBUG_MODE) {
+    console.log(`🟠 [DEBUG] onSliderChange START → ${sliderId} = ${newValue} (via ${source})`);
+    console.log('👉 actuele slider DOM waarde:', document.getElementById(`slider-${sliderId}`)?.value);
+    console.log('📦 volledige mestdata vooraf:', JSON.stringify(actieveMestData));
+  }
+  
   if (typeof suppressAutoUpdate === 'undefined') {
     console.warn("⚠️ suppressAutoUpdate niet gedefinieerd – wordt nu aangemaakt.");
     suppressAutoUpdate = false;
