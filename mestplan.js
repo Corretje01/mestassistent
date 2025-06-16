@@ -677,13 +677,36 @@ document.getElementById('optimaliseer-btn').addEventListener('click', () => {
 
 // --- [ BIDIRECTIONELE SYNC: Nutriënt ➜ Mesthoeveelheden ] ---
 
+// 🔧 Bereken totale nutriënten, maar sla gelockte mestsoorten over
+function berekenTotaleNutriëntenZonderLocked() {
+  const totaal = {
+    stikstof: 0,
+    fosfaat: 0,
+    kalium: 0,
+    organisch: 0,
+    financieel: 0
+  };
+
+  for (const [id, mest] of Object.entries(actieveMestData)) {
+    if (isLocked(id)) continue;
+
+    totaal.stikstof   += mest.totaal.N   || 0;
+    totaal.fosfaat    += mest.totaal.P   || 0;
+    totaal.kalium     += mest.totaal.K   || 0;
+    totaal.organisch  += mest.totaal.OS  || 0;
+    totaal.financieel += mest.totaal.FIN || 0;
+  }
+
+  return totaal;
+}
+
 function updateFromNutrients(changedId, newValue) {
   if (DEBUG_MODE) {
     console.log('▶️ [updateFromNutrients] Gestart');
     console.log('🔧 Gewijzigde nutriënt:', changedId, 'Nieuwe waarde:', newValue);
   }
 
-  const huidigeNutriënten = berekenTotaleNutriënten(true); // 🔄 Opnieuw ophalen!
+  const huidigeNutriënten = berekenTotaleNutriëntenZonderLocked();
   const huidigeMestverdeling = Object.entries(actieveMestData).map(([id, data]) => ({
     id,
     ton: data.ton,
