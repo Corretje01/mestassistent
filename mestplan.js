@@ -793,6 +793,31 @@ function updateFromNutrients(changedId, newValue) {
   }
 
   // 4. Doorvoeren
+  let wijzigToegestaan = true;
+
+  Object.entries(nieuweVerdeling).forEach(([id, ton]) => {
+    const sliderEl = document.getElementById(`slider-${id}`);
+    if (!sliderEl) return;
+  
+    const min = Number(sliderEl.min || 0);
+    const max = Number(sliderEl.max || 650);
+    if (ton < min - 0.01 || ton > max + 0.01) {
+      if (DEBUG_MODE) {
+        console.warn(`⛔️ Nutriëntverdeling overschrijdt grens van ${id}: ${ton} valt buiten ${min}-${max}`);
+      }
+      triggerShakeEffect(id);
+      wijzigToegestaan = false;
+    }
+  });
+  
+  // Als minstens 1 buiten bereik is → geen update uitvoeren
+  if (!wijzigToegestaan) {
+    triggerShakeEffect(changedId); // shake nutrient slider
+    revertSliderToPreviousValue(changedId);
+    return;
+  }
+  
+  // Pas alle tonnages toe
   Object.entries(nieuweVerdeling).forEach(([id, ton]) => {
     stelMesthoeveelheidIn(id, ton, 'auto');
   });
@@ -1169,6 +1194,14 @@ function initDebugOverlay() {
     if (!el) return;
 
     const nut = berekenTotaleNutriënten(true);
+    const sliders = ['stikstof', 'fosfaat', 'kalium', 'organisch', 'financiee];
+    const deltaInfo = sliders.map(id => {
+      const doel = Number(document.getElementById(`slider-${id}`)?.value || 0);
+      const huidig = nut[id] || 0;
+      const verschil = doel - huidig;
+      return `• ${id}: delta = ${verschil.toFixed(2)}`;
+    }).join('\n');
+
     const locked = [
       'stikstof', 'fosfaat', 'kalium', 'organisch', 'kunststikstof'
     ].map(id => ({
@@ -1178,7 +1211,12 @@ function initDebugOverlay() {
     }));
 
     const mestregels = Object.entries(actieveMestData)
-      .map(([k, v]) => `- ${k}: ${v.ton.toFixed(1)} ton`).join('\n');
+      .map(([k, v]) => {
+        const gelocked = isLocked(k) ? '🔒' : '';
+        const slider = document.getElementById(`slider-${k}`);
+        const max = slider?.max || '–';
+        return `- ${k}: ${v.ton.toFixed(1)} / ${max} ton ${gelocked}`;
+      }).join('\n');
 
     const vrijeStikstofruimte = totaalB - (Number(document.getElementById('slider-kunststikstof')?.value || 0));
 
@@ -1189,8 +1227,15 @@ function initDebugOverlay() {
       `Kunstmest-stikstof: ${Number(document.getElementById('slider-kunststikstof')?.value || 0)} → max dierlijk: ${vrijeStikstofruimte}\n\n` +
       `🔒 Locks:\n` +
       locked.map(l => `• ${l.id}: ${l.val} (${l.locked})`).join('\n') +
-      `\n\n🚛 Mestsoorten:\n${mestregels}`;
+      `\n\n🚛 Mestsoorten:\n${mestregels}` +
+      `\n\n📉 Nutriënten-delta:\n${deltaInfo}`;
   };
+
+  const beschikbareMest = Object.keys(actieveMestData).filter(id => !isLocked(id));
+  if (beschikbareMest.length === 0) {
+    el.textContent += `\n⚠️ Geen mestsoorten beschikbaar voor correctie (alles gelocked?)`;
+  }
+
 }
 
 if (DEBUG_MODE) {
