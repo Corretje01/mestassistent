@@ -2,20 +2,6 @@
 
 const DEBUG_MODE = false;
 
-// Zorg dat updateDebugOverlay altijd bestaat, ook als DEBUG_MODE false is
-window.updateDebugOverlay = function () {
-  const el = document.getElementById('debug-overlay');
-  if (!el) return;
-
-  if (!DEBUG_MODE) {
-    el.textContent = '';
-    return;
-  }
-
-  // Deze mag je later uitbreiden als je een echte overlay wil
-  el.textContent = '🔍 Debug overlay actief';
-};
-
 function getQueryParams() {
   const params = {};
   window.location.search.substring(1).split('&').forEach(pair => {
