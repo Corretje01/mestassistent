@@ -65,6 +65,7 @@ let suppressAutoUpdate = false;
 let mestsoortenData = {};
 const actieveMestData = {};
 let userModifiedKunstmest = false;
+let currentlyChangingSliderId = null;
 
 fetch('/data/mestsoorten.json')
   .then(res => res.json())
@@ -490,7 +491,7 @@ function updateStandardSliders() {
 
     if (!sliderEl || !valueElem) continue;
 
-    if (!isLocked(id)) {
+    if (!isLocked(id) && id !== currentlyChangingSliderId) {
       const afgerond = isFin ? Math.round(value) : Math.round(value * 10) / 10;
       sliderEl.value = afgerond;
 
@@ -537,7 +538,7 @@ function stelMesthoeveelheidIn(key, nieuweTon, source = 'auto') {
     value.textContent = `${afgerond} / ${slider.max} ton`;
 
     // 🚨 Trigger downstream updates als de slider handmatig wordt aangepast
-    if (source === 'auto') {
+    if (source === 'auto' && key !== currentlyChangingSliderId) {
       onSliderChange(key, afgerond, 'auto');
     }
   }
@@ -924,6 +925,7 @@ function onSliderChange(sliderId, newValue, source = 'user') {
 
   if (suppressAutoUpdate) return;
   suppressAutoUpdate = true;
+  currentlyChangingSliderId = sliderId;
   lastUpdateSource = source;
 
   if (DEBUG_MODE) {
@@ -936,6 +938,7 @@ function onSliderChange(sliderId, newValue, source = 'user') {
 
   if (!isNutriënt && !isMestsoort) {
     console.warn(`❓ onSliderChange: onbekende sliderId: ${sliderId}`);
+    currentlyChangingSliderId = null;
     suppressAutoUpdate = false;
     return;
   }
