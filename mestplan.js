@@ -317,16 +317,16 @@ function verdeelCompensatie(veroorzakerKey, deltaMap, mestKeys) {
     kalium:    'K_kg_per_ton',
     organisch: 'OS_percent' // moet gedeeld worden door 100
   };
-
+  
+  const compenseerbare = mestKeys.filter(k => 
+      k !== veroorzakerKey && 
+      !isLocked(k) && 
+      !activeUserChangeSet.has(k)
+    );
+  
   if (DEBUG_MODE) {
     console.log("🧩 Beschikbare mestsoorten voor compensatie:", compenseerbare);
   }
-
-  const compenseerbare = mestKeys.filter(k => 
-    k !== veroorzakerKey && 
-    !isLocked(k) && 
-    !activeUserChangeSet.has(k)
-  );
 
   if (compenseerbare.length === 0) return false;
 
