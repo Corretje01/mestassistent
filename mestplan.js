@@ -555,15 +555,15 @@ function stelMesthoeveelheidIn(key, nieuweTon, source = 'auto') {
     const afgerond = Math.round(nieuweTon * 10) / 10;
     const huidigeWaarde = parseFloat(slider.value);
 
-    // ⚠️ Alleen update uitvoeren als er daadwerkelijk verschil is
-    if (Math.abs(huidigeWaarde - afgerond) > 0.01) {
-      slider.value = afgerond;
-      value.textContent = `${afgerond} / ${slider.max} ton`;
+    // ✅ Altijd waarde en attribuut updaten voor visuele sync
+    slider.value = afgerond;
+    slider.setAttribute('value', afgerond); // ← cruciale fix voor visuele sync
+    value.textContent = `${afgerond} / ${slider.max} ton`;
 
-      if (source === 'auto') {
-        activeUserChangeSet.add(key);
-        onSliderChange(key, afgerond, 'auto');
-      }
+    // 🚨 Trigger onSliderChange alleen als het van auto komt én er verschil was
+    if (source === 'auto' && Math.abs(huidigeWaarde - afgerond) > 0.01) {
+      activeUserChangeSet.add(key);
+      onSliderChange(key, afgerond, 'auto');
     }
   }
 }
