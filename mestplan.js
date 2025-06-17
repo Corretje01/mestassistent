@@ -1,6 +1,6 @@
 // mestplan.js
 
-const DEBUG_MODE = false;
+const DEBUG_MODE = true;
 
 function getQueryParams() {
   const params = {};
