@@ -727,10 +727,15 @@ function berekenTotaleNutriëntenZonderLocked() {
 
 function updateFromNutrients(changedId, newValue) {
   activeUserChangeSet.add(changedId); // voorkom indirecte triggers op deze slider
-  if (DEBUG_MODE) console.log(`🔧 [DEBUG] updateFromNutrients START voor ${changedId} → gewenste waarde: ${newValue}`);
+
   const currentNutriënten = berekenTotaleNutriënten();
-  if (DEBUG_MODE) console.log('📊 huidige nutriënten volgens berekening:', currentNutriënten);
-  if (DEBUG_MODE) console.log('📐 verschil (delta):', newValue - currentNutriënten[changedId]);
+  const huidigNut = currentNutriënten[changedId];
+  const delta = newValue - huidigNut;
+
+  if (DEBUG_MODE) {
+    console.log(`🔧 [updateFromNutrients] START → ${changedId}`);
+    console.log(`📐 Gewenste wijziging: ${huidigNut.toFixed(2)} → ${newValue.toFixed(2)} (delta: ${delta.toFixed(2)})`);
+  }
 
   const nutriëntKeyMap = {
     stikstof: 'N_kg_per_ton',
@@ -741,7 +746,7 @@ function updateFromNutrients(changedId, newValue) {
   };
 
   if (!nutriëntKeyMap[changedId]) {
-    console.warn(`⚠️ Nutriënt '${changedId}' wordt (nog) niet ondersteund in terugkoppeling.`);
+    console.warn(`⚠️ Nutriënt '${changedId}' wordt niet ondersteund.`);
     return;
   }
 
@@ -756,7 +761,7 @@ function updateFromNutrients(changedId, newValue) {
     .map(m => m.id);
 
   if (beschikbareMest.length === 0) {
-    console.warn(`❌ Geen mestsoorten beschikbaar voor terugkoppeling.`);
+    console.warn(`❌ Geen mestsoorten beschikbaar voor aanpassing.`);
     return;
   }
 
@@ -780,15 +785,14 @@ function updateFromNutrients(changedId, newValue) {
     totaalHuidig += bijdrage;
   }
 
-  const delta = newValue - totaalHuidig;
   if (Math.abs(delta) < 0.01) {
-    if (DEBUG_MODE) console.log('ℹ️ Geen significante wijziging.');
+    if (DEBUG_MODE) console.log('ℹ️ Geen significante delta, update wordt overgeslagen.');
     return;
   }
 
   const totaleBijdrage = Object.values(bijdragePerMest).reduce((sum, x) => sum + x.bijdrage, 0);
   if (totaleBijdrage === 0) {
-    console.warn(`⚠️ Geen bruikbare bijdrage aan ${changedId} vanuit actieve mest.`);
+    console.warn(`⚠️ Totale bijdrage is nul, geen aanpassing mogelijk.`);
     return;
   }
 
@@ -798,7 +802,6 @@ function updateFromNutrients(changedId, newValue) {
     const mest = actieveMestData[id];
     const { gehalte, bijdrage } = bijdragePerMest[id];
     const aandeel = bijdrage / totaleBijdrage;
-
     const corrigeerNut = delta * aandeel;
     const corrigeerTon = gehalte > 0 ? corrigeerNut / gehalte : 0;
 
@@ -806,6 +809,11 @@ function updateFromNutrients(changedId, newValue) {
     const inBeweging = activeUserChangeSet.has(id);
     const nieuweTon = inBeweging ? huidigeTon : Math.max(0, huidigeTon + corrigeerTon);
     nieuweVerdeling[id] = nieuweTon;
+  }
+
+  if (DEBUG_MODE) {
+    console.log('📊 Nieuwe tonnages voorgesteld:');
+    console.table(nieuweVerdeling);
   }
 
   let wijzigToegestaan = true;
@@ -816,9 +824,7 @@ function updateFromNutrients(changedId, newValue) {
     const min = Number(sliderEl.min || 0);
     const max = Number(sliderEl.max || 650);
     if (ton < min - 0.01 || ton > max + 0.01) {
-      if (DEBUG_MODE) {
-        console.warn(`⛔️ Nutriëntverdeling overschrijdt grens van ${id}: ${ton} valt buiten ${min}-${max}`);
-      }
+      console.warn(`⛔️ Correctie buiten grens bij ${id}: ${ton.toFixed(2)} ton (limiet: ${min}-${max})`);
       triggerShakeEffect(id);
       wijzigToegestaan = false;
     }
@@ -832,6 +838,7 @@ function updateFromNutrients(changedId, newValue) {
 
   Object.entries(nieuweVerdeling).forEach(([id, ton]) => {
     if (!activeUserChangeSet.has(id)) {
+      if (DEBUG_MODE) console.log(`✅ toepassen: ${id} → ${ton.toFixed(2)} ton`);
       activeUserChangeSet.add(id);
       stelMesthoeveelheidIn(id, ton, 'auto');
     }
