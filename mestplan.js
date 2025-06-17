@@ -551,22 +551,21 @@ function stelMesthoeveelheidIn(key, nieuweTon, source = 'auto') {
 
   const slider = document.getElementById(`slider-${key}`);
   const value  = document.getElementById(`value-${key}`);
-  if (!slider || !value) return;
+  if (slider && value) {
+    const afgerond = Math.round(nieuweTon * 10) / 10;
+    const huidigeWaarde = parseFloat(slider.value);
 
-  const afgerond = Math.round(nieuweTon * 10) / 10;
-  const huidigeWaarde = parseFloat(slider.value);
+    slider.value = afgerond;
+    slider.setAttribute('value', afgerond); // nodig voor visuele sync
+    value.textContent = `${afgerond} / ${slider.max} ton`;
 
-  // Update visueel altijd (inclusief attribuut)
-  slider.value = afgerond;
-  slider.setAttribute('value', afgerond);
-  value.textContent = `${afgerond} / ${slider.max} ton`;
-
-  // Alleen triggeren bij daadwerkelijke visuele verandering
-  if (source === 'auto' && Math.abs(huidigeWaarde - afgerond) > 0.01) {
-    activeUserChangeSet.add(key);
-    onSliderChange(key, afgerond, 'auto');
+    if (source === 'auto' && Math.abs(huidigeWaarde - afgerond) > 0.01) {
+      activeUserChangeSet.add(key);
+      onSliderChange(key, afgerond, 'auto');
+    }
   }
 }
+
 
 function addDynamicSlider(key, label) {
   if (document.getElementById(`slider-${key}`)) return;
@@ -727,26 +726,22 @@ function berekenTotaleNutriëntenZonderLocked() {
 }
 
 function updateFromNutrients(changedId, newValue) {
-  updateStandardSliders();
+  activeUserChangeSet.add(changedId); // voorkom indirecte triggers op deze slider
   if (DEBUG_MODE) console.log(`🔧 [DEBUG] updateFromNutrients START voor ${changedId} → gewenste waarde: ${newValue}`);
-
   const currentNutriënten = berekenTotaleNutriënten();
-  if (DEBUG_MODE) {
-    console.log('📊 Huidige nutriënten volgens berekening:', currentNutriënten);
-    console.log('📐 Verschil (delta):', newValue - currentNutriënten[changedId]);
-    console.log('▶️ updateFromNutrients actief voor:', changedId);
-  }
+  if (DEBUG_MODE) console.log('📊 huidige nutriënten volgens berekening:', currentNutriënten);
+  if (DEBUG_MODE) console.log('📐 verschil (delta):', newValue - currentNutriënten[changedId]);
 
   const nutriëntKeyMap = {
-    stikstof:   'N_kg_per_ton',
-    fosfaat:    'P_kg_per_ton',
-    kalium:     'K_kg_per_ton',
-    organisch:  'OS_percent',
+    stikstof: 'N_kg_per_ton',
+    fosfaat: 'P_kg_per_ton',
+    kalium: 'K_kg_per_ton',
+    organisch: 'OS_percent',
     financieel: 'FIN_per_ton'
   };
 
   if (!nutriëntKeyMap[changedId]) {
-    console.warn(`⚠️ Nutriënt '${changedId}' wordt niet ondersteund.`);
+    console.warn(`⚠️ Nutriënt '${changedId}' wordt (nog) niet ondersteund in terugkoppeling.`);
     return;
   }
 
@@ -761,11 +756,10 @@ function updateFromNutrients(changedId, newValue) {
     .map(m => m.id);
 
   if (beschikbareMest.length === 0) {
-    console.warn(`❌ Geen mestsoorten beschikbaar voor aanpassing.`);
+    console.warn(`❌ Geen mestsoorten beschikbaar voor terugkoppeling.`);
     return;
   }
 
-  // 1. Bereken huidige totale bijdrage en bijdrage per mestsoort
   let totaalHuidig = 0;
   const bijdragePerMest = {};
 
@@ -788,13 +782,13 @@ function updateFromNutrients(changedId, newValue) {
 
   const delta = newValue - totaalHuidig;
   if (Math.abs(delta) < 0.01) {
-    if (DEBUG_MODE) console.log('ℹ️ Geen significante wijziging nodig.');
+    if (DEBUG_MODE) console.log('ℹ️ Geen significante wijziging.');
     return;
   }
 
   const totaleBijdrage = Object.values(bijdragePerMest).reduce((sum, x) => sum + x.bijdrage, 0);
   if (totaleBijdrage === 0) {
-    console.warn(`⚠️ Geen bijdrage gevonden aan nutriënt '${changedId}' vanuit actieve mest.`);
+    console.warn(`⚠️ Geen bruikbare bijdrage aan ${changedId} vanuit actieve mest.`);
     return;
   }
 
@@ -811,26 +805,24 @@ function updateFromNutrients(changedId, newValue) {
     const huidigeTon = mest.ton;
     const inBeweging = activeUserChangeSet.has(id);
     const nieuweTon = inBeweging ? huidigeTon : Math.max(0, huidigeTon + corrigeerTon);
-
     nieuweVerdeling[id] = nieuweTon;
   }
 
-  // 2. Valideer nieuwe tonnages
   let wijzigToegestaan = true;
-  for (const [id, ton] of Object.entries(nieuweVerdeling)) {
+  Object.entries(nieuweVerdeling).forEach(([id, ton]) => {
     const sliderEl = document.getElementById(`slider-${id}`);
-    if (!sliderEl) continue;
+    if (!sliderEl) return;
 
     const min = Number(sliderEl.min || 0);
     const max = Number(sliderEl.max || 650);
     if (ton < min - 0.01 || ton > max + 0.01) {
       if (DEBUG_MODE) {
-        console.warn(`⛔️ Overschrijding voor '${id}': ${ton} buiten grens ${min}–${max}`);
+        console.warn(`⛔️ Nutriëntverdeling overschrijdt grens van ${id}: ${ton} valt buiten ${min}-${max}`);
       }
       triggerShakeEffect(id);
       wijzigToegestaan = false;
     }
-  }
+  });
 
   if (!wijzigToegestaan) {
     triggerShakeEffect(changedId);
@@ -838,13 +830,12 @@ function updateFromNutrients(changedId, newValue) {
     return;
   }
 
-  // 3. Pas verdeling toe
-  for (const [id, ton] of Object.entries(nieuweVerdeling)) {
+  Object.entries(nieuweVerdeling).forEach(([id, ton]) => {
     if (!activeUserChangeSet.has(id)) {
       activeUserChangeSet.add(id);
       stelMesthoeveelheidIn(id, ton, 'auto');
     }
-  }
+  });
 
   updateStandardSliders();
 }
@@ -941,36 +932,40 @@ function onSliderChange(sliderId, newValue, source = 'user') {
     console.log('📦 volledige mestdata vooraf:', JSON.stringify(actieveMestData));
   }
 
-  if (typeof suppressAutoUpdate === 'undefined') {
-    console.warn("⚠️ suppressAutoUpdate niet gedefinieerd – wordt nu aangemaakt.");
-    suppressAutoUpdate = false;
-  }
-
+  if (typeof suppressAutoUpdate === 'undefined') suppressAutoUpdate = false;
   if (suppressAutoUpdate) return;
   suppressAutoUpdate = true;
 
+  activeUserChangeSet.add(sliderId);
   lastUpdateSource = source;
+
   const isNutriënt = ['stikstof', 'fosfaat', 'kalium', 'organisch', 'kunststikstof'].includes(sliderId);
   const isMestsoort = actieveMestData[sliderId] !== undefined;
 
-  if (!enforceLocks(sliderId, newValue) || !enforceBoundaries(sliderId, newValue)) {
+  if (!enforceLocks(sliderId, newValue)) {
+    suppressAutoUpdate = false;
+    return;
+  }
+
+  if (!enforceBoundaries(sliderId, newValue)) {
     suppressAutoUpdate = false;
     return;
   }
 
   if (isNutriënt) {
-    if (sliderId === 'kunststikstof' && !verwerkKunstmestStikstof(newValue)) {
-      suppressAutoUpdate = false;
-      return;
+    if (sliderId === 'kunststikstof') {
+      const toegestaan = verwerkKunstmestStikstof(newValue);
+      if (!toegestaan) {
+        suppressAutoUpdate = false;
+        return;
+      }
     }
 
     const slider = document.getElementById(`slider-${sliderId}`);
     if (slider && !isLocked(sliderId)) {
       slider.value = newValue;
-      slider.setAttribute('value', newValue);
     }
 
-    activeUserChangeSet.add(sliderId); // Markeer voor correct gedrag in cascades
     updateFromNutrients(sliderId, newValue);
   }
 
@@ -990,7 +985,6 @@ function onSliderChange(sliderId, newValue, source = 'user') {
     const overschrijding = overschrijdtMaxToegestaneWaarden(nutNa, nutInclKunstmest);
 
     if (overschrijding) {
-      if (DEBUG_MODE) console.warn(`❌ Overschrijding mestgrens bij ${sliderId}: ${overschrijding}`);
       actieveMestData[sliderId] = backup;
       stelMesthoeveelheidIn(sliderId, oudeTon);
       triggerShakeEffect(sliderId);
@@ -1014,7 +1008,9 @@ function onSliderChange(sliderId, newValue, source = 'user') {
 
   updateDebugOverlay();
   suppressAutoUpdate = false;
-  activeUserChangeSet.clear();
+
+  // ⬇️ Wacht met leegmaken om race-conditions te voorkomen
+  setTimeout(() => activeUserChangeSet.clear(), 0);
 }
 
 function triggerShakeEffect(sliderId) {
