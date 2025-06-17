@@ -357,9 +357,14 @@ function verdeelCompensatie(veroorzakerKey, deltaMap, mestKeys) {
       const mest = actieveMestData[key];
       let bijdrage = mest?.[keyInData] || 0;
       if (nut === 'organisch') bijdrage = bijdrage / 100;
-
+    
+      if (bijdrage === 0) {
+        if (DEBUG_MODE) console.log(`⚠️ ${key} draagt niet bij aan ${nut} (0 gehalte) → overgeslagen`);
+        continue; // ⛔️ sla deze mestsoort over
+      }
+    
       const aandeel = bijdrage / totaalBijdrage;
-      const tonnageCorrectie = -delta * aandeel / (bijdrage || 1); // bescherm tegen 0
+      const tonnageCorrectie = -delta * aandeel / bijdrage;
       correcties[key] += tonnageCorrectie;
     }
   }
