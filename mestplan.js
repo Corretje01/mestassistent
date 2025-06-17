@@ -561,9 +561,7 @@ function stelMesthoeveelheidIn(key, nieuweTon, source = 'auto') {
 
     if (source === 'auto' && Math.abs(huidigeWaarde - afgerond) > 0.01) {
       activeUserChangeSet.add(key);
-      setTimeout(() => {
-        onSliderChange(key, afgerond, 'auto');
-      }, 0);
+      onSliderChange(key, afgerond, 'auto');
     }
   }
 }
