@@ -2,6 +2,20 @@
 
 const DEBUG_MODE = false;
 
+// Zorg dat updateDebugOverlay altijd bestaat, ook als DEBUG_MODE false is
+window.updateDebugOverlay = function () {
+  const el = document.getElementById('debug-overlay');
+  if (!el) return;
+
+  if (!DEBUG_MODE) {
+    el.textContent = '';
+    return;
+  }
+
+  // Deze mag je later uitbreiden als je een echte overlay wil
+  el.textContent = '🔍 Debug overlay actief';
+};
+
 function getQueryParams() {
   const params = {};
   window.location.search.substring(1).split('&').forEach(pair => {
@@ -1187,7 +1201,7 @@ function initDebugOverlay() {
   window.updateDebugOverlay = function () {
     const el = document.getElementById('debug-overlay');
     if (!el) return;
-
+  
     const nut = berekenTotaleNutriënten(true);
     const sliders = ['stikstof', 'fosfaat', 'kalium', 'organisch', 'financieel'];
     const deltaInfo = sliders.map(id => {
@@ -1196,7 +1210,7 @@ function initDebugOverlay() {
       const verschil = doel - huidig;
       return `• ${id}: delta = ${verschil.toFixed(2)}`;
     }).join('\n');
-
+  
     const locked = [
       'stikstof', 'fosfaat', 'kalium', 'organisch', 'kunststikstof'
     ].map(id => ({
@@ -1204,7 +1218,7 @@ function initDebugOverlay() {
       val: document.getElementById(`slider-${id}`)?.value || '-',
       locked: isLocked(id) ? '✅' : '❌'
     }));
-
+  
     const mestregels = Object.entries(actieveMestData)
       .map(([k, v]) => {
         const gelocked = isLocked(k) ? '🔒' : '';
@@ -1212,9 +1226,14 @@ function initDebugOverlay() {
         const max = slider?.max || '–';
         return `- ${k}: ${v.ton.toFixed(1)} / ${max} ton ${gelocked}`;
       }).join('\n');
-
+  
     const vrijeStikstofruimte = totaalB - (Number(document.getElementById('slider-kunststikstof')?.value || 0));
-
+  
+    const beschikbareMest = Object.keys(actieveMestData).filter(id => !isLocked(id));
+    const waarschuwing = beschikbareMest.length === 0
+      ? `\n⚠️ Geen mestsoorten beschikbaar voor correctie (alles gelocked?)`
+      : '';
+  
     el.textContent =
       `🧪 [DEBUG OVERLAY]\n` +
       `Totaal N: ${nut.stikstof?.toFixed(1) || '?'} / ${totaalA}\n` +
@@ -1223,14 +1242,9 @@ function initDebugOverlay() {
       `🔒 Locks:\n` +
       locked.map(l => `• ${l.id}: ${l.val} (${l.locked})`).join('\n') +
       `\n\n🚛 Mestsoorten:\n${mestregels}` +
-      `\n\n📉 Nutriënten-delta:\n${deltaInfo}`;
+      `\n\n📉 Nutriënten-delta:\n${deltaInfo}` +
+      waarschuwing;
   };
-
-  const beschikbareMest = Object.keys(actieveMestData).filter(id => !isLocked(id));
-  if (beschikbareMest.length === 0) {
-    el.textContent += `\n⚠️ Geen mestsoorten beschikbaar voor correctie (alles gelocked?)`;
-  }
-
 }
 
 if (DEBUG_MODE) {
