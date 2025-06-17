@@ -1194,7 +1194,7 @@ function initDebugOverlay() {
     if (!el) return;
 
     const nut = berekenTotaleNutriënten(true);
-    const sliders = ['stikstof', 'fosfaat', 'kalium', 'organisch', 'financiee];
+    const sliders = ['stikstof', 'fosfaat', 'kalium', 'organisch', 'financieel'];
     const deltaInfo = sliders.map(id => {
       const doel = Number(document.getElementById(`slider-${id}`)?.value || 0);
       const huidig = nut[id] || 0;
