@@ -525,6 +525,7 @@ function berekenMestWaardenPerTon(data, ton) {
 
 function stelMesthoeveelheidIn(key, nieuweTon, source = 'auto') {
   if (!actieveMestData[key]) return;
+  if (isLocked(key)) return;
 
   const data = actieveMestData[key];
   data.ton = nieuweTon;
@@ -537,10 +538,13 @@ function stelMesthoeveelheidIn(key, nieuweTon, source = 'auto') {
     slider.value = afgerond;
     value.textContent = `${afgerond} / ${slider.max} ton`;
 
-    // 🚨 Trigger downstream updates als de slider handmatig wordt aangepast
+    // 🚨 Alleen triggeren bij werkelijke waarde-verandering
     if (source === 'auto') {
-      activeUserChangeSet.add(key); // 🧠 automatisch gegenereerde wijziging markeren
-      onSliderChange(key, afgerond, 'auto');
+      const huidigeWaarde = parseFloat(slider.value);
+      if (Math.abs(huidigeWaarde - afgerond) > 0.01) {
+        activeUserChangeSet.add(key);
+        onSliderChange(key, afgerond, 'auto');
+      }
     }
   }
 }
@@ -790,7 +794,9 @@ function updateFromNutrients(changedId, newValue) {
     const corrigeerNut = delta * aandeel;
     const corrigeerTon = gehalte > 0 ? corrigeerNut / gehalte : 0;
 
-    const nieuweTon = Math.max(0, mest.ton + corrigeerTon);
+    const huidigeTon = mest.ton;
+    const inBeweging = activeUserChangeSet.has(id);
+    const nieuweTon = inBeweging ? huidigeTon : Math.max(0, huidigeTon + corrigeerTon);
     nieuweVerdeling[id] = nieuweTon;
   }
 
