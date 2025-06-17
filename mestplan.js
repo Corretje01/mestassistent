@@ -509,19 +509,20 @@ function updateStandardSliders() {
 
     if (!sliderEl || !valueElem) continue;
 
+    const huidigeWaarde = Number(sliderEl.value || 0);
+    const afgerond = isFin ? Math.round(value) : Math.round(value * 10) / 10;
+    
     if (!isLocked(id) && !activeUserChangeSet.has(id)) {
-      const afgerond = isFin ? Math.round(value) : Math.round(value * 10) / 10;
       sliderEl.value = afgerond;
-
-      const formattedVal = formatSliderValue(afgerond, unit, isFin);
-      const formattedMax = formatSliderValue(Number(sliderEl.max), unit, isFin);
-      valueElem.textContent = `${formattedVal} / ${formattedMax}`;
     } else {
-      const huidigeWaarde = Number(sliderEl.value || 0);
-      const formattedVal = formatSliderValue(huidigeWaarde, unit, isFin);
-      const formattedMax = formatSliderValue(Number(sliderEl.max), unit, isFin);
-      valueElem.textContent = `${formattedVal} / ${formattedMax}`;
+      if (DEBUG_MODE) {
+        console.log(`🔒 ${id} is gelockt of actief gewijzigd → waarde blijft op ${huidigeWaarde}`);
+      }
     }
+    
+    const formattedVal = formatSliderValue(sliderEl.value, unit, isFin);
+    const formattedMax = formatSliderValue(Number(sliderEl.max), unit, isFin);
+    valueElem.textContent = `${formattedVal} / ${formattedMax}`;
   }
 
   updateMaxStikstofSlider();
@@ -844,6 +845,23 @@ function updateFromNutrients(changedId, newValue) {
     }
   });
 
+  // 🚫 Check of een gelockte nutriënt ongemerkt veranderd is
+  const locked = ['stikstof', 'fosfaat', 'kalium', 'organisch'].filter(nut => isLocked(nut));
+  const na = berekenTotaleNutriënten();
+
+  for (const nut of locked) {
+    const slider = document.getElementById(`slider-${nut}`);
+    const lockedValue = Number(slider?.value || 0);
+    const actueleWaarde = na[nut];
+
+    if (Math.abs(actueleWaarde - lockedValue) > 0.01) {
+      if (DEBUG_MODE) console.warn(`⛔️ Nutriënt '${nut}' is gelockt maar zou veranderen: ${lockedValue} → ${actueleWaarde}`);
+      triggerShakeEffect(changedId);
+      revertSliderToPreviousValue(changedId);
+      return;
+    }
+  }
+  
   updateStandardSliders();
 }
 
@@ -1005,6 +1023,7 @@ function onSliderChange(sliderId, newValue, source = 'user') {
     if (!succes) {
       stelMesthoeveelheidIn(sliderId, oudeTon);
       triggerShakeEffect(sliderId);
+      revertSliderToPreviousValue(sliderId);
       suppressAutoUpdate = false;
       return;
     }
