@@ -543,7 +543,7 @@ function berekenMestWaardenPerTon(data, ton) {
 
 function stelMesthoeveelheidIn(key, nieuweTon, source = 'auto') {
   if (!actieveMestData[key]) return;
-  if (isLocked(key)) return;
+  if (isLocked(key) && source !== 'auto') return;
 
   const data = actieveMestData[key];
   data.ton = nieuweTon;
