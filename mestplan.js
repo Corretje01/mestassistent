@@ -270,8 +270,17 @@ function compenseerVergrendeldeNutriënten(changedKey, oudeTonHandmatig) {
   if (Object.keys(deltaMap).length === 0) {
     return true; // geen gelockte waarden die veranderen
   }
+  
+  if (DEBUG_MODE) {
+    console.log("🧩 Beschikbare mestsoorten voor compensatie:", mestKeys.filter(id => {
+      return !isLocked(id) && id !== changedKey && !activeUserChangeSet.has(id);
+    }));
+  }
 
-  const gecompenseerd = verdeelCompensatie(changedKey, deltaMap, mestKeys);
+  const gecompenseerd = verdeelCompensatie(changedKey, deltaMap, mestKeys.filter(id => {
+    return !isLocked(id) && id !== changedKey && !activeUserChangeSet.has(id);
+  }));
+
   if (gecompenseerd) {
     if (DEBUG_MODE) console.log(`✅ Compensatie succesvol toegepast.`);
     return true;
@@ -309,7 +318,16 @@ function verdeelCompensatie(veroorzakerKey, deltaMap, mestKeys) {
     organisch: 'OS_percent' // moet gedeeld worden door 100
   };
 
-  const compenseerbare = mestKeys.filter(k => k !== veroorzakerKey && !isLocked(k));
+  if (DEBUG_MODE) {
+    console.log("🧩 Beschikbare mestsoorten voor compensatie:", compenseerbare);
+  }
+
+  const compenseerbare = mestKeys.filter(k => 
+    k !== veroorzakerKey && 
+    !isLocked(k) && 
+    !activeUserChangeSet.has(k)
+  );
+
   if (compenseerbare.length === 0) return false;
 
   const correcties = {};
@@ -535,13 +553,14 @@ function stelMesthoeveelheidIn(key, nieuweTon, source = 'auto') {
   const value  = document.getElementById(`value-${key}`);
   if (slider && value) {
     const afgerond = Math.round(nieuweTon * 10) / 10;
-    slider.value = afgerond;
-    value.textContent = `${afgerond} / ${slider.max} ton`;
+    const huidigeWaarde = parseFloat(slider.value);
 
-    // 🚨 Alleen triggeren bij werkelijke waarde-verandering
-    if (source === 'auto') {
-      const huidigeWaarde = parseFloat(slider.value);
-      if (Math.abs(huidigeWaarde - afgerond) > 0.01) {
+    // ⚠️ Alleen update uitvoeren als er daadwerkelijk verschil is
+    if (Math.abs(huidigeWaarde - afgerond) > 0.01) {
+      slider.value = afgerond;
+      value.textContent = `${afgerond} / ${slider.max} ton`;
+
+      if (source === 'auto') {
         activeUserChangeSet.add(key);
         onSliderChange(key, afgerond, 'auto');
       }
@@ -827,7 +846,9 @@ function updateFromNutrients(changedId, newValue) {
   
   // Pas alle tonnages toe
   Object.entries(nieuweVerdeling).forEach(([id, ton]) => {
-    stelMesthoeveelheidIn(id, ton, 'auto');
+    if (!activeUserChangeSet.has(id)) {
+      stelMesthoeveelheidIn(id, ton, 'auto');
+    }
   });
 
   updateStandardSliders();
@@ -971,7 +992,8 @@ function onSliderChange(sliderId, newValue, source = 'user') {
     if (DEBUG_MODE) {
       console.log(`🔁 Nutriënt-aanpassing: ${sliderId} = ${newValue} → updateFromNutrients()`);
     }
-
+    
+    activeUserChangeSet.add(sliderId); // 👈 belangrijk: markeer nogmaals expliciet voor downstream
     updateFromNutrients(sliderId, newValue);
   }
 
@@ -1018,8 +1040,8 @@ function onSliderChange(sliderId, newValue, source = 'user') {
   }
 
   updateDebugOverlay();
-  activeUserChangeSet.clear();
   suppressAutoUpdate = false;
+  activeUserChangeSet.clear();
 }
 
 function triggerShakeEffect(sliderId) {
