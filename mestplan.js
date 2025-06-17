@@ -65,7 +65,7 @@ let suppressAutoUpdate = false;
 let mestsoortenData = {};
 const actieveMestData = {};
 let userModifiedKunstmest = false;
-let currentlyChangingSliderId = null;
+const activeUserChangeSet = new Set();
 
 fetch('/data/mestsoorten.json')
   .then(res => res.json())
@@ -491,7 +491,7 @@ function updateStandardSliders() {
 
     if (!sliderEl || !valueElem) continue;
 
-    if (!isLocked(id) && id !== currentlyChangingSliderId) {
+    if (!isLocked(id) && !activeUserChangeSet.has(id)) {
       const afgerond = isFin ? Math.round(value) : Math.round(value * 10) / 10;
       sliderEl.value = afgerond;
 
@@ -538,7 +538,7 @@ function stelMesthoeveelheidIn(key, nieuweTon, source = 'auto') {
     value.textContent = `${afgerond} / ${slider.max} ton`;
 
     // 🚨 Trigger downstream updates als de slider handmatig wordt aangepast
-    if (source === 'auto' && key !== currentlyChangingSliderId) {
+    if (source === 'auto' && !activeUserChangeSet.has(key)) {
       onSliderChange(key, afgerond, 'auto');
     }
   }
@@ -917,7 +917,7 @@ function onSliderChange(sliderId, newValue, source = 'user') {
     console.log('👉 actuele slider DOM waarde:', document.getElementById(`slider-${sliderId}`)?.value);
     console.log('📦 volledige mestdata vooraf:', JSON.stringify(actieveMestData));
   }
-  
+
   if (typeof suppressAutoUpdate === 'undefined') {
     console.warn("⚠️ suppressAutoUpdate niet gedefinieerd – wordt nu aangemaakt.");
     suppressAutoUpdate = false;
@@ -925,35 +925,28 @@ function onSliderChange(sliderId, newValue, source = 'user') {
 
   if (suppressAutoUpdate) return;
   suppressAutoUpdate = true;
-  currentlyChangingSliderId = sliderId;
+
+  activeUserChangeSet.add(sliderId);
   lastUpdateSource = source;
 
   if (DEBUG_MODE) {
     console.log(`🟡 [onSliderChange] ${sliderId} → ${newValue} (bron: ${source})`);
   }
 
-  // 🔎 Type slider bepalen: mestsoort of nutriënt?
   const isNutriënt = ['stikstof', 'fosfaat', 'kalium', 'organisch', 'kunststikstof'].includes(sliderId);
   const isMestsoort = actieveMestData[sliderId] !== undefined;
-
-  if (!isNutriënt && !isMestsoort) {
-    console.warn(`❓ onSliderChange: onbekende sliderId: ${sliderId}`);
-    currentlyChangingSliderId = null;
-    suppressAutoUpdate = false;
-    return;
-  }
 
   // ⛔️ Hard-lock controleren vóór enige actie
   if (!enforceLocks(sliderId, newValue)) {
     suppressAutoUpdate = false;
     return;
   }
-  
+
   if (!enforceBoundaries(sliderId, newValue)) {
     suppressAutoUpdate = false;
     return;
   }
-  
+
   if (isNutriënt) {
     if (sliderId === 'kunststikstof') {
       const toegestaan = verwerkKunstmestStikstof(newValue);
@@ -962,23 +955,16 @@ function onSliderChange(sliderId, newValue, source = 'user') {
         return;
       }
     }
-  
+
     const slider = document.getElementById(`slider-${sliderId}`);
     if (slider && !isLocked(sliderId)) {
       slider.value = newValue;
     }
-  
+
     if (DEBUG_MODE) {
       console.log(`🔁 Nutriënt-aanpassing: ${sliderId} = ${newValue} → updateFromNutrients()`);
     }
 
-    const huidigeNutriënten = berekenTotaleNutriënten(true);
-    const huidigeMestverdeling = Object.entries(actieveMestData).map(([id, data]) => ({
-      id,
-      ton: data.ton,
-      locked: isLocked(id)
-    }));
-    
     updateFromNutrients(sliderId, newValue);
   }
 
@@ -988,17 +974,17 @@ function onSliderChange(sliderId, newValue, source = 'user') {
     if (sliderEl) {
       sliderEl.max = maxToelaatbaar;
     }
-  
+
     const oudeTon = actieveMestData[sliderId]?.ton || 0;
     const tijdelijk = { ...actieveMestData[sliderId], ton: newValue };
     tijdelijk.totaal = berekenMestWaardenPerTon(tijdelijk, newValue);
     const backup = actieveMestData[sliderId];
     actieveMestData[sliderId] = tijdelijk;
-  
+
     const nutNa = berekenTotaleNutriënten(false);
     const nutInclKunstmest = berekenTotaleNutriënten(true);
     const overschrijding = overschrijdtMaxToegestaneWaarden(nutNa, nutInclKunstmest);
-  
+
     if (overschrijding) {
       if (DEBUG_MODE) {
         console.warn(`❌ Overschrijding mestgrens bij ${sliderId}: ${overschrijding}`);
@@ -1009,22 +995,23 @@ function onSliderChange(sliderId, newValue, source = 'user') {
       suppressAutoUpdate = false;
       return;
     }
-  
+
     const succes = compenseerVergrendeldeNutriënten(sliderId, oudeTon);
     actieveMestData[sliderId] = succes ? tijdelijk : backup;
-  
+
     if (!succes) {
       stelMesthoeveelheidIn(sliderId, oudeTon);
       triggerShakeEffect(sliderId);
       suppressAutoUpdate = false;
       return;
     }
-  
+
     stelMesthoeveelheidIn(sliderId, newValue);
     updateStandardSliders();
   }
-  
+
   updateDebugOverlay();
+  activeUserChangeSet.clear();
   suppressAutoUpdate = false;
 }
 
