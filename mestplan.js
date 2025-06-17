@@ -538,7 +538,8 @@ function stelMesthoeveelheidIn(key, nieuweTon, source = 'auto') {
     value.textContent = `${afgerond} / ${slider.max} ton`;
 
     // 🚨 Trigger downstream updates als de slider handmatig wordt aangepast
-    if (source === 'auto' && !activeUserChangeSet.has(key)) {
+    if (source === 'auto') {
+      activeUserChangeSet.add(key); // 🧠 automatisch gegenereerde wijziging markeren
       onSliderChange(key, afgerond, 'auto');
     }
   }
