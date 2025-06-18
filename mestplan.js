@@ -337,35 +337,74 @@ function verdeelCompensatie(veroorzakerKey, deltaMap, mestKeys) {
   for (const nut in deltaMap) {
     const keyInData = nutriëntKeyMap[nut];
     if (!keyInData) continue;
-
-    const delta = deltaMap[nut]; // positief = te veel → moet omlaag
-    let totaalBijdrage = 0;
-
-    // Bereken totale bijdrage van compenseerbare mestsoorten
-    for (const key of compenseerbare) {
-      const waarde = actieveMestData[key]?.[keyInData] || 0;
-      totaalBijdrage += (nut === 'organisch' ? waarde / 100 : waarde);
-    }
-
-    if (totaalBijdrage === 0) {
-      console.warn(`⚠️ Geen nutriëntinhoud voor ${nut} in compenseerbare mest.`);
-      return false;
-    }
-
-    // Bereken per mestsoort de tonnage-correctie
-    for (const key of compenseerbare) {
-      const mest = actieveMestData[key];
-      let bijdrage = mest?.[keyInData] || 0;
-      if (nut === 'organisch') bijdrage = bijdrage / 100;
-    
-      if (bijdrage === 0) {
-        if (DEBUG_MODE) console.log(`⚠️ ${key} draagt niet bij aan ${nut} (0 gehalte) → overgeslagen`);
-        continue; // ⛔️ sla deze mestsoort over
+  
+    let resterendeDelta = deltaMap[nut];
+    let actieveMest = compenseerbare.slice(); // clone lijst
+  
+    while (Math.abs(resterendeDelta) > 0.0001 && actieveMest.length > 0) {
+  
+      // Bereken totaal bijdrage van de nog actieve mestsoorten
+      let totaalBijdrage = 0;
+      const bijdragen = {};
+  
+      for (const key of actieveMest) {
+        const mest = actieveMestData[key];
+        let gehalte = mest?.[keyInData] || 0;
+        if (nut === 'organisch') gehalte = gehalte / 100;
+        if (gehalte === 0) continue;
+  
+        bijdragen[key] = gehalte;
+        totaalBijdrage += gehalte;
       }
-    
-      const aandeel = bijdrage / totaalBijdrage;
-      const tonnageCorrectie = -delta * aandeel / bijdrage;
-      correcties[key] += tonnageCorrectie;
+  
+      if (totaalBijdrage === 0) {
+        console.warn(`⚠️ Geen nutriëntinhoud meer voor ${nut} in resterende mest.`);
+        return false;
+      }
+  
+      let ietsAangepast = false;
+  
+      for (const key of Object.keys(bijdragen)) {
+        const gehalte = bijdragen[key];
+        const aandeel = gehalte / totaalBijdrage;
+        const gewensteCorrectieNut = resterendeDelta * aandeel;
+        const gewensteCorrectieTon = -gewensteCorrectieNut / gehalte;
+  
+        const huidigTon = actieveMestData[key].ton;
+        const nieuwTon = huidigTon + gewensteCorrectieTon;
+  
+        const min = 0;
+        const max = 650;
+        let toegepasteCorrectieTon = gewensteCorrectieTon;
+  
+        if (nieuwTon < min) {
+          toegepasteCorrectieTon = min - huidigTon;
+        } else if (nieuwTon > max) {
+          toegepasteCorrectieTon = max - huidigTon;
+        }
+  
+        // Pas deze deelcorrectie toe
+        correcties[key] = (correcties[key] || 0) + toegepasteCorrectieTon;
+        const toegepasteCorrectieNut = -toegepasteCorrectieTon * gehalte;
+        resterendeDelta -= toegepasteCorrectieNut;
+  
+        if (Math.abs(toegepasteCorrectieTon) > 0.0001) {
+          ietsAangepast = true;
+        }
+      }
+  
+      // Filter nu alle mestsoorten die niets meer kunnen bijdragen (op grens)
+      actieveMest = actieveMest.filter(key => {
+        const huidig = actieveMestData[key].ton;
+        const corr = correcties[key] || 0;
+        const nieuw = huidig + corr;
+        return nieuw > 0.0001 && nieuw < 649.999; // nog bewegingsruimte
+      });
+  
+      if (!ietsAangepast) {
+        console.warn(`⚠️ Geen verdere aanpassing meer mogelijk bij ${nut}, delta over: ${resterendeDelta}`);
+        return false;
+      }
     }
   }
 
