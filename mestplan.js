@@ -338,73 +338,48 @@ function verdeelCompensatie(veroorzakerKey, deltaMap, mestKeys) {
     const keyInData = nutriëntKeyMap[nut];
     if (!keyInData) continue;
   
-    let resterendeDelta = deltaMap[nut];
-    let actieveMest = compenseerbare.slice(); // clone lijst
+    const delta = deltaMap[nut]; // totale gewenste correctie (positief = teveel)
   
-    while (Math.abs(resterendeDelta) > 0.0001 && actieveMest.length > 0) {
+    const beschikbareMest = compenseerbare.map(key => {
+      const mest = actieveMestData[key];
+      let gehalte = mest?.[keyInData] || 0;
+      if (nut === 'organisch') gehalte = gehalte / 100;
+      return { key, gehalte };
+    }).filter(m => m.gehalte > 0);
   
-      // Bereken totaal bijdrage van de nog actieve mestsoorten
-      let totaalBijdrage = 0;
-      const bijdragen = {};
+    if (beschikbareMest.length === 0) {
+      console.warn(`⚠️ Geen compenseerbare mestsoorten met bijdrage aan ${nut}.`);
+      return false;
+    }
   
-      for (const key of actieveMest) {
-        const mest = actieveMestData[key];
-        let gehalte = mest?.[keyInData] || 0;
-        if (nut === 'organisch') gehalte = gehalte / 100;
-        if (gehalte === 0) continue;
+    // Bepaal maximale capaciteit per mestsoort
+    const capaciteitPerMest = beschikbareMest.map(({ key, gehalte }) => {
+      const huidig = actieveMestData[key].ton;
+      const min = 0;
+      const max = 650;
+      const corrTotMin = (min - huidig) * gehalte;
+      const corrTotMax = (max - huidig) * gehalte;
   
-        bijdragen[key] = gehalte;
-        totaalBijdrage += gehalte;
-      }
+      const maxCorrectieNut = delta > 0 ? Math.min(0, corrTotMin) : Math.max(0, corrTotMax);
+      return { key, gehalte, maxNutriëntCorrectie: Math.abs(maxCorrectieNut) };
+    });
   
-      if (totaalBijdrage === 0) {
-        console.warn(`⚠️ Geen nutriëntinhoud meer voor ${nut} in resterende mest.`);
-        return false;
-      }
+    const totaalMaxCorr = capaciteitPerMest.reduce((sum, m) => sum + m.maxNutriëntCorrectie, 0);
   
-      let ietsAangepast = false;
+    if (totaalMaxCorr + 0.00001 < Math.abs(delta)) {
+      console.warn(`⚠️ Onvoldoende capaciteit om ${nut} volledig te compenseren.`);
+      return false;
+    }
   
-      for (const key of Object.keys(bijdragen)) {
-        const gehalte = bijdragen[key];
-        const aandeel = gehalte / totaalBijdrage;
-        const gewensteCorrectieNut = resterendeDelta * aandeel;
-        const gewensteCorrectieTon = -gewensteCorrectieNut / gehalte;
+    // Nu daadwerkelijk verdelen
+    for (const mest of capaciteitPerMest) {
+      if (mest.maxNutriëntCorrectie === 0) continue;
   
-        const huidigTon = actieveMestData[key].ton;
-        const nieuwTon = huidigTon + gewensteCorrectieTon;
+      const aandeel = mest.maxNutriëntCorrectie / totaalMaxCorr;
+      const toegewezenNut = delta * aandeel;
+      const tonCorrectie = -toegewezenNut / mest.gehalte;
   
-        const min = 0;
-        const max = 650;
-        let toegepasteCorrectieTon = gewensteCorrectieTon;
-  
-        if (nieuwTon < min) {
-          toegepasteCorrectieTon = min - huidigTon;
-        } else if (nieuwTon > max) {
-          toegepasteCorrectieTon = max - huidigTon;
-        }
-  
-        // Pas deze deelcorrectie toe
-        correcties[key] = (correcties[key] || 0) + toegepasteCorrectieTon;
-        const toegepasteCorrectieNut = -toegepasteCorrectieTon * gehalte;
-        resterendeDelta -= toegepasteCorrectieNut;
-  
-        if (Math.abs(toegepasteCorrectieTon) > 0.0001) {
-          ietsAangepast = true;
-        }
-      }
-  
-      // Filter nu alle mestsoorten die niets meer kunnen bijdragen (op grens)
-      actieveMest = actieveMest.filter(key => {
-        const huidig = actieveMestData[key].ton;
-        const corr = correcties[key] || 0;
-        const nieuw = huidig + corr;
-        return nieuw > 0.0001 && nieuw < 649.999; // nog bewegingsruimte
-      });
-  
-      if (!ietsAangepast) {
-        console.warn(`⚠️ Geen verdere aanpassing meer mogelijk bij ${nut}, delta over: ${resterendeDelta}`);
-        return false;
-      }
+      correcties[mest.key] = (correcties[mest.key] || 0) + tonCorrectie;
     }
   }
 
