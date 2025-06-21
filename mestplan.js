@@ -748,6 +748,14 @@ function berekenTotaleNutriëntenZonderLocked() {
 function updateFromNutrients(changedId, newValue) {
   activeUserChangeSet.add(changedId); // voorkom indirecte triggers op deze slider
 
+  // 🔎 Eerst: check of er überhaupt mest actief is
+  if (Object.keys(actieveMestData).length === 0) {
+    console.warn(`❌ Geen mestsoorten geselecteerd → nutriënt kan niet aangepast worden`);
+    triggerShakeEffect(changedId);
+    revertSliderToPreviousValue(changedId);
+    return;
+  }
+
   const currentNutriënten = berekenTotaleNutriënten();
   const huidigNut = currentNutriënten[changedId];
   const delta = newValue - huidigNut;
@@ -782,6 +790,8 @@ function updateFromNutrients(changedId, newValue) {
 
   if (beschikbareMest.length === 0) {
     console.warn(`❌ Geen mestsoorten beschikbaar voor aanpassing.`);
+    triggerShakeEffect(changedId);
+    revertSliderToPreviousValue(changedId);
     return;
   }
 
@@ -813,6 +823,8 @@ function updateFromNutrients(changedId, newValue) {
   const totaleBijdrage = Object.values(bijdragePerMest).reduce((sum, x) => sum + x.bijdrage, 0);
   if (totaleBijdrage === 0) {
     console.warn(`⚠️ Totale bijdrage is nul, geen aanpassing mogelijk.`);
+    triggerShakeEffect(changedId);
+    revertSliderToPreviousValue(changedId);
     return;
   }
 
@@ -850,6 +862,17 @@ function updateFromNutrients(changedId, newValue) {
     }
   });
 
+  // 🔎 Extra: blokkeer daling als alles al op nul staat
+  if (delta < 0) {
+    const alleOpNul = beschikbareMest.every(id => actieveMestData[id].ton <= 0.0001);
+    if (alleOpNul) {
+      console.warn(`⛔️ Kan ${changedId} niet verder omlaag brengen: alle mestsoorten staan al op 0 ton`);
+      triggerShakeEffect(changedId);
+      revertSliderToPreviousValue(changedId);
+      return;
+    }
+  }
+
   if (!wijzigToegestaan) {
     triggerShakeEffect(changedId);
     revertSliderToPreviousValue(changedId);
@@ -880,7 +903,7 @@ function updateFromNutrients(changedId, newValue) {
       return;
     }
   }
-  
+
   updateStandardSliders();
 }
 
