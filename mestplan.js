@@ -1038,6 +1038,8 @@ function onSliderChange(sliderId, newValue, source = 'user') {
       const vorigeWaarde = berekenTotaleNutriënten()[sliderId];
       sliderEl.value = vorigeWaarde.toFixed(2);
       
+      updateStandardSliders();
+      
       suppressAutoUpdate = false;
       return;
     }
