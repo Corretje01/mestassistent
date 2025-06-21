@@ -843,6 +843,16 @@ function updateFromNutrients(changedId, newValue) {
     nieuweVerdeling[id] = nieuweTon;
   }
 
+  if (delta < 0) {
+    const alleOpNul = beschikbareMest.every(id => actieveMestData[id].ton <= 0.0001);
+    if (alleOpNul) {
+      console.warn(`⛔️ Kan ${changedId} niet verder omlaag brengen: alle mestsoorten staan al op 0 ton`);
+      triggerShakeEffect(changedId);
+      revertSliderToPreviousValue(changedId);
+      return;
+    }
+  }
+
   if (DEBUG_MODE) {
     console.log('📊 Nieuwe tonnages voorgesteld:');
     console.table(nieuweVerdeling);
