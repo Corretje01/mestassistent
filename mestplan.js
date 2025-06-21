@@ -1030,8 +1030,7 @@ function onSliderChange(sliderId, newValue, source = 'user') {
       }
     }
     
-    const nutrientenZonderKunstmest = ['stikstof', 'fosfaat', 'kalium', 'organisch'];
-    if (nutriëntenZonderKunstmest.includes(sliderId) && Object.keys(actieveMestData).length === 0) {
+    if (['stikstof', 'fosfaat', 'kalium', 'organisch'].includes(sliderId) && Object.keys(actieveMestData).length === 0) {
       console.warn(`⛔️ Nutriënt wijziging geblokkeerd: geen mest actief.`);
       triggerShakeEffect(sliderId);
 
