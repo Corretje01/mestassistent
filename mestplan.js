@@ -748,13 +748,6 @@ function berekenTotaleNutriëntenZonderLocked() {
 function updateFromNutrients(changedId, newValue) {
   activeUserChangeSet.add(changedId); // voorkom indirecte triggers op deze slider
 
-  if (Object.keys(actieveMestData).length === 0) {
-    console.warn(`❌ Geen mestsoorten geselecteerd → nutriënt kan niet aangepast worden`);
-    triggerShakeEffect(changedId);
-    revertSliderToPreviousValue(changedId);
-    return;
-  }
-
   const currentNutriënten = berekenTotaleNutriënten();
   const huidigNut = currentNutriënten[changedId];
   const delta = newValue - huidigNut;
@@ -1036,7 +1029,20 @@ function onSliderChange(sliderId, newValue, source = 'user') {
         return;
       }
     }
+    
+    const nutrientenZonderKunstmest = ['stikstof', 'fosfaat', 'kalium', 'organisch'];
+    if (nutriëntenZonderKunstmest.includes(sliderId) && Object.keys(actieveMestData).length === 0) {
+      console.warn(`⛔️ Nutriënt wijziging geblokkeerd: geen mest actief.`);
+      triggerShakeEffect(sliderId);
 
+      const sliderEl = document.getElementById(`slider-${sliderId}`);
+      const vorigeWaarde = berekenTotaleNutriënten()[sliderId];
+      sliderEl.value = vorigeWaarde.toFixed(2);
+      
+      suppressAutoUpdate = false;
+      return;
+    }
+      
     const slider = document.getElementById(`slider-${sliderId}`);
     if (slider && !isLocked(sliderId)) {
       slider.value = newValue;
