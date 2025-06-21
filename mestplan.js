@@ -531,11 +531,11 @@ function updateStandardSliders() {
     const huidigeWaarde = Number(sliderEl.value || 0);
     const afgerond = isFin ? Math.round(value) : Math.round(value * 10) / 10;
     
-    if (!isLocked(id) && !activeUserChangeSet.has(id)) {
+    if (!isLocked(id)) {
       sliderEl.value = afgerond;
     } else {
       if (DEBUG_MODE) {
-        console.log(`🔒 ${id} is gelockt of actief gewijzigd → waarde blijft op ${huidigeWaarde}`);
+        console.log(`🔒 ${id} is gelockt → waarde blijft op ${huidigeWaarde}`);
       }
     }
     
