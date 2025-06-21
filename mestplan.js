@@ -748,7 +748,7 @@ function berekenTotaleNutriëntenZonderLocked() {
 function updateFromNutrients(changedId, newValue) {
   activeUserChangeSet.add(changedId); // voorkom indirecte triggers op deze slider
 
-  // 🔎 Eerst: check of er überhaupt mest actief is
+  // Stap 1: check of er mest actief is
   if (Object.keys(actieveMestData).length === 0) {
     console.warn(`❌ Geen mestsoorten geselecteerd → nutriënt kan niet aangepast worden`);
     triggerShakeEffect(changedId);
@@ -795,7 +795,18 @@ function updateFromNutrients(changedId, newValue) {
     return;
   }
 
-  let totaalHuidig = 0;
+  // Speciale check: blokkeren bij daling als alles al op 0 ton staat
+  if (delta < 0) {
+    const alleOpNul = beschikbareMest.every(id => actieveMestData[id].ton <= 0.0001);
+    if (alleOpNul) {
+      console.warn(`⛔️ Kan ${changedId} niet verder omlaag brengen: alle mestsoorten staan al op 0 ton`);
+      triggerShakeEffect(changedId);
+      revertSliderToPreviousValue(changedId);
+      return;
+    }
+  }
+
+  let totaalBasis = 0;
   const bijdragePerMest = {};
 
   for (const id of beschikbareMest) {
@@ -810,19 +821,22 @@ function updateFromNutrients(changedId, newValue) {
       gehalte = mest[nutriëntKeyMap[changedId]] || 0;
     }
 
-    const bijdrage = mest.ton * gehalte;
-    bijdragePerMest[id] = { gehalte, bijdrage };
-    totaalHuidig += bijdrage;
+    let basis = 0;
+
+    if (delta > 0) {
+      // Bij stijging -> verdelen puur op gehalte
+      basis = gehalte;
+    } else {
+      // Bij daling -> verdelen op actuele bijdrage
+      basis = mest.ton * gehalte;
+    }
+
+    bijdragePerMest[id] = { gehalte, basis };
+    totaalBasis += basis;
   }
 
-  if (Math.abs(delta) < 0.01) {
-    if (DEBUG_MODE) console.log('ℹ️ Geen significante delta, update wordt overgeslagen.');
-    return;
-  }
-
-  const totaleBijdrage = Object.values(bijdragePerMest).reduce((sum, x) => sum + x.bijdrage, 0);
-  if (totaleBijdrage === 0) {
-    console.warn(`⚠️ Totale bijdrage is nul, geen aanpassing mogelijk.`);
+  if (totaalBasis === 0) {
+    console.warn(`⚠️ Geen bijdragebasis beschikbaar, aanpassing niet mogelijk.`);
     triggerShakeEffect(changedId);
     revertSliderToPreviousValue(changedId);
     return;
@@ -832,8 +846,8 @@ function updateFromNutrients(changedId, newValue) {
 
   for (const id of beschikbareMest) {
     const mest = actieveMestData[id];
-    const { gehalte, bijdrage } = bijdragePerMest[id];
-    const aandeel = bijdrage / totaleBijdrage;
+    const { gehalte, basis } = bijdragePerMest[id];
+    const aandeel = basis / totaalBasis;
     const corrigeerNut = delta * aandeel;
     const corrigeerTon = gehalte > 0 ? corrigeerNut / gehalte : 0;
 
@@ -841,16 +855,6 @@ function updateFromNutrients(changedId, newValue) {
     const inBeweging = activeUserChangeSet.has(id);
     const nieuweTon = inBeweging ? huidigeTon : Math.max(0, huidigeTon + corrigeerTon);
     nieuweVerdeling[id] = nieuweTon;
-  }
-
-  if (delta < 0) {
-    const alleOpNul = beschikbareMest.every(id => actieveMestData[id].ton <= 0.0001);
-    if (alleOpNul) {
-      console.warn(`⛔️ Kan ${changedId} niet verder omlaag brengen: alle mestsoorten staan al op 0 ton`);
-      triggerShakeEffect(changedId);
-      revertSliderToPreviousValue(changedId);
-      return;
-    }
   }
 
   if (DEBUG_MODE) {
@@ -872,17 +876,6 @@ function updateFromNutrients(changedId, newValue) {
     }
   });
 
-  // 🔎 Extra: blokkeer daling als alles al op nul staat
-  if (delta < 0) {
-    const alleOpNul = beschikbareMest.every(id => actieveMestData[id].ton <= 0.0001);
-    if (alleOpNul) {
-      console.warn(`⛔️ Kan ${changedId} niet verder omlaag brengen: alle mestsoorten staan al op 0 ton`);
-      triggerShakeEffect(changedId);
-      revertSliderToPreviousValue(changedId);
-      return;
-    }
-  }
-
   if (!wijzigToegestaan) {
     triggerShakeEffect(changedId);
     revertSliderToPreviousValue(changedId);
@@ -897,7 +890,7 @@ function updateFromNutrients(changedId, newValue) {
     }
   });
 
-  // 🚫 Check of een gelockte nutriënt ongemerkt veranderd is
+  // Check of een gelockte nutriënt ongemerkt veranderd is
   const locked = ['stikstof', 'fosfaat', 'kalium', 'organisch'].filter(nut => isLocked(nut));
   const na = berekenTotaleNutriënten();
 
