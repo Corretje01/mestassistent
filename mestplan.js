@@ -525,21 +525,22 @@ function updateStandardSliders() {
     const valueElem = document.getElementById(`value-${id}`);
     const unit      = standaardSliders.find(s => s.id === id)?.unit || 'kg';
     const isFin     = id === 'financieel';
-
+  
     if (!sliderEl || !valueElem) continue;
-
-    const huidigeWaarde = Number(sliderEl.value || 0);
+  
     const afgerond = isFin ? Math.round(value) : Math.round(value * 10) / 10;
-    
+  
+    // Altijd slider DOM updaten als hij niet gelockt is
     if (!isLocked(id)) {
       sliderEl.value = afgerond;
     } else {
       if (DEBUG_MODE) {
-        console.log(`🔒 ${id} is gelockt → waarde blijft op ${huidigeWaarde}`);
+        console.log(`🔒 ${id} is gelockt → slider blijft op ${sliderEl.value}`);
       }
     }
-    
-    const formattedVal = formatSliderValue(sliderEl.value, unit, isFin);
+  
+    // Altijd visualisatie op basis van de berekende waarde (afgerond)
+    const formattedVal = formatSliderValue(afgerond, unit, isFin);
     const formattedMax = formatSliderValue(Number(sliderEl.max), unit, isFin);
     valueElem.textContent = `${formattedVal} / ${formattedMax}`;
   }
