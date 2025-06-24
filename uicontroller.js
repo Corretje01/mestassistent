@@ -42,6 +42,9 @@ export const UIController = (() => {
       const mest = actieveMest[id];
       const maxTon = ValidationEngine.getMaxTonnage(id);
 
+      // Als slider al bestaat, niet opnieuw renderen (voorkomt dubbele sliders)
+      if (document.getElementById(`slider-${id}`)) continue;
+
       renderSlider({
         id: id,
         label: mest.label,
@@ -107,6 +110,9 @@ export const UIController = (() => {
         valueEl.textContent = `${mest.ton.toFixed(1)} / ${slider.max} ton`;
       }
     }
+
+    // Sliders-container zichtbaar maken zodra sliders geladen zijn
+    document.getElementById('sliders-container').style.display = 'block';
   }
 
   function updateSliderValue(id, value) {
