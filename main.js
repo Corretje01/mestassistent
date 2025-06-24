@@ -30,25 +30,50 @@ async function initApp() {
     const mestData = await response.json();
     StateManager.setMestTypes(mestData);
 
-    // Voorbeeld: twee standaard mestsoorten activeren
-    StateManager.addMestType('drijfmest-koe', {
-      ...mestData.drijfmest.koe,
-      label: 'Drijfmest Koe'
-    });
-    StateManager.addMestType('drijfmest-varken', {
-      ...mestData.drijfmest.varken,
-      label: 'Drijfmest Varken'
-    });
-
-    // UI initialiseren
+    // Init standaard nutrientensliders
     UIController.initStandardSliders();
-    UIController.initMestsoortenSliders();
     UIController.updateSliders();
+
+    // Knoppen activeren
+    initMestSelectieButtons();
 
   } catch (err) {
     console.error('❌ Kan mestdata niet laden:', err);
     alert('Fout bij laden mestdata');
   }
+}
+
+function initMestSelectieButtons() {
+  document.querySelectorAll('.mest-btn').forEach(button => {
+    button.addEventListener('click', () => {
+      const type = button.dataset.type;
+      const animal = button.dataset.animal;
+      const mestData = StateManager.getState().mestTypes;
+
+      if (!mestData[type] || !mestData[type][animal]) {
+        alert(`Mestsoort ${type} - ${animal} niet gevonden in data`);
+        return;
+      }
+
+      const id = `${type}-${animal}`;
+      if (StateManager.getActieveMest()[id]) {
+        alert(`Mestsoort ${id} is al toegevoegd`);
+        return;
+      }
+
+      StateManager.addMestType(id, {
+        ...mestData[type][animal],
+        label: `${capitalize(type)} ${capitalize(animal)}`
+      });
+
+      UIController.initMestsoortenSliders();
+      UIController.updateSliders();
+    });
+  });
+}
+
+function capitalize(s) {
+  return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
 window.addEventListener('DOMContentLoaded', () => {
