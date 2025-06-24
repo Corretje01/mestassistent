@@ -1,5 +1,5 @@
 /**
- * validationEngine.js
+ * validationengine.js
  * Validatieregels en grenscontrole
  */
 
@@ -8,10 +8,6 @@ import { CalculationEngine } from './calculationengine.js';
 
 export const ValidationEngine = (() => {
 
-  /**
-   * Controleer overschrijding van gebruiksruimte
-   * @returns {string|null} foutmelding of null bij OK
-   */
   function checkUsageLimits() {
     const total = CalculationEngine.calculateTotalNutrients(true);
     const ruimte = StateManager.getGebruiksruimte();
@@ -28,22 +24,10 @@ export const ValidationEngine = (() => {
     return null;
   }
 
-  /**
-   * Controle of waarde binnen min/max slider valt
-   * @param {number} value - voorgestelde waarde
-   * @param {number} min - ondergrens
-   * @param {number} max - bovengrens
-   * @returns {boolean}
-   */
   function isWithinBoundaries(value, min, max) {
     return (value >= min && value <= max);
   }
 
-  /**
-   * Bepaal max tonnage per mestsoort o.b.v. gebruiksruimte
-   * @param {string} id - mestsoort id
-   * @returns {number} maximale tonnage
-   */
   function getMaxTonnage(id) {
     const ruimte = StateManager.getGebruiksruimte();
     const mest = StateManager.getActieveMest()[id];
@@ -65,11 +49,6 @@ export const ValidationEngine = (() => {
     return Math.floor(Math.min(maxN, maxP, 650));
   }
 
-  /**
-   * Controleer of een slider vergrendeld is
-   * @param {string} id 
-   * @returns {boolean}
-   */
   function isLocked(id) {
     return StateManager.isLocked(id);
   }
