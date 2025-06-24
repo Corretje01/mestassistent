@@ -6,6 +6,7 @@
 import { StateManager } from './statemanager.js';
 import { CalculationEngine } from './calculationengine.js';
 import { ValidationEngine } from './validationengine.js';
+import { LogicEngine } from './logicengine.js';
 
 export const UIController = (() => {
 
@@ -50,7 +51,7 @@ export const UIController = (() => {
     });
 
     document.getElementById(`slider-${id}`).addEventListener('input', (e) => {
-      handleSliderChange(id, parseFloat(e.target.value));
+      LogicEngine.onSliderChange(id, parseFloat(e.target.value));
     });
   }
 
