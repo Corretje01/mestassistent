@@ -10,11 +10,6 @@ import { UIController } from './uicontroller.js';
 
 export const LogicEngine = (() => {
 
-  /**
-   * Wordt aangeroepen bij elke slider-wijziging
-   * @param {string} sliderId 
-   * @param {number} newValue 
-   */
   function onSliderChange(sliderId, newValue) {
     if (ValidationEngine.isLocked(sliderId)) {
       UIController.shake(sliderId);
@@ -25,9 +20,6 @@ export const LogicEngine = (() => {
       handleNutrientChange(sliderId, newValue);
     } else if (sliderId === 'kunststikstof') {
       StateManager.setKunstmest(newValue);
-    } else {
-      // Hier komen straks dynamische mestsoorten bij
-      StateManager.setMestTonnage(sliderId, newValue);
     }
 
     UIController.updateSliders();
@@ -39,12 +31,11 @@ export const LogicEngine = (() => {
     }
   }
 
-  /** Behandel wijzigingen aan nutriënt-sliders */
   function handleNutrientChange(nutrientId, targetValue) {
     const actieveMest = StateManager.getActieveMest();
-    const delta = targetValue - CalculationEngine.calculateTotalNutrients(true)[mapToTotalKey(nutrientId)];
+    const huidigeWaarde = CalculationEngine.calculateTotalNutrients(true)[mapToTotalKey(nutrientId)];
+    const delta = targetValue - huidigeWaarde;
 
-    // Simpele evenredige verdeling
     const aanpasbare = Object.keys(actieveMest).filter(id => !ValidationEngine.isLocked(id));
     if (aanpasbare.length === 0) {
       console.warn("⚠️ Geen mestsoorten beschikbaar voor correctie");
