@@ -1,6 +1,6 @@
 /**
  * logicengine.js
- * Volledige capaciteit-bewuste logica inclusief multi-nutriënt locking
+ * Volledige capaciteit-bewuste logica inclusief multi-nutriënt locking + kunstmest-lock conflictbewaking
  */
 
 import { StateManager } from './statemanager.js';
@@ -19,7 +19,7 @@ export const LogicEngine = (() => {
     if (isStandardNutrient(sliderId)) {
       handleNutrientChange(sliderId, newValue);
     } else if (sliderId === 'kunststikstof') {
-      StateManager.setKunstmest(newValue);
+      handleKunstmestChange(newValue);
     }
 
     UIController.updateSliders();
@@ -51,7 +51,6 @@ export const LogicEngine = (() => {
       return;
     }
 
-    // Capaciteits-analyse per nutrient
     const capaciteit = calculateCapacity(aanpasbare, deltaMap);
     if (!capaciteit.isFeasible) {
       console.warn("❌ Onvoldoende capaciteit om correctie toe te passen");
@@ -60,7 +59,6 @@ export const LogicEngine = (() => {
       return;
     }
 
-    // Correcties toepassen
     for (const mestId of aanpasbare) {
       const correctie = capaciteit.tonnageCorrections[mestId] || 0;
       const huidigeTon = actieveMest[mestId].ton;
@@ -74,7 +72,6 @@ export const LogicEngine = (() => {
     const correcties = {};
     let isFeasible = true;
 
-    // Voor elke nutrient afzonderlijk capaciteit berekenen
     for (const nut of nutriënten) {
       const delta = deltaMap[nut];
       if (Math.abs(delta) < 0.0001) continue;
@@ -90,7 +87,6 @@ export const LogicEngine = (() => {
         const maxTon = ValidationEngine.getMaxTonnage(mestId);
         const corrMin = (0 - huidig) * gehalte;
         const corrMax = (maxTon - huidig) * gehalte;
-
         const maxCorrectieNut = delta > 0 ? Math.min(0, corrMin) : Math.max(0, corrMax);
         mestCapaciteit.push({
           mestId,
@@ -106,7 +102,6 @@ export const LogicEngine = (() => {
         break;
       }
 
-      // Verdeling per mestsoort
       for (const mest of mestCapaciteit) {
         const aandeel = mest.maxNutriëntCorrectie / totaalMax;
         const toegewezenNut = delta * aandeel;
@@ -115,7 +110,6 @@ export const LogicEngine = (() => {
       }
     }
 
-    // Validatie na alle nutrients tegelijk
     if (isFeasible) {
       for (const mestId of aanpasbare) {
         const mest = actieveMest[mestId];
@@ -129,6 +123,23 @@ export const LogicEngine = (() => {
     }
 
     return { isFeasible, tonnageCorrections: correcties };
+  }
+
+  function handleKunstmestChange(newValue) {
+    StateManager.setKunstmest(newValue);
+
+    if (ValidationEngine.isLocked('stikstof')) {
+      const totaleStikstofLock = CalculationEngine.calculateTotalNutrients(false).N;
+      const ruimte = StateManager.getGebruiksruimte();
+      const maxKunstmest = Math.max(0, ruimte.B - totaleStikstofLock);
+
+      if (newValue > maxKunstmest + 0.0001) {
+        console.warn(`⚠️ Kunstmest overschrijdt ruimte bij locked stikstof → corrigeren`);
+        StateManager.setKunstmest(maxKunstmest);
+        UIController.shake('kunststikstof');
+        UIController.shake('stikstof');
+      }
+    }
   }
 
   function getLockedNutrients() {
