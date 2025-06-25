@@ -1,6 +1,6 @@
 /**
  * uiController.js
- * Definitieve versie - volledige correcte rendering logica
+ * Alle DOM interactie en UI rendering
  */
 
 import { StateManager } from './statemanager.js';
@@ -10,9 +10,6 @@ import { LogicEngine } from './logicengine.js';
 
 export const UIController = (() => {
 
-  /**
-   * Init standaard sliders (nutriënten + kunstmest + financieel)
-   */
   function initStandardSliders() {
     const ruimte = StateManager.getGebruiksruimte();
 
@@ -25,13 +22,10 @@ export const UIController = (() => {
       { id: 'financieel', label: 'Kosten', max: 10000, unit: 'eur' }
     ];
 
-    sliders.forEach(slider => renderSlider(slider.id, slider.label, slider.max, slider.unit));
+    sliders.forEach(s => createStandardSlider(s.id, s.label, s.max, s.unit));
   }
 
-  /**
-   * Render een slider
-   */
-  function renderSlider(id, label, max, unit) {
+  function createStandardSlider(id, label, max, unit) {
     const container = document.getElementById('sliders-container');
     const group = document.createElement('div');
     group.className = 'slider-group';
@@ -42,7 +36,7 @@ export const UIController = (() => {
         <label for="slider-${id}">${label}</label>
         <span class="value" id="value-${id}">0 / ${max} ${unit}</span>
       </div>
-      <input type="range" id="slider-${id}" min="0" max="${max}" step="0.1" />
+      <input type="range" id="slider-${id}" min="0" max="${max}" step="0.1" value="0" />
     `;
     container.appendChild(group);
 
@@ -55,40 +49,60 @@ export const UIController = (() => {
     });
   }
 
-  /**
-   * Update alle sliders (nutriënten én dynamische mestsoorten)
-   */
+  function renderMestsoortSlider(id, label, max) {
+    const container = document.getElementById('sliders-container');
+    const group = document.createElement('div');
+    group.className = 'slider-group';
+    group.id = `group-${id}`;
+    group.innerHTML = `
+      <div class="slider-header">
+        <input type="checkbox" id="lock-${id}" />
+        <label for="slider-${id}">${label}</label>
+        <span class="value" id="value-${id}">0 / ${max} ton</span>
+      </div>
+      <input type="range" id="slider-${id}" min="0" max="${max}" step="0.1" value="0" />
+    `;
+    container.appendChild(group);
+
+    document.getElementById(`lock-${id}`).addEventListener('change', (e) => {
+      StateManager.setLock(id, e.target.checked);
+    });
+
+    document.getElementById(`slider-${id}`).addEventListener('input', (e) => {
+      LogicEngine.onSliderChange(id, parseFloat(e.target.value));
+    });
+  }
+
   function updateSliders() {
-    const actieveMest = StateManager.getActieveMest();
-    const nutriëntenDierlijk = CalculationEngine.berekenNutriënten(false);
-    const nutriëntenInclKunstmest = CalculationEngine.berekenNutriënten(true);
-  
-    // Update standaard nutrient-sliders visueel met berekende waarden
+    const ruimte = StateManager.getGebruiksruimte();
+    const nutDierlijk = CalculationEngine.berekenNutriënten(false);
+    const nutInclKunstmest = CalculationEngine.berekenNutriënten(true);
+
     const sliders = [
-      { id: 'stikstof', value: nutriëntenDierlijk.stikstof, unit: 'kg' },
-      { id: 'fosfaat', value: nutriëntenDierlijk.fosfaat, unit: 'kg' },
-      { id: 'kalium', value: nutriëntenDierlijk.kalium, unit: 'kg' },
-      { id: 'organisch', value: nutriëntenDierlijk.organisch, unit: 'kg' },
+      { id: 'stikstof', value: nutDierlijk.stikstof, unit: 'kg' },
+      { id: 'fosfaat', value: nutDierlijk.fosfaat, unit: 'kg' },
+      { id: 'kalium', value: nutDierlijk.kalium, unit: 'kg' },
+      { id: 'organisch', value: nutDierlijk.organisch, unit: 'kg' },
       { id: 'kunststikstof', value: StateManager.getKunstmest(), unit: 'kg' }
     ];
-  
+
     sliders.forEach(({ id, value, unit }) => {
       const sliderEl = document.getElementById(`slider-${id}`);
       const valueEl = document.getElementById(`value-${id}`);
       if (!sliderEl || !valueEl) return;
-  
+
       const afgerond = Math.round(value * 10) / 10;
-  
+
       if (!StateManager.isLocked(id)) {
         sliderEl.value = afgerond;
       }
-  
+
       const formattedVal = `${afgerond} ${unit}`;
       const formattedMax = `${sliderEl.max} ${unit}`;
       valueEl.textContent = `${formattedVal} / ${formattedMax}`;
     });
-  
-    // Update kunstmest max afhankelijk van ruimte
+
+    // Kunstmest max updaten
     const kunstmestSlider = document.getElementById('slider-kunststikstof');
     if (kunstmestSlider) {
       const maxKunstmest = ValidationEngine.getMaxKunstmest();
@@ -96,118 +110,30 @@ export const UIController = (() => {
     }
   }
 
-  function updateStandardSlider(id, waarde, max, unit) {
-    const sliderEl = document.getElementById(`slider-${id}`);
-    const valueEl = document.getElementById(`value-${id}`);
-    if (!sliderEl || !valueEl) return;
-
-    const afgerond = (id === 'financieel') ? Math.round(waarde) : Math.round(waarde * 10) / 10;
-
-    // Update max-waarde
-    sliderEl.max = max;
-
-    // Alleen waarde aanpassen als niet gelockt
-    if (!ValidationEngine.isLocked(id)) {
-      sliderEl.value = afgerond;
-    }
-
-    const formattedVal = formatSliderValue(afgerond, unit, id === 'financieel');
-    const formattedMax = formatSliderValue(max, unit, id === 'financieel');
-    valueEl.textContent = `${formattedVal} / ${formattedMax}`;
-  }
-
-  /**
-   * Dynamische mestsoort slider renderen
-   */
-  function renderMestsoortSlider(key, label, maxTon) {
-    const container = document.getElementById('sliders-container');
-    const group = document.createElement('div');
-    group.className = 'slider-group';
-    group.id = `group-${key}`;
-    group.innerHTML = `
-      <div class="slider-header">
-        <input type="checkbox" id="lock-${key}" />
-        <label for="slider-${key}">${label}</label>
-        <span class="value" id="value-${key}">0 / ${maxTon} ton</span>
-      </div>
-      <input type="range" id="slider-${key}" min="0" max="${maxTon}" step="0.1" />
-    `;
-    container.appendChild(group);
-
-    document.getElementById(`lock-${key}`).addEventListener('change', (e) => {
-      StateManager.setLock(key, e.target.checked);
-    });
-
-    document.getElementById(`slider-${key}`).addEventListener('input', (e) => {
-      LogicEngine.onSliderChange(key, parseFloat(e.target.value));
-    });
-  }
-
-  /**
-   * Update dynamische mestsoorten sliders
-   */
-  function updateMestsoortenSliders() {
-    const mestData = StateManager.getActieveMest();
-
-    Object.entries(mestData).forEach(([key, data]) => {
-      const sliderEl = document.getElementById(`slider-${key}`);
-      const valueEl = document.getElementById(`value-${key}`);
-      if (!sliderEl || !valueEl) return;
-
-      const afgerond = Math.round(data.ton * 10) / 10;
-
-      if (!ValidationEngine.isLocked(key)) {
-        sliderEl.value = afgerond;
-      }
-
-      const formattedVal = formatSliderValue(afgerond, 'ton');
-      const formattedMax = formatSliderValue(sliderEl.max, 'ton');
-      valueEl.textContent = `${formattedVal} / ${formattedMax}`;
-    });
-  }
-
-  /**
-   * Shake effect
-   */
   function shake(id) {
-    const el = document.getElementById(`slider-${id}`);
-    if (!el) return;
-    el.classList.add('shake');
-    setTimeout(() => el.classList.remove('shake'), 400);
+    const slider = document.getElementById(`slider-${id}`);
+    if (!slider) return;
+    slider.classList.add('shake');
+    setTimeout(() => slider.classList.remove('shake'), 400);
   }
 
-  /**
-   * Formattering voor sliderwaarden
-   */
-  function formatSliderValue(value, unit, isFinancieel = false) {
-    const formatted = value.toLocaleString('nl-NL', {
-      minimumFractionDigits: isFinancieel ? 0 : 1,
-      maximumFractionDigits: isFinancieel ? 0 : 1
-    });
-
-    if (isFinancieel || unit === 'eur') {
-      return `€ ${formatted},-`;
-    } else {
-      return `${formatted} ${unit}`;
-    }
-  }
-
-  /**
-   * Toon sliders-container
-   */
   function showSlidersContainer() {
     const container = document.getElementById('sliders-container');
     if (container) container.style.display = 'block';
   }
 
-  /**
-   * Verberg sliders-container
-   */
   function hideSlidersContainer() {
     const container = document.getElementById('sliders-container');
     if (container) container.style.display = 'none';
   }
-  
-  return { initStandardSliders, renderMestsoortSlider, updateSliders, shake, showSlidersContainer, hideSlidersContainer };
+
+  return {
+    initStandardSliders,
+    renderMestsoortSlider,
+    updateSliders,
+    shake,
+    showSlidersContainer,
+    hideSlidersContainer
+  };
 
 })();
