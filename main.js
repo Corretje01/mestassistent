@@ -5,6 +5,7 @@
 import { StateManager } from './statemanager.js';
 import { UIController } from './uicontroller.js';
 import { LogicEngine } from './logicengine.js';
+import { ValidationEngine } from './validationengine.js';
 
 // Haal gebruiksruimte uit URL-queryparameters
 const queryParams = new URLSearchParams(window.location.search);
