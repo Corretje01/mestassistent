@@ -173,6 +173,22 @@ export const UIController = (() => {
     }
   }
 
-  return { initStandardSliders, renderMestsoortSlider, updateSliders, shake };
+  /**
+   * Toon sliders-container
+   */
+  function showSlidersContainer() {
+    const container = document.getElementById('sliders-container');
+    if (container) container.style.display = 'block';
+  }
+
+  /**
+   * Verberg sliders-container
+   */
+  function hideSlidersContainer() {
+    const container = document.getElementById('sliders-container');
+    if (container) container.style.display = 'none';
+  }
+  
+  return { initStandardSliders, renderMestsoortSlider, updateSliders, shake, showSliderscontainer, hideSlidersContainer };
 
 })();
