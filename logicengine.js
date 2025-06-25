@@ -11,7 +11,7 @@ import { UIController } from './uicontroller.js';
 export const LogicEngine = (() => {
 
   function onSliderChange(sliderId, newValue) {
-    if (ValidationEngine.isLocked(sliderId)) {
+    if (StateManager.isLocked(sliderId)) {
       UIController.shake(sliderId);
       return;
     }
@@ -43,7 +43,7 @@ export const LogicEngine = (() => {
       deltaMap[lockedNut] = 0; // locked nutrienten mogen niet wijzigen
     }
 
-    const aanpasbare = Object.keys(actieveMest).filter(id => !ValidationEngine.isLocked(id));
+    const aanpasbare = Object.keys(actieveMest).filter(id => !StateManager.isLocked(id));
 
     if (aanpasbare.length === 0) {
       console.warn("⚠️ Geen mestsoorten beschikbaar voor correctie");
@@ -129,7 +129,7 @@ export const LogicEngine = (() => {
     StateManager.setKunstmest(newValue);
   
     // Check conflict met gelockte stikstof
-    if (ValidationEngine.isLocked('stikstof')) {
+    if (StateManager.isLocked('stikstof')) {
       const nutDierlijk = CalculationEngine.calculateTotalNutrients(false).N; // alleen dierlijke mest
       const ruimte = StateManager.getGebruiksruimte();
   
@@ -147,7 +147,7 @@ export const LogicEngine = (() => {
 
   function getLockedNutrients() {
     return ['stikstof', 'fosfaat', 'kalium', 'organisch', 'financieel']
-      .filter(nut => ValidationEngine.isLocked(nut));
+      .filter(nut => StateManager.isLocked(nut));
   }
 
   function isStandardNutrient(id) {
@@ -173,7 +173,7 @@ export const LogicEngine = (() => {
 
   function shakeAllLocked() {
     ['stikstof', 'fosfaat', 'kalium', 'organisch', 'financieel'].forEach(id => {
-      if (ValidationEngine.isLocked(id)) {
+      if (StateManager.isLocked(id)) {
         UIController.shake(id);
       }
     });
