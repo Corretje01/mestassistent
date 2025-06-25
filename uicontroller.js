@@ -1,6 +1,6 @@
 /**
  * uiController.js
- * Alle DOM interactie en UI rendering
+ * Alle DOM interactie en UI rendering (inclusief mestsliders correct updaten)
  */
 
 import { StateManager } from './statemanager.js';
@@ -74,7 +74,6 @@ export const UIController = (() => {
   }
 
   function updateSliders() {
-    const ruimte = StateManager.getGebruiksruimte();
     const nutDierlijk = CalculationEngine.berekenNutriënten(false);
     const nutInclKunstmest = CalculationEngine.berekenNutriënten(true);
 
@@ -83,7 +82,8 @@ export const UIController = (() => {
       { id: 'fosfaat', value: nutDierlijk.fosfaat, unit: 'kg' },
       { id: 'kalium', value: nutDierlijk.kalium, unit: 'kg' },
       { id: 'organisch', value: nutDierlijk.organisch, unit: 'kg' },
-      { id: 'kunststikstof', value: StateManager.getKunstmest(), unit: 'kg' }
+      { id: 'kunststikstof', value: StateManager.getKunstmest(), unit: 'kg' },
+      { id: 'financieel', value: nutInclKunstmest.financieel, unit: 'eur' }
     ];
 
     sliders.forEach(({ id, value, unit }) => {
@@ -102,11 +102,27 @@ export const UIController = (() => {
       valueEl.textContent = `${formattedVal} / ${formattedMax}`;
     });
 
-    // Kunstmest max updaten
-    const kunstmestSlider = document.getElementById('slider-kunststikstof');
-    if (kunstmestSlider) {
-      const maxKunstmest = ValidationEngine.getMaxKunstmest();
-      kunstmestSlider.max = maxKunstmest;
+    // Update ook de mestsoorten-sliders visueel:
+    updateMestsoortenSliders();
+  }
+
+  function updateMestsoortenSliders() {
+    const actieveMest = StateManager.getActieveMest();
+
+    for (const [id, mest] of Object.entries(actieveMest)) {
+      const sliderEl = document.getElementById(`slider-${id}`);
+      const valueEl = document.getElementById(`value-${id}`);
+      if (!sliderEl || !valueEl) continue;
+
+      const afgerond = Math.round(mest.ton * 10) / 10;
+
+      if (!StateManager.isLocked(id)) {
+        sliderEl.value = afgerond;
+      }
+
+      const formattedVal = `${afgerond} ton`;
+      const formattedMax = `${sliderEl.max} ton`;
+      valueEl.textContent = `${formattedVal} / ${formattedMax}`;
     }
   }
 
