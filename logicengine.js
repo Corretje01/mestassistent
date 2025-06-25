@@ -1,6 +1,6 @@
 /**
  * logicengine.js
- * Alle kernlogica bij slider interacties
+ * Alle kernlogica bij slider interacties inclusief financieel
  */
 
 import { StateManager } from './statemanager.js';
@@ -23,24 +23,12 @@ export const LogicEngine = (() => {
 
     if (id === 'kunststikstof') {
       StateManager.setKunstmest(newValue);
-      // Controleer of kunstmest invloed heeft op stikstof-lock
-      const ruimte = StateManager.getGebruiksruimte();
-      const nutDierlijk = CalculationEngine.berekenNutriënten(false);
-      const maxDierlijk = Math.min(ruimte.A, ruimte.B - StateManager.getKunstmest());
-
-      const stikstofSlider = document.getElementById('slider-stikstof');
-      if (stikstofSlider) {
-        stikstofSlider.max = maxDierlijk;
-        if (StateManager.isLocked('stikstof') && nutDierlijk.stikstof > maxDierlijk) {
-          // Kunstmest overschrijdt stikstof-lock, rollback kunstmestwaarde
-          StateManager.setKunstmest(Math.max(0, ruimte.B - nutDierlijk.stikstof));
-          UIController.shake('kunststikstof');
-        }
-      }
-
-    } else if (isNutrientSlider(id)) {
+      updateStikstofMaxDoorKunstmest();
+    } 
+    else if (isNutrientSlider(id)) {
       handleNutrientChange(id, newValue);
-    } else {
+    } 
+    else {
       handleMestSliderChange(id, newValue);
     }
 
@@ -70,6 +58,8 @@ export const LogicEngine = (() => {
         gehalte = mest.P_kg_per_ton || 0;
       } else if (id === 'kalium') {
         gehalte = mest.K_kg_per_ton || 0;
+      } else if (id === 'financieel') {
+        gehalte = (mest.Inkoopprijs_per_ton || 0) + 10;
       }
       return { key, gehalte };
     }).filter(b => b.gehalte > 0);
@@ -93,6 +83,21 @@ export const LogicEngine = (() => {
     StateManager.setMestTonnage(id, newValue);
   }
 
+  function updateStikstofMaxDoorKunstmest() {
+    const ruimte = StateManager.getGebruiksruimte();
+    const nutDierlijk = CalculationEngine.berekenNutriënten(false);
+    const maxDierlijk = Math.min(ruimte.A, ruimte.B - StateManager.getKunstmest());
+
+    const stikstofSlider = document.getElementById('slider-stikstof');
+    if (stikstofSlider) {
+      stikstofSlider.max = maxDierlijk;
+      if (StateManager.isLocked('stikstof') && nutDierlijk.stikstof > maxDierlijk) {
+        StateManager.setKunstmest(Math.max(0, ruimte.B - nutDierlijk.stikstof));
+        UIController.shake('kunststikstof');
+      }
+    }
+  }
+
   function checkGlobalValidation() {
     const overschrijding = ValidationEngine.overschrijdtMaxToegestaneWaarden();
     if (overschrijding) {
@@ -101,7 +106,7 @@ export const LogicEngine = (() => {
   }
 
   function isNutrientSlider(id) {
-    return ['stikstof', 'fosfaat', 'kalium', 'organisch'].includes(id);
+    return ['stikstof', 'fosfaat', 'kalium', 'organisch', 'financieel'].includes(id);
   }
 
   function isWithinSliderLimits(id, waarde) {
