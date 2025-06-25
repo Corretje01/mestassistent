@@ -59,22 +59,41 @@ export const UIController = (() => {
    * Update alle sliders (nutriënten én dynamische mestsoorten)
    */
   function updateSliders() {
-    const ruimte = StateManager.getGebruiksruimte();
-
-    // Bereken nutrient totalen
-    const totaalDierlijk = CalculationEngine.calculateTotalNutrients(false);
-    const totaalInclKunstmest = CalculationEngine.calculateTotalNutrients(true);
-
-    // Nutriënt-sliders updaten
-    updateStandardSlider('stikstof', totaalDierlijk.N, Math.min(ruimte.A, ruimte.B - StateManager.getKunstmest()), 'kg');
-    updateStandardSlider('fosfaat', totaalInclKunstmest.P, ruimte.C, 'kg');
-    updateStandardSlider('kalium', totaalInclKunstmest.K, ruimte.B * 1.25, 'kg');
-    updateStandardSlider('organisch', totaalInclKunstmest.OS, 3000, 'kg');
-    updateStandardSlider('kunststikstof', StateManager.getKunstmest(), ruimte.B, 'kg');
-    updateStandardSlider('financieel', totaalInclKunstmest.FIN, 10000, 'eur');
-
-    // Dynamische mestsoorten sliders
-    updateMestsoortenSliders();
+    const actieveMest = StateManager.getActieveMest();
+    const nutriëntenDierlijk = CalculationEngine.berekenNutriënten(false);
+    const nutriëntenInclKunstmest = CalculationEngine.berekenNutriënten(true);
+  
+    // Update standaard nutrient-sliders visueel met berekende waarden
+    const sliders = [
+      { id: 'stikstof', value: nutriëntenDierlijk.stikstof, unit: 'kg' },
+      { id: 'fosfaat', value: nutriëntenDierlijk.fosfaat, unit: 'kg' },
+      { id: 'kalium', value: nutriëntenDierlijk.kalium, unit: 'kg' },
+      { id: 'organisch', value: nutriëntenDierlijk.organisch, unit: 'kg' },
+      { id: 'kunststikstof', value: StateManager.getKunstmest(), unit: 'kg' }
+    ];
+  
+    sliders.forEach(({ id, value, unit }) => {
+      const sliderEl = document.getElementById(`slider-${id}`);
+      const valueEl = document.getElementById(`value-${id}`);
+      if (!sliderEl || !valueEl) return;
+  
+      const afgerond = Math.round(value * 10) / 10;
+  
+      if (!StateManager.isLocked(id)) {
+        sliderEl.value = afgerond;
+      }
+  
+      const formattedVal = `${afgerond} ${unit}`;
+      const formattedMax = `${sliderEl.max} ${unit}`;
+      valueEl.textContent = `${formattedVal} / ${formattedMax}`;
+    });
+  
+    // Update kunstmest max afhankelijk van ruimte
+    const kunstmestSlider = document.getElementById('slider-kunststikstof');
+    if (kunstmestSlider) {
+      const maxKunstmest = ValidationEngine.getMaxKunstmest();
+      kunstmestSlider.max = maxKunstmest;
+    }
   }
 
   function updateStandardSlider(id, waarde, max, unit) {
