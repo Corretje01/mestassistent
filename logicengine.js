@@ -127,14 +127,17 @@ export const LogicEngine = (() => {
 
   function handleKunstmestChange(newValue) {
     StateManager.setKunstmest(newValue);
-
+  
+    // Check conflict met gelockte stikstof
     if (ValidationEngine.isLocked('stikstof')) {
-      const totaleStikstofLock = CalculationEngine.calculateTotalNutrients(false).N;
+      const nutDierlijk = CalculationEngine.calculateTotalNutrients(false).N; // alleen dierlijke mest
       const ruimte = StateManager.getGebruiksruimte();
-      const maxKunstmest = Math.max(0, ruimte.B - totaleStikstofLock);
-
+  
+      const benutDierlijk = Math.min(nutDierlijk, ruimte.A);
+      const maxKunstmest = Math.max(0, ruimte.B - benutDierlijk);
+  
       if (newValue > maxKunstmest + 0.0001) {
-        console.warn(`⚠️ Kunstmest overschrijdt ruimte bij locked stikstof → corrigeren`);
+        console.warn(`⚠️ Kunstmest overschrijdt resterende ruimte bij locked stikstof → corrigeren`);
         StateManager.setKunstmest(maxKunstmest);
         UIController.shake('kunststikstof');
         UIController.shake('stikstof');
