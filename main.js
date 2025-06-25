@@ -1,33 +1,27 @@
 /**
- * main.js
- * Centrale applicatie-controller
+ * main.js - Definitieve versie volgens modulaire architectuur
  */
 
 import { StateManager } from './statemanager.js';
 import { UIController } from './uicontroller.js';
 import { LogicEngine } from './logicengine.js';
 
-// Eerst: haal gebruiksruimte parameters op uit URL
+// Haal gebruiksruimte uit URL-queryparameters
 const queryParams = new URLSearchParams(window.location.search);
 const totaalA = Number(queryParams.get('totaalA') || 0);
 const totaalB = Number(queryParams.get('totaalB') || 0);
 const totaalC = Number(queryParams.get('totaalC') || 0);
 
 if (!totaalA || !totaalB || !totaalC) {
-  alert("⚠️ Waarschuwing: de gebruiksruimte kon niet worden geladen uit stap 1.");
+  alert("⚠️ Waarschuwing: gebruiksruimte ontbreekt. Controleer de invoer.");
 }
 
-// Initialiseer centrale state
-StateManager.init({
-  ruimte: { A: totaalA, B: totaalB, C: totaalC },
-  actieveMest: {},
-  kunstmest: 0,
-  locks: {}
-});
+// Init centrale state
+StateManager.setGebruiksruimte(totaalA, totaalB, totaalC);
 
 // Init standaard sliders
 UIController.initStandardSliders();
-UIController.updateSliders();  // eerste rendering
+UIController.updateSliders();
 
 // Laad mestsoorten.json dynamisch
 let mestsoortenData = {};
@@ -36,14 +30,15 @@ fetch('/data/mestsoorten.json')
   .then(response => response.json())
   .then(data => {
     mestsoortenData = data;
+    StateManager.setMestTypes(data);
     console.log("✅ mestsoorten.json geladen");
   })
   .catch(err => {
     console.error("❌ Fout bij laden mestsoorten.json:", err);
-    alert("⚠️ Fout bij laden mestsoorten.json");
+    alert("⚠️ Kan mestsoorten.json niet laden.");
   });
 
-// Event listeners voor de mest-knoppen
+// Event handlers voor mest-knoppen
 document.querySelectorAll('.mest-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     btn.classList.toggle('active');
@@ -62,25 +57,17 @@ document.querySelectorAll('.mest-btn').forEach(btn => {
 
       const mestData = mestsoortenData?.[jsonType]?.[animal];
       if (!mestData) {
-        console.warn(`⚠️ Geen mestdata voor ${key}`);
+        console.warn(`⚠️ Geen mestdata gevonden voor ${key}`);
         return;
       }
 
-      StateManager.addMestsoort(key, {
-        ...mestData,
-        ton: 0,
-        totaal: {
-          N: 0, P: 0, K: 0, OS: 0, DS: 0, BG: 0, FIN: 0
-        }
-      });
-
-      // Bereken initieel maximaal toelaatbare tonnage
+      StateManager.addMestType(key, mestData);
       const maxTon = ValidationEngine.getMaxTonnage(key);
       UIController.renderMestsoortSlider(key, `${type} ${animal}`, maxTon);
 
     } else {
       // Verwijderen
-      StateManager.removeMestsoort(key);
+      StateManager.removeMestType(key);
       const group = document.getElementById(`group-${key}`);
       if (group) group.remove();
     }
@@ -89,6 +76,5 @@ document.querySelectorAll('.mest-btn').forEach(btn => {
   });
 });
 
-// Globale event handlers voor slider changes
-// (Event listeners staan al direct op de sliders in UIController)
-// Alleen main.js coördineert geen logica meer zelf
+// LogicEngine zorgt voor verdere synchronisatie via de sliders zelf
+
