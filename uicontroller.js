@@ -189,6 +189,6 @@ export const UIController = (() => {
     if (container) container.style.display = 'none';
   }
   
-  return { initStandardSliders, renderMestsoortSlider, updateSliders, shake, showSliderscontainer, hideSlidersContainer };
+  return { initStandardSliders, renderMestsoortSlider, updateSliders, shake, showSlidersContainer, hideSlidersContainer };
 
 })();
