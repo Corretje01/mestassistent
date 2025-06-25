@@ -1,5 +1,5 @@
 /**
- * main.js - Definitieve versie volgens modulaire architectuur
+ * main.js - Definitieve versie - volledig opgeschoond
  */
 
 import { StateManager } from './statemanager.js';
@@ -49,13 +49,7 @@ document.querySelectorAll('.mest-btn').forEach(btn => {
     const key = `${type}-${animal}`;
 
     if (btn.classList.contains('active')) {
-      // Toevoegen
-      const jsonType = {
-        'drijfmest': 'drijfmest',
-        'vastemest': 'vaste_mest',
-        'overig': 'overig'
-      }[type];
-
+      const jsonType = { 'drijfmest': 'drijfmest', 'vastemest': 'vaste_mest', 'overig': 'overig' }[type];
       const mestData = mestsoortenData?.[jsonType]?.[animal];
       if (!mestData) {
         console.warn(`⚠️ Geen mestdata gevonden voor ${key}`);
@@ -66,16 +60,18 @@ document.querySelectorAll('.mest-btn').forEach(btn => {
       const maxTon = ValidationEngine.getMaxTonnage(key);
       UIController.renderMestsoortSlider(key, `${type} ${animal}`, maxTon);
 
+      UIController.showSlidersContainer();
+
     } else {
-      // Verwijderen
       StateManager.removeMestType(key);
       const group = document.getElementById(`group-${key}`);
       if (group) group.remove();
+
+      if (Object.keys(StateManager.getActieveMest()).length === 0) {
+        UIController.hideSlidersContainer();
+      }
     }
 
     UIController.updateSliders();
   });
 });
-
-// LogicEngine zorgt voor verdere synchronisatie via de sliders zelf
-
