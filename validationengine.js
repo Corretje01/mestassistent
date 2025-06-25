@@ -1,6 +1,6 @@
 /**
  * validationengine.js
- * Validatieregels en grenscontrole
+ * Validatieregels voor maximale gebruiksruimte
  */
 
 import { StateManager } from './statemanager.js';
@@ -8,24 +8,27 @@ import { CalculationEngine } from './calculationengine.js';
 
 export const ValidationEngine = (() => {
 
-  function checkUsageLimits() {
-    const total = CalculationEngine.calculateTotalNutrients(true);
+  function overschrijdtMaxToegestaneWaarden() {
     const ruimte = StateManager.getGebruiksruimte();
+    const nutriëntenDierlijk = CalculationEngine.berekenNutriënten(false);
+    const nutriëntenInclKunstmest = CalculationEngine.berekenNutriënten(true);
 
-    if (ruimte.A && total.N > ruimte.A) {
-      return `Stikstof uit dierlijke mest overschrijdt maximum (${total.N.toFixed(1)} > ${ruimte.A})`;
+    if (ruimte.A && nutriëntenDierlijk.stikstof > ruimte.A) {
+      return 'Stikstof uit dierlijke mest overschrijdt maximum';
     }
-    if (ruimte.C && total.P > ruimte.C) {
-      return `Fosfaat overschrijdt maximum (${total.P.toFixed(1)} > ${ruimte.C})`;
+    if (ruimte.C && nutriëntenDierlijk.fosfaat > ruimte.C) {
+      return 'Fosfaat overschrijdt maximum';
     }
-    if (ruimte.B && total.N > ruimte.B) {
-      return `Totale stikstof overschrijdt maximum (${total.N.toFixed(1)} > ${ruimte.B})`;
+    if (ruimte.B && nutriëntenInclKunstmest.stikstof > ruimte.B) {
+      return 'Totale stikstof (incl. kunstmest) overschrijdt maximum';
     }
     return null;
   }
 
-  function isWithinBoundaries(value, min, max) {
-    return (value >= min && value <= max);
+  function getMaxKunstmest() {
+    const ruimte = StateManager.getGebruiksruimte();
+    const nutriëntenDierlijk = CalculationEngine.berekenNutriënten(false);
+    return Math.max(0, ruimte.B - Math.min(nutriëntenDierlijk.stikstof, ruimte.A));
   }
 
   function getMaxTonnage(id) {
@@ -33,31 +36,23 @@ export const ValidationEngine = (() => {
     const mest = StateManager.getActieveMest()[id];
     if (!mest) return 650;
 
-    const N = mest.N_kg_per_ton || 0;
-    const P = mest.P_kg_per_ton || 0;
-
     let maxN = Infinity;
     let maxP = Infinity;
 
-    if (N > 0 && ruimte.A) {
-      maxN = ruimte.A / N;
+    if (mest.N_kg_per_ton > 0) {
+      maxN = ruimte.A / mest.N_kg_per_ton;
     }
-    if (P > 0 && ruimte.C) {
-      maxP = ruimte.C / P;
+    if (mest.P_kg_per_ton > 0) {
+      maxP = ruimte.C / mest.P_kg_per_ton;
     }
 
     return Math.floor(Math.min(maxN, maxP, 650));
   }
 
-  function isLocked(id) {
-    return StateManager.isLocked(id);
-  }
-
   return {
-    checkUsageLimits,
-    isWithinBoundaries,
-    getMaxTonnage,
-    isLocked
-  }
+    overschrijdtMaxToegestaneWaarden,
+    getMaxKunstmest,
+    getMaxTonnage
+  };
 
 })();
