@@ -1,6 +1,6 @@
 /**
  * uiController.js
- * Definitieve versie met volledige kunstmest-stikstof functionaliteit zoals origineel
+ * Definitieve versie - volledige correcte rendering logica
  */
 
 import { StateManager } from './statemanager.js';
@@ -11,7 +11,7 @@ import { LogicEngine } from './logicengine.js';
 export const UIController = (() => {
 
   /**
-   * Init standaard nutriëntsliders
+   * Init standaard sliders (nutriënten + kunstmest + financieel)
    */
   function initStandardSliders() {
     const ruimte = StateManager.getGebruiksruimte();
@@ -29,7 +29,7 @@ export const UIController = (() => {
   }
 
   /**
-   * Render 1 slider
+   * Render een slider
    */
   function renderSlider(id, label, max, unit) {
     const container = document.getElementById('sliders-container');
@@ -56,51 +56,49 @@ export const UIController = (() => {
   }
 
   /**
-   * Update alle sliderwaarden
+   * Update alle sliders (nutriënten én dynamische mestsoorten)
    */
   function updateSliders() {
     const ruimte = StateManager.getGebruiksruimte();
 
-    // Haal de actuele totalen op
+    // Bereken nutrient totalen
     const totaalDierlijk = CalculationEngine.calculateTotalNutrients(false);
     const totaalInclKunstmest = CalculationEngine.calculateTotalNutrients(true);
 
-    // Standaard sliders actualiseren
-    const updates = [
-      { id: 'stikstof', value: totaalDierlijk.N, max: Math.min(ruimte.A, ruimte.B - StateManager.getKunstmest()), unit: 'kg' },
-      { id: 'fosfaat', value: totaalInclKunstmest.P, max: ruimte.C, unit: 'kg' },
-      { id: 'kalium', value: totaalInclKunstmest.K, max: ruimte.B * 1.25, unit: 'kg' },
-      { id: 'organisch', value: totaalInclKunstmest.OS, max: 3000, unit: 'kg' },
-      { id: 'kunststikstof', value: StateManager.getKunstmest(), max: ruimte.B, unit: 'kg' },
-      { id: 'financieel', value: totaalInclKunstmest.FIN, max: 10000, unit: 'eur' }
-    ];
+    // Nutriënt-sliders updaten
+    updateStandardSlider('stikstof', totaalDierlijk.N, Math.min(ruimte.A, ruimte.B - StateManager.getKunstmest()), 'kg');
+    updateStandardSlider('fosfaat', totaalInclKunstmest.P, ruimte.C, 'kg');
+    updateStandardSlider('kalium', totaalInclKunstmest.K, ruimte.B * 1.25, 'kg');
+    updateStandardSlider('organisch', totaalInclKunstmest.OS, 3000, 'kg');
+    updateStandardSlider('kunststikstof', StateManager.getKunstmest(), ruimte.B, 'kg');
+    updateStandardSlider('financieel', totaalInclKunstmest.FIN, 10000, 'eur');
 
-    updates.forEach(({ id, value, max, unit }) => {
-      const sliderEl = document.getElementById(`slider-${id}`);
-      const valueEl = document.getElementById(`value-${id}`);
-      if (!sliderEl || !valueEl) return;
-
-      const afgerond = id === 'financieel' ? Math.round(value) : Math.round(value * 10) / 10;
-
-      // Max limiet bijwerken
-      sliderEl.max = max;
-
-      // Alleen waarde bijwerken als niet gelockt
-      if (!ValidationEngine.isLocked(id)) {
-        sliderEl.value = afgerond;
-      }
-
-      const formattedVal = formatSliderValue(afgerond, unit, id === 'financieel');
-      const formattedMax = formatSliderValue(max, unit, id === 'financieel');
-      valueEl.textContent = `${formattedVal} / ${formattedMax}`;
-    });
-
-    // Dynamische mestsoorten ook updaten
+    // Dynamische mestsoorten sliders
     updateMestsoortenSliders();
   }
 
+  function updateStandardSlider(id, waarde, max, unit) {
+    const sliderEl = document.getElementById(`slider-${id}`);
+    const valueEl = document.getElementById(`value-${id}`);
+    if (!sliderEl || !valueEl) return;
+
+    const afgerond = (id === 'financieel') ? Math.round(waarde) : Math.round(waarde * 10) / 10;
+
+    // Update max-waarde
+    sliderEl.max = max;
+
+    // Alleen waarde aanpassen als niet gelockt
+    if (!ValidationEngine.isLocked(id)) {
+      sliderEl.value = afgerond;
+    }
+
+    const formattedVal = formatSliderValue(afgerond, unit, id === 'financieel');
+    const formattedMax = formatSliderValue(max, unit, id === 'financieel');
+    valueEl.textContent = `${formattedVal} / ${formattedMax}`;
+  }
+
   /**
-   * Render dynamische mestsoorten sliders
+   * Dynamische mestsoort slider renderen
    */
   function renderMestsoortSlider(key, label, maxTon) {
     const container = document.getElementById('sliders-container');
@@ -138,6 +136,7 @@ export const UIController = (() => {
       if (!sliderEl || !valueEl) return;
 
       const afgerond = Math.round(data.ton * 10) / 10;
+
       if (!ValidationEngine.isLocked(key)) {
         sliderEl.value = afgerond;
       }
@@ -159,7 +158,7 @@ export const UIController = (() => {
   }
 
   /**
-   * Formatteren van waardes
+   * Formattering voor sliderwaarden
    */
   function formatSliderValue(value, unit, isFinancieel = false) {
     const formatted = value.toLocaleString('nl-NL', {
