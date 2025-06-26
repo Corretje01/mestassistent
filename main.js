@@ -1,77 +1,69 @@
-/**
- * main.js - Definitieve versie - volledig opgeschoond
- */
-
-import { StateManager } from './statemanager.js';
 import { UIController } from './uicontroller.js';
+import { StateManager } from './statemanager.js';
 import { LogicEngine } from './logicengine.js';
-import { ValidationEngine } from './validationengine.js';
 
-// Haal gebruiksruimte uit URL-queryparameters
-const queryParams = new URLSearchParams(window.location.search);
-const totaalA = Number(queryParams.get('totaalA') || 0);
-const totaalB = Number(queryParams.get('totaalB') || 0);
-const totaalC = Number(queryParams.get('totaalC') || 0);
+// Haal query parameters op voor gebruiksruimte
+const urlParams = new URLSearchParams(window.location.search);
+const totaalA = parseFloat(urlParams.get('totaalA')) || 0;
+const totaalB = parseFloat(urlParams.get('totaalB')) || 0;
+const totaalC = parseFloat(urlParams.get('totaalC')) || 0;
 
-if (!totaalA || !totaalB || !totaalC) {
-  alert("⚠️ Waarschuwing: gebruiksruimte ontbreekt. Controleer de invoer.");
-}
-
-// Init centrale state
 StateManager.setGebruiksruimte(totaalA, totaalB, totaalC);
 
-// Init standaard sliders
-UIController.initStandardSliders();
-UIController.updateSliders();
-
-// Laad mestsoorten.json dynamisch
-let mestsoortenData = {};
-
-fetch('/data/mestsoorten.json')
+// Fetch mestsoortenlijst en bouw checkboxes
+fetch('mestsoorten.json')
   .then(response => response.json())
   .then(data => {
-    mestsoortenData = data;
     StateManager.setMestTypes(data);
-    console.log("✅ mestsoorten.json geladen");
+
+    const container = document.getElementById('mestsoorten-container');
+    Object.entries(data).forEach(([id, mest]) => {
+      const label = document.createElement('label');
+      label.classList.add('checkbox-label');
+
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.dataset.id = id;
+
+      const kleurblok = document.createElement('span');
+      kleurblok.classList.add('kleurblok');
+      kleurblok.style.backgroundColor = mest.kleur || '#ccc';
+
+      const naam = document.createElement('span');
+      naam.textContent = mest.label;
+
+      label.appendChild(checkbox);
+      label.appendChild(kleurblok);
+      label.appendChild(naam);
+      container.appendChild(label);
+
+      checkbox.addEventListener('change', () => {
+        const isSelected = checkbox.checked;
+
+        if (isSelected) {
+          StateManager.addMestType(id, mest);
+          UIController.renderMestsoortSlider(id, mest);
+          label.classList.add('geselecteerd');
+        } else {
+          StateManager.removeMestType(id);
+          UIController.removeMestsoortSlider(id);
+          label.classList.remove('geselecteerd');
+        }
+
+        const actieveCount = Object.keys(StateManager.getActieveMest()).length;
+        if (actieveCount > 0) {
+          UIController.showSlidersContainer();
+
+          // Voer alleen init uit bij eerste selectie
+          if (actieveCount === 1) {
+            UIController.initStandardSliders();
+          }
+
+          UIController.updateSliders();
+        } else {
+          UIController.hideSlidersContainer();
+        }
+      });
+    });
   })
-  .catch(err => {
-    console.error("❌ Fout bij laden mestsoorten.json:", err);
-    alert("⚠️ Kan mestsoorten.json niet laden.");
-  });
-
-// Event handlers voor mest-knoppen
-document.querySelectorAll('.mest-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    btn.classList.toggle('active');
-
-    const type = btn.dataset.type;
-    const animal = btn.dataset.animal;
-    const key = `${type}-${animal}`;
-
-    if (btn.classList.contains('active')) {
-      const jsonType = { 'drijfmest': 'drijfmest', 'vastemest': 'vaste_mest', 'overig': 'overig' }[type];
-      const mestData = mestsoortenData?.[jsonType]?.[animal];
-      if (!mestData) {
-        console.warn(`⚠️ Geen mestdata gevonden voor ${key}`);
-        return;
-      }
-
-      StateManager.addMestType(key, mestData);
-      const maxTon = ValidationEngine.getMaxTonnage(key);
-      UIController.renderMestsoortSlider(key, `${type} ${animal}`, maxTon);
-
-      UIController.showSlidersContainer();
-
-    } else {
-      StateManager.removeMestType(key);
-      const group = document.getElementById(`group-${key}`);
-      if (group) group.remove();
-
-      if (Object.keys(StateManager.getActieveMest()).length === 0) {
-        UIController.hideSlidersContainer();
-      }
-    }
-
-    UIController.updateSliders();
-  });
-});
+  .catch(error => console.error('Fout bij laden mestsoorten.json:', error));
