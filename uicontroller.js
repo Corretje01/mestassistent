@@ -1,155 +1,122 @@
 /**
- * uiController.js
- * Alle DOM interactie en UI rendering (inclusief mestsliders correct updaten)
+ * uicontroller.js
+ * Verantwoordelijk voor slider rendering en updates
  */
 
 import { StateManager } from './statemanager.js';
 import { CalculationEngine } from './calculationengine.js';
-import { ValidationEngine } from './validationengine.js';
 import { LogicEngine } from './logicengine.js';
 
 export const UIController = (() => {
-
   function initStandardSliders() {
-    const ruimte = StateManager.getGebruiksruimte();
-
     const sliders = [
-      { id: 'stikstof', label: 'Stikstof dierlijk', max: ruimte.A, unit: 'kg' },
-      { id: 'fosfaat', label: 'Fosfaat', max: ruimte.C, unit: 'kg' },
-      { id: 'kalium', label: 'Kalium', max: ruimte.B * 1.25, unit: 'kg' },
-      { id: 'organisch', label: 'Organische stof', max: 3000, unit: 'kg' },
-      { id: 'kunststikstof', label: 'Kunstmest stikstof', max: ruimte.B, unit: 'kg' },
-      { id: 'financieel', label: 'Kosten', max: 10000, unit: 'eur' }
+      { id: 'stikstof', label: 'Stikstof (N)', unit: 'kg' },
+      { id: 'fosfaat', label: 'Fosfaat (P)', unit: 'kg' },
+      { id: 'kalium', label: 'Kalium (K)', unit: 'kg' },
+      { id: 'organisch', label: 'Organische stof', unit: 'kg' },
+      { id: 'kunststikstof', label: 'Kunstmest (N)', unit: 'kg' },
+      { id: 'financieel', label: 'Kosten', unit: 'eur' }
     ];
 
-    sliders.forEach(s => createStandardSlider(s.id, s.label, s.max, s.unit));
+    const container = document.getElementById('standard-sliders');
+    sliders.forEach(sl => {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'slider-wrapper';
+      wrapper.innerHTML = `
+        <label for="slider-${sl.id}">${sl.label}</label>
+        <input type="range" id="slider-${sl.id}" min="0" max="10000" step="1" value="0">
+        <span id="value-${sl.id}">0</span>
+        <input type="checkbox" id="lock-${sl.id}"> 🔒
+      `;
+      container.appendChild(wrapper);
+
+      const slider = wrapper.querySelector(`#slider-${sl.id}`);
+      slider.addEventListener('input', () => {
+        const val = Number(slider.value);
+        LogicEngine.onSliderChange(sl.id, val);
+      });
+
+      const lock = wrapper.querySelector(`#lock-${sl.id}`);
+      lock.addEventListener('change', () => {
+        StateManager.setLock(sl.id, lock.checked);
+      });
+    });
   }
 
-  function createStandardSlider(id, label, max, unit) {
-    const container = document.getElementById('sliders-container');
-    const group = document.createElement('div');
-    group.className = 'slider-group';
-    group.id = `group-${id}`;
-    group.innerHTML = `
-      <div class="slider-header">
-        <input type="checkbox" id="lock-${id}" />
-        <label for="slider-${id}">${label}</label>
-        <span class="value" id="value-${id}">0 / ${max} ${unit}</span>
-      </div>
-      <input type="range" id="slider-${id}" min="0" max="${max}" step="0.1" value="0" />
+  function renderMestsoortSlider(id, data) {
+    const container = document.getElementById('mestsliders');
+    if (document.getElementById(`slider-${id}`)) return;
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'slider-wrapper';
+    wrapper.innerHTML = `
+      <label for="slider-${id}">${id}</label>
+      <input type="range" id="slider-${id}" min="0" max="650" step="1" value="0">
+      <span id="value-${id}">0</span>
+      <input type="checkbox" id="lock-${id}"> 🔒
     `;
-    container.appendChild(group);
+    container.appendChild(wrapper);
 
-    document.getElementById(`lock-${id}`).addEventListener('change', (e) => {
-      StateManager.setLock(id, e.target.checked);
+    const slider = wrapper.querySelector(`#slider-${id}`);
+    slider.addEventListener('input', () => {
+      const val = Number(slider.value);
+      LogicEngine.onSliderChange(id, val);
     });
 
-    document.getElementById(`slider-${id}`).addEventListener('input', (e) => {
-      LogicEngine.onSliderChange(id, parseFloat(e.target.value));
-    });
-  }
-
-  function renderMestsoortSlider(id, label, max) {
-    const container = document.getElementById('sliders-container');
-    const group = document.createElement('div');
-    group.className = 'slider-group';
-    group.id = `group-${id}`;
-    group.innerHTML = `
-      <div class="slider-header">
-        <input type="checkbox" id="lock-${id}" />
-        <label for="slider-${id}">${label}</label>
-        <span class="value" id="value-${id}">0 / ${max} ton</span>
-      </div>
-      <input type="range" id="slider-${id}" min="0" max="${max}" step="0.1" value="0" />
-    `;
-    container.appendChild(group);
-
-    document.getElementById(`lock-${id}`).addEventListener('change', (e) => {
-      StateManager.setLock(id, e.target.checked);
-    });
-
-    document.getElementById(`slider-${id}`).addEventListener('input', (e) => {
-      LogicEngine.onSliderChange(id, parseFloat(e.target.value));
+    const lock = wrapper.querySelector(`#lock-${id}`);
+    lock.addEventListener('change', () => {
+      StateManager.setLock(id, lock.checked);
     });
   }
 
-  function updateSliders() {
-    const nutDierlijk = CalculationEngine.berekenNutriënten(false);
-    const nutInclKunstmest = CalculationEngine.berekenNutriënten(true);
-
-    const sliders = [
-      { id: 'stikstof', value: nutDierlijk.stikstof, unit: 'kg' },
-      { id: 'fosfaat', value: nutDierlijk.fosfaat, unit: 'kg' },
-      { id: 'kalium', value: nutDierlijk.kalium, unit: 'kg' },
-      { id: 'organisch', value: nutDierlijk.organisch, unit: 'kg' },
-      { id: 'kunststikstof', value: StateManager.getKunstmest(), unit: 'kg' },
-      { id: 'financieel', value: nutInclKunstmest.financieel, unit: 'eur' }
-    ];
-
-    sliders.forEach(({ id, value, unit }) => {
-      const sliderEl = document.getElementById(`slider-${id}`);
-      const valueEl = document.getElementById(`value-${id}`);
-      if (!sliderEl || !valueEl) return;
-
-      const afgerond = Math.round(value * 10) / 10;
-
-      if (!StateManager.isLocked(id)) {
-        sliderEl.value = afgerond;
-      }
-
-      const formattedVal = `${afgerond} ${unit}`;
-      const formattedMax = `${sliderEl.max} ${unit}`;
-      valueEl.textContent = `${formattedVal} / ${formattedMax}`;
-    });
-
-    // Update ook de mestsoorten-sliders visueel:
-    updateMestsoortenSliders();
+  function updateStandardSlider(id, value, max, unit) {
+    const el = document.getElementById(`slider-${id}`);
+    const valEl = document.getElementById(`value-${id}`);
+    if (!el || !valEl) return;
+    el.max = max;
+    el.value = value;
+    valEl.textContent = `${Math.round(value)} / ${Math.round(max)} ${unit}`;
   }
 
   function updateMestsoortenSliders() {
-    const actieveMest = StateManager.getActieveMest();
-
-    for (const [id, mest] of Object.entries(actieveMest)) {
-      const sliderEl = document.getElementById(`slider-${id}`);
-      const valueEl = document.getElementById(`value-${id}`);
-      if (!sliderEl || !valueEl) continue;
-
-      const afgerond = Math.round(mest.ton * 10) / 10;
-
-      if (!StateManager.isLocked(id)) {
-        sliderEl.value = afgerond;
-      }
-
-      const formattedVal = `${afgerond} ton`;
-      const formattedMax = `${sliderEl.max} ton`;
-      valueEl.textContent = `${formattedVal} / ${formattedMax}`;
+    const actieve = StateManager.getActieveMest();
+    for (const [id, mest] of Object.entries(actieve)) {
+      const el = document.getElementById(`slider-${id}`);
+      const valEl = document.getElementById(`value-${id}`);
+      if (!el || !valEl) continue;
+      const max = CalculationEngine.calculateMaxAllowedTonnage(id);
+      el.max = max;
+      el.value = mest.ton;
+      valEl.textContent = `${mest.ton} / ${max} ton`;
     }
   }
 
+  function updateSliders() {
+    const ruimte = StateManager.getGebruiksruimte();
+    const totaalDierlijk = CalculationEngine.calculateTotalNutrients(false);
+    const totaalInclKunstmest = CalculationEngine.calculateTotalNutrients(true);
+
+    updateStandardSlider('stikstof', totaalDierlijk.N, Math.min(ruimte.A, ruimte.B - StateManager.getKunstmest()), 'kg');
+    updateStandardSlider('fosfaat', totaalInclKunstmest.P, ruimte.C, 'kg');
+    updateStandardSlider('kalium', totaalInclKunstmest.K, ruimte.B * 1.25, 'kg');
+    updateStandardSlider('organisch', totaalInclKunstmest.OS, 3000, 'kg');
+    updateStandardSlider('kunststikstof', StateManager.getKunstmest(), ruimte.B, 'kg');
+    updateStandardSlider('financieel', totaalInclKunstmest.FIN, 10000, 'eur');
+
+    updateMestsoortenSliders();
+  }
+
   function shake(id) {
-    const slider = document.getElementById(`slider-${id}`);
-    if (!slider) return;
-    slider.classList.add('shake');
-    setTimeout(() => slider.classList.remove('shake'), 400);
-  }
-
-  function showSlidersContainer() {
-    const container = document.getElementById('sliders-container');
-    if (container) container.style.display = 'block';
-  }
-
-  function hideSlidersContainer() {
-    const container = document.getElementById('sliders-container');
-    if (container) container.style.display = 'none';
+    const el = document.getElementById(`slider-${id}`);
+    if (!el) return;
+    el.classList.add('shake');
+    setTimeout(() => el.classList.remove('shake'), 400);
   }
 
   return {
     initStandardSliders,
     renderMestsoortSlider,
     updateSliders,
-    shake,
-    showSlidersContainer,
-    hideSlidersContainer
+    shake
   };
-
 })();
