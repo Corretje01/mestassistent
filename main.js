@@ -11,7 +11,7 @@ const totaalC = parseFloat(urlParams.get('totaalC')) || 0;
 StateManager.setGebruiksruimte(totaalA, totaalB, totaalC);
 
 // Fetch mestsoortenlijst en bouw checkboxes
-fetch('mestsoorten.json')
+fetch('data/mestsoorten.json')
   .then(response => response.json())
   .then(data => {
     StateManager.setMestTypes(data);
