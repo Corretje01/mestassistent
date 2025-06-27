@@ -80,9 +80,98 @@ export const LogicEngine = (() => {
   }
 
   function handleMestSliderChange(id, newValue) {
+    const oudeState = StateManager.getState();
+    const oudeTonnage = oudeState.actieveMest[id].ton;
+    const deltaTon = newValue - oudeTonnage;
+    if (deltaTon === 0) return;
+  
+    const mest = oudeState.actieveMest[id];
+    const deltaNutriënten = {
+      stikstof: deltaTon * (mest.N_kg_per_ton || 0),
+      fosfaat: deltaTon * (mest.P_kg_per_ton || 0),
+      kalium: deltaTon * (mest.K_kg_per_ton || 0),
+      organisch: deltaTon * ((mest.OS_percent || 0) / 100),
+      financieel: deltaTon * ((mest.Inkoopprijs_per_ton || 0) + 10)
+    };
+  
+    // Check welke nutriënten gelocked zijn
+    const vergrendeldeNutriënten = Object.keys(deltaNutriënten).filter(n => StateManager.isLocked(n));
+    if (vergrendeldeNutriënten.length === 0) {
+      StateManager.setMestTonnage(id, newValue);
+      return;
+    }
+  
+    // Zoek alle andere niet-vergrendelde mestsoorten
+    const actieveMest = oudeState.actieveMest;
+    const beschikbareMest = Object.entries(actieveMest)
+      .filter(([key]) => key !== id && !StateManager.isLocked(key))
+      .map(([key, mest]) => ({ id: key, mest }));
+  
+    if (beschikbareMest.length === 0) {
+      UIController.shake(id);
+      return;
+    }
+  
+    // Probeer elk vergrendeld nutriënt te compenseren
+    let compensatieGelukt = true;
+    const aanpassingen = {};
+  
+    for (const nut of vergrendeldeNutriënten) {
+      const delta = deltaNutriënten[nut];
+      if (delta === 0) continue;
+  
+      // Bepaal bijdrage van iedere mestsoort aan deze nutriënt
+      const mestMetGehalte = beschikbareMest
+        .map(({ id, mest }) => {
+          const gehalte = {
+            stikstof: mest.N_kg_per_ton,
+            fosfaat: mest.P_kg_per_ton,
+            kalium: mest.K_kg_per_ton,
+            organisch: (mest.OS_percent || 0) / 100,
+            financieel: (mest.Inkoopprijs_per_ton || 0) + 10
+          }[nut] || 0;
+          return { id, gehalte, huidigTon: mest.ton };
+        })
+        .filter(m => m.gehalte > 0);
+  
+      const totaalGehalte = mestMetGehalte.reduce((s, m) => s + m.gehalte, 0);
+  
+      if (totaalGehalte === 0) {
+        compensatieGelukt = false;
+        break;
+      }
+  
+      // Bereken ton-aanpassingen per mestsoort
+      mestMetGehalte.forEach(m => {
+        const aandeel = m.gehalte / totaalGehalte;
+        const tonDelta = -delta * aandeel / m.gehalte; // tegenovergestelde richting
+        aanpassingen[m.id] = (aanpassingen[m.id] || 0) + tonDelta;
+      });
+    }
+  
+    // Check of alle aanpassingen binnen limieten vallen
+    if (!compensatieGelukt) {
+      UIController.shake(id);
+      return;
+    }
+  
+    for (const [key, tonDelta] of Object.entries(aanpassingen)) {
+      const huidig = oudeState.actieveMest[key].ton;
+      const nieuw = huidig + tonDelta;
+      if (nieuw < 0 || nieuw > 650) {
+        UIController.shake(id);
+        return;
+      }
+    }
+  
+    // ✅ Alle aanpassingen zijn geldig → toepassen
     StateManager.setMestTonnage(id, newValue);
+    for (const [key, tonDelta] of Object.entries(aanpassingen)) {
+      const huidig = oudeState.actieveMest[key].ton;
+      StateManager.setMestTonnage(key, huidig + tonDelta);
+    }
   }
-
+  
   function updateStikstofMaxDoorKunstmest() {
     const ruimte = StateManager.getGebruiksruimte();
     const nutDierlijk = CalculationEngine.berekenNutriënten(false);
