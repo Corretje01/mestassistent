@@ -1,69 +1,65 @@
-import { UIController } from './uicontroller.js';
 import { StateManager } from './statemanager.js';
+import { UIController } from './uicontroller.js';
 import { LogicEngine } from './logicengine.js';
+import { CalculationEngine } from './calculationengine.js';
+import { ValidationEngine } from './validationengine.js';
 
-// Haal query parameters op voor gebruiksruimte
-const urlParams = new URLSearchParams(window.location.search);
-const totaalA = parseFloat(urlParams.get('totaalA')) || 0;
-const totaalB = parseFloat(urlParams.get('totaalB')) || 0;
-const totaalC = parseFloat(urlParams.get('totaalC')) || 0;
+document.addEventListener('DOMContentLoaded', async () => {
+  // Laad mestsoorten uit JSON
+  const response = await fetch('./mestsoorten.json');
+  const mestData = await response.json();
+  StateManager.setMestTypes(mestData);
 
-StateManager.setGebruiksruimte(totaalA, totaalB, totaalC);
+  // Stel gebruiksruimte in op basis van URL-query's
+  const query = new URLSearchParams(window.location.search);
+  const totaalA = parseFloat(query.get('totaalA') || '0'); // stikstof
+  const totaalB = parseFloat(query.get('totaalB') || '0'); // stikstof incl. kunstmest
+  const totaalC = parseFloat(query.get('totaalC') || '0'); // fosfaat
+  StateManager.setGebruiksruimte(totaalA, totaalB, totaalC);
 
-// Fetch mestsoortenlijst en bouw checkboxes
-fetch('data/mestsoorten.json')
-  .then(response => response.json())
-  .then(data => {
-    StateManager.setMestTypes(data);
+  // Initialiseer UI
+  UIController.initStandardSliders();
+  UIController.hideSlidersContainer();
 
-    const container = document.getElementById('mestsoorten-container');
-    Object.entries(data).forEach(([id, mest]) => {
-      const label = document.createElement('label');
-      label.classList.add('checkbox-label');
+  // Klik op mestsoort-knop activeert sliders
+  const knoppen = document.querySelectorAll('.mesttype');
+  knoppen.forEach(knop => {
+    knop.addEventListener('click', () => {
+      const id = knop.dataset.mestid;
+      const mest = StateManager.getMestTypes()[id];
+      if (!mest) return;
 
-      const checkbox = document.createElement('input');
-      checkbox.type = 'checkbox';
-      checkbox.dataset.id = id;
+      const alActief = StateManager.getActieveMest()[id];
+      if (alActief) {
+        // Verwijderen
+        StateManager.removeMestType(id);
+        knop.classList.remove('active');
+        document.getElementById(`group-${id}`)?.remove();
+      } else {
+        // Toevoegen
+        StateManager.addMestType(id, mest);
+        knop.classList.add('active');
+        const max = CalculationEngine.calculateMaxAllowedTonnage(id);
+        UIController.renderMestsoortSlider(id, mest.naam, max);
+      }
 
-      const kleurblok = document.createElement('span');
-      kleurblok.classList.add('kleurblok');
-      kleurblok.style.backgroundColor = mest.kleur || '#ccc';
+      const actief = Object.keys(StateManager.getActieveMest()).length > 0;
+      if (actief) UIController.showSlidersContainer();
+      else UIController.hideSlidersContainer();
 
-      const naam = document.createElement('span');
-      naam.textContent = mest.label;
-
-      label.appendChild(checkbox);
-      label.appendChild(kleurblok);
-      label.appendChild(naam);
-      container.appendChild(label);
-
-      checkbox.addEventListener('change', () => {
-        const isSelected = checkbox.checked;
-
-        if (isSelected) {
-          StateManager.addMestType(id, mest);
-          UIController.renderMestsoortSlider(id, mest);
-          label.classList.add('geselecteerd');
-        } else {
-          StateManager.removeMestType(id);
-          UIController.removeMestsoortSlider(id);
-          label.classList.remove('geselecteerd');
-        }
-
-        const actieveCount = Object.keys(StateManager.getActieveMest()).length;
-        if (actieveCount > 0) {
-          UIController.showSlidersContainer();
-
-          // Voer alleen init uit bij eerste selectie
-          if (actieveCount === 1) {
-            UIController.initStandardSliders();
-          }
-
-          UIController.updateSliders();
-        } else {
-          UIController.hideSlidersContainer();
-        }
-      });
+      UIController.updateSliders();
     });
-  })
-  .catch(error => console.error('Fout bij laden mestsoorten.json:', error));
+  });
+
+  // Initiale update van UI
+  UIController.updateSliders();
+
+  // Debug-knop
+  const btn = document.getElementById('controleer-plan');
+  if (btn) {
+    btn.addEventListener('click', () => {
+      const result = ValidationEngine.checkUsageLimits();
+      alert(result ? '✅ Alles binnen de grenzen!' : '⚠️ Overschrijding gedetecteerd.');
+    });
+  }
+});
