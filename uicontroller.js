@@ -93,7 +93,8 @@ export const UIController = (() => {
 
       const afgerond = Math.round(value * 10) / 10;
 
-      if (!StateManager.isLocked(id)) {
+      sliderEl.disabled = StateManager.isLocked(id);
+      if (!sliderEl.disabled) {
         sliderEl.value = afgerond;
       }
 
@@ -116,7 +117,8 @@ export const UIController = (() => {
 
       const afgerond = Math.round(mest.ton * 10) / 10;
 
-      if (!StateManager.isLocked(id)) {
+      sliderEl.disabled = StateManager.isLocked(id);
+      if (!sliderEl.disabled) {
         sliderEl.value = afgerond;
       }
 
