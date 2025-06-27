@@ -45,7 +45,7 @@ export const UIController = (() => {
 
   function renderMestsoortSlider(id, data) {
     const container = document.getElementById('mestsliders');
-    if (document.getElementById(`slider-${id}`)) return;
+    if (!container || document.getElementById(`slider-${id}`)) return;
 
     const wrapper = document.createElement('div');
     wrapper.className = 'slider-wrapper';
@@ -67,6 +67,13 @@ export const UIController = (() => {
     lock.addEventListener('change', () => {
       StateManager.setLock(id, lock.checked);
     });
+  }
+
+  function removeMestsoortSlider(id) {
+    const slider = document.getElementById(`slider-${id}`);
+    if (slider && slider.parentElement) {
+      slider.parentElement.remove();
+    }
   }
 
   function updateStandardSlider(id, value, max, unit) {
@@ -116,6 +123,7 @@ export const UIController = (() => {
   return {
     initStandardSliders,
     renderMestsoortSlider,
+    removeMestsoortSlider,
     updateSliders,
     shake
   };
