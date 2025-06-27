@@ -1,6 +1,6 @@
 /**
  * uiController.js
- * Alle DOM interactie en UI rendering (inclusief mestsliders correct updaten)
+ * Beheert alle DOM-interacties en updates van sliders
  */
 
 import { StateManager } from './statemanager.js';
@@ -40,12 +40,17 @@ export const UIController = (() => {
     `;
     container.appendChild(group);
 
-    document.getElementById(`lock-${id}`).addEventListener('change', (e) => {
-      StateManager.setLock(id, e.target.checked);
-      updateSliders(); // meteen visueel updaten bij lock-wijziging
+    const lockEl = document.getElementById(`lock-${id}`);
+    const sliderEl = document.getElementById(`slider-${id}`);
+
+    lockEl.addEventListener('change', (e) => {
+      const locked = e.target.checked;
+      StateManager.setLock(id, locked);
+      if (sliderEl) sliderEl.disabled = locked;
+      updateSliders();
     });
 
-    document.getElementById(`slider-${id}`).addEventListener('input', (e) => {
+    sliderEl.addEventListener('input', (e) => {
       LogicEngine.onSliderChange(id, parseFloat(e.target.value));
     });
   }
@@ -65,12 +70,17 @@ export const UIController = (() => {
     `;
     container.appendChild(group);
 
-    document.getElementById(`lock-${id}`).addEventListener('change', (e) => {
-      StateManager.setLock(id, e.target.checked);
-      updateSliders(); // meteen visueel updaten bij lock-wijziging
+    const lockEl = document.getElementById(`lock-${id}`);
+    const sliderEl = document.getElementById(`slider-${id}`);
+
+    lockEl.addEventListener('change', (e) => {
+      const locked = e.target.checked;
+      StateManager.setLock(id, locked);
+      if (sliderEl) sliderEl.disabled = locked;
+      updateSliders();
     });
 
-    document.getElementById(`slider-${id}`).addEventListener('input', (e) => {
+    sliderEl.addEventListener('input', (e) => {
       LogicEngine.onSliderChange(id, parseFloat(e.target.value));
     });
   }
@@ -101,9 +111,7 @@ export const UIController = (() => {
         sliderEl.value = afgerond;
       }
 
-      const formattedVal = `${afgerond} ${unit}`;
-      const formattedMax = `${sliderEl.max} ${unit}`;
-      valueEl.textContent = `${formattedVal} / ${formattedMax}`;
+      valueEl.textContent = `${afgerond} / ${sliderEl.max} ${unit}`;
     });
 
     updateMestsoortenSliders();
@@ -125,9 +133,7 @@ export const UIController = (() => {
         sliderEl.value = afgerond;
       }
 
-      const formattedVal = `${afgerond} ton`;
-      const formattedMax = `${sliderEl.max} ton`;
-      valueEl.textContent = `${formattedVal} / ${formattedMax}`;
+      valueEl.textContent = `${afgerond} / ${sliderEl.max} ton`;
     }
   }
 
