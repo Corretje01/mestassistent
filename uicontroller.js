@@ -42,6 +42,7 @@ export const UIController = (() => {
 
     document.getElementById(`lock-${id}`).addEventListener('change', (e) => {
       StateManager.setLock(id, e.target.checked);
+      updateSliders(); // meteen visueel updaten bij lock-wijziging
     });
 
     document.getElementById(`slider-${id}`).addEventListener('input', (e) => {
@@ -66,6 +67,7 @@ export const UIController = (() => {
 
     document.getElementById(`lock-${id}`).addEventListener('change', (e) => {
       StateManager.setLock(id, e.target.checked);
+      updateSliders(); // meteen visueel updaten bij lock-wijziging
     });
 
     document.getElementById(`slider-${id}`).addEventListener('input', (e) => {
@@ -92,9 +94,10 @@ export const UIController = (() => {
       if (!sliderEl || !valueEl) return;
 
       const afgerond = Math.round(value * 10) / 10;
+      const locked = StateManager.isLocked(id);
 
-      sliderEl.disabled = StateManager.isLocked(id);
-      if (!sliderEl.disabled) {
+      sliderEl.disabled = locked;
+      if (!locked) {
         sliderEl.value = afgerond;
       }
 
@@ -103,7 +106,6 @@ export const UIController = (() => {
       valueEl.textContent = `${formattedVal} / ${formattedMax}`;
     });
 
-    // Update ook de mestsoorten-sliders visueel:
     updateMestsoortenSliders();
   }
 
@@ -116,9 +118,10 @@ export const UIController = (() => {
       if (!sliderEl || !valueEl) continue;
 
       const afgerond = Math.round(mest.ton * 10) / 10;
+      const locked = StateManager.isLocked(id);
 
-      sliderEl.disabled = StateManager.isLocked(id);
-      if (!sliderEl.disabled) {
+      sliderEl.disabled = locked;
+      if (!locked) {
         sliderEl.value = afgerond;
       }
 
