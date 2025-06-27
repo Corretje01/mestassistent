@@ -1,65 +1,77 @@
+/**
+ * main.js - Definitieve versie - volledig opgeschoond
+ */
+
 import { StateManager } from './statemanager.js';
 import { UIController } from './uicontroller.js';
 import { LogicEngine } from './logicengine.js';
-import { CalculationEngine } from './calculationengine.js';
 import { ValidationEngine } from './validationengine.js';
 
-document.addEventListener('DOMContentLoaded', async () => {
-  // Laad mestsoorten uit JSON
-  const response = await fetch('./mestsoorten.json');
-  const mestData = await response.json();
-  StateManager.setMestTypes(mestData);
+// Haal gebruiksruimte uit URL-queryparameters
+const queryParams = new URLSearchParams(window.location.search);
+const totaalA = Number(queryParams.get('totaalA') || 0);
+const totaalB = Number(queryParams.get('totaalB') || 0);
+const totaalC = Number(queryParams.get('totaalC') || 0);
 
-  // Stel gebruiksruimte in op basis van URL-query's
-  const query = new URLSearchParams(window.location.search);
-  const totaalA = parseFloat(query.get('totaalA') || '0'); // stikstof
-  const totaalB = parseFloat(query.get('totaalB') || '0'); // stikstof incl. kunstmest
-  const totaalC = parseFloat(query.get('totaalC') || '0'); // fosfaat
-  StateManager.setGebruiksruimte(totaalA, totaalB, totaalC);
+if (!totaalA || !totaalB || !totaalC) {
+  alert("⚠️ Waarschuwing: gebruiksruimte ontbreekt. Controleer de invoer.");
+}
 
-  // Initialiseer UI
-  UIController.initStandardSliders();
-  UIController.hideSlidersContainer();
+// Init centrale state
+StateManager.setGebruiksruimte(totaalA, totaalB, totaalC);
 
-  // Klik op mestsoort-knop activeert sliders
-  const knoppen = document.querySelectorAll('.mesttype');
-  knoppen.forEach(knop => {
-    knop.addEventListener('click', () => {
-      const id = knop.dataset.mestid;
-      const mest = StateManager.getMestTypes()[id];
-      if (!mest) return;
+// Init standaard sliders
+UIController.initStandardSliders();
+UIController.updateSliders();
 
-      const alActief = StateManager.getActieveMest()[id];
-      if (alActief) {
-        // Verwijderen
-        StateManager.removeMestType(id);
-        knop.classList.remove('active');
-        document.getElementById(`group-${id}`)?.remove();
-      } else {
-        // Toevoegen
-        StateManager.addMestType(id, mest);
-        knop.classList.add('active');
-        const max = CalculationEngine.calculateMaxAllowedTonnage(id);
-        UIController.renderMestsoortSlider(id, mest.naam, max);
-      }
+// Laad mestsoorten.json dynamisch
+let mestsoortenData = {};
 
-      const actief = Object.keys(StateManager.getActieveMest()).length > 0;
-      if (actief) UIController.showSlidersContainer();
-      else UIController.hideSlidersContainer();
-
-      UIController.updateSliders();
-    });
+fetch('/data/mestsoorten.json')
+  .then(response => response.json())
+  .then(data => {
+    mestsoortenData = data;
+    StateManager.setMestTypes(data);
+    console.log("✅ mestsoorten.json geladen");
+  })
+  .catch(err => {
+    console.error("❌ Fout bij laden mestsoorten.json:", err);
+    alert("⚠️ Kan mestsoorten.json niet laden.");
   });
 
-  // Initiale update van UI
-  UIController.updateSliders();
+// Event handlers voor mest-knoppen
+document.querySelectorAll('.mest-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    btn.classList.toggle('active');
 
-  // Debug-knop
-  const btn = document.getElementById('controleer-plan');
-  if (btn) {
-    btn.addEventListener('click', () => {
-      const result = ValidationEngine.checkUsageLimits();
-      alert(result ? '✅ Alles binnen de grenzen!' : '⚠️ Overschrijding gedetecteerd.');
-    });
-  }
+    const type = btn.dataset.type;
+    const animal = btn.dataset.animal;
+    const key = `${type}-${animal}`;
+
+    if (btn.classList.contains('active')) {
+      const jsonType = { 'drijfmest': 'drijfmest', 'vastemest': 'vaste_mest', 'overig': 'overig' }[type];
+      const mestData = mestsoortenData?.[jsonType]?.[animal];
+      if (!mestData) {
+        console.warn(`⚠️ Geen mestdata gevonden voor ${key}`);
+        return;
+      }
+
+      StateManager.addMestType(key, mestData);
+      const maxTon = ValidationEngine.getMaxTonnage(key);
+      UIController.renderMestsoortSlider(key, `${type} ${animal}`, maxTon);
+
+      UIController.showSlidersContainer();
+
+    } else {
+      StateManager.removeMestType(key);
+      const group = document.getElementById(`group-${key}`);
+      if (group) group.remove();
+
+      if (Object.keys(StateManager.getActieveMest()).length === 0) {
+        UIController.hideSlidersContainer();
+      }
+    }
+
+    UIController.updateSliders();
+  });
 });
