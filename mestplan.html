@@ -9,12 +9,11 @@
   <!-- ✅ Math.js voor matrixbewerkingen -->
   <script src="https://cdn.jsdelivr.net/npm/mathjs@11/lib/browser/math.min.js"></script>
 
-  <!-- ✅ LP-solver lokaal -->
-  <script src="./scripts/lp_solver.js"></script>
+  <!-- ✅ LP Solver (lokaal gehoste versie van officiële simplex engine) -->
+  <script src="./scripts/solver.js"></script>
   <script>
-    // Globale toegang voor gebruik in modules
     window.solver = solver;
-    console.log("✅ LP Solver lokaal geladen:", typeof solver.Solve);
+    console.log("✅ LP Solver geladen:", typeof solver?.Solve);
   </script>
 </head>
 <body>
@@ -53,7 +52,7 @@
       </div>
     </section>
 
-    <!-- Dynamisch gegenereerde checkboxlijst -->
+    <!-- Dynamisch gegenereerde mestsoortenlijst -->
     <div id="mestsoorten-container" class="mestsoorten-container"></div>
 
     <!-- Stap 2: Maak mestplan -->
@@ -62,7 +61,7 @@
       <button id="optimaliseer-btn" class="btn btn--primary">Optimaliseer</button>
 
       <div id="sliders-container" class="sliders-grid" style="display: none;">
-        <!-- Standaard sliders komen hier -->
+        <!-- Standaard nutrientensliders -->
         <div id="standard-sliders" class="sliders-grid"></div>
 
         <!-- Dynamisch toegevoegde mestsliders -->
@@ -71,6 +70,7 @@
     </section>
   </main>
 
+  <!-- ✅ Main JavaScript entry point -->
   <script type="module" src="./main.js"></script>
 </body>
 </html>
