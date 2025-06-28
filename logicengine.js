@@ -93,7 +93,9 @@ export const LogicEngine = (() => {
 
   function handleNutrientChangeViaLP(nutId, targetValue) {
     const state = StateManager.getState();
-    const locked = Object.keys(state.nutriënten).filter(n => StateManager.isLocked(n));
+    const locked = Object.entries(StateManager.getLocks())
+      .filter(([key, locked]) => locked && isNutrientSlider(key))
+      .map(([key]) => key);
     const actieveMest = state.actieveMest;
 
     // Bouw LP-model
