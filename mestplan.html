@@ -4,13 +4,20 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Optimaliseer je mestplan</title>
+
+  <!-- ✅ Stylesheet -->
   <link rel="stylesheet" href="style.css" />
 
-  <!-- ✅ Math.js voor matrixbewerkingen -->
+  <!-- ✅ Math.js (voor matrixbewerkingen) -->
   <script src="https://cdn.jsdelivr.net/npm/mathjs@11/lib/browser/math.min.js"></script>
 
-  <!-- ✅ Nieuw: javascript-lp-solver (CDN) -->
+  <!-- ✅ LP Solver: javascript-lp-solver (via CDN) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/javascript-lp-solver/0.4.24/lp_solver.min.js"></script>
+
+  <!-- ✅ Zorg dat solver globaal beschikbaar is (ook voor modules) -->
+  <script>
+    window.solver = solver;
+  </script>
 </head>
 <body>
   <header class="header">
