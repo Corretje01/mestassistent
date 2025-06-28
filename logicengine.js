@@ -1,15 +1,10 @@
-/**
- * logicengine.js
- * Robuuste sliderverwerking met vergrendeling en compensatie
- */
-
+// logicengine.js
 import { StateManager } from './statemanager.js';
 import { CalculationEngine } from './calculationengine.js';
 import { ValidationEngine } from './validationengine.js';
 import { UIController } from './uicontroller.js';
 
 export const LogicEngine = (() => {
-
   function onSliderChange(id, newValue) {
     const sliderEl = document.getElementById(`slider-${id}`);
     if (!sliderEl) return;
@@ -28,7 +23,7 @@ export const LogicEngine = (() => {
       StateManager.setKunstmest(newValue);
       updateStikstofMaxDoorKunstmest();
     } else if (isNutrientSlider(id)) {
-      handleNutrientChange(id, newValue);
+      handleNutrientChangeViaLP(id, newValue);
     } else {
       handleMestSliderChange(id, newValue);
     }
@@ -96,76 +91,55 @@ export const LogicEngine = (() => {
     }
   }
 
-  function handleNutrientChange(nutId, newValue) {
-    const huidigeNut = CalculationEngine.berekenNutriënten(false);
-    const delta = newValue - (huidigeNut[nutId] || 0);
-    if (delta === 0) return;
+  function handleNutrientChangeViaLP(nutId, targetValue) {
+    const state = StateManager.getState();
+    const locked = Object.keys(state.nutriënten).filter(n => StateManager.isLocked(n));
+    const actieveMest = state.actieveMest;
 
-    const lockedNut = Object.keys(huidigeNut)
-      .filter(n => StateManager.isLocked(n) && n !== nutId);
+    // Bouw LP-model
+    const model = {
+      optimize: "afwijking",
+      opType: "min",
+      constraints: {},
+      variables: {},
+      ints: {}
+    };
 
-    const actieveMest = StateManager.getState().actieveMest;
-    const vrijeMest = Object.entries(actieveMest)
-      .filter(([id]) => !StateManager.isLocked(id))
-      .map(([id, mest]) => ({ id, mest }));
+    for (const [id, mest] of Object.entries(actieveMest)) {
+      if (StateManager.isLocked(id)) continue;
 
-    if (vrijeMest.length === 0) {
-      UIController.shake(nutId);
-      return;
-    }
+      model.variables[id] = {
+        afwijking: 1, // fictief doel: minimale verandering
+      };
 
-    const bijdragen = vrijeMest.map(({ id, mest }) => {
-      const gehalte = getGehaltePerNutriënt(nutId, mest);
-      return { id, gehalte, huidig: mest.ton };
-    }).filter(b => b.gehalte !== 0);
-
-    const totaalGehalte = bijdragen.reduce((sum, b) => sum + b.gehalte, 0);
-    if (totaalGehalte === 0) {
-      UIController.shake(nutId);
-      return;
-    }
-
-    const nieuweVerdeling = {};
-    for (const b of bijdragen) {
-      const aandeel = b.gehalte / totaalGehalte;
-      const tonDelta = delta * aandeel / b.gehalte;
-      nieuweVerdeling[b.id] = b.huidig + tonDelta;
-    }
-
-    // Validatie inclusief behoud van locked nutriënten
-    const hypothetisch = { ...actieveMest };
-    for (const [id, nieuweTon] of Object.entries(nieuweVerdeling)) {
-      if (nieuweTon < 0 || nieuweTon > 650) {
-        UIController.shake(nutId);
-        return;
+      for (const nut of ['stikstof', 'fosfaat', 'kalium', 'organisch', 'financieel']) {
+        const waarde = getGehaltePerNutriënt(nut, mest);
+        if (!model.variables[id][nut]) model.variables[id][nut] = 0;
+        model.variables[id][nut] = waarde;
       }
-      hypothetisch[id] = { ...hypothetisch[id], ton: nieuweTon };
+
+      model.ints[id] = 0; // continuous (tonnages)
     }
 
-    const herberekend = berekenNutriëntenVoorMest(hypothetisch);
-    for (const locked of lockedNut) {
-      if (Math.abs(herberekend[locked] - huidigeNut[locked]) > 0.01) {
-        UIController.shake(nutId);
-        return;
+    for (const nut of locked) {
+      const huidig = CalculationEngine.berekenNutriënten(false)[nut];
+      model.constraints[nut] = { equal: huidig };
+    }
+
+    model.constraints[nutId] = { equal: targetValue };
+
+    try {
+      const resultaat = window.solver.Solve(model);
+      if (!resultaat.feasible) throw new Error("Onoplosbaar");
+
+      for (const [id, ton] of Object.entries(resultaat.solution)) {
+        if (actieveMest[id]) {
+          StateManager.setMestTonnage(id, ton);
+        }
       }
+    } catch (err) {
+      UIController.shake(nutId);
     }
-
-    // ✅ Toepassen
-    for (const [id, nieuweTon] of Object.entries(nieuweVerdeling)) {
-      StateManager.setMestTonnage(id, nieuweTon);
-    }
-  }
-
-  function berekenNutriëntenVoorMest(mestset) {
-    const totaal = { stikstof: 0, fosfaat: 0, kalium: 0, organisch: 0, financieel: 0 };
-    for (const mest of Object.values(mestset)) {
-      totaal.stikstof  += mest.ton * (mest.N_kg_per_ton || 0);
-      totaal.fosfaat   += mest.ton * (mest.P_kg_per_ton || 0);
-      totaal.kalium    += mest.ton * (mest.K_kg_per_ton || 0);
-      totaal.organisch += mest.ton * ((mest.OS_percent || 0) / 100);
-      totaal.financieel += mest.ton * ((mest.Inkoopprijs_per_ton || 0) + 10);
-    }
-    return totaal;
   }
 
   function berekenDeltaNutriënten(mest, tonDelta) {
@@ -224,5 +198,4 @@ export const LogicEngine = (() => {
   return {
     onSliderChange
   };
-
 })();
