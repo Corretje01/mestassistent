@@ -97,9 +97,11 @@ export const LogicEngine = (() => {
   function handleNutrientChangeViaLP(nutId, targetValue) {
     const state = StateManager.getState();
     const actieveMest = state.actieveMest;
+    const ruimte = StateManager.getGebruiksruimte();
+    const huidigeNut = CalculationEngine.berekenNutriënten(false);
   
     const model = {
-      optimize: 'totaleTonnage',
+      optimize: 'financieel',       // 💰 Minimaliseer kosten
       opType: 'min',
       constraints: {},
       variables: {},
@@ -109,53 +111,77 @@ export const LogicEngine = (() => {
     for (const [id, mest] of Object.entries(actieveMest)) {
       if (StateManager.isLocked(id)) continue;
   
-      model.variables[id] = {
-        totaleTonnage: 1
+      const maxTonnage = (() => {
+        let maxN = Infinity, maxP = Infinity;
+        if (mest.N_kg_per_ton > 0) maxN = ruimte.A / mest.N_kg_per_ton;
+        if (mest.P_kg_per_ton > 0) maxP = ruimte.C / mest.P_kg_per_ton;
+        return Math.min(maxN, maxP, 650); // 📏 Beperk tot realistisch maximum
+      })();
+  
+      const varObj = {
+        stikstof: getGehaltePerNutriënt('stikstof', mest),
+        fosfaat: getGehaltePerNutriënt('fosfaat', mest),
+        kalium: getGehaltePerNutriënt('kalium', mest),
+        organisch: getGehaltePerNutriënt('organisch', mest),
+        financieel: getGehaltePerNutriënt('financieel', mest)
       };
   
-      for (const nut of ['stikstof', 'fosfaat', 'kalium', 'organisch', 'financieel']) {
-        model.variables[id][nut] = getGehaltePerNutriënt(nut, mest);
-      }
-  
+      model.variables[id] = varObj;
       model.ints[id] = 0;
+      model.constraints[id] = { min: 0, max: maxTonnage };
   
-      // voeg bounds toe: mesthoeveelheid moet positief blijven
-      model.constraints[id] = { min: 0 };
+      console.log(`📏 Constraints voor ${id}: 0 - ${Math.round(maxTonnage * 10) / 10} ton`);
     }
   
+    // Locked nutriënten: vaste waarden behouden
     for (const nut of ['stikstof', 'fosfaat', 'kalium', 'organisch', 'financieel']) {
       if (StateManager.isLocked(nut)) {
-        const huidig = CalculationEngine.berekenNutriënten(false)[nut];
-        model.constraints[nut] = { equal: huidig };
+        const lockedVal = huidigeNut[nut];
+        model.constraints[nut] = { equal: lockedVal };
+        console.log(`🔒 Locked constraint ${nut}: ${lockedVal}`);
       }
     }
   
+    // Doel-nutriënt instellen op gewenste target
     model.constraints[nutId] = { equal: targetValue };
+    console.log(`🧮 Target constraint ${nutId}: ${targetValue}`);
   
-    console.log('📦 LP-model opgebouwd: ', model);
+    console.log('📦 LP-model opgebouwd:', model);
   
     try {
       const resultaat = window.solver.Solve(model);
-      console.log('📈 LP-resultaat: ', resultaat);
+      console.log('📈 LP-resultaat:', resultaat);
   
       if (!resultaat.feasible) {
-        console.warn("⚠️ LP niet oplosbaar met constraints", model.constraints);
-        console.warn("🔍 Resultaat ondanks 'infeasible':", resultaat);
-        throw new Error("Onoplosbaar LP-model");
+        console.warn(`⚠️ LP niet oplosbaar. Constraints:`, model.constraints);
+        for (const [id, mest] of Object.entries(actieveMest)) {
+          const huidige = mest.ton;
+          const max = model.constraints[id]?.max ?? 'onbekend';
+          console.warn(`❌ ${id}: huidig ${huidige} ton > max ${max}`);
+        }
+        UIController.shake(nutId);
+        return;
       }
   
       for (const id of Object.keys(actieveMest)) {
         if (StateManager.isLocked(id)) continue;
-        if (resultaat[id] !== undefined) {
-          StateManager.setMestTonnage(id, resultaat[id]);
+        const nieuweWaarde = resultaat[id];
+        if (typeof nieuweWaarde === 'number') {
+          if (nieuweWaarde < 0 || nieuweWaarde > 650) {
+            console.warn(`⚠️ Ongeldige oplossing voor ${id}: ${nieuweWaarde} ton`);
+            UIController.shake(nutId);
+            return;
+          }
+          StateManager.setMestTonnage(id, nieuweWaarde);
+          console.log(`✅ ${id} ingesteld op ${Math.round(nieuweWaarde * 10) / 10} ton`);
         }
       }
     } catch (err) {
-      console.log(`❌ LP-optimalisatie gefaald (${nutId}):`, err.message);
+      console.log(`❌ LP-optimalisatie gefaald (${nutId}): ${err.message}`);
       UIController.shake(nutId);
     }
   }
-
+  
   function berekenDeltaNutriënten(mest, tonDelta) {
     return {
       stikstof: tonDelta * (mest.N_kg_per_ton || 0),
