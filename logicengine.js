@@ -6,10 +6,10 @@ import { UIController } from './uicontroller.js';
 
 export const LogicEngine = (() => {
   function onSliderChange(id, newValue) {
+    console.log(`🟡 Slider wijziging: ${id} → ${newValue}`);
+
     const sliderEl = document.getElementById(`slider-${id}`);
     if (!sliderEl) return;
-
-    console.log(`🟡 Slider wijziging: ${id} → ${newValue}`);
 
     if (sliderEl.disabled || StateManager.isLocked(id)) {
       UIController.shake(id);
@@ -97,20 +97,7 @@ export const LogicEngine = (() => {
   function handleNutrientChangeViaLP(nutId, targetValue) {
     const state = StateManager.getState();
     const actieveMest = state.actieveMest;
-
-    const sliderEl = document.getElementById(`slider-${nutId}`);
-    if (sliderEl) {
-      const min = Number(sliderEl.min || 0);
-      const max = Number(sliderEl.max || 999999);
-      if (targetValue < min || targetValue > max) {
-        console.warn(`❌ Waarde ${targetValue} buiten grenzen van ${nutId}: [${min}, ${max}]`);
-        UIController.shake(nutId);
-        return;
-      }
-    }
-
-    const lockedNutrients = ['stikstof', 'fosfaat', 'kalium', 'organisch', 'financieel']
-      .filter(n => StateManager.isLocked(n) && n !== nutId);
+    const locked = Object.keys(state.locks).filter(n => state.locks[n] === true && isNutrientSlider(n));
 
     const model = {
       optimize: "totaleTonnage",
@@ -123,23 +110,19 @@ export const LogicEngine = (() => {
     for (const [id, mest] of Object.entries(actieveMest)) {
       if (StateManager.isLocked(id)) continue;
 
-      const vars = {
-        totaleTonnage: 1
-      };
-
+      const vars = {};
       for (const nut of ['stikstof', 'fosfaat', 'kalium', 'organisch', 'financieel']) {
         vars[nut] = getGehaltePerNutriënt(nut, mest);
       }
+      vars['totaleTonnage'] = 1;
 
       model.variables[id] = vars;
       model.ints[id] = 0;
-      model.constraints[id] = { min: 0 }; // geen negatieve tonnage
     }
 
-    const huidigNutriënten = CalculationEngine.berekenNutriënten(false);
-
-    for (const nut of lockedNutrients) {
-      model.constraints[nut] = { equal: huidigNutriënten[nut] };
+    for (const nut of locked) {
+      const huidig = CalculationEngine.berekenNutriënten(false)[nut];
+      model.constraints[nut] = { equal: huidig };
     }
 
     model.constraints[nutId] = { equal: targetValue };
@@ -150,10 +133,12 @@ export const LogicEngine = (() => {
       const resultaat = window.solver.Solve(model);
       console.log("📈 LP-resultaat: ", resultaat);
 
-      if (!resultaat.feasible) throw new Error("Onoplosbaar LP-model");
+      if (!resultaat.feasible || !resultaat.solution) {
+        throw new Error("Onoplosbaar LP-model");
+      }
 
       for (const [id, ton] of Object.entries(resultaat.solution)) {
-        if (actieveMest[id]) {
+        if (actieveMest[id] !== undefined) {
           StateManager.setMestTonnage(id, ton);
         }
       }
@@ -211,7 +196,7 @@ export const LogicEngine = (() => {
   }
 
   function checkGlobalValidation() {
-    const fout = ValidationEngine.overschrijdtMaxToegestaneWaarden();
+    const fout = ValidationEngine.overschrijdtMaxToegestaneWaarden?.();
     if (fout) {
       console.warn("❌ Overschrijding:", fout);
     }
