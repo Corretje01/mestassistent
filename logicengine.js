@@ -8,30 +8,41 @@ export const LogicEngine = (() => {
   function onSliderChange(id, newValue) {
     const sliderEl = document.getElementById(`slider-${id}`);
     if (!sliderEl) return;
-
+  
     if (sliderEl.disabled || StateManager.isLocked(id)) {
       UIController.shake(id);
       return;
     }
-
+  
     if (!isWithinSliderLimits(sliderEl, newValue)) {
       UIController.shake(id);
       return;
     }
-
+  
     if (id === 'kunststikstof') {
       StateManager.setKunstmest(newValue);
       updateStikstofMaxDoorKunstmest();
     } else if (isNutrientSlider(id)) {
-      handleNutrientChangeViaLP(id, newValue);
+      const locks = StateManager.getLocks?.() || {};
+      const andereLocks = Object.keys(locks)
+        .filter(key => isNutrientSlider(key) && key !== id && locks[key]);
+  
+      const heeftVergrendeldeNutrienten = andereLocks.length > 0;
+  
+      if (heeftVergrendeldeNutrienten) {
+        handleNutrientChangeViaLP(id, newValue);
+      } else {
+        // Vrij bewegen zolang er geen andere nutriënt vergrendeld is
+        StateManager.setMestTonnage(id, newValue);
+      }
     } else {
       handleMestSliderChange(id, newValue);
     }
-
+  
     UIController.updateSliders();
     checkGlobalValidation();
   }
-
+  
   function handleMestSliderChange(id, newValue) {
     const oudeState = StateManager.getState();
     const mest = oudeState.actieveMest[id];
