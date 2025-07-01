@@ -8,41 +8,36 @@ export const LogicEngine = (() => {
   function onSliderChange(id, newValue) {
     const sliderEl = document.getElementById(`slider-${id}`);
     if (!sliderEl) return;
-  
+
+    console.log(`🟡 Slider wijziging: ${id} → ${newValue}`);
+
     if (sliderEl.disabled || StateManager.isLocked(id)) {
+      console.warn(`🔒 Slider ${id} is vergrendeld of uitgeschakeld.`);
       UIController.shake(id);
       return;
     }
-  
+
     if (!isWithinSliderLimits(sliderEl, newValue)) {
+      console.warn(`⚠️ ${id} buiten slidergrenzen (${sliderEl.min}-${sliderEl.max})`);
       UIController.shake(id);
       return;
     }
-  
+
     if (id === 'kunststikstof') {
       StateManager.setKunstmest(newValue);
       updateStikstofMaxDoorKunstmest();
     } else if (isNutrientSlider(id)) {
-      const locks = StateManager.getLocks?.() || {};
-      const andereLocks = Object.keys(locks)
-        .filter(key => isNutrientSlider(key) && key !== id && locks[key]);
-  
-      const heeftVergrendeldeNutrienten = andereLocks.length > 0;
-  
-      if (heeftVergrendeldeNutrienten) {
-        handleNutrientChangeViaLP(id, newValue);
-      } else {
-        // Vrij bewegen zolang er geen andere nutriënt vergrendeld is
-        StateManager.setMestTonnage(id, newValue);
-      }
+      console.log(`⚙️ Nutriëntenslider ${id} wordt gewijzigd → LP wordt aangeroepen`);
+      handleNutrientChangeViaLP(id, newValue);
     } else {
+      console.log(`⚙️ Mestslider ${id} wordt gewijzigd → directe berekening`);
       handleMestSliderChange(id, newValue);
     }
-  
+
     UIController.updateSliders();
     checkGlobalValidation();
   }
-  
+
   function handleMestSliderChange(id, newValue) {
     const oudeState = StateManager.getState();
     const mest = oudeState.actieveMest[id];
@@ -74,6 +69,7 @@ export const LogicEngine = (() => {
 
       const totaalGehalte = opties.reduce((sum, o) => sum + o.gehalte, 0);
       if (totaalGehalte === 0) {
+        console.warn(`❌ Geen compenseerbare mestsoorten voor vergrendelde nutriënt ${nut}`);
         UIController.shake(id);
         return;
       }
@@ -85,11 +81,11 @@ export const LogicEngine = (() => {
       }
     }
 
-    // Validatie
     for (const [key, tonDelta] of Object.entries(aanpassingen)) {
       const huidig = oudeState.actieveMest[key].ton;
       const nieuw = huidig + tonDelta;
       if (nieuw < 0 || nieuw > 650) {
+        console.warn(`❌ Compensatie ${key} overschrijdt limieten (${nieuw} ton)`);
         UIController.shake(id);
         return;
       }
@@ -104,12 +100,17 @@ export const LogicEngine = (() => {
 
   function handleNutrientChangeViaLP(nutId, targetValue) {
     const state = StateManager.getState();
-    const locked = Object.entries(StateManager.getLocks())
-      .filter(([key, locked]) => locked && isNutrientSlider(key))
-      .map(([key]) => key);
     const actieveMest = state.actieveMest;
 
-    // Bouw LP-model
+    if (!actieveMest || Object.keys(actieveMest).length === 0) {
+      console.warn("⚠️ Geen actieve mestsoorten — LP-optimalisatie niet mogelijk");
+      return;
+    }
+
+    const locked = Object.keys(state.locks || {})
+      .filter(key => state.locks[key] === true)
+      .filter(n => isNutrientSlider(n));
+
     const model = {
       optimize: "afwijking",
       opType: "min",
@@ -121,17 +122,11 @@ export const LogicEngine = (() => {
     for (const [id, mest] of Object.entries(actieveMest)) {
       if (StateManager.isLocked(id)) continue;
 
-      model.variables[id] = {
-        afwijking: 1, // fictief doel: minimale verandering
-      };
-
+      model.variables[id] = { afwijking: 1 };
       for (const nut of ['stikstof', 'fosfaat', 'kalium', 'organisch', 'financieel']) {
-        const waarde = getGehaltePerNutriënt(nut, mest);
-        if (!model.variables[id][nut]) model.variables[id][nut] = 0;
-        model.variables[id][nut] = waarde;
+        model.variables[id][nut] = getGehaltePerNutriënt(nut, mest);
       }
-
-      model.ints[id] = 0; // continuous (tonnages)
+      model.ints[id] = 0;
     }
 
     for (const nut of locked) {
@@ -141,9 +136,13 @@ export const LogicEngine = (() => {
 
     model.constraints[nutId] = { equal: targetValue };
 
+    console.log("📦 LP-model opgebouwd:", JSON.parse(JSON.stringify(model)));
+
     try {
       const resultaat = window.solver.Solve(model);
-      if (!resultaat.feasible) throw new Error("Onoplosbaar");
+      console.log("📈 LP-resultaat:", resultaat);
+
+      if (!resultaat.feasible) throw new Error("Onoplosbaar LP-model");
 
       for (const [id, ton] of Object.entries(resultaat.solution)) {
         if (actieveMest[id]) {
@@ -151,6 +150,7 @@ export const LogicEngine = (() => {
         }
       }
     } catch (err) {
+      console.warn(`❌ LP-optimalisatie gefaald (${nutId}):`, err.message);
       UIController.shake(nutId);
     }
   }
