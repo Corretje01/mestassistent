@@ -144,7 +144,7 @@ export const LogicEngine = (() => {
 
       if (!resultaat.feasible) throw new Error("Onoplosbaar LP-model");
 
-      for (const [id, ton] of Object.entries(resultaat.solution)) {
+      for (const [id, ton] of Object.entries(resultaat)) {
         if (['feasible', 'result', 'bounded'].includes(id)) continue;
         if (actieveMest[id]) {
           StateManager.setMestTonnage(id, ton);
