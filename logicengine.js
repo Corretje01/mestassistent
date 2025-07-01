@@ -12,13 +12,11 @@ export const LogicEngine = (() => {
     console.log(`🟡 Slider wijziging: ${id} → ${newValue}`);
 
     if (sliderEl.disabled || StateManager.isLocked(id)) {
-      console.warn(`🔒 Slider ${id} is vergrendeld of uitgeschakeld.`);
       UIController.shake(id);
       return;
     }
 
     if (!isWithinSliderLimits(sliderEl, newValue)) {
-      console.warn(`⚠️ ${id} buiten slidergrenzen (${sliderEl.min}-${sliderEl.max})`);
       UIController.shake(id);
       return;
     }
@@ -69,7 +67,6 @@ export const LogicEngine = (() => {
 
       const totaalGehalte = opties.reduce((sum, o) => sum + o.gehalte, 0);
       if (totaalGehalte === 0) {
-        console.warn(`❌ Geen compenseerbare mestsoorten voor vergrendelde nutriënt ${nut}`);
         UIController.shake(id);
         return;
       }
@@ -85,7 +82,6 @@ export const LogicEngine = (() => {
       const huidig = oudeState.actieveMest[key].ton;
       const nieuw = huidig + tonDelta;
       if (nieuw < 0 || nieuw > 650) {
-        console.warn(`❌ Compensatie ${key} overschrijdt limieten (${nieuw} ton)`);
         UIController.shake(id);
         return;
       }
@@ -102,17 +98,22 @@ export const LogicEngine = (() => {
     const state = StateManager.getState();
     const actieveMest = state.actieveMest;
 
-    if (!actieveMest || Object.keys(actieveMest).length === 0) {
-      console.warn("⚠️ Geen actieve mestsoorten — LP-optimalisatie niet mogelijk");
-      return;
+    const sliderEl = document.getElementById(`slider-${nutId}`);
+    if (sliderEl) {
+      const min = Number(sliderEl.min || 0);
+      const max = Number(sliderEl.max || 999999);
+      if (targetValue < min || targetValue > max) {
+        console.warn(`❌ Waarde ${targetValue} buiten grenzen van ${nutId}: [${min}, ${max}]`);
+        UIController.shake(nutId);
+        return;
+      }
     }
 
-    const locked = Object.keys(state.locks || {})
-      .filter(key => state.locks[key] === true)
-      .filter(n => isNutrientSlider(n));
+    const lockedNutrients = ['stikstof', 'fosfaat', 'kalium', 'organisch', 'financieel']
+      .filter(n => StateManager.isLocked(n) && n !== nutId);
 
     const model = {
-      optimize: "afwijking",
+      optimize: "totaleTonnage",
       opType: "min",
       constraints: {},
       variables: {},
@@ -122,36 +123,43 @@ export const LogicEngine = (() => {
     for (const [id, mest] of Object.entries(actieveMest)) {
       if (StateManager.isLocked(id)) continue;
 
-      model.variables[id] = { afwijking: 1 };
+      const vars = {
+        totaleTonnage: 1
+      };
+
       for (const nut of ['stikstof', 'fosfaat', 'kalium', 'organisch', 'financieel']) {
-        model.variables[id][nut] = getGehaltePerNutriënt(nut, mest);
+        vars[nut] = getGehaltePerNutriënt(nut, mest);
       }
+
+      model.variables[id] = vars;
       model.ints[id] = 0;
+      model.constraints[id] = { min: 0 }; // geen negatieve tonnage
     }
 
-    for (const nut of locked) {
-      const huidig = CalculationEngine.berekenNutriënten(false)[nut];
-      model.constraints[nut] = { equal: huidig };
+    const huidigNutriënten = CalculationEngine.berekenNutriënten(false);
+
+    for (const nut of lockedNutrients) {
+      model.constraints[nut] = { equal: huidigNutriënten[nut] };
     }
 
     model.constraints[nutId] = { equal: targetValue };
 
-    console.log("📦 LP-model opgebouwd:", JSON.parse(JSON.stringify(model)));
+    console.log("📦 LP-model opgebouwd: ", model);
 
     try {
       const resultaat = window.solver.Solve(model);
-      console.log("📈 LP-resultaat:", resultaat);
+      console.log("📈 LP-resultaat: ", resultaat);
 
       if (!resultaat.feasible) throw new Error("Onoplosbaar LP-model");
 
-      for (const [id, ton] of Object.entries(resultaat)) {
-        if (['feasible', 'result', 'bounded'].includes(id)) continue;
+      for (const [id, ton] of Object.entries(resultaat.solution)) {
         if (actieveMest[id]) {
           StateManager.setMestTonnage(id, ton);
         }
       }
+
     } catch (err) {
-      console.warn(`❌ LP-optimalisatie gefaald (${nutId}):`, err.message);
+      console.error(`❌ LP-optimalisatie gefaald (${nutId}):`, err.message);
       UIController.shake(nutId);
     }
   }
