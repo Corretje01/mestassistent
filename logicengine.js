@@ -111,12 +111,24 @@ export const LogicEngine = (() => {
     for (const [id, mest] of Object.entries(actieveMest)) {
       if (StateManager.isLocked(id)) continue;
   
-      const maxTonnage = (() => {
-        let maxN = Infinity, maxP = Infinity;
-        if (mest.N_kg_per_ton > 0) maxN = ruimte.A / mest.N_kg_per_ton;
-        if (mest.P_kg_per_ton > 0) maxP = ruimte.C / mest.P_kg_per_ton;
-        return Math.min(maxN, maxP, 650); // 📏 Beperk tot realistisch maximum
-      })();
+      let maxTonnage;
+      const sliderEl = document.getElementById(`slider-${id}`);
+      if (!sliderEl) {
+        console.warn(`⚠️ Geen slider gevonden voor ${id}, mestsoort wordt overgeslagen in LP`);
+        continue; // sla deze mestsoort over
+      }
+      
+      const sliderMax = Number(sliderEl.max);
+      if (isNaN(sliderMax)) {
+        console.warn(`⚠️ Ongeldige max-waarde voor slider ${id}, mestsoort wordt overgeslagen in LP`);
+        continue; // ook overslaan
+      }
+      
+      let maxN = Infinity, maxP = Infinity;
+      if (mest.N_kg_per_ton > 0) maxN = ruimte.A / mest.N_kg_per_ton;
+      if (mest.P_kg_per_ton > 0) maxP = ruimte.C / mest.P_kg_per_ton;
+      
+      maxTonnage = Math.min(maxN, maxP, sliderMax);
   
       const varObj = {
         stikstof: getGehaltePerNutriënt('stikstof', mest),
