@@ -102,7 +102,7 @@ export const LogicEngine = (() => {
   
     const model = {
       optimize: 'kostenPerKgNutriënt',
-      opType: 'min',
+      opType: targetValue > huidigeNut[nutId] ? 'min' : 'max',
       constraints: {},
       variables: {},
       ints: {}
