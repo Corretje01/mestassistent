@@ -1,73 +1,67 @@
+<!-- mestplan.html -->
 <!DOCTYPE html>
 <html lang="nl">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MestAssistent - Optimaliseer je mestplan</title>
-  <link rel="stylesheet" href="./style.css">
-  <!-- Laad glpk.js via URL -->
-  <script src="https://unpkg.com/glpk.js@4.0.0/dist/glpk.min.js"></script>
-  <!-- Laad JavaScript-modules -->
-  <script type="module" src="./statemanager.js"></script>
-  <script type="module" src="./calculationengine.js"></script>
-  <script type="module" src="./validationengine.js"></script>
-  <script type="module" src="./uicontroller.js"></script>
-  <script type="module" src="./logicengine.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Optimaliseer je mestplan</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/mathjs@11/lib/browser/math.min.js"></script>
 </head>
 <body>
-  <header>
-    <nav>
-      <a href="/">Home</a>
-      <a href="/inloggen">Inloggen</a>
+  <header class="header">
+    <nav class="nav">
+      <a href="index.html" class="nav__item">Home</a>
+      <a href="#" class="nav__item nav__item--right">Inloggen</a>
     </nav>
   </header>
 
   <main class="container">
-    <section>
-      <h2>2. Optimaliseer je mestplan</h2>
-      <p>Kies je gewenste mestsoorten en pas de hoeveelheden aan met de schuifknoppen. Gebruik de 'Optimaliseer' knop voor een automatische berekening van jouw ideale mestplan.</p>
-    </section>
+    <h2>2. Optimaliseer je mestplan</h2>
+    <p>Kies je gewenste mestsoorten en pas de hoeveelheden aan met de schuifknoppen. Gebruik de 'Optimaliseer' knop voor een automatische berekening van jouw ideale mestplan.</p>
 
-    <section>
+    <!-- Stap 1: Selectie mestsoorten -->
+    <section id="mest-selectie" class="card">
       <h3>Selecteer type mest</h3>
       <div class="category">
-        <strong class="category__label">Drijfmest</strong>
-        <button class="btn mest-btn" id="drijfmest-varken">Varken</button>
-        <button class="btn mest-btn" id="drijfmest-koe">Koe</button>
+        <span class="category__label">Drijfmest</span>
+        <button class="btn mest-btn" data-type="drijfmest" data-animal="varken">Varken</button>
+        <button class="btn mest-btn" data-type="drijfmest" data-animal="koe">Koe</button>
       </div>
       <div class="category">
-        <strong class="category__label">Vaste mest</strong>
-        <button class="btn mest-btn" id="vastemest-varken">Varken</button>
-        <button class="btn mest-btn" id="vastemest-koe">Koe</button>
-        <button class="btn mest-btn" id="vastemest-geit">Geit</button>
-        <button class="btn mest-btn" id="vastemest-kip">Kip</button>
-        <button class="btn mest-btn" id="vastemest-paard">Paard</button>
+        <span class="category__label">Vaste mest</span>
+        <button class="btn mest-btn" data-type="vastemest" data-animal="varken">Varken</button>
+        <button class="btn mest-btn" data-type="vastemest" data-animal="koe">Koe</button>
+        <button class="btn mest-btn" data-type="vastemest" data-animal="geit">Geit</button>
+        <button class="btn mest-btn" data-type="vastemest" data-animal="kip">Kip</button>
+        <button class="btn mest-btn" data-type="vastemest" data-animal="paard">Paard</button>
       </div>
       <div class="category">
-        <strong class="category__label">Overig</strong>
-        <button class="btn mest-btn" id="compost">Compost</button>
-        <button class="btn mest-btn" id="champost">Champost</button>
-        <button class="btn mest-btn" id="digestaat">Digestaat</button>
+        <span class="category__label">Overig</span>
+        <button class="btn mest-btn" data-type="overig" data-animal="compost">Compost</button>
+        <button class="btn mest-btn" data-type="overig" data-animal="champost">Champost</button>
+        <button class="btn mest-btn" data-type="overig" data-animal="digestaat">Digestaat</button>
       </div>
     </section>
 
-    <section>
+    <!-- Dynamisch gegenereerde checkboxlijst -->
+    <div id="mestsoorten-container" class="mestsoorten-container"></div>
+
+    <!-- Stap 2: Maak mestplan -->
+    <section id="mestplan" class="card">
       <h3>Maak mestplan</h3>
-      <button class="btn btn--primary" id="optimaliseer-knop">Optimaliseer</button>
-      <div class="sliders-grid">
-        <div id="mest-sliders"></div>
-        <div id="nutrient-sliders"></div>
+      <button id="optimaliseer-btn" class="btn btn--primary">Optimaliseer</button>
+
+      <div id="sliders-container" class="sliders-grid" style="display: none;">
+        <!-- Standaard sliders komen hier -->
+        <div id="standard-sliders" class="sliders-grid"></div>
+
+        <!-- Dynamisch toegevoegde mestsliders -->
+        <div id="mestsliders" class="sliders-grid"></div>
       </div>
     </section>
   </main>
 
-  <footer>
-    <!-- Eventuele footer-inhoud -->
-  </footer>
-
-  <script type="module">
-    import { UIController } from './uicontroller.js';
-    UIController.init();
-  </script>
+  <script type="module" src="./main.js"></script>
 </body>
 </html>
