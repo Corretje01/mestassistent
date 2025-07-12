@@ -1,76 +1,71 @@
 <!DOCTYPE html>
 <html lang="nl">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Optimaliseer je mestplan</title>
-  <link rel="stylesheet" href="style.css" />
-
-  <!-- ✅ Math.js voor matrixbewerkingen -->
-  <script src="https://cdn.jsdelivr.net/npm/mathjs@11/lib/browser/math.min.js"></script>
-
-  <!-- ✅ LP Solver (lokaal gehoste versie van officiële simplex engine) -->
-  <script src="./scripts/solver.js"></script>
-  <script>
-    window.solver = solver;
-    console.log("✅ LP Solver geladen:", typeof solver?.Solve);
-  </script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MestAssistent - Optimaliseer je mestplan</title>
+  <link rel="stylesheet" href="styles.css">
+  <!-- Laad glpk.js via CDN -->
+  <script src="https://unpkg.com/glpk.js@4.0.0/dist/glpk.min.js"></script>
+  <!-- Laad JavaScript-modules -->
+  <script type="module" src="./statemanager.js"></script>
+  <script type="module" src="./calculationengine.js"></script>
+  <script type="module" src="./validationengine.js"></script>
+  <script type="module" src="./uicontroller.js"></script>
+  <script type="module" src="./logicengine.js"></script>
 </head>
 <body>
-  <header class="header">
-    <nav class="nav">
-      <a href="index.html" class="nav__item">Home</a>
-      <a href="#" class="nav__item nav__item--right">Inloggen</a>
+  <header>
+    <nav>
+      <a href="/">Home</a>
+      <a href="/inloggen">Inloggen</a>
     </nav>
   </header>
 
-  <main class="container">
-    <h2>2. Optimaliseer je mestplan</h2>
-    <p>Kies je gewenste mestsoorten en pas de hoeveelheden aan met de schuifknoppen. Gebruik de 'Optimaliseer' knop voor een automatische berekening van jouw ideale mestplan.</p>
+  <main>
+    <section>
+      <h2>2. Optimaliseer je mestplan</h2>
+      <p>Kies je gewenste mestsoorten en pas de hoeveelheden aan met de schuifknoppen. Gebruik de 'Optimaliseer' knop voor een automatische berekening van jouw ideale mestplan.</p>
+    </section>
 
-    <!-- Stap 1: Selectie mestsoorten -->
-    <section id="mest-selectie" class="card">
+    <section>
       <h3>Selecteer type mest</h3>
-      <div class="category">
-        <span class="category__label">Drijfmest</span>
-        <button class="btn mest-btn" data-type="drijfmest" data-animal="varken">Varken</button>
-        <button class="btn mest-btn" data-type="drijfmest" data-animal="koe">Koe</button>
-      </div>
-      <div class="category">
-        <span class="category__label">Vaste mest</span>
-        <button class="btn mest-btn" data-type="vastemest" data-animal="varken">Varken</button>
-        <button class="btn mest-btn" data-type="vastemest" data-animal="koe">Koe</button>
-        <button class="btn mest-btn" data-type="vastemest" data-animal="geit">Geit</button>
-        <button class="btn mest-btn" data-type="vastemest" data-animal="kip">Kip</button>
-        <button class="btn mest-btn" data-type="vastemest" data-animal="paard">Paard</button>
-      </div>
-      <div class="category">
-        <span class="category__label">Overig</span>
-        <button class="btn mest-btn" data-type="overig" data-animal="compost">Compost</button>
-        <button class="btn mest-btn" data-type="overig" data-animal="champost">Champost</button>
-        <button class="btn mest-btn" data-type="overig" data-animal="digestaat">Digestaat</button>
+      <div class="mest-keuzes">
+        <div>
+          <strong>Drijfmest</strong><br>
+          <label><input type="checkbox" id="drijfmest-varken">Varken</label><br>
+          <label><input type="checkbox" id="drijfmest-koe">Koe</label>
+        </div>
+        <div>
+          <strong>Vaste mest</strong><br>
+          <label><input type="checkbox" id="vastemest-varken">Varken</label><br>
+          <label><input type="checkbox" id="vastemest-koe">Koe</label><br>
+          <label><input type="checkbox" id="vastemest-geit">Geit</label><br>
+          <label><input type="checkbox" id="vastemest-kip">Kip</label><br>
+          <label><input type="checkbox" id="vastemest-paard">Paard</label>
+        </div>
+        <div>
+          <strong>Overig</strong><br>
+          <label><input type="checkbox" id="compost">Compost</label><br>
+          <label><input type="checkbox" id="champost">Champost</label><br>
+          <label><input type="checkbox" id="digestaat">Digestaat</label>
+        </div>
       </div>
     </section>
 
-    <!-- Dynamisch gegenereerde mestsoortenlijst -->
-    <div id="mestsoorten-container" class="mestsoorten-container"></div>
-
-    <!-- Stap 2: Maak mestplan -->
-    <section id="mestplan" class="card">
+    <section>
       <h3>Maak mestplan</h3>
-      <button id="optimaliseer-btn" class="btn btn--primary">Optimaliseer</button>
-
-      <div id="sliders-container" class="sliders-grid" style="display: none;">
-        <!-- Standaard nutrientensliders -->
-        <div id="standard-sliders" class="sliders-grid"></div>
-
-        <!-- Dynamisch toegevoegde mestsliders -->
-        <div id="mestsliders" class="sliders-grid"></div>
+      <button id="optimaliseer-knop">Optimaliseer</button>
+      <div id="sliders">
+        <!-- Dynamische sliders voor mest en nutriënten -->
+        <div id="mest-sliders"></div>
+        <div id="nutrient-sliders"></div>
       </div>
     </section>
   </main>
 
-  <!-- ✅ Main JavaScript entry point -->
-  <script type="module" src="./main.js"></script>
+  <footer>
+    <!-- Eventuele footer-inhoud -->
+  </footer>
 </body>
 </html>
