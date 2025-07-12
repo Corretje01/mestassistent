@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MestAssistent - Optimaliseer je mestplan</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="./style.css">
   <!-- Laad glpk.js via CDN -->
   <script src="https://unpkg.com/glpk.js@4.0.0/dist/glpk.min.js"></script>
   <!-- Laad JavaScript-modules -->
@@ -32,22 +32,22 @@
       <h3>Selecteer type mest</h3>
       <div class="category">
         <strong class="category__label">Drijfmest</strong>
-        <label><input type="checkbox" id="drijfmest-varken">Varken</label>
-        <label><input type="checkbox" id="drijfmest-koe">Koe</label>
+        <button class="btn mest-btn" id="drijfmest-varken">Varken</button>
+        <button class="btn mest-btn" id="drijfmest-koe">Koe</button>
       </div>
       <div class="category">
         <strong class="category__label">Vaste mest</strong>
-        <label><input type="checkbox" id="vastemest-varken">Varken</label>
-        <label><input type="checkbox" id="vastemest-koe">Koe</label>
-        <label><input type="checkbox" id="vastemest-geit">Geit</label>
-        <label><input type="checkbox" id="vastemest-kip">Kip</label>
-        <label><input type="checkbox" id="vastemest-paard">Paard</label>
+        <button class="btn mest-btn" id="vastemest-varken">Varken</button>
+        <button class="btn mest-btn" id="vastemest-koe">Koe</button>
+        <button class="btn mest-btn" id="vastemest-geit">Geit</button>
+        <button class="btn mest-btn" id="vastemest-kip">Kip</button>
+        <button class="btn mest-btn" id="vastemest-paard">Paard</button>
       </div>
       <div class="category">
         <strong class="category__label">Overig</strong>
-        <label><input type="checkbox" id="compost">Compost</label>
-        <label><input type="checkbox" id="champost">Champost</label>
-        <label><input type="checkbox" id="digestaat">Digestaat</label>
+        <button class="btn mest-btn" id="compost">Compost</button>
+        <button class="btn mest-btn" id="champost">Champost</button>
+        <button class="btn mest-btn" id="digestaat">Digestaat</button>
       </div>
     </section>
 
@@ -64,5 +64,10 @@
   <footer>
     <!-- Eventuele footer-inhoud -->
   </footer>
+
+  <script type="module">
+    import { UIController } from './uicontroller.js';
+    UIController.init();
+  </script>
 </body>
 </html>
