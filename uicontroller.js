@@ -23,12 +23,12 @@ export const UIController = (() => {
         const isActive = button.classList.contains('active');
         if (!isActive) {
           button.classList.add('active');
-          StateManager.setMestActief(id, true);
+          StateManager.addMestType(id, { ton: 0 });
           renderMestsoortSlider(id, button.textContent, 100);
           showSliders();
         } else {
           button.classList.remove('active');
-          StateManager.setMestActief(id, false);
+          StateManager.removeMestType(id);
           removeMestsoortSlider(id);
           if (!document.querySelector('.btn.mest-btn.active')) {
             hideSliders();
@@ -39,7 +39,7 @@ export const UIController = (() => {
   }
 
   function initStandardSliders() {
-    const ruimte = StateManager.getGebruiksruimte();
+    const ruimte = StateManager.getGebruiksruimte ? StateManager.getGebruiksruimte() : { A: 1000, B: 1000, C: 1000 };
     const nutrientContainer = document.getElementById('nutrient-sliders');
 
     const sliders = [
@@ -73,13 +73,17 @@ export const UIController = (() => {
 
     lockEl.addEventListener('change', (e) => {
       const locked = e.target.checked;
-      StateManager.setLock(id, locked);
+      if (typeof StateManager.setLock === 'function') {
+        StateManager.setLock(id, locked);
+      }
       if (sliderEl) sliderEl.disabled = locked;
       updateSliders();
     });
 
     sliderEl.addEventListener('input', (e) => {
-      LogicEngine.onSliderChange(id, parseFloat(e.target.value));
+      if (typeof LogicEngine.onSliderChange === 'function') {
+        LogicEngine.onSliderChange(id, parseFloat(e.target.value));
+      }
     });
   }
 
@@ -103,13 +107,17 @@ export const UIController = (() => {
 
     lockEl.addEventListener('change', (e) => {
       const locked = e.target.checked;
-      StateManager.setLock(id, locked);
+      if (typeof StateManager.setLock === 'function') {
+        StateManager.setLock(id, locked);
+      }
       if (sliderEl) sliderEl.disabled = locked;
       updateSliders();
     });
 
     sliderEl.addEventListener('input', (e) => {
-      LogicEngine.onSliderChange(id, parseFloat(e.target.value));
+      if (typeof LogicEngine.onSliderChange === 'function') {
+        LogicEngine.onSliderChange(id, parseFloat(e.target.value));
+      }
     });
   }
 
@@ -119,15 +127,15 @@ export const UIController = (() => {
   }
 
   function updateSliders() {
-    const nutDierlijk = CalculationEngine.berekenNutriënten(false);
-    const nutInclKunstmest = CalculationEngine.berekenNutriënten(true);
+    const nutDierlijk = CalculationEngine.berekenNutriënten ? CalculationEngine.berekenNutriënten(false) : { stikstof: 0, fosfaat: 0, kalium: 0, organisch: 0 };
+    const nutInclKunstmest = CalculationEngine.berekenNutriënten ? CalculationEngine.berekenNutriënten(true) : { financieel: 0 };
 
     const sliders = [
       { id: 'stikstof', value: nutDierlijk.stikstof, unit: 'kg' },
       { id: 'fosfaat', value: nutDierlijk.fosfaat, unit: 'kg' },
       { id: 'kalium', value: nutDierlijk.kalium, unit: 'kg' },
       { id: 'organisch', value: nutDierlijk.organisch, unit: 'kg' },
-      { id: 'kunststikstof', value: StateManager.getKunstmest(), unit: 'kg' },
+      { id: 'kunststikstof', value: StateManager.getKunstmest ? StateManager.getKunstmest() : 0, unit: 'kg' },
       { id: 'financieel', value: nutInclKunstmest.financieel, unit: 'eur' }
     ];
 
@@ -137,7 +145,7 @@ export const UIController = (() => {
       if (!sliderEl || !valueEl) return;
 
       const afgerond = Math.round(value * 10) / 10;
-      const locked = StateManager.isLocked(id);
+      const locked = StateManager.isLocked ? StateManager.isLocked(id) : false;
 
       sliderEl.disabled = locked;
       if (!locked) {
@@ -151,7 +159,7 @@ export const UIController = (() => {
   }
 
   function updateMestsoortenSliders() {
-    const actieveMest = StateManager.getActieveMest();
+    const actieveMest = StateManager.getActieveMest ? StateManager.getActieveMest() : {};
 
     for (const [id, mest] of Object.entries(actieveMest)) {
       const sliderEl = document.getElementById(`slider-${id}`);
@@ -159,7 +167,7 @@ export const UIController = (() => {
       if (!sliderEl || !valueEl) continue;
 
       const afgerond = Math.round(mest.ton * 10) / 10;
-      const locked = StateManager.isLocked(id);
+      const locked = StateManager.isLocked ? StateManager.isLocked(id) : false;
 
       sliderEl.disabled = locked;
       if (!locked) {
