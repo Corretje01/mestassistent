@@ -95,6 +95,12 @@ export const LogicEngine = (() => {
   }
 
   function handleNutrientChangeViaLP(nutId, doelWaarde) {
+    if (!window.GLPK) {
+      console.error('❌ glpk.js niet geladen');
+      UIController.shake(nutId);
+      return;
+    }
+    
     // Stap 1: Haal huidige staat en bereken delta
     const state = StateManager.getState();
     const actieveMest = state.actieveMest;
