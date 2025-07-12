@@ -608,3 +608,4 @@ h(z,z.La);L=Ad;K=jc;break;case 2:b.s>=Xb&&y("OPTIMAL SOLUTION FOUND"),L=K=ec}oa(
 z.head[z.p]),aa=0}return aa}var da=z.pb[z.q],ea=1E-5*(1+.01*z.ph);if(Math.abs(da)<ea&&(b.s>=mc&&y("piv = "+da+"; eps = "+ea+""),!ca)){ca=5;continue}H(z);ca&&E(z);da=z.Xa[z.p];ea=z.pb[z.q];if(Math.abs(da-ea)>1E-8*(1+Math.abs(da))||!(0<da&&0<ea||0>da&&0>ea)){b.s>=mc&&y("piv1 = "+da+"; piv2 = "+ea+"");if(1!=F||!ca){1!=F&&(F=0);ca=5;continue}0==z.Xa[z.p]&&(z.Wb++,z.Ab[z.Wb]=z.p);z.Xa[z.p]=ea}J(z);2==z.I&&(z.La[0]+=z.Ta[z.q]/z.eb*(z.Qe/z.Xa[z.p]));D=2;B(z);w=2;switch(b.ed){case oc:0<z.Ub&&R(z)}aa=e(z,
 z.p,z.head[z.h+z.q]);F=0==aa?2:z.valid=0;T(z);z.da++;0<ca&&ca--}};
 }(typeof exports === 'object' && exports || this));
+export default GLPK;
