@@ -30,34 +30,31 @@
 
     <section>
       <h3>Selecteer type mest</h3>
-      <div class="mest-keuzes">
-        <div>
-          <strong>Drijfmest</strong><br>
-          <label><input type="checkbox" id="drijfmest-varken">Varken</label><br>
-          <label><input type="checkbox" id="drijfmest-koe">Koe</label>
-        </div>
-        <div>
-          <strong>Vaste mest</strong><br>
-          <label><input type="checkbox" id="vastemest-varken">Varken</label><br>
-          <label><input type="checkbox" id="vastemest-koe">Koe</label><br>
-          <label><input type="checkbox" id="vastemest-geit">Geit</label><br>
-          <label><input type="checkbox" id="vastemest-kip">Kip</label><br>
-          <label><input type="checkbox" id="vastemest-paard">Paard</label>
-        </div>
-        <div>
-          <strong>Overig</strong><br>
-          <label><input type="checkbox" id="compost">Compost</label><br>
-          <label><input type="checkbox" id="champost">Champost</label><br>
-          <label><input type="checkbox" id="digestaat">Digestaat</label>
-        </div>
+      <div class="category">
+        <strong class="category__label">Drijfmest</strong>
+        <button class="btn mest-btn" id="drijfmest-varken">Varken</button>
+        <button class="btn mest-btn" id="drijfmest-koe">Koe</button>
+      </div>
+      <div class="category">
+        <strong class="category__label">Vaste mest</strong>
+        <button class="btn mest-btn" id="vastemest-varken">Varken</button>
+        <button class="btn mest-btn" id="vastemest-koe">Koe</button>
+        <button class="btn mest-btn" id="vastemest-geit">Geit</button>
+        <button class="btn mest-btn" id="vastemest-kip">Kip</button>
+        <button class="btn mest-btn" id="vastemest-paard">Paard</button>
+      </div>
+      <div class="category">
+        <strong class="category__label">Overig</strong>
+        <button class="btn mest-btn" id="compost">Compost</button>
+        <button class="btn mest-btn" id="champost">Champost</button>
+        <button class="btn mest-btn" id="digestaat">Digestaat</button>
       </div>
     </section>
 
     <section>
       <h3>Maak mestplan</h3>
-      <button id="optimaliseer-knop">Optimaliseer</button>
-      <div id="sliders">
-        <!-- Dynamische sliders voor mest en nutriënten -->
+      <button class="btn btn--primary" id="optimaliseer-knop">Optimaliseer</button>
+      <div class="sliders-grid">
         <div id="mest-sliders"></div>
         <div id="nutrient-sliders"></div>
       </div>
