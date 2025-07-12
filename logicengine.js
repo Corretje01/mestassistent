@@ -95,12 +95,15 @@ export const LogicEngine = (() => {
   }
 
   function handleNutrientChangeViaLP(nutId, targetValue) {
+    // 🔁 Forceer herberekening op basis van huidige mesttonnages
+    CalculationEngine.berekenNutriënten(true);
+  
     const state = StateManager.getState();
     const actieveMest = state.actieveMest;
     const ruimte = StateManager.getGebruiksruimte();
     const huidigeNut = CalculationEngine.berekenNutriënten(false);
   
-    const huidigeWaarde = huidigeNut[nutId] || 0;
+    const huidigeWaarde = huidigeNut[nutId] ?? 0;
     const delta = targetValue - huidigeWaarde;
     const richting = delta > 0 ? 'verhogen' : 'verlagen';
     const opType = delta > 0 ? 'min' : 'max';
@@ -123,11 +126,9 @@ export const LogicEngine = (() => {
         const kostenPerKgNut = gehalte > 0 ? prijsPerTon / gehalte : Infinity;
         const huidig = mest.ton;
   
-        // slider limieten ophalen
         const slider = document.getElementById(`slider-${id}`);
         const maxSlider = slider ? Number(slider.max) : 650;
   
-        // bereken max toegestaan door N/P ruimte
         let maxN = Infinity, maxP = Infinity;
         if (mest.N_kg_per_ton > 0) maxN = ruimte.A / mest.N_kg_per_ton;
         if (mest.P_kg_per_ton > 0) maxP = ruimte.C / mest.P_kg_per_ton;
@@ -136,7 +137,6 @@ export const LogicEngine = (() => {
         return { id, mest, gehalte, prijsPerTon, kostenPerKgNut, huidig, max: maxTonnage };
       });
   
-    // Sorteer mestsoorten op basis van kosten per kg nutriënt (afhankelijk van richting)
     const gesorteerd = [...mestData].sort((a, b) =>
       delta > 0 ? a.kostenPerKgNut - b.kostenPerKgNut : b.kostenPerKgNut - a.kostenPerKgNut
     );
@@ -162,7 +162,6 @@ export const LogicEngine = (() => {
       console.log(`📊 ${m.id} — €${m.prijsPerTon}/ton, ${m.gehalte} kg ${nutId}/ton → €${(m.kostenPerKgNut).toFixed(2)} per kg ${nutId} | huidig: ${m.huidig.toFixed(2)} ton | max: ${m.max.toFixed(1)} ton`);
     }
   
-    // Locked nutriënten behouden
     for (const nut of ['stikstof', 'fosfaat', 'kalium', 'organisch', 'financieel']) {
       if (StateManager.isLocked(nut)) {
         const lockedVal = huidigeNut[nut];
@@ -195,7 +194,6 @@ export const LogicEngine = (() => {
         }
       }
   
-      // Log het doelwaarde-resultaat verschil en synchroniseer visuele slider
       const herberekend = CalculationEngine.berekenNutriënten(false);
       const afwijking = Math.abs(herberekend[nutId] - targetValue);
   
