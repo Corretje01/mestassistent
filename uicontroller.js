@@ -9,10 +9,10 @@ import { ValidationEngine } from './validationengine.js';
 import { LogicEngine } from './logicengine.js';
 
 export const UIController = (() => {
+  let standardSlidersInitialized = false;
 
   function init() {
     initButtonListeners();
-    initStandardSliders();
   }
 
   function initButtonListeners() {
@@ -24,6 +24,10 @@ export const UIController = (() => {
         if (!isActive) {
           button.classList.add('active');
           StateManager.addMestType(id, { ton: 0 });
+          if (!standardSlidersInitialized) {
+            initStandardSliders();
+            standardSlidersInitialized = true;
+          }
           renderMestsoortSlider(id, button.textContent, 100);
           showSliders();
         } else {
@@ -32,6 +36,7 @@ export const UIController = (() => {
           removeMestsoortSlider(id);
           if (!document.querySelector('.btn.mest-btn.active')) {
             hideSliders();
+            standardSlidersInitialized = false; // Reset voor volgende keer
           }
         }
       });
