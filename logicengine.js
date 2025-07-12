@@ -115,6 +115,7 @@ export const LogicEngine = (() => {
       ints: {}
     };
   
+    // 1. Verzamel data per mestsoort
     const mestData = Object.entries(actieveMest)
       .filter(([id]) => !StateManager.isLocked(id))
       .map(([id, mest]) => {
@@ -123,27 +124,31 @@ export const LogicEngine = (() => {
         const kostenPerKgNut = gehalte > 0 ? prijsPerTon / gehalte : Infinity;
         const huidig = mest.ton;
   
-        // slider limieten ophalen
         const slider = document.getElementById(`slider-${id}`);
         const maxSlider = slider ? Number(slider.max) : 650;
   
-        // bereken max toegestaan door N/P ruimte
         let maxN = Infinity, maxP = Infinity;
         if (mest.N_kg_per_ton > 0) maxN = ruimte.A / mest.N_kg_per_ton;
         if (mest.P_kg_per_ton > 0) maxP = ruimte.C / mest.P_kg_per_ton;
         const maxTonnage = Math.min(maxN, maxP, maxSlider);
   
-        return { id, mest, gehalte, prijsPerTon, kostenPerKgNut, huidig, max: maxTonnage };
+        return {
+          id, mest, gehalte, prijsPerTon, kostenPerKgNut,
+          huidig, max: maxTonnage, min: 0
+        };
       });
   
-    // Sorteer: bij verlaging → hoogste €/kg eerst (dus minst gunstig), bij verhoging → laagste €/kg eerst
-    const gesorteerd = [...mestData].sort((a, b) =>
-      delta > 0 ? a.kostenPerKgNut - b.kostenPerKgNut : b.kostenPerKgNut - a.kostenPerKgNut
-    );
+    // 2. Sorteer op kosten per kg nutriënt
+    const gesorteerd = [...mestData].sort((a, b) => {
+      return delta > 0
+        ? a.kostenPerKgNut - b.kostenPerKgNut // Verhogen = goedkoopste eerst
+        : b.kostenPerKgNut - a.kostenPerKgNut; // Verlagen = duurste eerst
+    });
   
+    // 3. Bouw variabelen en constraints op
     for (const m of gesorteerd) {
-      if (delta < 0 && m.huidig <= 0) {
-        console.log(`🚫 ${m.id} op nul — uitgesloten voor verlaging`);
+      if (delta < 0 && m.huidig <= m.min + 0.001) {
+        console.log(`🚫 ${m.id} op of onder minimum (${m.huidig.toFixed(2)}t) — uitgesloten voor verlaging`);
         continue;
       }
   
@@ -157,12 +162,12 @@ export const LogicEngine = (() => {
   
       model.variables[m.id] = varObj;
       model.ints[m.id] = 0;
-      model.constraints[m.id] = { min: 0, max: m.max };
+      model.constraints[m.id] = { min: m.min, max: m.max };
   
-      console.log(`📊 ${m.id} — €${m.prijsPerTon}/ton, ${m.gehalte} kg ${nutId}/ton → €${(m.kostenPerKgNut).toFixed(2)} per kg ${nutId} | huidig: ${m.huidig.toFixed(2)} ton | max: ${m.max.toFixed(1)} ton`);
+      console.log(`📊 ${m.id} — €${m.prijsPerTon}/ton, ${m.gehalte} kg ${nutId}/ton → €${m.kostenPerKgNut.toFixed(2)} per kg ${nutId} | huidig: ${m.huidig.toFixed(2)}t | bereik: ${m.min}–${m.max}t`);
     }
   
-    // Locked nutriënten behouden
+    // 4. Locked nutriënten behouden
     for (const nut of ['stikstof', 'fosfaat', 'kalium', 'organisch', 'financieel']) {
       if (StateManager.isLocked(nut)) {
         const lockedVal = huidigeNut[nut];
@@ -171,6 +176,7 @@ export const LogicEngine = (() => {
       }
     }
   
+    // 5. Doelconstraint toevoegen
     model.constraints[nutId] = { equal: targetValue };
     console.log(`🧮 Target constraint ${nutId}: ${targetValue}`);
     console.log(`📦 LP-model opgebouwd:`, model);
@@ -195,7 +201,7 @@ export const LogicEngine = (() => {
         }
       }
   
-      // Valideer en synchroniseer slider visueel
+      // Herbereken de nieuwe nutriënten
       const herberekend = CalculationEngine.berekenNutriënten(false);
       const afwijking = Math.abs(herberekend[nutId] - targetValue);
   
