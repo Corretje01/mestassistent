@@ -1,6 +1,6 @@
 /**
  * uiController.js
- * Beheert alle DOM-interacties en updates van sliders
+ * Alle DOM interactie en UI rendering (inclusief mestsliders correct updaten)
  */
 
 import { StateManager } from './statemanager.js';
@@ -9,43 +9,9 @@ import { ValidationEngine } from './validationengine.js';
 import { LogicEngine } from './logicengine.js';
 
 export const UIController = (() => {
-  let standardSlidersInitialized = false;
-
-  function init() {
-    initButtonListeners();
-  }
-
-  function initButtonListeners() {
-    const buttons = document.querySelectorAll('.btn.mest-btn');
-    buttons.forEach(button => {
-      button.addEventListener('click', () => {
-        const id = button.id;
-        const isActive = button.classList.contains('active');
-        if (!isActive) {
-          button.classList.add('active');
-          StateManager.addMestType(id, { ton: 0 });
-          if (!standardSlidersInitialized) {
-            initStandardSliders();
-            standardSlidersInitialized = true;
-          }
-          renderMestsoortSlider(id, button.textContent, 100);
-          showSliders();
-        } else {
-          button.classList.remove('active');
-          StateManager.removeMestType(id);
-          removeMestsoortSlider(id);
-          if (!document.querySelector('.btn.mest-btn.active')) {
-            hideSliders();
-            standardSlidersInitialized = false; // Reset voor volgende keer
-          }
-        }
-      });
-    });
-  }
 
   function initStandardSliders() {
-    const ruimte = StateManager.getGebruiksruimte ? StateManager.getGebruiksruimte() : { A: 1000, B: 1000, C: 1000 };
-    const nutrientContainer = document.getElementById('nutrient-sliders');
+    const ruimte = StateManager.getGebruiksruimte();
 
     const sliders = [
       { id: 'stikstof', label: 'Stikstof dierlijk', max: ruimte.A, unit: 'kg' },
@@ -56,10 +22,11 @@ export const UIController = (() => {
       { id: 'financieel', label: 'Kosten', max: 10000, unit: 'eur' }
     ];
 
-    sliders.forEach(s => createStandardSlider(s.id, s.label, s.max, s.unit, nutrientContainer));
+    sliders.forEach(s => createStandardSlider(s.id, s.label, s.max, s.unit));
   }
 
-  function createStandardSlider(id, label, max, unit, container) {
+  function createStandardSlider(id, label, max, unit) {
+    const container = document.getElementById('sliders-container');
     const group = document.createElement('div');
     group.className = 'slider-group';
     group.id = `group-${id}`;
@@ -73,27 +40,17 @@ export const UIController = (() => {
     `;
     container.appendChild(group);
 
-    const lockEl = document.getElementById(`lock-${id}`);
-    const sliderEl = document.getElementById(`slider-${id}`);
-
-    lockEl.addEventListener('change', (e) => {
-      const locked = e.target.checked;
-      if (typeof StateManager.setLock === 'function') {
-        StateManager.setLock(id, locked);
-      }
-      if (sliderEl) sliderEl.disabled = locked;
-      updateSliders();
+    document.getElementById(`lock-${id}`).addEventListener('change', (e) => {
+      StateManager.setLock(id, e.target.checked);
     });
 
-    sliderEl.addEventListener('input', (e) => {
-      if (typeof LogicEngine.onSliderChange === 'function') {
-        LogicEngine.onSliderChange(id, parseFloat(e.target.value));
-      }
+    document.getElementById(`slider-${id}`).addEventListener('input', (e) => {
+      LogicEngine.onSliderChange(id, parseFloat(e.target.value));
     });
   }
 
   function renderMestsoortSlider(id, label, max) {
-    const container = document.getElementById('mest-sliders');
+    const container = document.getElementById('sliders-container');
     const group = document.createElement('div');
     group.className = 'slider-group';
     group.id = `group-${id}`;
@@ -107,40 +64,25 @@ export const UIController = (() => {
     `;
     container.appendChild(group);
 
-    const lockEl = document.getElementById(`lock-${id}`);
-    const sliderEl = document.getElementById(`slider-${id}`);
-
-    lockEl.addEventListener('change', (e) => {
-      const locked = e.target.checked;
-      if (typeof StateManager.setLock === 'function') {
-        StateManager.setLock(id, locked);
-      }
-      if (sliderEl) sliderEl.disabled = locked;
-      updateSliders();
+    document.getElementById(`lock-${id}`).addEventListener('change', (e) => {
+      StateManager.setLock(id, e.target.checked);
     });
 
-    sliderEl.addEventListener('input', (e) => {
-      if (typeof LogicEngine.onSliderChange === 'function') {
-        LogicEngine.onSliderChange(id, parseFloat(e.target.value));
-      }
+    document.getElementById(`slider-${id}`).addEventListener('input', (e) => {
+      LogicEngine.onSliderChange(id, parseFloat(e.target.value));
     });
-  }
-
-  function removeMestsoortSlider(id) {
-    const group = document.getElementById(`group-${id}`);
-    if (group) group.remove();
   }
 
   function updateSliders() {
-    const nutDierlijk = CalculationEngine.berekenNutriënten ? CalculationEngine.berekenNutriënten(false) : { stikstof: 0, fosfaat: 0, kalium: 0, organisch: 0 };
-    const nutInclKunstmest = CalculationEngine.berekenNutriënten ? CalculationEngine.berekenNutriënten(true) : { financieel: 0 };
+    const nutDierlijk = CalculationEngine.berekenNutriënten(false);
+    const nutInclKunstmest = CalculationEngine.berekenNutriënten(true);
 
     const sliders = [
       { id: 'stikstof', value: nutDierlijk.stikstof, unit: 'kg' },
       { id: 'fosfaat', value: nutDierlijk.fosfaat, unit: 'kg' },
       { id: 'kalium', value: nutDierlijk.kalium, unit: 'kg' },
       { id: 'organisch', value: nutDierlijk.organisch, unit: 'kg' },
-      { id: 'kunststikstof', value: StateManager.getKunstmest ? StateManager.getKunstmest() : 0, unit: 'kg' },
+      { id: 'kunststikstof', value: StateManager.getKunstmest(), unit: 'kg' },
       { id: 'financieel', value: nutInclKunstmest.financieel, unit: 'eur' }
     ];
 
@@ -150,21 +92,21 @@ export const UIController = (() => {
       if (!sliderEl || !valueEl) return;
 
       const afgerond = Math.round(value * 10) / 10;
-      const locked = StateManager.isLocked ? StateManager.isLocked(id) : false;
 
-      sliderEl.disabled = locked;
-      if (!locked) {
+      if (!StateManager.isLocked(id)) {
         sliderEl.value = afgerond;
       }
 
-      valueEl.textContent = `${afgerond} / ${sliderEl.max} ${unit}`;
+      const formattedVal = `${afgerond} ${unit}`;
+      const formattedMax = `${sliderEl.max} ${unit}`;
+      valueEl.textContent = `${formattedVal} / ${formattedMax}`;
     });
 
     updateMestsoortenSliders();
   }
 
   function updateMestsoortenSliders() {
-    const actieveMest = StateManager.getActieveMest ? StateManager.getActieveMest() : {};
+    const actieveMest = StateManager.getActieveMest();
 
     for (const [id, mest] of Object.entries(actieveMest)) {
       const sliderEl = document.getElementById(`slider-${id}`);
@@ -172,14 +114,14 @@ export const UIController = (() => {
       if (!sliderEl || !valueEl) continue;
 
       const afgerond = Math.round(mest.ton * 10) / 10;
-      const locked = StateManager.isLocked ? StateManager.isLocked(id) : false;
 
-      sliderEl.disabled = locked;
-      if (!locked) {
+      if (!StateManager.isLocked(id)) {
         sliderEl.value = afgerond;
       }
 
-      valueEl.textContent = `${afgerond} / ${sliderEl.max} ton`;
+      const formattedVal = `${afgerond} ton`;
+      const formattedMax = `${sliderEl.max} ton`;
+      valueEl.textContent = `${formattedVal} / ${formattedMax}`;
     }
   }
 
@@ -190,28 +132,23 @@ export const UIController = (() => {
     setTimeout(() => slider.classList.remove('shake'), 400);
   }
 
-  function showSliders() {
-    const mestContainer = document.getElementById('mest-sliders');
-    const nutrientContainer = document.getElementById('nutrient-sliders');
-    if (mestContainer) mestContainer.style.display = 'block';
-    if (nutrientContainer) nutrientContainer.style.display = 'block';
+  function showSlidersContainer() {
+    const container = document.getElementById('sliders-container');
+    if (container) container.style.display = 'block';
   }
 
-  function hideSliders() {
-    const mestContainer = document.getElementById('mest-sliders');
-    const nutrientContainer = document.getElementById('nutrient-sliders');
-    if (mestContainer) mestContainer.style.display = 'none';
-    if (nutrientContainer) nutrientContainer.style.display = 'none';
+  function hideSlidersContainer() {
+    const container = document.getElementById('sliders-container');
+    if (container) container.style.display = 'none';
   }
 
   return {
-    init,
     initStandardSliders,
     renderMestsoortSlider,
     updateSliders,
     shake,
-    showSliders,
-    hideSliders
+    showSlidersContainer,
+    hideSlidersContainer
   };
 
 })();
