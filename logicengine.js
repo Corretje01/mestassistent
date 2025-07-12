@@ -99,61 +99,70 @@ export const LogicEngine = (() => {
     const actieveMest = state.actieveMest;
     const ruimte = StateManager.getGebruiksruimte();
     const huidigeNut = CalculationEngine.berekenNutriënten(false);
-    const huidigeWaarde = huidigeNut[nutId];
   
-    const richting = targetValue > huidigeWaarde ? 'verhogen' : 'verlagen';
+    const huidigeWaarde = huidigeNut[nutId] || 0;
+    const delta = targetValue - huidigeWaarde;
+    const richting = delta > 0 ? 'verhogen' : 'verlagen';
+    const opType = delta > 0 ? 'min' : 'max';
+  
     console.log(`🔄 Doel: ${richting} van ${nutId} van ${huidigeWaarde} naar ${targetValue}`);
   
     const model = {
       optimize: 'financieel',
-      opType: richting === 'verhogen' ? 'min' : 'max',
+      opType: opType,
       constraints: {},
       variables: {},
       ints: {}
     };
   
-    for (const [id, mest] of Object.entries(actieveMest)) {
-      if (StateManager.isLocked(id)) continue;
+    const mestData = Object.entries(actieveMest)
+      .filter(([id]) => !StateManager.isLocked(id))
+      .map(([id, mest]) => {
+        const gehalte = getGehaltePerNutriënt(nutId, mest);
+        const prijsPerTon = mest.Inkoopprijs_per_ton ?? 0;
+        const kostenPerKgNut = gehalte > 0 ? prijsPerTon / gehalte : Infinity;
+        const huidig = mest.ton;
   
-      const sliderEl = document.getElementById(`slider-${id}`);
-      if (!sliderEl) {
-        console.warn(`⚠️ Geen slider gevonden voor ${id}, mestsoort wordt overgeslagen in LP`);
+        // slider limieten ophalen
+        const slider = document.getElementById(`slider-${id}`);
+        const maxSlider = slider ? Number(slider.max) : 650;
+  
+        // bereken max toegestaan door N/P ruimte
+        let maxN = Infinity, maxP = Infinity;
+        if (mest.N_kg_per_ton > 0) maxN = ruimte.A / mest.N_kg_per_ton;
+        if (mest.P_kg_per_ton > 0) maxP = ruimte.C / mest.P_kg_per_ton;
+        const maxTonnage = Math.min(maxN, maxP, maxSlider);
+  
+        return { id, mest, gehalte, prijsPerTon, kostenPerKgNut, huidig, max: maxTonnage };
+      });
+  
+    // Sorteer mestsoorten op basis van kosten per kg nutriënt (afhankelijk van richting)
+    const gesorteerd = [...mestData].sort((a, b) =>
+      delta > 0 ? a.kostenPerKgNut - b.kostenPerKgNut : b.kostenPerKgNut - a.kostenPerKgNut
+    );
+  
+    for (const m of gesorteerd) {
+      if (delta < 0 && m.huidig <= 0) {
+        console.log(`🚫 ${m.id} op nul — uitgesloten voor verlaging`);
         continue;
       }
   
-      const sliderMin = Number(sliderEl.min || 0);
-      const sliderMax = Number(sliderEl.max || 650);
-      const huidigTon = mest.ton;
-  
-      if (richting === 'verlagen' && huidigTon <= sliderMin + 0.001) {
-        console.log(`🚫 ${id} op nul — uitgesloten voor verlaging`);
-        continue;
-      }
-  
-      let maxN = Infinity, maxP = Infinity;
-      if (mest.N_kg_per_ton > 0) maxN = ruimte.A / mest.N_kg_per_ton;
-      if (mest.P_kg_per_ton > 0) maxP = ruimte.C / mest.P_kg_per_ton;
-      const maxTonnage = Math.min(maxN, maxP, sliderMax);
-  
-      const gehalte = getGehaltePerNutriënt(nutId, mest);
-      const prijsPerTon = (mest.Inkoopprijs_per_ton || 0) + 10;
-      const prijsPerKgNut = gehalte > 0 ? prijsPerTon / gehalte : 99999;
-  
-      const ppkLog = prijsPerKgNut === 99999 ? '∞' : `€${prijsPerKgNut.toFixed(2)}`;
-      console.log(`📊 ${id} — €${prijsPerTon}/ton, ${gehalte} kg ${nutId}/ton → ${ppkLog} per kg ${nutId} | huidig: ${huidigTon} ton | max: ${maxTonnage} ton`);
-  
-      model.variables[id] = {
-        stikstof: getGehaltePerNutriënt('stikstof', mest),
-        fosfaat: getGehaltePerNutriënt('fosfaat', mest),
-        kalium: getGehaltePerNutriënt('kalium', mest),
-        organisch: getGehaltePerNutriënt('organisch', mest),
-        financieel: richting === 'verhogen' ? prijsPerKgNut : -prijsPerKgNut
+      const varObj = {
+        stikstof: getGehaltePerNutriënt('stikstof', m.mest),
+        fosfaat: getGehaltePerNutriënt('fosfaat', m.mest),
+        kalium: getGehaltePerNutriënt('kalium', m.mest),
+        organisch: getGehaltePerNutriënt('organisch', m.mest),
+        financieel: getGehaltePerNutriënt('financieel', m.mest)
       };
   
-      model.ints[id] = 0;
-      model.constraints[id] = { min: sliderMin, max: maxTonnage };
+      model.variables[m.id] = varObj;
+      model.ints[m.id] = 0;
+      model.constraints[m.id] = { min: 0, max: m.max };
+  
+      console.log(`📊 ${m.id} — €${m.prijsPerTon}/ton, ${m.gehalte} kg ${nutId}/ton → €${(m.kostenPerKgNut).toFixed(2)} per kg ${nutId} | huidig: ${m.huidig.toFixed(2)} ton | max: ${m.max.toFixed(1)} ton`);
     }
   
+    // Locked nutriënten behouden
     for (const nut of ['stikstof', 'fosfaat', 'kalium', 'organisch', 'financieel']) {
       if (StateManager.isLocked(nut)) {
         const lockedVal = huidigeNut[nut];
@@ -164,7 +173,7 @@ export const LogicEngine = (() => {
   
     model.constraints[nutId] = { equal: targetValue };
     console.log(`🧮 Target constraint ${nutId}: ${targetValue}`);
-    console.log('📦 LP-model opgebouwd:', model);
+    console.log(`📦 LP-model opgebouwd:`, model);
   
     try {
       const resultaat = window.solver.Solve(model);
@@ -176,27 +185,30 @@ export const LogicEngine = (() => {
         return;
       }
   
-      console.log(`📦 Resultaat tonnages na LP-optimalisatie:`);
-      for (const [id, val] of Object.entries(resultaat)) {
-        if (id === 'result' || id === 'feasible' || id === 'bounded') continue;
-        console.log(`➡️ ${id}: ${val.toFixed(2)} ton`);
-      }
-  
-      console.log(`💰 Totale kostenresultaat (doelfunctie): €${resultaat.result.toFixed(2)}`);
-  
+      console.log('📦 Resultaat tonnages na LP-optimalisatie:');
       for (const id of Object.keys(actieveMest)) {
         if (StateManager.isLocked(id)) continue;
         const nieuweWaarde = resultaat[id];
         if (typeof nieuweWaarde === 'number') {
-          if (nieuweWaarde < 0 || nieuweWaarde > 650) {
-            console.warn(`⚠️ Ongeldige oplossing voor ${id}: ${nieuweWaarde} ton`);
-            UIController.shake(nutId);
-            return;
-          }
           StateManager.setMestTonnage(id, nieuweWaarde);
-          console.log(`✅ ${id} ingesteld op ${Math.round(nieuweWaarde * 10) / 10} ton`);
+          console.log(`➡️ ${id}: ${nieuweWaarde.toFixed(2)} ton`);
         }
       }
+  
+      // Log het doelwaarde-resultaat verschil en synchroniseer visuele slider
+      const herberekend = CalculationEngine.berekenNutriënten(false);
+      const afwijking = Math.abs(herberekend[nutId] - targetValue);
+  
+      const slider = document.getElementById(`slider-${nutId}`);
+      if (slider && afwijking < 0.5) {
+        slider.value = targetValue;
+        console.log(`🎯 Nutriëntenslider ${nutId} visueel gesynchroniseerd op ${targetValue}`);
+      } else {
+        console.warn(`⚠️ Nutriëntenslider ${nutId} niet gesynchroniseerd — afwijking ${afwijking.toFixed(2)} kg`);
+      }
+  
+      const kosten = resultaat.result ?? 0;
+      console.log(`💰 Totale kostenresultaat (doelfunctie): €${kosten.toFixed(2)}`);
     } catch (err) {
       console.log(`❌ LP-optimalisatie gefaald (${nutId}): ${err.message}`);
       UIController.shake(nutId);
