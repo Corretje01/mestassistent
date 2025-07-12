@@ -10,8 +10,37 @@ import { LogicEngine } from './logicengine.js';
 
 export const UIController = (() => {
 
+  function init() {
+    initButtonListeners();
+    initStandardSliders();
+  }
+
+  function initButtonListeners() {
+    const buttons = document.querySelectorAll('.btn.mest-btn');
+    buttons.forEach(button => {
+      button.addEventListener('click', () => {
+        const id = button.id;
+        const isActive = button.classList.contains('active');
+        if (!isActive) {
+          button.classList.add('active');
+          StateManager.setMestActief(id, true);
+          renderMestsoortSlider(id, button.textContent, 100);
+          showSliders();
+        } else {
+          button.classList.remove('active');
+          StateManager.setMestActief(id, false);
+          removeMestsoortSlider(id);
+          if (!document.querySelector('.btn.mest-btn.active')) {
+            hideSliders();
+          }
+        }
+      });
+    });
+  }
+
   function initStandardSliders() {
     const ruimte = StateManager.getGebruiksruimte();
+    const nutrientContainer = document.getElementById('nutrient-sliders');
 
     const sliders = [
       { id: 'stikstof', label: 'Stikstof dierlijk', max: ruimte.A, unit: 'kg' },
@@ -22,11 +51,10 @@ export const UIController = (() => {
       { id: 'financieel', label: 'Kosten', max: 10000, unit: 'eur' }
     ];
 
-    sliders.forEach(s => createStandardSlider(s.id, s.label, s.max, s.unit));
+    sliders.forEach(s => createStandardSlider(s.id, s.label, s.max, s.unit, nutrientContainer));
   }
 
-  function createStandardSlider(id, label, max, unit) {
-    const container = document.getElementById('sliders-container');
+  function createStandardSlider(id, label, max, unit, container) {
     const group = document.createElement('div');
     group.className = 'slider-group';
     group.id = `group-${id}`;
@@ -56,7 +84,7 @@ export const UIController = (() => {
   }
 
   function renderMestsoortSlider(id, label, max) {
-    const container = document.getElementById('sliders-container');
+    const container = document.getElementById('mest-sliders');
     const group = document.createElement('div');
     group.className = 'slider-group';
     group.id = `group-${id}`;
@@ -83,6 +111,11 @@ export const UIController = (() => {
     sliderEl.addEventListener('input', (e) => {
       LogicEngine.onSliderChange(id, parseFloat(e.target.value));
     });
+  }
+
+  function removeMestsoortSlider(id) {
+    const group = document.getElementById(`group-${id}`);
+    if (group) group.remove();
   }
 
   function updateSliders() {
@@ -144,23 +177,28 @@ export const UIController = (() => {
     setTimeout(() => slider.classList.remove('shake'), 400);
   }
 
-  function showSlidersContainer() {
-    const container = document.getElementById('sliders-container');
-    if (container) container.style.display = 'block';
+  function showSliders() {
+    const mestContainer = document.getElementById('mest-sliders');
+    const nutrientContainer = document.getElementById('nutrient-sliders');
+    if (mestContainer) mestContainer.style.display = 'block';
+    if (nutrientContainer) nutrientContainer.style.display = 'block';
   }
 
-  function hideSlidersContainer() {
-    const container = document.getElementById('sliders-container');
-    if (container) container.style.display = 'none';
+  function hideSliders() {
+    const mestContainer = document.getElementById('mest-sliders');
+    const nutrientContainer = document.getElementById('nutrient-sliders');
+    if (mestContainer) mestContainer.style.display = 'none';
+    if (nutrientContainer) nutrientContainer.style.display = 'none';
   }
 
   return {
+    init,
     initStandardSliders,
     renderMestsoortSlider,
     updateSliders,
     shake,
-    showSlidersContainer,
-    hideSlidersContainer
+    showSliders,
+    hideSliders
   };
 
 })();
