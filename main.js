@@ -1,7 +1,4 @@
 // main.js - Definitieve versie met GLPK-initialisatie (WebAssembly compliant)
-import GLPK from './scripts/glpk.mjs';
-window.GLPK = GLPK;
-
 import { StateManager } from './statemanager.js';
 import { UIController } from './uicontroller.js';
 import { LogicEngine } from './logicengine.js';
