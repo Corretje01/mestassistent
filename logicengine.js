@@ -118,7 +118,7 @@ export const LogicEngine = (() => {
     const model = {
       name: 'mestoptimalisatie',
       objective: {
-        direction: opType === 'min' ? window.GLP_MIN : window.GLP_MAX,
+        direction: opType === 'min' ? window.GLP_MAX : window.GLP_MIN,
         name: 'financieel',
         vars: []
       },
@@ -168,7 +168,7 @@ export const LogicEngine = (() => {
     for (const m of mestData) {
       model.objective.vars.push({
         name: m.id,
-        coef: getGehaltePerNutriënt('financieel', m.mest) // Kosten per ton
+        coef: -getGehaltePerNutriënt('financieel', m.mest) // Kosten per ton
       });
 
       // Voeg bounds toe (0 <= tonnage <= max)
