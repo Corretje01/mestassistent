@@ -256,33 +256,91 @@ export const LogicEngine = (() => {
 
     // Stap 9: Los LP-model op met glpk.js
     try {
-      const resultaat = GLPK.solve(model, {
-        tm_lim: 1000, // 1 seconde limiet
-        tol_bnd: 0.001, // Tolerantie voor beperkingen
-        tol_obj: 0.001 // Tolerantie voor doelstelling
+      const lp = window.glp_create_prob();
+      window.glp_set_prob_name(lp, 'mestoptimalisatie');
+      window.glp_set_obj_dir(lp, opType === 'min' ? window.GLP_MIN : window.GLP_MAX);
+    
+      // Voeg kolommen toe (mestsoorten)
+      const colIndices = {};
+      mestData.forEach((m, index) => {
+        const col = window.glp_add_cols(lp, 1);
+        window.glp_set_col_name(lp, col, m.id);
+        window.glp_set_col_bnds(lp, col, window.GLP_DB, m.min, m.max);
+        window.glp_set_obj_coef(lp, col, getGehaltePerNutriënt('financieel', m.mest));
+        colIndices[m.id] = col;
       });
-
-      console.log('📈 LP-resultaat:', resultaat);
-
-      if (resultaat.result.status !== GLPK.GLP_OPT && resultaat.result.status !== GLPK.GLP_FEAS) {
-        console.warn(`⚠️ Geen oplossing mogelijk voor ${nutId}. Status: ${resultaat.result.status}`);
+    
+      // Voeg rijen toe (beperkingen)
+      const rowIndices = {};
+      for (const nut of ['stikstof', 'fosfaat', 'kalium']) {
+        if (nutriëntLimieten[nut] !== undefined && (!StateManager.isLocked(nut) || nut !== nutId)) {
+          const row = window.glp_add_rows(lp, 1);
+          window.glp_set_row_name(lp, row, nut);
+          window.glp_set_row_bnds(lp, row, window.GLP_UP, 0, nutriëntLimieten[nut]);
+          rowIndices[nut] = row;
+        }
+      }
+      for (const nut of ['stikstof', 'fosfaat', 'kalium', 'organisch', 'financieel']) {
+        if (StateManager.isLocked(nut) && nut !== nutId) {
+          const row = window.glp_add_rows(lp, 1);
+          window.glp_set_row_name(lp, row, nut);
+          window.glp_set_row_bnds(lp, row, window.GLP_FX, huidigeNut[nut], huidigeNut[nut]);
+          rowIndices[nut] = row;
+        }
+      }
+      const doelRow = window.glp_add_rows(lp, 1);
+      window.glp_set_row_name(lp, doelRow, nutId);
+      window.glp_set_row_bnds(lp, doelRow, window.GLP_FX, doelWaarde, doelWaarde);
+      rowIndices[nutId] = doelRow;
+    
+      // Bouw coëfficiëntenmatrix
+      const ia = [0]; // Row indices
+      const ja = [0]; // Column indices
+      const ar = [0]; // Coefficients
+      let nz = 1; // Non-zero element counter
+      for (const nut of Object.keys(rowIndices)) {
+        for (const m of mestData) {
+          const gehalte = getGehaltePerNutriënt(nut, m.mest);
+          if (gehalte !== 0) {
+            ia[nz] = rowIndices[nut];
+            ja[nz] = colIndices[m.id];
+            ar[nz] = gehalte;
+            nz++;
+          }
+        }
+      }
+    
+      window.glp_load_matrix(lp, nz - 1, ia, ja, ar);
+    
+      // Los op
+      const result = window.glp_simplex(lp, {
+        tm_lim: 1000,
+        tol_bnd: 0.001,
+        tol_dj: 0.001
+      });
+    
+      if (result !== window.GLP_OPT && result !== window.GLP_FEAS) {
+        console.warn(`⚠️ Geen oplossing mogelijk voor ${nutId}. Status: ${result}`);
         UIController.shake(nutId);
+        window.glp_delete_prob(lp);
         return;
       }
-
-      // Stap 10: Verzamel tonnages
+    
       console.log('📦 Resultaat tonnages na LP-optimalisatie:');
       const tonnages = {};
       for (const id of Object.keys(actieveMest)) {
         if (StateManager.isLocked(id)) {
-          tonnages[id] = actieveMest[id].ton; // Behoud vergrendelde tonnages
+          tonnages[id] = actieveMest[id].ton;
           continue;
         }
-        const nieuweWaarde = resultaat.result.vars[id] || 0;
+        const col = colIndices[id];
+        const nieuweWaarde = col ? window.glp_get_col_prim(lp, col) : 0;
         tonnages[id] = nieuweWaarde;
         console.log(`➡️ ${id}: ${nieuweWaarde.toFixed(2)} ton`);
       }
-
+    
+      window.glp_delete_prob(lp);
+    
       // Stap 11: Valideer en pas tonnages toe
       const nieuweNutriënten = CalculationEngine.berekenNutriënten(false, tonnages);
       let geldig = true;
