@@ -316,6 +316,9 @@ export const LogicEngine = (() => {
       console.log("📋 Matrix ia:", ia.slice(1, nz));
       console.log("📋 Matrix ja:", ja.slice(1, nz));
       console.log("📋 Matrix ar:", ar.slice(1, nz));
+      console.log("📋 Aantal rijen:", window.glp_get_num_rows(lp));
+      console.log("📋 Aantal kolommen:", window.glp_get_num_cols(lp));
+      console.log("📋 Doelstelling coëfficiënten:", mestData.map(m => ({ id: m.id, coef: -getGehaltePerNutriënt('financieel', m.mest) })));
       
       // Los op
       const result = window.glp_simplex(lp, {
