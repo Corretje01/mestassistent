@@ -258,7 +258,7 @@ export const LogicEngine = (() => {
     try {
       const lp = window.glp_create_prob();
       window.glp_set_prob_name(lp, 'mestoptimalisatie');
-      window.glp_set_obj_dir(lp, opType === 'min' ? window.GLP_MIN : window.GLP_MAX);
+      window.glp_set_obj_dir(lp, opType === 'min' ? window.GLP_MAX : window.GLP_MIN);
     
       // Voeg kolommen toe (mestsoorten)
       const colIndices = {};
