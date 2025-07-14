@@ -1,20 +1,33 @@
-// main.js - Definitieve versie met GLPK-initialisatie (WebAssembly compliant)
 import { StateManager } from './statemanager.js';
 import { UIController } from './uicontroller.js';
 import { LogicEngine } from './logicengine.js';
 import { ValidationEngine } from './validationengine.js';
 
-window.onload = () => {
-  // Controleer of GLPK correct is ingeladen via global scope
-  if (typeof GLPK !== 'function') {
-    console.error("❌ GLPK is niet beschikbaar in window-scope.");
-    alert("⚠️ GLPK kon niet worden geladen. Controleer of het script correct is ingeladen.");
-    return;
-  }
+// Wacht tot GLPK is geladen door te controleren op window.glp_create_prob
+async function waitForGLPK() {
+  return new Promise((resolve, reject) => {
+    const maxAttempts = 100; // Max 10 seconden (100 * 100ms)
+    let attempts = 0;
+    const checkGLPK = () => {
+      if (typeof window.glp_create_prob !== "undefined") {
+        console.log("✅ GLPK succesvol geladen");
+        resolve(window);
+      } else if (attempts >= maxAttempts) {
+        reject(new Error("GLPK functies niet beschikbaar in window-scope"));
+      } else {
+        attempts++;
+        setTimeout(checkGLPK, 100); // Controleer elke 100ms
+      }
+    };
+    checkGLPK();
+  });
+}
 
-  GLPK().then(instance => {
-    window.GLPK = instance;
-    console.log("✅ GLPK is volledig geïnitialiseerd");
+// Hoofdinitialisatiefunctie
+async function initializeApp() {
+  try {
+    // Wacht op GLPK-initialisatie
+    await waitForGLPK();
 
     // Haal gebruiksruimte uit URL-queryparameters
     const queryParams = new URLSearchParams(window.location.search);
@@ -24,35 +37,33 @@ window.onload = () => {
 
     if (!totaalA || !totaalB || !totaalC) {
       alert("⚠️ Waarschuwing: gebruiksruimte ontbreekt. Controleer de invoer.");
+      return;
     }
 
-    // Init centrale state
+    // Stel gebruiksruimte in
     StateManager.setGebruiksruimte(totaalA, totaalB, totaalC);
 
-    // Init standaard sliders
+    // Initialiseer standaard sliders
     UIController.initStandardSliders();
     UIController.updateSliders();
 
-    // Laad mestsoorten.json dynamisch
+    // Laad mestsoorten.json
     let mestsoortenData = {};
+    try {
+      const response = await fetch('/data/mestsoorten.json');
+      mestsoortenData = await response.json();
+      StateManager.setMestTypes(mestsoortenData);
+      console.log("✅ mestsoorten.json geladen");
+    } catch (err) {
+      console.error("❌ Fout bij laden mestsoorten.json:", err);
+      alert("⚠️ Kan mestsoorten.json niet laden.");
+      return;
+    }
 
-    fetch('/data/mestsoorten.json')
-      .then(response => response.json())
-      .then(data => {
-        mestsoortenData = data;
-        StateManager.setMestTypes(data);
-        console.log("✅ mestsoorten.json geladen");
-      })
-      .catch(err => {
-        console.error("❌ Fout bij laden mestsoorten.json:", err);
-        alert("⚠️ Kan mestsoorten.json niet laden.");
-      });
-
-    // Event handlers voor mest-knoppen
+    // Voeg event handlers toe voor mest-knoppen
     document.querySelectorAll('.mest-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         btn.classList.toggle('active');
-
         const type = btn.dataset.type;
         const animal = btn.dataset.animal;
         const key = `${type}-${animal}`;
@@ -82,8 +93,11 @@ window.onload = () => {
         UIController.updateSliders();
       });
     });
-  }).catch(err => {
+  } catch (err) {
     console.error("❌ Fout bij initialisatie van GLPK:", err);
-    alert("⚠️ GLPK kon niet worden geïnitialiseerd. Optimalisatie is niet beschikbaar.");
-  });
-};
+    alert("⚠️ GLPK kon niet worden geladen. Controleer of het script correct is ingeladen.");
+  }
+}
+
+// Start initialisatie bij window.onload
+window.onload = initializeApp;
