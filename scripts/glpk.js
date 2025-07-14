@@ -11,7 +11,7 @@ function xassert(test){
 
 
 var
-    /** @const */GLP_DEBUG = false,
+    /** @const */GLP_DEBUG = true,
     /** @const */DBL_MAX = Number.MAX_VALUE,
     /** @const */DBL_MIN = Number.MIN_VALUE,
     /** @const */DBL_DIG = 16,
