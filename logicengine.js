@@ -95,7 +95,7 @@ export const LogicEngine = (() => {
   }
 
   function handleNutrientChangeViaLP(nutId, doelWaarde) {
-    if (!window.GLPK) {
+    if (!window.glp_create_prob) {
       console.error('❌ glpk.js niet geladen');
       UIController.shake(nutId);
       return;
