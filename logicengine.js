@@ -314,9 +314,15 @@ export const LogicEngine = (() => {
     
       // Los op
       const result = window.glp_simplex(lp, {
-        tm_lim: 1000,
-        tol_bnd: 0.001,
-        tol_dj: 0.001
+        msg_lev: window.GLP_MSG_ERR, // Alleen foutmeldingen loggen
+        meth: window.GLP_PRIMAL, // Gebruik primale simplexmethode
+        pricing: window.GLP_PT_STD, // Standaard prijsstelling
+        r_test: window.GLP_RT_STD, // Standaard ratio-test
+        tol_bnd: 0.001, // Tolerantie voor grenzen
+        tol_dj: 0.001, // Tolerantie voor duale variabelen
+        tol_piv: 0.001, // Tolerantie voor pivot-elementen
+        it_lim: 1000, // Maximale iteraties
+        tm_lim: 1000 // Maximale tijd in milliseconden
       });
     
       if (result !== window.GLP_OPT && result !== window.GLP_FEAS) {
