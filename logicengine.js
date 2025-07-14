@@ -314,7 +314,7 @@ export const LogicEngine = (() => {
     
       // Los op
       const result = window.glp_simplex(lp, {
-        msg_lev: window.GLP_MSG_ERR, // Alleen foutmeldingen loggen
+        msg_lev: window.GLP_MSG_ALL, // Alleen foutmeldingen loggen
         meth: window.GLP_PRIMAL, // Primale simplexmethode
         pricing: window.GLP_PT_STD, // Standaard prijsstelling
         r_test: window.GLP_RT_STD, // Standaard ratio-test
