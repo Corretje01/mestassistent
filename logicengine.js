@@ -311,10 +311,15 @@ export const LogicEngine = (() => {
       }
     
       window.glp_load_matrix(lp, nz - 1, ia, ja, ar);
-    
+      
+      // Debug: Log matrix voor controle
+      console.log("📋 Matrix ia:", ia.slice(1, nz));
+      console.log("📋 Matrix ja:", ja.slice(1, nz));
+      console.log("📋 Matrix ar:", ar.slice(1, nz));
+      
       // Los op
       const result = window.glp_simplex(lp, {
-        msg_lev: window.GLP_MSG_ERR, // Alleen foutmeldingen loggen
+        msg_lev: window.GLP_MSG_ALL, // Alle meldingen loggen
         meth: window.GLP_PRIMAL, // Primale simplexmethode
         pricing: window.GLP_PT_STD, // Standaard prijsstelling
         r_test: window.GLP_RT_STD, // Standaard ratio-test
@@ -329,7 +334,6 @@ export const LogicEngine = (() => {
       if (result !== window.GLP_OPT && result !== window.GLP_FEAS) {
         console.warn(`⚠️ Geen oplossing mogelijk voor ${nutId}. Status: ${result}`);
         UIController.shake(nutId);
-        window.glp_delete_prob(lp);
         return;
       }
     
@@ -345,9 +349,7 @@ export const LogicEngine = (() => {
         tonnages[id] = nieuweWaarde;
         console.log(`➡️ ${id}: ${nieuweWaarde.toFixed(2)} ton`);
       }
-    
-      window.glp_delete_prob(lp);
-    
+          
       // Stap 11: Valideer en pas tonnages toe
       const nieuweNutriënten = CalculationEngine.berekenNutriënten(false, tonnages);
       let geldig = true;
