@@ -118,7 +118,7 @@ export const LogicEngine = (() => {
     const model = {
       name: 'mestoptimalisatie',
       objective: {
-        direction: opType === 'min' ? GLPK.GLP_MIN : GLPK.GLP_MAX,
+        direction: opType === 'min' ? window.GLP_MIN : window.GLP_MAX,
         name: 'financieel',
         vars: []
       },
@@ -174,7 +174,7 @@ export const LogicEngine = (() => {
       // Voeg bounds toe (0 <= tonnage <= max)
       model.bounds.push({
         name: m.id,
-        type: GLPK.GLP_DB, // Dubbele bound (min en max)
+        type: window.GLP_DB, // Dubbele bound (min en max)
         lb: m.min,
         ub: m.max
       });
@@ -194,7 +194,7 @@ export const LogicEngine = (() => {
         const constraint = {
           name: nut,
           vars: [],
-          bnds: { type: GLPK.GLP_UP, ub: nutriëntLimieten[nut], lb: -Infinity }
+          bnds: { type: window.GLP_UP, ub: nutriëntLimieten[nut], lb: -Infinity }
         };
         for (const m of mestData) {
           const gehalte = getGehaltePerNutriënt(nut, m.mest);
@@ -216,7 +216,7 @@ export const LogicEngine = (() => {
         const constraint = {
           name: nut,
           vars: [],
-          bnds: { type: GLPK.GLP_FX, ub: vergrendeldeWaarde, lb: vergrendeldeWaarde } // Exacte gelijkheid
+          bnds: { type: window.GLP_FX, ub: vergrendeldeWaarde, lb: vergrendeldeWaarde } // Exacte gelijkheid
         };
         for (const m of mestData) {
           const gehalte = getGehaltePerNutriënt(nut, m.mest);
@@ -235,7 +235,7 @@ export const LogicEngine = (() => {
     const doelConstraint = {
       name: nutId,
       vars: [],
-      bnds: { type: GLPK.GLP_FX, ub: doelWaarde, lb: doelWaarde } // Exacte gelijkheid
+      bnds: { type: window.GLP_FX, ub: doelWaarde, lb: doelWaarde } // Exacte gelijkheid
     };
     for (const m of mestData) {
       const gehalte = getGehaltePerNutriënt(nutId, m.mest);
