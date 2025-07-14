@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <title>GLPK Test</title>
+</head>
+<body>
+  <h1>GLPK Test</h1>
+  <script src="scripts/glpk.js"></script>
+  <script>
+    async function testGLPK() {
+      try {
+        const GLPK = await window.GLPK();
+        const lp = GLPK.glp_create_prob();
+        console.log("✅ GLPK geladen, probleem aangemaakt:", lp);
+      } catch (error) {
+        console.error("❌ Fout bij laden van GLPK:", error);
+      }
+    }
+    testGLPK();
+  </script>
+</body>
+</html>
