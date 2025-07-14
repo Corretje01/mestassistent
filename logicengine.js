@@ -290,7 +290,7 @@ export const LogicEngine = (() => {
       }
       const doelRow = window.glp_add_rows(lp, 1);
       window.glp_set_row_name(lp, doelRow, nutId);
-      window.glp_set_row_bnds(lp, doelRow, window.GLP_DB, doelWaarde - 5, doelWaarde + 5);
+      window.glp_set_row_bnds(lp, doelRow, window.GLP_DB, doelWaarde - 0.1, doelWaarde + 0.1);
       rowIndices[nutId] = doelRow;
     
       // Bouw coëfficiëntenmatrix
