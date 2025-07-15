@@ -131,8 +131,8 @@ export const LogicEngine = (() => {
       .filter(([id]) => !StateManager.isLocked(id))
       .map(([id, mest]) => {
         const gehalte = getGehaltePerNutriënt(nutId, mest);
-        const prijsPerTon = mest.Inkoopprijs_per_ton ?? 0;
-        const kostenPerKgNut = gehalte > 0 ? prijsPerTon / gehalte : Infinity;
+        const prijsPerTonInclTransport = getPrijsPerTonInclTransport(mest);
+        const kostenPerKgNut = gehalte > 0 ? prijsPerTonInclTransport / gehalte : Infinity;
         const huidig = mest.ton;
 
         const slider = document.getElementById(`slider-${id}`);
@@ -267,8 +267,7 @@ export const LogicEngine = (() => {
         const col = window.glp_add_cols(lp, 1);
         window.glp_set_col_name(lp, col, m.id);
         window.glp_set_col_bnds(lp, col, window.GLP_DB, m.min, m.max);
-        const kosten = getGehaltePerNutriënt('financieel', m.mest);
-        window.glp_set_obj_coef(lp, col, opType === 'min' ? -kosten : kosten);
+        window.glp_set_obj_coef(lp, col, opType === 'min' ? -m.kostenPerKgNut : m.kostenPerKgNut);
         colIndices[m.id] = col;
       });
     
@@ -328,7 +327,14 @@ export const LogicEngine = (() => {
           console.error(`❌ Ongeldige matrixindex: ia[${i}] = ${ia[i]}, ja[${i}] = ${ja[i]}`);
         }
       }
-    
+
+      console.log(
+        'Matrix:', 
+        window.glp_get_num_rows(lp), '×', window.glp_get_num_cols(lp),
+        'Coefficients:',
+        mestData.map(m => ({ id: m.id, coef: m.kostenPerKgNut }))
+      );
+      
       window.glp_load_matrix(lp, nz - 1, ia, ja, ar);
       
       // Debug: Log matrix en probleemdetails
@@ -357,21 +363,22 @@ export const LogicEngine = (() => {
       }));
       
       // Los op
-      const result = window.glp_simplex(lp, {
-        msg_lev: window.GLP_MSG_ALL,
-        meth: window.GLP_PRIMAL,
-        pricing: window.GLP_PT_STD,
-        r_test: window.GLP_RT_STD,
-        tol_bnd: 0.001,
-        tol_dj: 0.001,
-        tol_piv: 0.001,
-        it_lim: 1000,
-        tm_lim: 1000,
+      const ret = window.glp_simplex(lp, {
+        msg_lev:  window.GLP_MSG_ALL,
+        meth:     window.GLP_PRIMAL,
+        pricing:  window.GLP_PT_STD,
+        r_test:   window.GLP_RT_STD,
+        tol_bnd:  0.001,
+        tol_dj:   0.001,
+        tol_piv:  0.001,
+        it_lim:   1000,
+        tm_lim:   1000,
         presolve: window.GLP_ON
       });
-    
-      if (result !== window.GLP_OPT && result !== window.GLP_FEAS) {
-        console.warn(`⚠️ Geen oplossing mogelijk voor ${nutId}. Status: ${result}`);
+      const status = window.glp_get_status(lp);
+      console.log(`GLPK simplex ret=${ret}, status=${status}`);
+      if (ret !== 0 || (status !== window.GLP_OPT && status !== window.GLP_FEAS)) {
+        console.warn(`⚠️ Geen oplossing voor ${nutId}: ret=${ret}, status=${status}`);
         UIController.shake(nutId);
         return;
       }
@@ -468,14 +475,21 @@ export const LogicEngine = (() => {
       financieel: tonDelta * ((mest.Inkoopprijs_per_ton || 0) + 10)
     };
   }
+  
+  // a) Helper voor prijs per ton incl. transport
+  function getPrijsPerTonInclTransport(mest) {
+    // Inkoopprijs per ton + vaste transportkosten
+    return (mest.Inkoopprijs_per_ton || 0) + 10;
+  }
 
+  // b) Puur voor nutriënt‑gehalte
   function getGehaltePerNutriënt(nut, mest) {
     switch (nut) {
       case 'stikstof': return mest.N_kg_per_ton || 0;
       case 'fosfaat': return mest.P_kg_per_ton || 0;
       case 'kalium': return mest.K_kg_per_ton || 0;
       case 'organisch': return (mest.OS_percent || 0) / 100;
-      case 'financieel': return (mest.Inkoopprijs_per_ton || 0) + 10;
+      
       default: return 0;
     }
   }
