@@ -137,11 +137,12 @@ export const LogicEngine = (() => {
         const slider = document.getElementById(`slider-${id}`);
         const maxSlider = slider ? Number(slider.max) : 650;
 
-        let maxN = Infinity, maxP = Infinity, maxK = Infinity;
+        let maxN = Infinity, maxP = Infinity, maxK = Infinity, maxO = Infinity;
         if (mest.N_kg_per_ton > 0) maxN = gebruiksruimte.A / mest.N_kg_per_ton;
         if (mest.P_kg_per_ton > 0) maxP = gebruiksruimte.C / mest.P_kg_per_ton;
         if (mest.K_kg_per_ton > 0) maxK = (gebruiksruimte.B * 1.25) / mest.K_kg_per_ton;
-        const maxTonnage = Math.min(maxN, maxP, maxK, maxSlider);
+        if (mest.OS_percent > 0) maxO = (gebruiksruimte.organisch || Infinity) / (mest.OS_percent / 100);
+        const maxTonnage = Math.min(maxN, maxP, maxK, maxO, maxSlider);
 
         return {
           id,
@@ -184,7 +185,8 @@ export const LogicEngine = (() => {
     const nutriëntLimieten = {
       stikstof: gebruiksruimte.A,
       fosfaat: gebruiksruimte.C,
-      kalium: gebruiksruimte.B * 1.25
+      kalium: gebruiksruimte.B * 1.25,
+      organisch: gebruiksruimte.organisch || Infinity
     };
 
     for (const nut of ['stikstof', 'fosfaat', 'kalium']) {
@@ -302,7 +304,12 @@ export const LogicEngine = (() => {
         for (const m of mestData) {
           const gehalte = getGehaltePerNutriënt(nut, m.mest);
           if (gehalte !== 0) {
-            ia[nz] = rowIndices[nut];
+            const rowIndex = rowIndices[nut];
+            if (usedRows.has(rowIndex)) {
+              console.warn(`⚠️ Dubbele rij-index voor ${nut}: ${rowIndex}`);
+            }
+            usedRows.add(rowIndex);
+            ia[nz] = rowIndex;
             ja[nz] = colIndices[m.id];
             ar[nz] = gehalte;
             nz++;
@@ -328,15 +335,21 @@ export const LogicEngine = (() => {
       console.log("📋 Aantal kolommen:", window.glp_get_num_cols(lp));
       console.log("📋 Doelstelling coëfficiënten (model):", mestData.map(m => ({ id: m.id, coef: opType === 'min' ? -getGehaltePerNutriënt('financieel', m.mest) : getGehaltePerNutriënt('financieel', m.mest) })));
       console.log("📋 Doelstelling coëfficiënten (GLPK):", mestData.map(m => ({ id: m.id, coef: window.glp_get_obj_coef(lp, colIndices[m.id]) })));
-      console.log("📋 GLPK rijbeperkingen:", Object.keys(rowIndices).map(nut => ({
-        name: nut,
-        bnds: {
-          type: window.glp_get_row_bnds(lp, rowIndices[nut]).type,
-          lb: window.glp_get_row_bnds(lp, rowIndices[nut]).lb,
-          ub: window.glp_get_row_bnds(lp, rowIndices[nut]).ub
-        }
+      console.log("📋 Modelbeperkingen:", model.subjectTo.map(c => ({
+        name: c.name,
+        bnds: c.bnds,
+        vars: c.vars
       })));
-    
+      console.log("📋 GLPK rijen:", Array.from({ length: window.glp_get_num_rows(lp) }, (_, i) => {
+        const row = i + 1;
+        return {
+          name: window.glp_get_row_name(lp, row),
+          lb: window.glp_get_row_lb(lp, row),
+          ub: window.glp_get_row_ub(lp, row),
+          type: window.glp_get_row_type(lp, row)
+        };
+      }));
+      
       // Los op
       const result = window.glp_simplex(lp, {
         msg_lev: window.GLP_MSG_ALL,
