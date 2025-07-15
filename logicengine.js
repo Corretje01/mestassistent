@@ -1,4 +1,3 @@
-// logicengine.js
 import { StateManager } from './statemanager.js';
 import { CalculationEngine } from './calculationengine.js';
 import { ValidationEngine } from './validationengine.js';
@@ -110,7 +109,7 @@ export const LogicEngine = (() => {
     const huidigeWaarde = huidigeNut[nutId] || 0;
     const delta = doelWaarde - huidigeWaarde;
     const richting = delta > 0 ? 'verhogen' : 'verlagen';
-    const opType = delta > 0 ? 'min' : 'max'; // Minimaliseer kosten bij verhogen, maximaliseer opbrengst bij verlagen
+    const opType = delta > 0 ? 'min' : 'max';
 
     console.log(`🔄 Doel: ${richting} van ${nutId} van ${huidigeWaarde.toFixed(2)} naar ${doelWaarde.toFixed(2)}`);
 
@@ -155,27 +154,25 @@ export const LogicEngine = (() => {
           min: 0
         };
       })
-      .filter(m => m.gehalte > 0); // Alleen mestsoorten met relevant gehalte
+      .filter(m => m.gehalte > 0);
 
-    // Stap 4: Controleer of er bruikbare mestsoorten zijn
     if (mestData.length === 0) {
       console.log(`🚫 Geen mestsoorten beschikbaar voor ${nutId} aanpassing`);
       UIController.shake(nutId);
       return;
     }
 
-    // Stap 5: Bouw variabelen en doelstelling
+    // Stap 4: Bouw variabelen en doelstelling
     for (const m of mestData) {
-      const kosten = getGehaltePerNutriënt('financieel', m.mest)
+      const kosten = getGehaltePerNutriënt('financieel', m.mest);
       model.objective.vars.push({
         name: m.id,
-        coef: opType === 'min' ? -kosten : kosten // Negeren bij maximalisatie, origineel bij minimalisatie
+        coef: opType === 'min' ? -kosten : kosten
       });
 
-      // Voeg bounds toe (0 <= tonnage <= max)
       model.bounds.push({
         name: m.id,
-        type: window.GLP_DB, // Dubbele bound (min en max)
+        type: window.GLP_DB,
         lb: m.min,
         ub: m.max
       });
@@ -183,7 +180,7 @@ export const LogicEngine = (() => {
       console.log(`📊 ${m.id} — €${m.prijsPerTon}/ton, ${m.gehalte} ${nutId}/ton → €${m.kostenPerKgNut.toFixed(2)} per ${nutId} | huidig: ${m.huidig.toFixed(2)}t | bereik: ${m.min}–${m.max}t`);
     }
 
-    // Stap 6: Voeg gebruiksruimte-beperkingen toe
+    // Stap 5: Voeg gebruiksruimte-beperkingen toe
     const nutriëntLimieten = {
       stikstof: gebruiksruimte.A,
       fosfaat: gebruiksruimte.C,
@@ -210,14 +207,14 @@ export const LogicEngine = (() => {
       }
     }
 
-    // Stap 7: Voeg vergrendelde nutriënten toe
+    // Stap 6: Voeg vergrendelde nutriënten toe
     for (const nut of ['stikstof', 'fosfaat', 'kalium', 'organisch', 'financieel']) {
       if (StateManager.isLocked(nut) && nut !== nutId) {
         const vergrendeldeWaarde = huidigeNut[nut];
         const constraint = {
           name: nut,
           vars: [],
-          bnds: { type: window.GLP_FX, ub: vergrendeldeWaarde, lb: vergrendeldeWaarde } // Exacte gelijkheid
+          bnds: { type: window.GLP_DB, ub: vergrendeldeWaarde + 0.1, lb: vergrendeldeWaarde - 0.1 }
         };
         for (const m of mestData) {
           const gehalte = getGehaltePerNutriënt(nut, m.mest);
@@ -227,12 +224,12 @@ export const LogicEngine = (() => {
         }
         if (constraint.vars.length > 0) {
           model.subjectTo.push(constraint);
-          console.log(`🔒 Vergrendelde beperking ${nut}: ${vergrendeldeWaarde}`);
+          console.log(`🔒 Vergrendelde beperking ${nut}: ${vergrendeldeWaarde} (±0.1)`);
         }
       }
     }
 
-    // Stap 8: Voeg doelbeperking toe
+    // Stap 7: Voeg doelbeperking toe
     const doelConstraint = {
       name: nutId,
       vars: [],
@@ -255,7 +252,7 @@ export const LogicEngine = (() => {
 
     console.log(`📦 LP-model opgebouwd:`, model);
 
-    // Stap 9: Los LP-model op met glpk.js
+    // Stap 8: Los LP-model op met glpk.js
     try {
       const lp = window.glp_create_prob();
       window.glp_set_prob_name(lp, 'mestoptimalisatie');
@@ -286,8 +283,9 @@ export const LogicEngine = (() => {
         if (StateManager.isLocked(nut) && nut !== nutId) {
           const row = window.glp_add_rows(lp, 1);
           window.glp_set_row_name(lp, row, nut);
-          window.glp_set_row_bnds(lp, row, window.GLP_FX, huidigeNut[nut], huidigeNut[nut]);
+          window.glp_set_row_bnds(lp, row, window.GLP_DB, huidigeNut[nut] - 0.1, huidigeNut[nut] + 0.1);
           rowIndices[nut] = row;
+          console.log(`🔒 GLPK Vergrendelde beperking ${nut}: ${huidigeNut[nut]} (±0.1)`);
         }
       }
       const doelRow = window.glp_add_rows(lp, 1);
@@ -312,9 +310,17 @@ export const LogicEngine = (() => {
         }
       }
     
+      // Valideer matrix
+      console.log("📋 Matrix validatie: nz =", nz - 1);
+      for (let i = 1; i < nz; i++) {
+        if (ia[i] < 1 || ia[i] > window.glp_get_num_rows(lp) || ja[i] < 1 || ja[i] > window.glp_get_num_cols(lp)) {
+          console.error(`❌ Ongeldige matrixindex: ia[${i}] = ${ia[i]}, ja[${i}] = ${ja[i]}`);
+        }
+      }
+    
       window.glp_load_matrix(lp, nz - 1, ia, ja, ar);
       
-      // Debug: Log matrix voor controle
+      // Debug: Log matrix en probleemdetails
       console.log("📋 Matrix ia:", ia.slice(1, nz));
       console.log("📋 Matrix ja:", ja.slice(1, nz));
       console.log("📋 Matrix ar:", ar.slice(1, nz));
@@ -322,19 +328,27 @@ export const LogicEngine = (() => {
       console.log("📋 Aantal kolommen:", window.glp_get_num_cols(lp));
       console.log("📋 Doelstelling coëfficiënten (model):", mestData.map(m => ({ id: m.id, coef: opType === 'min' ? -getGehaltePerNutriënt('financieel', m.mest) : getGehaltePerNutriënt('financieel', m.mest) })));
       console.log("📋 Doelstelling coëfficiënten (GLPK):", mestData.map(m => ({ id: m.id, coef: window.glp_get_obj_coef(lp, colIndices[m.id]) })));
-      
+      console.log("📋 GLPK rijbeperkingen:", Object.keys(rowIndices).map(nut => ({
+        name: nut,
+        bnds: {
+          type: window.glp_get_row_bnds(lp, rowIndices[nut]).type,
+          lb: window.glp_get_row_bnds(lp, rowIndices[nut]).lb,
+          ub: window.glp_get_row_bnds(lp, rowIndices[nut]).ub
+        }
+      })));
+    
       // Los op
       const result = window.glp_simplex(lp, {
-        msg_lev: window.GLP_MSG_ALL, // Alle meldingen loggen
-        meth: window.GLP_PRIMAL, // Primale simplexmethode
-        pricing: window.GLP_PT_STD, // Standaard prijsstelling
-        r_test: window.GLP_RT_STD, // Standaard ratio-test
-        tol_bnd: 0.001, // Tolerantie voor grenzen
-        tol_dj: 0.001, // Tolerantie voor duale variabelen
-        tol_piv: 0.001, // Tolerantie voor pivot-elementen
-        it_lim: 1000, // Maximale iteraties
-        tm_lim: 1000, // Maximale tijd in milliseconden
-        presolve: window.GLP_ON // Presolve inschakelen
+        msg_lev: window.GLP_MSG_ALL,
+        meth: window.GLP_PRIMAL,
+        pricing: window.GLP_PT_STD,
+        r_test: window.GLP_RT_STD,
+        tol_bnd: 0.001,
+        tol_dj: 0.001,
+        tol_piv: 0.001,
+        it_lim: 1000,
+        tm_lim: 1000,
+        presolve: window.GLP_OFF // Presolve uitgeschakeld
       });
     
       if (result !== window.GLP_OPT && result !== window.GLP_FEAS) {
@@ -356,7 +370,7 @@ export const LogicEngine = (() => {
         console.log(`➡️ ${id}: ${nieuweWaarde.toFixed(2)} ton`);
       }
           
-      // Stap 11: Valideer en pas tonnages toe
+      // Valideer en pas tonnages toe
       const nieuweNutriënten = CalculationEngine.berekenNutriënten(false, tonnages);
       let geldig = true;
       for (const nut of ['stikstof', 'fosfaat', 'kalium']) {
@@ -384,10 +398,10 @@ export const LogicEngine = (() => {
 
       pasTonnagesToe(tonnages);
 
-      // Stap 12: Update slider
+      // Update slider
       updateSlider(nutId, doelWaarde, huidigeNut);
 
-      const kosten = resultaat.result.z;
+      const kosten = window.glp_get_obj_val(lp);
       console.log(`💰 Totale kostenresultaat: €${kosten.toFixed(2)}`);
     } catch (err) {
       console.error(`❌ LP-optimalisatie gefaald (${nutId}): ${err.message}`);
@@ -396,7 +410,6 @@ export const LogicEngine = (() => {
   }
 
   function pasTonnagesToe(tonnages) {
-    // Stap 1: Valideer tonnages
     for (const [id, tonnage] of Object.entries(tonnages)) {
       if (typeof tonnage !== 'number' || isNaN(tonnage)) {
         console.warn(`⚠️ Ongeldige tonnage voor ${id}: ${tonnage}`);
@@ -404,21 +417,17 @@ export const LogicEngine = (() => {
       }
     }
 
-    // Stap 2: Pas tonnages toe binnen limieten
     for (const [id, tonnage] of Object.entries(tonnages)) {
       StateManager.setMestTonnage(id, Math.max(0, Math.min(tonnage, 650)));
     }
 
-    // Stap 3: Update UI
     UIController.updateSliders();
   }
 
   function updateSlider(nutId, doelWaarde, huidigeNut) {
-    // Stap 1: Bereken nieuwe nutriëntwaarden
     const herberekend = CalculationEngine.berekenNutriënten(false);
     const afwijking = Math.abs(herberekend[nutId] - doelWaarde);
 
-    // Stap 2: Update slider als afwijking klein is
     const slider = document.getElementById(`slider-${nutId}`);
     if (slider && afwijking < 0.5) {
       slider.value = doelWaarde;
