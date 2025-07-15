@@ -254,184 +254,148 @@ export const LogicEngine = (() => {
 
     console.log(`📦 LP-model opgebouwd:`, model);
 
-    // Stap 8: Los LP-model op met glpk.js
-    try {
-      const lp = window.glp_create_prob();
-      window.glp_set_prob_name(lp, 'mestoptimalisatie');
-      window.glp_set_obj_dir(lp, opType === 'min' ? window.GLP_MAX : window.GLP_MIN);
-    
-      // Voeg kolommen toe (mestsoorten)
-      const colIndices = {};
-      mestData.forEach((m, index) => {
-        const col = window.glp_add_cols(lp, 1);
-        window.glp_set_col_name(lp, col, m.id);
-        window.glp_set_col_bnds(lp, col, window.GLP_DB, m.min, m.max);
-        window.glp_set_obj_coef(lp, col, opType === 'min' ? -m.kostenPerKgNut : m.kostenPerKgNut);
-        colIndices[m.id] = col;
-      });
-    
-      // Voeg rijen toe (beperkingen)
-      const rowIndices = {};
-      for (const nut of ['stikstof', 'fosfaat', 'kalium', 'organisch']) {
-        if (nut !== nutId && nutriëntLimieten[nut] !== undefined && (!StateManager.isLocked(nut) || nut !== nutId)) {
-          const row = window.glp_add_rows(lp, 1);
-          window.glp_set_row_name(lp, row, nut);
-          window.glp_set_row_bnds(lp, row, window.GLP_UP, 0, nutriëntLimieten[nut]);
-          rowIndices[nut] = row;
-          console.log(`🔒 GLPK Nutriëntbeperking ${nut}: max ${nutriëntLimieten[nut]}`);
-        }
-      }
-      for (const nut of ['stikstof', 'fosfaat', 'kalium', 'organisch']) {
-        if (StateManager.isLocked(nut) && nut !== nutId) {
-          const row = window.glp_add_rows(lp, 1);
-          window.glp_set_row_name(lp, row, nut);
-          window.glp_set_row_bnds(lp, row, window.GLP_DB, huidigeNut[nut] - 0.1, huidigeNut[nut] + 0.1);
-          rowIndices[nut] = row;
-          console.log(`🔒 GLPK Vergrendelde beperking ${nut}: ${huidigeNut[nut]} (±0.1)`);
-        }
-      }
-      const doelRow = window.glp_add_rows(lp, 1);
-      window.glp_set_row_name(lp, doelRow, nutId);
-      window.glp_set_row_bnds(lp, doelRow, window.GLP_DB, doelWaarde - 0.1, doelWaarde + 0.1);
-      rowIndices[nutId] = doelRow;
-    
-      // Bouw coëfficiëntenmatrix
-      const ia = [0]; // Row indices
-      const ja = [0]; // Column indices
-      const ar = [0]; // Coefficients
-      let nz = 1; // Non-zero element counter
-      const usedEntries = new Set();
-      for (const nut of Object.keys(rowIndices)) {
-        for (const m of mestData) {
-          const gehalte = getGehaltePerNutriënt(nut, m.mest);
-          if (gehalte !== 0) {
-            const entryKey = `${rowIndices[nut]}-${m.id}`;
-            if (usedEntries.has(entryKey)) {
-              console.warn(`⚠️ Dubbele matrixinvoer voor ${nut}, mest: ${m.id}, rij: ${rowIndices[nut]}`);
-            } else {
-              usedEntries.add(entryKey);
-              ia[nz] = rowIndices[nut];
-              ja[nz] = colIndices[m.id];
-              ar[nz] = gehalte;
-              nz++;
-            }
-          }
-        }
-      }
-          
-      // Valideer matrix
-      console.log("📋 Matrix validatie: nz =", nz - 1);
-      for (let i = 1; i < nz; i++) {
-        if (ia[i] < 1 || ia[i] > window.glp_get_num_rows(lp) || ja[i] < 1 || ja[i] > window.glp_get_num_cols(lp)) {
-          console.error(`❌ Ongeldige matrixindex: ia[${i}] = ${ia[i]}, ja[${i}] = ${ja[i]}`);
-        }
-      }
-
-      console.log(
-        'Matrix:', 
-        window.glp_get_num_rows(lp), '×', window.glp_get_num_cols(lp),
-        'Coefficients:',
-        mestData.map(m => ({ id: m.id, coef: m.kostenPerKgNut }))
+  // Stap 8: Los LP-model op met glpk.js
+  try {
+    const lp = window.glp_create_prob();
+    window.glp_set_prob_name(lp, 'mestoptimalisatie');
+    window.glp_set_obj_dir(lp, opType === 'min' ? window.GLP_MAX : window.GLP_MIN);
+  
+    // Voeg kolommen toe (mestsoorten)
+    const colIndices = {};
+    mestData.forEach(m => {
+      const col = window.glp_add_cols(lp, 1);
+      window.glp_set_col_name(lp, col, m.id);
+      window.glp_set_col_bnds(lp, col, window.GLP_DB, m.min, m.max);
+      window.glp_set_obj_coef(
+        lp, col,
+        opType === 'min' ? -m.kostenPerKgNut : m.kostenPerKgNut
       );
-      
-      window.glp_load_matrix(lp, nz - 1, ia, ja, ar);
-      
-      // Debug: Log matrix en probleemdetails
-      console.log("📋 Matrix ia:", ia.slice(1, nz));
-      console.log("📋 Matrix ja:", ja.slice(1, nz));
-      console.log("📋 Matrix ar:", ar.slice(1, nz));
-      console.log("📋 Aantal rijen:", window.glp_get_num_rows(lp));
-      console.log("📋 Aantal kolommen:", window.glp_get_num_cols(lp));
-      console.log("📋 Doelstelling coëfficiënten (model):", mestData.map(m => ({ id: m.id, coef: opType === 'min' ? -m.kostenPerKgNut : m.kostenPerKgNut })));
-      console.log("📋 Doelstelling coëfficiënten (GLPK):", mestData.map(m => ({ id: m.id, coef: window.glp_get_obj_coef(lp, colIndices[m.id]) })));
-      console.log("📋 Modelbeperkingen:", model.subjectTo.map(c => ({
-        name: c.name,
-        bnds: c.bnds,
-        vars: c.vars
-      })));
-      console.log("📋 GLPK rijen:", Array.from({ length: window.glp_get_num_rows(lp) }, (_, i) => {
-        const row = i + 1;
-        return {
-          name: window.glp_get_row_name(lp, row),
-          bnds: {
-            type: window.glp_get_row_type(lp, row),
-            lb: window.glp_get_row_lb(lp, row),
-            ub: window.glp_get_row_ub(lp, row)
-          }
-        };
-      }));
-      
-      // Los op
-      const ret = window.glp_simplex(lp, {
-        msg_lev:  window.GLP_MSG_ALL,
-        meth:     window.GLP_PRIMAL,
-        pricing:  window.GLP_PT_STD,
-        r_test:   window.GLP_RT_STD,
-        tol_bnd:  0.001,
-        tol_dj:   0.001,
-        tol_piv:  0.001,
-        it_lim:   1000,
-        tm_lim:   1000,
-        presolve: window.GLP_ON
-      });
-      const status = window.glp_get_status(lp);
-      console.log(`GLPK simplex ret=${ret}, status=${status}`);
-      if (ret !== 0 || (status !== window.GLP_OPT && status !== window.GLP_FEAS)) {
-        console.warn(`⚠️ Geen oplossing voor ${nutId}: ret=${ret}, status=${status}`);
-        UIController.shake(nutId);
-        return;
+      colIndices[m.id] = col;
+    });
+  
+    // Voeg rijen toe (nutriënten‑beperkingen, zonder 'financieel')
+    const rowIndices = {};
+    for (const nut of ['stikstof','fosfaat','kalium','organisch']) {
+      if (nut !== nutId && nutriëntLimieten[nut] !== undefined && !StateManager.isLocked(nut)) {
+        const row = window.glp_add_rows(lp, 1);
+        window.glp_set_row_name(lp, row, nut);
+        window.glp_set_row_bnds(lp, row, window.GLP_UP, 0, nutriëntLimieten[nut]);
+        rowIndices[nut] = row;
+        console.log(`🔒 GLPK Nutriëntbeperking ${nut}: max ${nutriëntLimieten[nut]}`);
       }
-    
-      console.log('📦 Resultaat tonnages na LP-optimalisatie:');
-      const tonnages = {};
-      for (const id of Object.keys(actieveMest)) {
-        if (StateManager.isLocked(id)) {
-          tonnages[id] = actieveMest[id].ton;
-          continue;
-        }
-        const col = colIndices[id];
-        const nieuweWaarde = col ? window.glp_get_col_prim(lp, col) : 0;
-        tonnages[id] = nieuweWaarde;
-        console.log(`➡️ ${id}: ${nieuweWaarde.toFixed(2)} ton`);
-      }
-          
-      // Valideer en pas tonnages toe
-      const nieuweNutriënten = CalculationEngine.berekenNutriënten(false, tonnages);
-      let geldig = true;
-      for (const nut of ['stikstof', 'fosfaat', 'kalium', 'organisch']) {
-        if (nutriëntLimieten[nut] !== undefined && nieuweNutriënten[nut] > nutriëntLimieten[nut]) {
-          console.warn(`⚠️ Overschrijding: ${nut} = ${nieuweNutriënten[nut].toFixed(2)} > ${nutriëntLimieten[nut]}`);
-          geldig = false;
+    }
+    // Doel‑nutriënt
+    const doelRow = window.glp_add_rows(lp, 1);
+    window.glp_set_row_name(lp, doelRow, nutId);
+    window.glp_set_row_bnds(lp, doelRow, window.GLP_DB, doelWaarde - 0.1, doelWaarde + 0.1);
+    rowIndices[nutId] = doelRow;
+  
+    // Bouw coëfficiëntenmatrix
+    const ia = [0], ja = [0], ar = [0];
+    let nz = 1;
+    for (const nut of Object.keys(rowIndices)) {
+      for (const m of mestData) {
+        const gehalte = getGehaltePerNutriënt(nut, m.mest);
+        if (gehalte !== 0) {
+          ia[nz] = rowIndices[nut];
+          ja[nz] = colIndices[m.id];
+          ar[nz] = gehalte;
+          nz++;
         }
       }
-      for (const nut of ['stikstof', 'fosfaat', 'kalium', 'organisch']) {
-        if (StateManager.isLocked(nut) && nut !== nutId && Math.abs(nieuweNutriënten[nut] - huidigeNut[nut]) > 0.5) {
-          console.warn(`⚠️ Vergrendelde ${nut} gewijzigd: ${nieuweNutriënten[nut].toFixed(2)} ≠ ${huidigeNut[nut].toFixed(2)}`);
-          geldig = false;
-        }
-      }
-      if (Math.abs(nieuweNutriënten[nutId] - doelWaarde) > 0.1) {
-        console.warn(`⚠️ Doelnutriënt ${nutId} afwijking: ${nieuweNutriënten[nutId].toFixed(2)} ≠ ${doelWaarde}`);
+    }
+  
+    // Debug logging
+    console.log("📋 Matrix:", window.glp_get_num_rows(lp), "×", window.glp_get_num_cols(lp));
+    console.log("📋 Coëfficiënten (model):", mestData.map(m => ({
+      id: m.id,
+      coef: opType==='min' ? -m.kostenPerKgNut : m.kostenPerKgNut
+    })));
+    console.log("📋 Coëfficiënten (GLPK):", mestData.map(m => ({
+      id: m.id,
+      coef: window.glp_get_obj_coef(lp, colIndices[m.id])
+    })));
+  
+    window.glp_load_matrix(lp, nz - 1, ia, ja, ar);
+  
+    // Oplossen
+    const ret = window.glp_simplex(lp, {
+      msg_lev:  window.GLP_MSG_ALL,
+      meth:     window.GLP_PRIMAL,
+      pricing:  window.GLP_PT_STD,
+      r_test:   window.GLP_RT_STD,
+      tol_bnd:  0.001,
+      tol_dj:   0.001,
+      tol_piv:  0.001,
+      it_lim:   1000,
+      tm_lim:   1000,
+      presolve: window.GLP_ON
+    });
+    const status = window.glp_get_status(lp);
+    console.log(`GLPK simplex ret=${ret}, status=${status}`);
+    if (ret !== 0 || (status !== window.GLP_OPT && status !== window.GLP_FEAS)) {
+      console.warn(`⚠️ Geen oplossing voor ${nutId}: ret=${ret}, status=${status}`);
+      UIController.shake(nutId);
+      return;
+    }
+  
+    // Lees tonnages uit
+    console.log('📦 Resultaat tonnages na LP-optimalisatie:');
+    const tonnages = {};
+    mestData.forEach(m => {
+      const col = colIndices[m.id];
+      const val = window.glp_get_col_prim(lp, col);
+      tonnages[m.id] = val;
+      console.log(`➡️ ${m.id}: ${val.toFixed(2)} ton`);
+    });
+  
+    // Valideer m.b.v. directe berekening
+    const bereikteNutriënten = { stikstof:0, fosfaat:0, kalium:0, organisch:0 };
+    mestData.forEach(m => {
+      const ton = tonnages[m.id];
+      bereikteNutriënten.stikstof  += getGehaltePerNutriënt('stikstof',  m.mest) * ton;
+      bereikteNutriënten.fosfaat   += getGehaltePerNutriënt('fosfaat',   m.mest) * ton;
+      bereikteNutriënten.kalium    += getGehaltePerNutriënt('kalium',    m.mest) * ton;
+      bereikteNutriënten.organis   += getGehaltePerNutriënt('organisch', m.mest) * ton;
+    });
+  
+    let geldig = true;
+    ['stikstof','fosfaat','kalium','organisch'].forEach(nut => {
+      const bereikt = bereikteNutriënten[nut];
+      const limiet  = nutriëntLimieten[nut];
+      if (limiet !== undefined && bereikt > limiet + 1e-6) {
+        console.warn(`⚠️ Overschrijding ${nut}: ${bereikt.toFixed(2)} > ${limiet}`);
         geldig = false;
       }
-
-      if (!geldig) {
-        console.warn(`⚠️ LP-oplossing ongeldig, slider wordt niet aangepast`);
-        UIController.shake(nutId);
-        return;
+      if (StateManager.isLocked(nut) && nut !== nutId) {
+        const origineel = huidigeNut[nut];
+        if (Math.abs(bereikt - origineel) > 0.1) {
+          console.warn(`⚠️ Vergrendelde ${nut} gewijzigd: ${bereikt.toFixed(2)} ≠ ${origineel.toFixed(2)}`);
+          geldig = false;
+        }
       }
-
-      pasTonnagesToe(tonnages);
-
-      // Update slider
-      updateSlider(nutId, doelWaarde, huidigeNut);
-
-      const kosten = window.glp_get_obj_val(lp);
-      console.log(`💰 Totale kostenresultaat: €${kosten.toFixed(2)}`);
-    } catch (err) {
-      console.error(`❌ LP-optimalisatie gefaald (${nutId}): ${err.message}`);
-      UIController.shake(nutId);
+    });
+  
+    if (Math.abs(bereikteNutriënten[nutId] - doelWaarde) > 0.001) {
+      console.warn(`⚠️ Doelnutriënt ${nutId} afwijking: ${bereikteNutriënten[nutId].toFixed(2)} ≠ ${doelWaarde}`);
+      geldig = false;
     }
+  
+    if (!geldig) {
+      console.warn(`⚠️ LP-oplossing ongeldig, slider wordt niet aangepast`);
+      UIController.shake(nutId);
+      return;
+    }
+  
+    pasTonnagesToe(tonnages);
+    updateSlider(nutId, doelWaarde, huidigeNut);
+  
+    const kosten = window.glp_get_obj_val(lp);
+    console.log(`💰 Totale kostenresultaat: €${kosten.toFixed(2)}`);
+    
+  } catch (err) {
+    console.error(`❌ LP-optimalisatie gefaald (${nutId}): ${err.message}`);
+    UIController.shake(nutId);
   }
 
   function pasTonnagesToe(tonnages) {
@@ -441,66 +405,55 @@ export const LogicEngine = (() => {
         return;
       }
     }
-
     for (const [id, tonnage] of Object.entries(tonnages)) {
       StateManager.setMestTonnage(id, Math.max(0, Math.min(tonnage, 650)));
     }
-
     UIController.updateSliders();
   }
-
+  
   function updateSlider(nutId, doelWaarde, huidigeNut) {
     const herberekend = CalculationEngine.berekenNutriënten(false);
     const afwijking = Math.abs(herberekend[nutId] - doelWaarde);
-
     const slider = document.getElementById(`slider-${nutId}`);
     if (slider && afwijking < 0.5) {
       slider.value = doelWaarde;
       console.log(`🎯 Nutriëntenslider ${nutId} gesynchroniseerd op ${doelWaarde}`);
     } else {
-      console.warn(`⚠️ Nutriëntenslider ${nutId} niet gesynchroniseerd — afwijking ${afwijking.toFixed(2)} ${nutId}`);
-      if (slider) {
-        UIController.shake(nutId);
-      }
+      console.warn(`⚠️ Nutriëntenslider ${nutId} niet gesynchroniseerd — afwijking ${afwijking.toFixed(2)}`);
+      if (slider) UIController.shake(nutId);
     }
   }
-
+  
   function berekenDeltaNutriënten(mest, tonDelta) {
     return {
-      stikstof: tonDelta * (mest.N_kg_per_ton || 0),
-      fosfaat: tonDelta * (mest.P_kg_per_ton || 0),
-      kalium: tonDelta * (mest.K_kg_per_ton || 0),
+      stikstof:  tonDelta * (mest.N_kg_per_ton || 0),
+      fosfaat:   tonDelta * (mest.P_kg_per_ton || 0),
+      kalium:    tonDelta * (mest.K_kg_per_ton || 0),
       organisch: tonDelta * ((mest.OS_percent || 0) / 100),
       financieel: tonDelta * ((mest.Inkoopprijs_per_ton || 0) + 10)
     };
   }
   
-  // a) Helper voor prijs per ton incl. transport
   function getPrijsPerTonInclTransport(mest) {
-    // Inkoopprijs per ton + vaste transportkosten
     return (mest.Inkoopprijs_per_ton || 0) + 10;
   }
-
-  // b) Puur voor nutriënt‑gehalte
+  
   function getGehaltePerNutriënt(nut, mest) {
     switch (nut) {
-      case 'stikstof': return mest.N_kg_per_ton || 0;
-      case 'fosfaat': return mest.P_kg_per_ton || 0;
-      case 'kalium': return mest.K_kg_per_ton || 0;
-      case 'organisch': return (mest.OS_percent || 0) / 100;
-      
-      default: return 0;
+      case 'stikstof':  return mest.N_kg_per_ton   || 0;
+      case 'fosfaat':   return mest.P_kg_per_ton   || 0;
+      case 'kalium':    return mest.K_kg_per_ton   || 0;
+      case 'organisch': return (mest.OS_percent||0)/100;
+      default:          return 0;
     }
   }
-
+    
   function isNutrientSlider(id) {
     return ['stikstof', 'fosfaat', 'kalium', 'organisch', 'financieel'].includes(id);
   }
 
   function isWithinSliderLimits(slider, value) {
-    const min = Number(slider.min);
-    const max = Number(slider.max);
-    return value >= min && value <= max;
+    return value >= Number(slider.min) && value <= Number(slider.max);
   }
 
   function updateStikstofMaxDoorKunstmest() {
