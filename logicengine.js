@@ -281,7 +281,7 @@ export const LogicEngine = (() => {
           console.log(`🔒 GLPK Nutriëntbeperking ${nut}: max ${nutriëntLimieten[nut]}`);
         }
       }
-      for (const nut of ['stikstof', 'fosfaat', 'kalium', 'organisch', 'financieel']) {
+      for (const nut of ['stikstof', 'fosfaat', 'kalium', 'organisch']) {
         if (StateManager.isLocked(nut) && nut !== nutId) {
           const row = window.glp_add_rows(lp, 1);
           window.glp_set_row_name(lp, row, nut);
@@ -342,7 +342,7 @@ export const LogicEngine = (() => {
       console.log("📋 Matrix ar:", ar.slice(1, nz));
       console.log("📋 Aantal rijen:", window.glp_get_num_rows(lp));
       console.log("📋 Aantal kolommen:", window.glp_get_num_cols(lp));
-      console.log("📋 Doelstelling coëfficiënten (model):", mestData.map(m => ({ id: m.id, coef: opType === 'min' ? -getGehaltePerNutriënt('financieel', m.mest) : getGehaltePerNutriënt('financieel', m.mest) })));
+      console.log("📋 Doelstelling coëfficiënten (model):", mestData.map(m => ({ id: m.id, coef: opType === 'min' ? -m.kostenPerKgNut : m.kostenPerKgNut })));
       console.log("📋 Doelstelling coëfficiënten (GLPK):", mestData.map(m => ({ id: m.id, coef: window.glp_get_obj_coef(lp, colIndices[m.id]) })));
       console.log("📋 Modelbeperkingen:", model.subjectTo.map(c => ({
         name: c.name,
@@ -398,13 +398,13 @@ export const LogicEngine = (() => {
       // Valideer en pas tonnages toe
       const nieuweNutriënten = CalculationEngine.berekenNutriënten(false, tonnages);
       let geldig = true;
-      for (const nut of ['stikstof', 'fosfaat', 'kalium']) {
+      for (const nut of ['stikstof', 'fosfaat', 'kalium', 'organisch']) {
         if (nutriëntLimieten[nut] !== undefined && nieuweNutriënten[nut] > nutriëntLimieten[nut]) {
           console.warn(`⚠️ Overschrijding: ${nut} = ${nieuweNutriënten[nut].toFixed(2)} > ${nutriëntLimieten[nut]}`);
           geldig = false;
         }
       }
-      for (const nut of ['stikstof', 'fosfaat', 'kalium', 'organisch', 'financieel']) {
+      for (const nut of ['stikstof', 'fosfaat', 'kalium', 'organisch']) {
         if (StateManager.isLocked(nut) && nut !== nutId && Math.abs(nieuweNutriënten[nut] - huidigeNut[nut]) > 0.5) {
           console.warn(`⚠️ Vergrendelde ${nut} gewijzigd: ${nieuweNutriënten[nut].toFixed(2)} ≠ ${huidigeNut[nut].toFixed(2)}`);
           geldig = false;
