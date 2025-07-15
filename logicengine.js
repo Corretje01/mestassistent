@@ -190,7 +190,7 @@ export const LogicEngine = (() => {
     };
 
     for (const nut of ['stikstof', 'fosfaat', 'kalium', 'organisch']) {
-      if (nutriëntLimieten[nut] !== undefined && (!StateManager.isLocked(nut) || nut !== nutId)) {
+      if (nut !== nutId && nutriëntLimieten[nut] !== undefined && !StateManager.isLocked(nut)) {
         const constraint = {
           name: nut,
           vars: [],
@@ -279,6 +279,7 @@ export const LogicEngine = (() => {
           window.glp_set_row_name(lp, row, nut);
           window.glp_set_row_bnds(lp, row, window.GLP_UP, 0, nutriëntLimieten[nut]);
           rowIndices[nut] = row;
+          console.log(`🔒 GLPK Nutriëntbeperking ${nut}: max ${nutriëntLimieten[nut]}`);
         }
       }
       for (const nut of ['stikstof', 'fosfaat', 'kalium', 'organisch', 'financieel']) {
@@ -300,24 +301,25 @@ export const LogicEngine = (() => {
       const ja = [0]; // Column indices
       const ar = [0]; // Coefficients
       let nz = 1; // Non-zero element counter
-      const usedRows = new Set();
+      const usedEntries = new Set();
       for (const nut of Object.keys(rowIndices)) {
         for (const m of mestData) {
           const gehalte = getGehaltePerNutriënt(nut, m.mest);
           if (gehalte !== 0) {
-            const rowIndex = rowIndices[nut];
-            if (usedRows.has(rowIndex)) {
-              console.warn(`⚠️ Dubbele rij-index voor ${nut}: ${rowIndex}`);
+            const entryKey = `${rowIndices[nut]}-${m.id}`;
+            if (usedEntries.has(entryKey)) {
+              console.warn(`⚠️ Dubbele matrixinvoer voor ${nut}, mest: ${m.id}, rij: ${rowIndices[nut]}`);
+            } else {
+              usedEntries.add(entryKey);
+              ia[nz] = rowIndices[nut];
+              ja[nz] = colIndices[m.id];
+              ar[nz] = gehalte;
+              nz++;
             }
-            usedRows.add(rowIndex);
-            ia[nz] = rowIndex;
-            ja[nz] = colIndices[m.id];
-            ar[nz] = gehalte;
-            nz++;
           }
         }
       }
-    
+          
       // Valideer matrix
       console.log("📋 Matrix validatie: nz =", nz - 1);
       for (let i = 1; i < nz; i++) {
