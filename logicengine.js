@@ -166,9 +166,10 @@ export const LogicEngine = (() => {
 
     // Stap 5: Bouw variabelen en doelstelling
     for (const m of mestData) {
+      const kosten = getGehaltePerNutriënt('financieel', m.mest)
       model.objective.vars.push({
         name: m.id,
-        coef: -getGehaltePerNutriënt('financieel', m.mest) // Kosten per ton
+        coef: opType === 'min' ? -kosten : kosten // Negeren bij maximalisatie, origineel bij minimalisatie
       });
 
       // Voeg bounds toe (0 <= tonnage <= max)
@@ -318,7 +319,7 @@ export const LogicEngine = (() => {
       console.log("📋 Matrix ar:", ar.slice(1, nz));
       console.log("📋 Aantal rijen:", window.glp_get_num_rows(lp));
       console.log("📋 Aantal kolommen:", window.glp_get_num_cols(lp));
-      console.log("📋 Doelstelling coëfficiënten:", mestData.map(m => ({ id: m.id, coef: -getGehaltePerNutriënt('financieel', m.mest) })));
+      console.log("📋 Doelstelling coëfficiënten:", mestData.map(m => ({ id: m.id, coef: opType === 'min' ? -getGehaltePerNutriënt('financieel', m.mest) : getGehaltePerNutriënt('financieel', m.mest) })));
       
       // Los op
       const result = window.glp_simplex(lp, {
