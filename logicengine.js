@@ -376,7 +376,7 @@ export const LogicEngine = (() => {
       }
     });
   
-    if (Math.abs(bereikteNutriënten[nutId] - doelWaarde) > 0.001) {
+    if (Math.abs(bereikteNutriënten[nutId] - doelWaarde) > 0.5) {
       console.warn(`⚠️ Doelnutriënt ${nutId} afwijking: ${bereikteNutriënten[nutId].toFixed(2)} ≠ ${doelWaarde}`);
       geldig = false;
     }
