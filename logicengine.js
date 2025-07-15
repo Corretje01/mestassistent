@@ -236,7 +236,7 @@ export const LogicEngine = (() => {
     const doelConstraint = {
       name: nutId,
       vars: [],
-      bnds: { type: window.GLP_FX, ub: doelWaarde, lb: doelWaarde } // Exacte gelijkheid
+      bnds: { type: window.GLP_DB, ub: doelWaarde + 0.1, lb: doelWaarde - 0.1 }
     };
     for (const m of mestData) {
       const gehalte = getGehaltePerNutriënt(nutId, m.mest);
@@ -267,7 +267,8 @@ export const LogicEngine = (() => {
         const col = window.glp_add_cols(lp, 1);
         window.glp_set_col_name(lp, col, m.id);
         window.glp_set_col_bnds(lp, col, window.GLP_DB, m.min, m.max);
-        window.glp_set_obj_coef(lp, col, getGehaltePerNutriënt('financieel', m.mest));
+        const kosten = getGehaltePerNutriënt('financieel', m.mest);
+        window.glp_set_obj_coef(lp, col, opType === 'min' ? -kosten : kosten);
         colIndices[m.id] = col;
       });
     
@@ -319,7 +320,8 @@ export const LogicEngine = (() => {
       console.log("📋 Matrix ar:", ar.slice(1, nz));
       console.log("📋 Aantal rijen:", window.glp_get_num_rows(lp));
       console.log("📋 Aantal kolommen:", window.glp_get_num_cols(lp));
-      console.log("📋 Doelstelling coëfficiënten:", mestData.map(m => ({ id: m.id, coef: opType === 'min' ? -getGehaltePerNutriënt('financieel', m.mest) : getGehaltePerNutriënt('financieel', m.mest) })));
+      console.log("📋 Doelstelling coëfficiënten (model):", mestData.map(m => ({ id: m.id, coef: opType === 'min' ? -getGehaltePerNutriënt('financieel', m.mest) : getGehaltePerNutriënt('financieel', m.mest) })));
+      console.log("📋 Doelstelling coëfficiënten (GLPK):", mestData.map(m => ({ id: m.id, coef: window.glp_get_obj_coef(lp, colIndices[m.id]) })));
       
       // Los op
       const result = window.glp_simplex(lp, {
