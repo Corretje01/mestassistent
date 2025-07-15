@@ -139,7 +139,8 @@ export const LogicEngine = (() => {
           gehalte,
           kostenPerKgNut
         });
-                
+
+        const { min: minT, max: maxT } = CalculationEngine.berekenTonnageGrens(id, state);
         const huidig = mest.ton;
         return {
           id,
