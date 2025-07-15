@@ -472,11 +472,7 @@ export const LogicEngine = (() => {
   }
 
   function checkGlobalValidation() {
-    // als de ValidationEngine‑functie bestaat, roep ‘ie aan
-    const fn = ValidationEngine.overschrijdtMaxToegestaneWaarden;
-    const fout = (typeof fn === 'function')
-     ? fn()
-     : null;
+    const fout = ValidationEngine.overschrijdtMaxToegestaneWaarden?.();
     if (fout) {
       console.warn("❌ Overschrijding:", fout);
     }
