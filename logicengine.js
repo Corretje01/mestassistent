@@ -112,7 +112,8 @@ export const LogicEngine = (() => {
     const opType = delta > 0 ? 'min' : 'max';
 
     console.log(`🔄 Doel: ${richting} van ${nutId} van ${huidigeWaarde.toFixed(2)} naar ${doelWaarde.toFixed(2)}`);
-
+    console.log(`🔍 GLPK-versie: ${window.glp_version ? window.glp_version() : 'onbekend'}`);
+    
     // Stap 2: Stel LP-model op voor glpk.js
     const model = {
       name: 'mestoptimalisatie',
@@ -343,6 +344,17 @@ export const LogicEngine = (() => {
         bnds: c.bnds,
         vars: c.vars
       })));
+      console.log("📋 GLPK rijen:", Array.from({ length: window.glp_get_num_rows(lp) }, (_, i) => {
+        const row = i + 1;
+        return {
+          name: window.glp_get_row_name(lp, row),
+          bnds: {
+            type: window.glp_get_row_type(lp, row),
+            lb: window.glp_get_row_lb(lp, row),
+            ub: window.glp_get_row_ub(lp, row)
+          }
+        };
+      }));
       
       // Los op
       const result = window.glp_simplex(lp, {
