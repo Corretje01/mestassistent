@@ -140,7 +140,10 @@ export const LogicEngine = (() => {
           kostenPerKgNut
         });
 
-        const { min: minT, max: maxT } = CalculationEngine.berekenTonnageGrens(id, state);
+        const sliderEl = document.getElementById(`slider-${id}`);
+        const minT = Number(sliderEl.min);
+        const maxT = Number(sliderEl.max);
+        
         const huidig = mest.ton;
         return {
           id,
@@ -495,8 +498,8 @@ export const LogicEngine = (() => {
   }
 
   function isWithinSliderLimits(slider, value) {
-    const min = Number(slider.min || 0);
-    const max = Number(slider.max || 650);
+    const min = Number(slider.min);
+    const max = Number(slider.max);
     return value >= min && value <= max;
   }
 
