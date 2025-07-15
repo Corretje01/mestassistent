@@ -396,6 +396,7 @@ export const LogicEngine = (() => {
   } catch (err) {
     console.error(`❌ LP-optimalisatie gefaald (${nutId}): ${err.message}`);
     UIController.shake(nutId);
+    }
   }
 
   function pasTonnagesToe(tonnages) {
