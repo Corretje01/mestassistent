@@ -131,20 +131,16 @@ export const LogicEngine = (() => {
       .filter(([id]) => !StateManager.isLocked(id))
       .map(([id, mest]) => {
         const gehalte = getGehaltePerNutriënt(nutId, mest);
-        const prijsPerTonInclTransport = getPrijsPerTonInclTransport(mest);
-        const kostenPerKgNut = gehalte > 0 ? prijsPerTonInclTransport / gehalte : Infinity;
+        const prijsPerTon = getPrijsPerTonInclTransport(mest);
+        const kostenPerKgNut = gehalte > 0 ? prijsPerTon / gehalte : Infinity;
+        console.log('🔍 kostenPerKgNut check:', {
+          id,
+          prijsPerTon,
+          gehalte,
+          kostenPerKgNut
+        });
+                
         const huidig = mest.ton;
-
-        const slider = document.getElementById(`slider-${id}`);
-        const maxSlider = slider ? Number(slider.max) : 650;
-
-        let maxN = Infinity, maxP = Infinity, maxK = Infinity, maxO = Infinity;
-        if (mest.N_kg_per_ton > 0) maxN = gebruiksruimte.A / mest.N_kg_per_ton;
-        if (mest.P_kg_per_ton > 0) maxP = gebruiksruimte.C / mest.P_kg_per_ton;
-        if (mest.K_kg_per_ton > 0) maxK = (gebruiksruimte.B * 1.25) / mest.K_kg_per_ton;
-        if (mest.OS_percent > 0) maxO = (gebruiksruimte.organisch || Infinity) / (mest.OS_percent / 100);
-        const maxTonnage = Math.min(maxN, maxP, maxK, maxO, maxSlider);
-
         return {
           id,
           mest,
@@ -152,8 +148,8 @@ export const LogicEngine = (() => {
           prijsPerTon,
           kostenPerKgNut,
           huidig,
-          max: maxTonnage,
-          min: 0
+          min: minT,
+          max: maxT
         };
       })
       .filter(m => m.gehalte > 0);
@@ -166,10 +162,9 @@ export const LogicEngine = (() => {
 
     // Stap 4: Bouw variabelen en doelstelling
     for (const m of mestData) {
-      const kosten = getGehaltePerNutriënt('financieel', m.mest);
       model.objective.vars.push({
         name: m.id,
-        coef: opType === 'min' ? -kosten : kosten
+        coef: opType === 'min' ? -m.kostenPerKgNut : m.kostenPerKgNut
       });
 
       model.bounds.push({
