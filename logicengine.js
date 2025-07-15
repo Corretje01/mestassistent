@@ -189,7 +189,7 @@ export const LogicEngine = (() => {
       organisch: gebruiksruimte.organisch || Infinity
     };
 
-    for (const nut of ['stikstof', 'fosfaat', 'kalium']) {
+    for (const nut of ['stikstof', 'fosfaat', 'kalium', 'organisch']) {
       if (nutriëntLimieten[nut] !== undefined && (!StateManager.isLocked(nut) || nut !== nutId)) {
         const constraint = {
           name: nut,
@@ -273,8 +273,8 @@ export const LogicEngine = (() => {
     
       // Voeg rijen toe (beperkingen)
       const rowIndices = {};
-      for (const nut of ['stikstof', 'fosfaat', 'kalium']) {
-        if (nutriëntLimieten[nut] !== undefined && (!StateManager.isLocked(nut) || nut !== nutId)) {
+      for (const nut of ['stikstof', 'fosfaat', 'kalium', 'organisch']) {
+        if (nut !== nutId && nutriëntLimieten[nut] !== undefined && (!StateManager.isLocked(nut) || nut !== nutId)) {
           const row = window.glp_add_rows(lp, 1);
           window.glp_set_row_name(lp, row, nut);
           window.glp_set_row_bnds(lp, row, window.GLP_UP, 0, nutriëntLimieten[nut]);
@@ -300,6 +300,7 @@ export const LogicEngine = (() => {
       const ja = [0]; // Column indices
       const ar = [0]; // Coefficients
       let nz = 1; // Non-zero element counter
+      const usedRows = new Set();
       for (const nut of Object.keys(rowIndices)) {
         for (const m of mestData) {
           const gehalte = getGehaltePerNutriënt(nut, m.mest);
@@ -340,15 +341,6 @@ export const LogicEngine = (() => {
         bnds: c.bnds,
         vars: c.vars
       })));
-      console.log("📋 GLPK rijen:", Array.from({ length: window.glp_get_num_rows(lp) }, (_, i) => {
-        const row = i + 1;
-        return {
-          name: window.glp_get_row_name(lp, row),
-          lb: window.glp_get_row_lb(lp, row),
-          ub: window.glp_get_row_ub(lp, row),
-          type: window.glp_get_row_type(lp, row)
-        };
-      }));
       
       // Los op
       const result = window.glp_simplex(lp, {
