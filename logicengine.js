@@ -367,7 +367,7 @@ export const LogicEngine = (() => {
         tol_piv: 0.001,
         it_lim: 1000,
         tm_lim: 1000,
-        presolve: window.GLP_OFF // Presolve uitgeschakeld
+        presolve: window.GLP_ON
       });
     
       if (result !== window.GLP_OPT && result !== window.GLP_FEAS) {
