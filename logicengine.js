@@ -284,6 +284,24 @@ export const LogicEngine = (() => {
         console.log(`🔒 GLPK Nutriëntbeperking ${nut}: max ${nutriëntLimieten[nut]}`);
       }
     }
+    
+    // Voeg GLP_DB-rijen toe voor elke locked nutriënt (excl. doelnutriënt)
+    for (const nut of ['stikstof','fosfaat','kalium','organisch']) {
+      if (StateManager.isLocked(nut) && nut !== nutId) {
+        const lockedVal = huidigeNut[nut] || 0;
+        const row = window.glp_add_rows(lp, 1);
+        window.glp_set_row_name(lp, row, nut);
+        window.glp_set_row_bnds(
+          lp, row,
+          window.GLP_DB,
+          lockedVal - 0.5,
+          lockedVal + 0.5
+        );
+        rowIndices[nut] = row;
+        console.log(`🔒 GLPK Vergrendelde beperking ${nut}: ${lockedVal} (±0.5)`);
+      }
+    }
+    
     // Doel‑nutriënt
     const doelRow = window.glp_add_rows(lp, 1);
     window.glp_set_row_name(lp, doelRow, nutId);
