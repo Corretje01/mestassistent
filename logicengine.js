@@ -387,7 +387,7 @@ export const LogicEngine = (() => {
       }
       if (StateManager.isLocked(nut) && nut !== nutId) {
         const origineel = huidigeNut[nut];
-        if (Math.abs(bereikt - origineel) > 0.1) {
+        if (Math.abs(bereikt - origineel) > 0.5) {
           console.warn(`⚠️ Vergrendelde ${nut} gewijzigd: ${bereikt.toFixed(2)} ≠ ${origineel.toFixed(2)}`);
           geldig = false;
         }
