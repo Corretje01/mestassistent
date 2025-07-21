@@ -12,22 +12,24 @@ const registerSuccess = document.getElementById('register-success');
 const logoutBtn = document.getElementById('nav-logout');
 
 // Tabswitching
-tabRegister.onclick = () => {
-  registerForm.style.display = "block";
-  loginForm.style.display = "none";
-  tabRegister.classList.add('btn-primary');
-  tabLogin.classList.remove('btn-primary');
-  registerSuccess.style.display = "none";
-};
-tabLogin.onclick = () => {
-  registerForm.style.display = "none";
-  loginForm.style.display = "block";
-  tabLogin.classList.add('btn-primary');
-  tabRegister.classList.remove('btn-primary');
-  registerSuccess.style.display = "none";
-};
+if (tabRegister && tabLogin) {
+  tabRegister.onclick = () => {
+    registerForm.style.display = "block";
+    loginForm.style.display = "none";
+    tabRegister.classList.add('btn-primary');
+    tabLogin.classList.remove('btn-primary');
+    registerSuccess.style.display = "none";
+  };
+  tabLogin.onclick = () => {
+    registerForm.style.display = "none";
+    loginForm.style.display = "block";
+    tabLogin.classList.add('btn-primary');
+    tabRegister.classList.remove('btn-primary');
+    registerSuccess.style.display = "none";
+  };
+}
 
-// SVGs voor show/hide
+// SVG oogje
 const svgEyeOpen = `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="none" viewBox="0 0 24 24">
   <path stroke="#000" stroke-width="2" d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7Z"/>
   <circle cx="12" cy="12" r="3" stroke="#000" stroke-width="2"/>
@@ -98,79 +100,83 @@ function validateField(id, value) {
   }
 }
 
-Array.from(registerForm.elements).forEach(input => {
-  input.oninput = e => {
-    const err = validateField(e.target.id, e.target.value);
-    document.getElementById(`err-${e.target.id}`)?.textContent = err;
-  };
-});
-
-// Submit registratie
-registerForm.onsubmit = async e => {
-  e.preventDefault();
-  let errors = 0;
+if (registerForm) {
   Array.from(registerForm.elements).forEach(input => {
-    const err = validateField(input.id, input.value);
-    if (err) {
-      document.getElementById(`err-${input.id}`)?.textContent = err;
-      errors++;
-    } else {
-      document.getElementById(`err-${input.id}`)?.textContent = "";
-    }
+    input.oninput = e => {
+      const err = validateField(e.target.id, e.target.value);
+      document.getElementById(`err-${e.target.id}`)?.textContent = err;
+    };
   });
-  if (errors > 0) return;
 
-  // Supabase registratie
-  const { data, error } = await supabase.auth.signUp({
-    email: registerForm.email.value,
-    password: registerForm.password.value,
-    options: {
-      data: {
-        voornaam: registerForm.firstName.value,
-        tussenvoegsel: registerForm.tussenvoegsel.value,
-        achternaam: registerForm.lastName.value,
-        telefoon: registerForm.phone.value,
-        woonplaats: registerForm.city.value,
-        postcode: registerForm.postcode.value,
-        straat: registerForm.street.value,
-        huisnummer: registerForm.huisnummer.value,
-        huisnummer_toevoeging: registerForm.huisnummer_toevoeging.value,
-      },
-      emailRedirectTo: `${window.location.origin}/mestplan.html`
-    }
-  });
-  if (error) {
-    document.getElementById("err-email").textContent = error.message.includes("already registered")
-      ? "Dit e-mailadres is al geregistreerd." : error.message;
-    return;
-  }
-  registerSuccess.textContent = "Account succesvol aangemaakt. Controleer uw e-mail en klik op de link om te activeren.";
-  registerSuccess.style.display = "block";
-  registerForm.style.display = "none";
-};
+  // Submit registratie
+  registerForm.onsubmit = async e => {
+    e.preventDefault();
+    let errors = 0;
+    Array.from(registerForm.elements).forEach(input => {
+      const err = validateField(input.id, input.value);
+      if (err) {
+        document.getElementById(`err-${input.id}`)?.textContent = err;
+        errors++;
+      } else {
+        document.getElementById(`err-${input.id}`)?.textContent = "";
+      }
+    });
+    if (errors > 0) return;
 
-// Submit login
-loginForm.onsubmit = async e => {
-  e.preventDefault();
-  document.getElementById('err-login-general').textContent = '';
-  try {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: loginForm.loginEmail.value,
-      password: loginForm.loginPassword.value,
+    // Supabase registratie
+    const { data, error } = await supabase.auth.signUp({
+      email: registerForm.email.value,
+      password: registerForm.password.value,
+      options: {
+        data: {
+          voornaam: registerForm.firstName.value,
+          tussenvoegsel: registerForm.tussenvoegsel.value,
+          achternaam: registerForm.lastName.value,
+          telefoon: registerForm.phone.value,
+          woonplaats: registerForm.city.value,
+          postcode: registerForm.postcode.value,
+          straat: registerForm.street.value,
+          huisnummer: registerForm.huisnummer.value,
+          huisnummer_toevoeging: registerForm.huisnummer_toevoeging.value,
+        },
+        emailRedirectTo: `${window.location.origin}/mestplan.html`
+      }
     });
     if (error) {
-      document.getElementById('err-login-general').textContent = "Foutieve inloggegevens of e-mail niet geverifieerd.";
+      document.getElementById("err-email").textContent = error.message && error.message.includes("already registered")
+        ? "Dit e-mailadres is al geregistreerd." : error.message;
       return;
     }
-    if (!data || !data.session) {
-      document.getElementById('err-login-general').textContent = "Uw account is nog niet geactiveerd (controleer uw e-mail).";
-      return;
+    registerSuccess.textContent = "Account succesvol aangemaakt. Controleer uw e-mail en klik op de link om te activeren.";
+    registerSuccess.style.display = "block";
+    registerForm.style.display = "none";
+  };
+}
+
+// Submit login
+if (loginForm) {
+  loginForm.onsubmit = async e => {
+    e.preventDefault();
+    document.getElementById('err-login-general').textContent = '';
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: loginForm.loginEmail.value,
+        password: loginForm.loginPassword.value,
+      });
+      if (error) {
+        document.getElementById('err-login-general').textContent = "Foutieve inloggegevens of e-mail niet geverifieerd.";
+        return;
+      }
+      if (!data || !data.session) {
+        document.getElementById('err-login-general').textContent = "Uw account is nog niet geactiveerd (controleer uw e-mail).";
+        return;
+      }
+      window.location.href = "/mestplan.html";
+    } catch (err) {
+      document.getElementById('err-login-general').textContent = "Er is een fout opgetreden bij het inloggen.";
     }
-    window.location.href = "/mestplan.html";
-  } catch (err) {
-    document.getElementById('err-login-general').textContent = "Er is een fout opgetreden bij het inloggen.";
-  }
-};
+  };
+}
 
 // Session check: protect route mestplan.html
 if (window.location.pathname.endsWith('mestplan.html')) {
