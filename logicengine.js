@@ -398,7 +398,7 @@ export const LogicEngine = (() => {
       }
     });
   
-    if (Math.abs(bereikteNutriënten[nutId] - doelWaarde) > 0.5) {
+    if (Math.abs(bereikteNutriënten[nutId] - doelWaarde) > 0.55) {
       console.warn(`⚠️ Doelnutriënt ${nutId} afwijking: ${bereikteNutriënten[nutId].toFixed(2)} ≠ ${doelWaarde}`);
       geldig = false;
     }
@@ -441,7 +441,7 @@ export const LogicEngine = (() => {
     const herberekend = CalculationEngine.berekenNutriënten(false);
     const afwijking = Math.abs(herberekend[nutId] - doelWaarde);
     const slider = document.getElementById(`slider-${nutId}`);
-    if (slider && afwijking < 0.5) {
+    if (slider && afwijking <= 0.55) {
       slider.value = doelWaarde;
       console.log(`🎯 Nutriëntenslider ${nutId} gesynchroniseerd op ${doelWaarde}`);
     } else {
