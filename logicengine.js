@@ -143,6 +143,10 @@ export const LogicEngine = (() => {
           gehalte,
           kostenPerKgNut
         });
+
+        const sliderEl = document.getElementById(`slider-${id}`);
+        const minT = Number(sliderEl.min);
+        const maxT = Number(sliderEl.max);
         
         const huidig = mest.ton;
         return {
@@ -425,6 +429,9 @@ export const LogicEngine = (() => {
       }
     }
     for (const [id, tonnage] of Object.entries(tonnages)) {
+      const sliderEl = document.getElementById(`slider-${id}`);
+      const minT = Number(sliderEl.min);
+      const maxT = Number(sliderEl.max);
       StateManager.setMestTonnage(id, Math.max(minT, Math.min(tonnage, maxT)));
     }
     UIController.updateSliders();
