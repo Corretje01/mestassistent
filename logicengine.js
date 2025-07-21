@@ -80,7 +80,11 @@ export const LogicEngine = (() => {
     for (const [key, tonDelta] of Object.entries(aanpassingen)) {
       const huidig = oudeState.actieveMest[key].ton;
       const nieuw = huidig + tonDelta;
-      if (nieuw < 0 || nieuw > 650) {
+      const sliderEl = document.getElementById(`slider-${id}`);
+      const minT = Number(sliderEl.min);
+      const maxT = Number(sliderEl.max);
+      
+      if (minT < 0 || nieuw > maxT) {
         UIController.shake(id);
         return;
       }
@@ -139,10 +143,6 @@ export const LogicEngine = (() => {
           gehalte,
           kostenPerKgNut
         });
-
-        const sliderEl = document.getElementById(`slider-${id}`);
-        const minT = Number(sliderEl.min);
-        const maxT = Number(sliderEl.max);
         
         const huidig = mest.ton;
         return {
@@ -216,7 +216,7 @@ export const LogicEngine = (() => {
         const constraint = {
           name: nut,
           vars: [],
-          bnds: { type: window.GLP_DB, ub: vergrendeldeWaarde + 0.1, lb: vergrendeldeWaarde - 0.1 }
+          bnds: { type: window.GLP_DB, ub: vergrendeldeWaarde + 0.5, lb: vergrendeldeWaarde - 0.5 }
         };
         for (const m of mestData) {
           const gehalte = getGehaltePerNutriënt(nut, m.mest);
@@ -226,7 +226,7 @@ export const LogicEngine = (() => {
         }
         if (constraint.vars.length > 0) {
           model.subjectTo.push(constraint);
-          console.log(`🔒 Vergrendelde beperking ${nut}: ${vergrendeldeWaarde} (±0.1)`);
+          console.log(`🔒 Vergrendelde beperking ${nut}: ${vergrendeldeWaarde} (±0.5)`);
         }
       }
     }
@@ -235,7 +235,7 @@ export const LogicEngine = (() => {
     const doelConstraint = {
       name: nutId,
       vars: [],
-      bnds: { type: window.GLP_DB, ub: doelWaarde + 0.1, lb: doelWaarde - 0.1 }
+      bnds: { type: window.GLP_DB, ub: doelWaarde + 0.5, lb: doelWaarde - 0.5 }
     };
     for (const m of mestData) {
       const gehalte = getGehaltePerNutriënt(nutId, m.mest);
@@ -305,7 +305,7 @@ export const LogicEngine = (() => {
     // Doel‑nutriënt
     const doelRow = window.glp_add_rows(lp, 1);
     window.glp_set_row_name(lp, doelRow, nutId);
-    window.glp_set_row_bnds(lp, doelRow, window.GLP_DB, doelWaarde - 0.1, doelWaarde + 0.1);
+    window.glp_set_row_bnds(lp, doelRow, window.GLP_DB, doelWaarde - 0.5, doelWaarde + 0.5);
     rowIndices[nutId] = doelRow;
   
     // Bouw coëfficiëntenmatrix
@@ -425,7 +425,7 @@ export const LogicEngine = (() => {
       }
     }
     for (const [id, tonnage] of Object.entries(tonnages)) {
-      StateManager.setMestTonnage(id, Math.max(0, Math.min(tonnage, 650)));
+      StateManager.setMestTonnage(id, Math.max(minT, Math.min(tonnage, maxT)));
     }
     UIController.updateSliders();
   }
