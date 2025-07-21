@@ -4,7 +4,22 @@ import { ValidationEngine } from './validationengine.js';
 import { UIController } from './uicontroller.js';
 
 export const LogicEngine = (() => {
-  
+
+    /**
+   * Checkt per nutriënt of limieten worden overschreden. Retourneert het eerste nutriënt dat overschreden wordt, of null.
+   * @param {Object} totaal - resultaat van CalculationEngine.berekenNutriëntenVoorState
+   * @param {Object} limieten - { stikstof: maxA, fosfaat: maxC, kalium: maxB, ... }
+   * @returns {string|null}
+   */
+  function overschrijdtNutriëntLimieten(totaal, limieten) {
+    for (const nut in limieten) {
+      if (limieten[nut] != null && totaal[nut] > limieten[nut] + 1e-6) {
+        return nut;
+      }
+    }
+    return null;
+  }
+
   function forceWithinBounds(id, value) {
     const sliderEl = document.getElementById(`slider-${id}`);
     if (!sliderEl) return value; // Fallback
@@ -17,6 +32,8 @@ export const LogicEngine = (() => {
     }
     return value;
   }
+  
+  const lastValidSliderValues = {};
   
   function onSliderChange(id, newValue) {
     console.log(`🟡 Slider wijziging: ${id} → ${newValue}`);
@@ -34,10 +51,38 @@ export const LogicEngine = (() => {
     sliderEl.value = String(clamped); // Zet DOM altijd terug!
   
     if (clamped !== newValue) {
-      // Waarde buiten bereik: log/feedback en stop logica
+      return;
+    }
+
+    // Maak een deep copy van de huidige state
+    const state = StateManager.getStateDeepCopy ? StateManager.getStateDeepCopy() : JSON.parse(JSON.stringify(StateManager.getState()));
+    if (state.actieveMest[id]) state.actieveMest[id].ton = clamped;
+  
+    // Haal max-gebruiksruimte op
+    const ruimte = StateManager.getGebruiksruimte();
+    const nutLimieten = {
+      stikstof: ruimte.A,
+      fosfaat:  ruimte.C,
+      kalium:   ruimte.B * 1.25,
+      // organisch, financieel evt. toevoegen
+    };
+  
+    // Bereken hypothetisch totaal
+    const totaalNa = CalculationEngine.berekenNutriëntenVoorState(state);
+  
+    const overschredenNut = overschrijdtNutriëntLimieten(totaalNa, nutLimieten);
+  
+    if (overschredenNut) {
+      // Constraint geraakt: zet slider terug, shake, log, stop!
+      sliderEl.value = String(lastValidSliderValues[id] ?? sliderEl.min);
+      UIController.shake(id);
+      console.warn(`❌ Overschrijding: ${overschredenNut} overschrijdt maximum`);
       return;
     }
   
+    // Indien OK: sla waarde op als geldig
+    lastValidSliderValues[id] = clamped;
+
     // Alleen verder als binnen grenzen:
     if (id === 'kunststikstof') {
       StateManager.setKunstmest(clamped);
@@ -445,19 +490,30 @@ export const LogicEngine = (() => {
   }
 
   function pasTonnagesToe(tonnages) {
-    // Check alle tonnages vóór aanpassen!
+    // Maak deep copy van state en pas batchgewijs hypothetisch toe
+    const state = StateManager.getStateDeepCopy ? StateManager.getStateDeepCopy() : JSON.parse(JSON.stringify(StateManager.getState()));
     for (const [id, tonnage] of Object.entries(tonnages)) {
-      if (typeof tonnage !== 'number' || isNaN(tonnage)) {
-        console.warn(`⚠️ Ongeldige tonnage voor ${id}: ${tonnage}`);
-        return;
-      }
-      const geclampteTonnage = forceWithinBounds(id, tonnage);
-      if (geclampteTonnage !== tonnage) {
-        // Feedback/logging gebeurt al in forceWithinBounds
-        return;
-      }
+      if (state.actieveMest[id]) state.actieveMest[id].ton = tonnage;
     }
-    // Pas alle tonnages toe (geclampte waarde, 100% safe)
+  
+    const ruimte = StateManager.getGebruiksruimte();
+    const nutLimieten = {
+      stikstof: ruimte.A,
+      fosfaat:  ruimte.C,
+      kalium:   ruimte.B * 1.25,
+      // enz
+    };
+    const totaalNa = CalculationEngine.berekenNutriëntenVoorState(state);
+    const overschredenNut = overschrijdtNutriëntLimieten(totaalNa, nutLimieten);
+  
+    if (overschredenNut) {
+      // Annuleer en shake alle sliders in batch
+      Object.keys(tonnages).forEach(id => UIController.shake(id));
+      console.warn(`❌ Overschrijding (batch): ${overschredenNut} overschrijdt maximum`);
+      return;
+    }
+  
+    // Pas alle tonnages toe
     for (const [id, tonnage] of Object.entries(tonnages)) {
       const geclampteTonnage = forceWithinBounds(id, tonnage);
       StateManager.setMestTonnage(id, geclampteTonnage);
@@ -506,10 +562,6 @@ export const LogicEngine = (() => {
     return ['stikstof', 'fosfaat', 'kalium', 'organisch', 'financieel'].includes(id);
   }
 
-  function isWithinSliderLimits(slider, value) {
-    return value >= Number(slider.min) && value <= Number(slider.max);
-  }
-
   function updateStikstofMaxDoorKunstmest() {
     const ruimte = StateManager.getGebruiksruimte();
     const nutDierlijk = CalculationEngine.berekenNutriënten(false);
@@ -522,13 +574,6 @@ export const LogicEngine = (() => {
         StateManager.setKunstmest(Math.max(0, ruimte.B - nutDierlijk.stikstof));
         UIController.shake('kunststikstof');
       }
-    }
-  }
-
-  function checkGlobalValidation() {
-    const fout = ValidationEngine.overschrijdtMaxToegestaneWaarden?.();
-    if (fout) {
-      console.warn("❌ Overschrijding:", fout);
     }
   }
 
