@@ -6,10 +6,10 @@ import { UIController } from './uicontroller.js';
 export const LogicEngine = (() => {
   function onSliderChange(id, newValue) {
     console.log(`🟡 Slider wijziging: ${id} → ${newValue}`);
-
+  
     const sliderEl = document.getElementById(`slider-${id}`);
     if (!sliderEl) return;
-
+  
     if (sliderEl.disabled || StateManager.isLocked(id)) {
       UIController.shake(id);
       return;
@@ -19,35 +19,27 @@ export const LogicEngine = (() => {
     const minT = Number(sliderEl.min);
     const maxT = Number(sliderEl.max);
     
-    // b) Clamp de nieuwe waarde, en schrijf terug naar de slider
-    let clamped = newValue;
-    if (clamped < minT) {
-      clamped = minT;
-      UIController.shake(id);
-    }
-    if (clamped > maxT) {
-      clamped = maxT;
-      UIController.shake(id);
-    }
+    // b) Clamp de nieuwe waarde
+    //    blijft newValue binnen [minT,maxT], anders wordt hij begrensd
+    let clamped = Math.min(maxT, Math.max(minT, newValue));
     if (clamped !== newValue) {
-      // update de DOM-slider
+      // schrijf de slider DOM bij én geef een shake
       sliderEl.value = String(clamped);
-      // gebruik vanaf nu clamped
-      newValue = clamped;
+      UIController.shake(id);
     }
-
-    // c) Doe je logica met de geclampte waarde
+  
+    // c) Doe je logica met de geclampte waarde!
     if (id === 'kunststikstof') {
-      StateManager.setKunstmest(newValue);
+      StateManager.setKunstmest(clamped);
       updateStikstofMaxDoorKunstmest();
     } else if (isNutrientSlider(id)) {
       console.log(`⚙️ Nutriëntenslider ${id} wordt gewijzigd → LP wordt aangeroepen`);
-      handleNutrientChangeViaLP(id, newValue);
+      handleNutrientChangeViaLP(id, clamped);
     } else {
       console.log(`⚙️ Mestslider ${id} wordt gewijzigd → directe berekening`);
-      handleMestSliderChange(id, newValue);
+      handleMestSliderChange(id, clamped);
     }
-
+  
     UIController.updateSliders();
     checkGlobalValidation();
   }
