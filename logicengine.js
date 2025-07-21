@@ -14,16 +14,29 @@ export const LogicEngine = (() => {
       UIController.shake(id);
       return;
     }
-
+    
+    // a) Lees de grenzen
     const minT = Number(sliderEl.min);
     const maxT = Number(sliderEl.max);
-    if (newValue < minT || newValue > maxT) {
-      // zet de slider terug op de grens en geef feedback
-      sliderEl.value = Math.max(minT, Math.min(newValue, maxT));
+    
+    // b) Clamp de nieuwe waarde, en schrijf terug naar de slider
+    let clamped = newValue;
+    if (clamped < minT) {
+      clamped = minT;
       UIController.shake(id);
-      return;
+    }
+    if (clamped > maxT) {
+      clamped = maxT;
+      UIController.shake(id);
+    }
+    if (clamped !== newValue) {
+      // update de DOM-slider
+      sliderEl.value = String(clamped);
+      // gebruik vanaf nu clamped
+      newValue = clamped;
     }
 
+    // c) Doe je logica met de geclampte waarde
     if (id === 'kunststikstof') {
       StateManager.setKunstmest(newValue);
       updateStikstofMaxDoorKunstmest();
