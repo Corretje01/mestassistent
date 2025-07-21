@@ -15,7 +15,11 @@ export const LogicEngine = (() => {
       return;
     }
 
-    if (!isWithinSliderLimits(sliderEl, newValue)) {
+    const minT = Number(sliderEl.min);
+    const maxT = Number(sliderEl.max);
+    if (newValue < minT || newValue > maxT) {
+      // zet de slider terug op de grens en geef feedback
+      sliderEl.value = Math.max(minT, Math.min(newValue, maxT));
       UIController.shake(id);
       return;
     }
