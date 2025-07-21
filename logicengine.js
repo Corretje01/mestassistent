@@ -4,6 +4,20 @@ import { ValidationEngine } from './validationengine.js';
 import { UIController } from './uicontroller.js';
 
 export const LogicEngine = (() => {
+  
+  function forceWithinBounds(id, value) {
+    const sliderEl = document.getElementById(`slider-${id}`);
+    if (!sliderEl) return value; // fallback, maar liever nooit!
+    const min = Number(sliderEl.min);
+    const max = Number(sliderEl.max);
+    if (value < min || value > max) {
+      UIController.shake(id);
+      console.warn(`❌ Slider ${id} overschrijdt grenzen: ${value} (min=${min}, max=${max})`);
+      return Math.min(max, Math.max(min, value));
+    }
+    return value;
+  }
+  
   function onSliderChange(id, newValue) {
     console.log(`🟡 Slider wijziging: ${id} → ${newValue}`);
   
@@ -14,19 +28,10 @@ export const LogicEngine = (() => {
       UIController.shake(id);
       return;
     }
-    
-    // a) Lees de grenzen
-    const minT = Number(sliderEl.min);
-    const maxT = Number(sliderEl.max);
-    
-    // b) Clamp de nieuwe waarde
-    //    blijft newValue binnen [minT,maxT], anders wordt hij begrensd
-    let clamped = Math.min(maxT, Math.max(minT, newValue));
-    if (clamped !== newValue) {
-      // schrijf de slider DOM bij én geef een shake
-      sliderEl.value = String(clamped);
-      UIController.shake(id);
-    }
+  
+    // Clamp + feedback via centrale utiliteit
+    const clamped = forceWithinBounds(id, newValue);
+    sliderEl.value = String(clamped);
   
     // c) Doe je logica met de geclampte waarde!
     if (id === 'kunststikstof') {
@@ -49,20 +54,25 @@ export const LogicEngine = (() => {
     const mest = oudeState.actieveMest[id];
     const deltaTon = newValue - mest.ton;
     if (deltaTon === 0) return;
-
+  
+    const clampedValue = forceWithinBounds(id, newValue);
+  
+    // Eventuele indirecte correctie als de slider op max/min staat
+    if (clampedValue !== newValue) return; // Stop als hij buiten bereik probeerde te gaan
+  
     const deltaNut = berekenDeltaNutriënten(mest, deltaTon);
     const vergrendeldeNut = Object.keys(deltaNut).filter(n => StateManager.isLocked(n) && deltaNut[n] !== 0);
     if (vergrendeldeNut.length === 0) {
-      StateManager.setMestTonnage(id, newValue);
+      StateManager.setMestTonnage(id, clampedValue);
       return;
     }
-
+  
     const andereMest = Object.entries(oudeState.actieveMest)
       .filter(([key]) => key !== id && !StateManager.isLocked(key))
       .map(([key, mest]) => ({ id: key, mest }));
-
+  
     const aanpassingen = {};
-
+  
     for (const nut of vergrendeldeNut) {
       const delta = deltaNut[nut];
       const opties = andereMest
@@ -72,34 +82,32 @@ export const LogicEngine = (() => {
           huidig: m.mest.ton
         }))
         .filter(m => m.gehalte !== 0);
-
+  
       const totaalGehalte = opties.reduce((sum, o) => sum + o.gehalte, 0);
       if (totaalGehalte === 0) {
         UIController.shake(id);
         return;
       }
-
+  
       for (const o of opties) {
         const aandeel = o.gehalte / totaalGehalte;
         const tonDelta = -delta * aandeel / o.gehalte;
         aanpassingen[o.id] = (aanpassingen[o.id] || 0) + tonDelta;
       }
     }
-
+  
+    // Grenscontrole vóór daadwerkelijk toepassen
     for (const [key, tonDelta] of Object.entries(aanpassingen)) {
       const huidig = oudeState.actieveMest[key].ton;
       const nieuw = huidig + tonDelta;
-      const sliderEl = document.getElementById(`slider-${id}`);
-      const minT = Number(sliderEl.min);
-      const maxT = Number(sliderEl.max);
-      
-      if (minT < 0 || nieuw > maxT) {
-        UIController.shake(id);
-        return;
+      const geclampteNieuw = forceWithinBounds(key, nieuw);
+      if (geclampteNieuw !== nieuw) {
+        UIController.shake(key);
+        return; // Annuleer alles bij één overtreding
       }
     }
-
-    StateManager.setMestTonnage(id, newValue);
+  
+    StateManager.setMestTonnage(id, clampedValue);
     for (const [key, tonDelta] of Object.entries(aanpassingen)) {
       const huidig = oudeState.actieveMest[key].ton;
       StateManager.setMestTonnage(key, huidig + tonDelta);
@@ -436,12 +444,15 @@ export const LogicEngine = (() => {
         console.warn(`⚠️ Ongeldige tonnage voor ${id}: ${tonnage}`);
         return;
       }
+      const geclampteTonnage = forceWithinBounds(id, tonnage);
+      if (geclampteTonnage !== tonnage) {
+        // Log & shake al bij forceWithinBounds, hier extra safety:
+        return;
+      }
     }
     for (const [id, tonnage] of Object.entries(tonnages)) {
-      const sliderEl = document.getElementById(`slider-${id}`);
-      const minT = Number(sliderEl.min);
-      const maxT = Number(sliderEl.max);
-      StateManager.setMestTonnage(id, Math.max(minT, Math.min(tonnage, maxT)));
+      const geclampteTonnage = forceWithinBounds(id, tonnage);
+      StateManager.setMestTonnage(id, geclampteTonnage);
     }
     UIController.updateSliders();
   }
