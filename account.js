@@ -28,8 +28,15 @@ tabLogin.onclick = () => {
 };
 
 // SVGs voor show/hide
-const svgEyeOpen = `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="none" viewBox="0 0 24 24"><path stroke="#888" stroke-width="2" d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3" stroke="#888" stroke-width="2"/></svg>`;
-const svgEyeClosed = `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="none" viewBox="0 0 24 24"><path stroke="#888" stroke-width="2" d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3" stroke="#888" stroke-width="2"/><line x1="4" y1="20" x2="20" y2="4" stroke="#888" stroke-width="2"/></svg>`;
+const svgEyeOpen = `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="none" viewBox="0 0 24 24">
+  <path stroke="#000" stroke-width="2" d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7Z"/>
+  <circle cx="12" cy="12" r="3" stroke="#000" stroke-width="2"/>
+</svg>`;
+const svgEyeClosed = `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="none" viewBox="0 0 24 24">
+  <path stroke="#000" stroke-width="2" d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7Z"/>
+  <circle cx="12" cy="12" r="3" stroke="#000" stroke-width="2"/>
+  <line x1="4" y1="20" x2="20" y2="4" stroke="#000" stroke-width="2"/>
+</svg>`;
 
 // Toggle password REGISTRATIE
 const pwInput = document.getElementById('password');
@@ -154,7 +161,6 @@ loginForm.onsubmit = async e => {
     document.getElementById('err-login-general').textContent = "Foutieve inloggegevens of e-mail niet geverifieerd.";
     return;
   }
-  // Check: email geverifieerd?
   if (!data.session) {
     document.getElementById('err-login-general').textContent = "Uw account is nog niet geactiveerd (controleer uw e-mail).";
     return;
