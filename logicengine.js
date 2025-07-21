@@ -7,7 +7,7 @@ export const LogicEngine = (() => {
   
   function forceWithinBounds(id, value) {
     const sliderEl = document.getElementById(`slider-${id}`);
-    if (!sliderEl) return value; // fallback, maar liever nooit!
+    if (!sliderEl) return value; // Fallback
     const min = Number(sliderEl.min);
     const max = Number(sliderEl.max);
     if (value < min || value > max) {
@@ -29,11 +29,16 @@ export const LogicEngine = (() => {
       return;
     }
   
-    // Clamp + feedback via centrale utiliteit
+    // Clamp direct (mét feedback/log)
     const clamped = forceWithinBounds(id, newValue);
-    sliderEl.value = String(clamped);
+    sliderEl.value = String(clamped); // Zet DOM altijd terug!
   
-    // c) Doe je logica met de geclampte waarde!
+    if (clamped !== newValue) {
+      // Waarde buiten bereik: log/feedback en stop logica
+      return;
+    }
+  
+    // Alleen verder als binnen grenzen:
     if (id === 'kunststikstof') {
       StateManager.setKunstmest(clamped);
       updateStikstofMaxDoorKunstmest();
@@ -48,17 +53,17 @@ export const LogicEngine = (() => {
     UIController.updateSliders();
     checkGlobalValidation();
   }
-
+  
   function handleMestSliderChange(id, newValue) {
     const oudeState = StateManager.getState();
     const mest = oudeState.actieveMest[id];
     const deltaTon = newValue - mest.ton;
     if (deltaTon === 0) return;
   
+    // Clamp waarde (géén wijzigingen buiten bereik)
     const clampedValue = forceWithinBounds(id, newValue);
   
-    // Eventuele indirecte correctie als de slider op max/min staat
-    if (clampedValue !== newValue) return; // Stop als hij buiten bereik probeerde te gaan
+    if (clampedValue !== newValue) return; // Stoppen bij overschrijding
   
     const deltaNut = berekenDeltaNutriënten(mest, deltaTon);
     const vergrendeldeNut = Object.keys(deltaNut).filter(n => StateManager.isLocked(n) && deltaNut[n] !== 0);
@@ -96,7 +101,7 @@ export const LogicEngine = (() => {
       }
     }
   
-    // Grenscontrole vóór daadwerkelijk toepassen
+    // Controleer ALLE aanpassingen vooraf
     for (const [key, tonDelta] of Object.entries(aanpassingen)) {
       const huidig = oudeState.actieveMest[key].ton;
       const nieuw = huidig + tonDelta;
@@ -107,6 +112,7 @@ export const LogicEngine = (() => {
       }
     }
   
+    // Toepassen (altijd geclampte waardes)
     StateManager.setMestTonnage(id, clampedValue);
     for (const [key, tonDelta] of Object.entries(aanpassingen)) {
       const huidig = oudeState.actieveMest[key].ton;
@@ -439,6 +445,7 @@ export const LogicEngine = (() => {
   }
 
   function pasTonnagesToe(tonnages) {
+    // Check alle tonnages vóór aanpassen!
     for (const [id, tonnage] of Object.entries(tonnages)) {
       if (typeof tonnage !== 'number' || isNaN(tonnage)) {
         console.warn(`⚠️ Ongeldige tonnage voor ${id}: ${tonnage}`);
@@ -446,10 +453,11 @@ export const LogicEngine = (() => {
       }
       const geclampteTonnage = forceWithinBounds(id, tonnage);
       if (geclampteTonnage !== tonnage) {
-        // Log & shake al bij forceWithinBounds, hier extra safety:
+        // Feedback/logging gebeurt al in forceWithinBounds
         return;
       }
     }
+    // Pas alle tonnages toe (geclampte waarde, 100% safe)
     for (const [id, tonnage] of Object.entries(tonnages)) {
       const geclampteTonnage = forceWithinBounds(id, tonnage);
       StateManager.setMestTonnage(id, geclampteTonnage);
