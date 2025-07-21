@@ -1,6 +1,6 @@
 // Vul je Supabase projectgegevens in:
-const SUPABASE_URL = "https://jouw-project-url.supabase.co";
-const SUPABASE_KEY = "public-anon-key"; // Zet in .env voor productie
+const SUPABASE_URL = "https://joxzxtdkjenyayddtwmn.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpveHp4dGRramVueWF5ZGR0d21uIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMwOTI4NTEsImV4cCI6MjA2ODY2ODg1MX0.4gHFI3jPjiVxLVTlgOsvhoa-i6XDkzcQP22FTPcaHm4"; // Zet in .env voor productie
 
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
@@ -30,27 +30,27 @@ tabLogin.onclick = () => {
 function validateField(id, value) {
   switch (id) {
     case 'firstName':
-      return /^[A-Z][a-zA-Z]+$/.test(value) ? "" : "Voornaam moet beginnen met een hoofdletter.";
+      return /^[A-Z][a-zA-Z]+$/.test(value) ? "" : "Voornaam moet beginnen met een hoofdletter en alleen letters bevatten.";
     case 'tussenvoegsel':
       return value === "" || /^[a-z]+$/.test(value) ? "" : "Tussenvoegsel mag geen hoofdletters bevatten.";
     case 'lastName':
-      return /^[A-Z][a-zA-Z]+$/.test(value) ? "" : "Achternaam moet beginnen met een hoofdletter.";
+      return /^[A-Z][a-zA-Z]+$/.test(value) ? "" : "Achternaam moet beginnen met een hoofdletter en alleen letters bevatten.";
     case 'email':
-      return /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/.test(value) ? "" : "Voer een geldig e-mailadres in (kleine letters).";
+      return /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/.test(value) ? "" : "Voer een geldig e-mailadres in (alleen kleine letters).";
     case 'phone':
-      return /^\+31 6 [0-9]{8}$/.test(value) ? "" : "Telefoonnummer moet beginnen met ‘+31 6’ en 8 cijfers bevatten.";
+      return /^\+31 6 [0-9]{8}$/.test(value) ? "" : "Telefoonnummer moet beginnen met '+31 6 ' en gevolgd worden door exact 8 cijfers.";
     case 'city':
-      return /^[A-Z][a-zA-Z]+$/.test(value) ? "" : "Woonplaats moet beginnen met een hoofdletter.";
+      return /^[A-Z][a-zA-Z]+$/.test(value) ? "" : "Woonplaats moet beginnen met een hoofdletter en alleen letters bevatten.";
     case 'postcode':
       return /^[0-9]{4} [A-Z]{2}$/.test(value) ? "" : "Postcode moet in het formaat 1234 AB.";
     case 'street':
-      return /^[A-Z][a-zA-Z\s]+$/.test(value) ? "" : "Straatnaam moet beginnen met een hoofdletter.";
+      return /^[A-Z][a-zA-Z\s]+$/.test(value) ? "" : "Straatnaam moet beginnen met een hoofdletter en alleen letters of spaties bevatten.";
     case 'huisnummer':
       return /^[0-9]+$/.test(value) ? "" : "Huisnummer mag alleen cijfers bevatten.";
     case 'password':
-      return /^(?=.*[A-Z])(?=.*[0-9]).{6,}$/.test(value) ? "" : "Wachtwoord moet minimaal 6 tekens, een hoofdletter en een cijfer bevatten.";
-    case 'voorwaarden':
-      return value ? "" : "U moet akkoord gaan met de voorwaarden.";
+      return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{6,}$/.test(value)
+        ? ""
+        : "Wachtwoord moet minimaal 6 tekens bevatten, met ten minste 1 hoofdletter, 1 kleine letter en 1 cijfer.";
     default:
       return "";
   }
