@@ -34,31 +34,28 @@ export const LogicEngine = (() => {
   }
   
   const lastValidSliderValues = {};
-  
+
   function onSliderChange(id, newValue) {
     console.log(`🟡 Slider wijziging: ${id} → ${newValue}`);
-  
     const sliderEl = document.getElementById(`slider-${id}`);
     if (!sliderEl) return;
-  
+
     if (sliderEl.disabled || StateManager.isLocked(id)) {
       UIController.shake(id);
       return;
     }
-  
-    // Clamp direct (mét feedback/log)
-    const clamped = forceWithinBounds(id, newValue);
-    sliderEl.value = String(clamped); // Zet DOM altijd terug!
-  
-    if (clamped !== newValue) {
-      return;
-    }
 
-    // Maak een deep copy van de huidige state
-    const state = StateManager.getStateDeepCopy ? StateManager.getStateDeepCopy() : JSON.parse(JSON.stringify(StateManager.getState()));
+    const clamped = forceWithinBounds(id, newValue);
+    sliderEl.value = String(clamped);
+
+    if (clamped !== newValue) return;
+
+    // ---- Hypothetische nutriëntensom controleren vóórdat we de wijziging toepassen ----
+    // Deep copy van huidige state (let op: bij grote states kan een utility als structuredClone sneller zijn)
+    const state = JSON.parse(JSON.stringify(StateManager.getState()));
     if (state.actieveMest[id]) state.actieveMest[id].ton = clamped;
-  
-    // Haal max-gebruiksruimte op
+
+    // Haal limieten op
     const ruimte = StateManager.getGebruiksruimte();
     const nutLimieten = {
       stikstof: ruimte.A,
@@ -66,12 +63,10 @@ export const LogicEngine = (() => {
       kalium:   ruimte.B * 1.25,
       // organisch, financieel evt. toevoegen
     };
-  
-    // Bereken hypothetisch totaal
+
     const totaalNa = CalculationEngine.berekenNutriëntenVoorState(state);
-  
     const overschredenNut = overschrijdtNutriëntLimieten(totaalNa, nutLimieten);
-  
+
     if (overschredenNut) {
       // Constraint geraakt: zet slider terug, shake, log, stop!
       sliderEl.value = String(lastValidSliderValues[id] ?? sliderEl.min);
@@ -79,11 +74,11 @@ export const LogicEngine = (() => {
       console.warn(`❌ Overschrijding: ${overschredenNut} overschrijdt maximum`);
       return;
     }
-  
+
     // Indien OK: sla waarde op als geldig
     lastValidSliderValues[id] = clamped;
 
-    // Alleen verder als binnen grenzen:
+    // --- Nu pas wijzigen ---
     if (id === 'kunststikstof') {
       StateManager.setKunstmest(clamped);
       updateStikstofMaxDoorKunstmest();
@@ -94,9 +89,8 @@ export const LogicEngine = (() => {
       console.log(`⚙️ Mestslider ${id} wordt gewijzigd → directe berekening`);
       handleMestSliderChange(id, clamped);
     }
-  
+
     UIController.updateSliders();
-    checkGlobalValidation();
   }
   
   function handleMestSliderChange(id, newValue) {
@@ -104,64 +98,88 @@ export const LogicEngine = (() => {
     const mest = oudeState.actieveMest[id];
     const deltaTon = newValue - mest.ton;
     if (deltaTon === 0) return;
-  
+
     // Clamp waarde (géén wijzigingen buiten bereik)
     const clampedValue = forceWithinBounds(id, newValue);
-  
-    if (clampedValue !== newValue) return; // Stoppen bij overschrijding
-  
+    if (clampedValue !== newValue) return;
+
     const deltaNut = berekenDeltaNutriënten(mest, deltaTon);
     const vergrendeldeNut = Object.keys(deltaNut).filter(n => StateManager.isLocked(n) && deltaNut[n] !== 0);
-    if (vergrendeldeNut.length === 0) {
-      StateManager.setMestTonnage(id, clampedValue);
+
+    // Hypothetische state opbouwen
+    // Start met een kopie van de huidige state
+    const hypothetischeState = JSON.parse(JSON.stringify(oudeState));
+    // Zet primaire wijziging alvast in hypothetische state
+    hypothetischeState.actieveMest[id].ton = clampedValue;
+
+    if (vergrendeldeNut.length > 0) {
+      const andereMest = Object.entries(oudeState.actieveMest)
+        .filter(([key]) => key !== id && !StateManager.isLocked(key))
+        .map(([key, mest]) => ({ id: key, mest }));
+
+      const aanpassingen = {};
+
+      for (const nut of vergrendeldeNut) {
+        const delta = deltaNut[nut];
+        const opties = andereMest
+          .map(m => ({
+            id: m.id,
+            gehalte: getGehaltePerNutriënt(nut, m.mest),
+            huidig: m.mest.ton
+          }))
+          .filter(m => m.gehalte !== 0);
+
+        const totaalGehalte = opties.reduce((sum, o) => sum + o.gehalte, 0);
+        if (totaalGehalte === 0) {
+          UIController.shake(id);
+          return;
+        }
+
+        for (const o of opties) {
+          const aandeel = o.gehalte / totaalGehalte;
+          const tonDelta = -delta * aandeel / o.gehalte;
+          aanpassingen[o.id] = (aanpassingen[o.id] || 0) + tonDelta;
+        }
+      }
+
+      // Pas alle berekende compensaties toe op de hypothetische state
+      for (const [key, tonDelta] of Object.entries(aanpassingen)) {
+        const huidig = oudeState.actieveMest[key].ton;
+        const nieuw = huidig + tonDelta;
+        const geclampteNieuw = forceWithinBounds(key, nieuw);
+        if (geclampteNieuw !== nieuw) {
+          UIController.shake(key);
+          return; // Annuleer alles bij één overtreding
+        }
+        hypothetischeState.actieveMest[key].ton = nieuw;
+      }
+    }
+
+    // === CENTRALE NUTRIËNT-CONSTRAINTCHECK ===
+    const ruimte = StateManager.getGebruiksruimte();
+    const nutLimieten = {
+      stikstof: ruimte.A,
+      fosfaat:  ruimte.C,
+      kalium:   ruimte.B * 1.25,
+      // evt. uitbreiden
+    };
+    const totaalNa = CalculationEngine.berekenNutriëntenVoorState(hypothetischeState);
+    const overschredenNut = overschrijdtNutriëntLimieten(totaalNa, nutLimieten);
+    if (overschredenNut) {
+      UIController.shake(id);
+      console.warn(`❌ Overschrijding: ${overschredenNut} overschrijdt maximum`);
       return;
     }
-  
-    const andereMest = Object.entries(oudeState.actieveMest)
-      .filter(([key]) => key !== id && !StateManager.isLocked(key))
-      .map(([key, mest]) => ({ id: key, mest }));
-  
-    const aanpassingen = {};
-  
-    for (const nut of vergrendeldeNut) {
-      const delta = deltaNut[nut];
-      const opties = andereMest
-        .map(m => ({
-          id: m.id,
-          gehalte: getGehaltePerNutriënt(nut, m.mest),
-          huidig: m.mest.ton
-        }))
-        .filter(m => m.gehalte !== 0);
-  
-      const totaalGehalte = opties.reduce((sum, o) => sum + o.gehalte, 0);
-      if (totaalGehalte === 0) {
-        UIController.shake(id);
-        return;
-      }
-  
-      for (const o of opties) {
-        const aandeel = o.gehalte / totaalGehalte;
-        const tonDelta = -delta * aandeel / o.gehalte;
-        aanpassingen[o.id] = (aanpassingen[o.id] || 0) + tonDelta;
-      }
-    }
-  
-    // Controleer ALLE aanpassingen vooraf
-    for (const [key, tonDelta] of Object.entries(aanpassingen)) {
-      const huidig = oudeState.actieveMest[key].ton;
-      const nieuw = huidig + tonDelta;
-      const geclampteNieuw = forceWithinBounds(key, nieuw);
-      if (geclampteNieuw !== nieuw) {
-        UIController.shake(key);
-        return; // Annuleer alles bij één overtreding
-      }
-    }
-  
-    // Toepassen (altijd geclampte waardes)
+
+    // === PAS ALS ALLES OK IS, DE WIJZIGINGEN DOORVOEREN ===
     StateManager.setMestTonnage(id, clampedValue);
-    for (const [key, tonDelta] of Object.entries(aanpassingen)) {
-      const huidig = oudeState.actieveMest[key].ton;
-      StateManager.setMestTonnage(key, huidig + tonDelta);
+
+    if (vergrendeldeNut.length > 0) {
+      // Nogmaals: voer compensaties nu pas echt door!
+      for (const [key, tonDelta] of Object.entries(aanpassingen)) {
+        const huidig = oudeState.actieveMest[key].ton;
+        StateManager.setMestTonnage(key, huidig + tonDelta);
+      }
     }
   }
 
@@ -493,7 +511,8 @@ export const LogicEngine = (() => {
     // Maak deep copy van state en pas batchgewijs hypothetisch toe
     const state = StateManager.getStateDeepCopy ? StateManager.getStateDeepCopy() : JSON.parse(JSON.stringify(StateManager.getState()));
     for (const [id, tonnage] of Object.entries(tonnages)) {
-      if (state.actieveMest[id]) state.actieveMest[id].ton = tonnage;
+      const geclampteTonnage = forceWithinBounds(id, tonnage);
+      if (state.actieveMest[id]) state.actieveMest[id].ton = geclampteTonnage;
     }
   
     const ruimte = StateManager.getGebruiksruimte();
@@ -501,7 +520,7 @@ export const LogicEngine = (() => {
       stikstof: ruimte.A,
       fosfaat:  ruimte.C,
       kalium:   ruimte.B * 1.25,
-      // enz
+      // evt. andere constraints
     };
     const totaalNa = CalculationEngine.berekenNutriëntenVoorState(state);
     const overschredenNut = overschrijdtNutriëntLimieten(totaalNa, nutLimieten);
@@ -513,7 +532,7 @@ export const LogicEngine = (() => {
       return;
     }
   
-    // Pas alle tonnages toe
+    // Pas alle tonnages toe (altijd geclampte waarde)
     for (const [id, tonnage] of Object.entries(tonnages)) {
       const geclampteTonnage = forceWithinBounds(id, tonnage);
       StateManager.setMestTonnage(id, geclampteTonnage);
