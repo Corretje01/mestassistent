@@ -153,19 +153,23 @@ registerForm.onsubmit = async e => {
 loginForm.onsubmit = async e => {
   e.preventDefault();
   document.getElementById('err-login-general').textContent = '';
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email: loginForm.loginEmail.value,
-    password: loginForm.loginPassword.value,
-  });
-  if (error) {
-    document.getElementById('err-login-general').textContent = "Foutieve inloggegevens of e-mail niet geverifieerd.";
-    return;
+  try {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: loginForm.loginEmail.value,
+      password: loginForm.loginPassword.value,
+    });
+    if (error) {
+      document.getElementById('err-login-general').textContent = "Foutieve inloggegevens of e-mail niet geverifieerd.";
+      return;
+    }
+    if (!data || !data.session) {
+      document.getElementById('err-login-general').textContent = "Uw account is nog niet geactiveerd (controleer uw e-mail).";
+      return;
+    }
+    window.location.href = "/mestplan.html";
+  } catch (err) {
+    document.getElementById('err-login-general').textContent = "Er is een fout opgetreden bij het inloggen.";
   }
-  if (!data.session) {
-    document.getElementById('err-login-general').textContent = "Uw account is nog niet geactiveerd (controleer uw e-mail).";
-    return;
-  }
-  window.location.href = "/mestplan.html";
 };
 
 // Session check: protect route mestplan.html
