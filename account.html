@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8" />
+  <title>Registratie & Inloggen | MestAssistent</title>
+  <link rel="stylesheet" href="style.css" />
+  <script defer src="account.js"></script>
+  <!-- Supabase JS SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+</head>
+<body>
+  <header class="site-header">
+    <nav class="navbar">
+      <a href="index.html" class="nav-logo">MestAssistent</a>
+      <ul class="nav-links">
+        <li><a href="#" class="btn-login" id="nav-logout" style="display:none;">Uitloggen</a></li>
+      </ul>
+    </nav>
+  </header>
+  <main class="container">
+    <section id="auth-section">
+      <!-- Tabs voor registratie/login -->
+      <div class="tabs">
+        <button id="tab-register" class="btn btn-primary" type="button">Registreren</button>
+        <button id="tab-login" class="btn" type="button">Inloggen</button>
+      </div>
+
+      <!-- REGISTRATIEFORMULIER -->
+      <form id="registerForm" style="display: block; margin-top:2rem;" autocomplete="off">
+        <div class="field-group">
+          <label for="firstName">Voornaam</label>
+          <input type="text" id="firstName" name="firstName" required />
+          <div class="error" id="err-firstName"></div>
+        </div>
+        <div class="field-group">
+          <label for="tussenvoegsel">Tussenvoegsel (optioneel)</label>
+          <input type="text" id="tussenvoegsel" name="tussenvoegsel" />
+          <div class="error" id="err-tussenvoegsel"></div>
+        </div>
+        <div class="field-group">
+          <label for="lastName">Achternaam</label>
+          <input type="text" id="lastName" name="lastName" required />
+          <div class="error" id="err-lastName"></div>
+        </div>
+        <div class="field-group">
+          <label for="email">E-mail</label>
+          <input type="email" id="email" name="email" required />
+          <div class="error" id="err-email"></div>
+        </div>
+        <div class="field-group">
+          <label for="phone">Telefoon</label>
+          <input type="text" id="phone" name="phone" value="+31 6 " required />
+          <div class="error" id="err-phone"></div>
+        </div>
+        <div class="field-group">
+          <label for="city">Woonplaats</label>
+          <input type="text" id="city" name="city" required />
+          <div class="error" id="err-city"></div>
+        </div>
+        <div class="field-group">
+          <label for="postcode">Postcode</label>
+          <input type="text" id="postcode" name="postcode" placeholder="1234 AB" required />
+          <div class="error" id="err-postcode"></div>
+        </div>
+        <div class="field-group">
+          <label for="street">Straat</label>
+          <input type="text" id="street" name="street" required />
+          <div class="error" id="err-street"></div>
+        </div>
+        <div class="field-group">
+          <label for="huisnummer">Huisnummer</label>
+          <input type="number" id="huisnummer" name="huisnummer" required />
+          <div class="error" id="err-huisnummer"></div>
+        </div>
+        <div class="field-group">
+          <label for="huisnummer_toevoeging">Huisnummertoevoeging (optioneel)</label>
+          <input type="text" id="huisnummer_toevoeging" name="huisnummer_toevoeging" />
+        </div>
+        <div class="field-group">
+          <label for="password">Wachtwoord</label>
+          <input type="password" id="password" name="password" required />
+          <div class="error" id="err-password"></div>
+        </div>
+        <div class="field-group">
+          <input type="checkbox" id="voorwaarden" name="voorwaarden" required />
+          <label for="voorwaarden">Ik ga akkoord met de privacyverklaring en gebruikersvoorwaarden</label>
+          <div class="error" id="err-voorwaarden"></div>
+        </div>
+        <button type="submit" class="btn-primary">Account aanmaken</button>
+      </form>
+
+      <!-- LOGINFORMULIER -->
+      <form id="loginForm" style="display:none; margin-top:2rem;">
+        <div class="field-group">
+          <label for="loginEmail">E-mail</label>
+          <input type="email" id="loginEmail" name="loginEmail" required />
+          <div class="error" id="err-loginEmail"></div>
+        </div>
+        <div class="field-group">
+          <label for="loginPassword">Wachtwoord</label>
+          <input type="password" id="loginPassword" name="loginPassword" required />
+          <div class="error" id="err-loginPassword"></div>
+        </div>
+        <button type="submit" class="btn-primary">Inloggen</button>
+        <div class="error" id="err-login-general"></div>
+      </form>
+      <div id="register-success" style="display:none; margin-top:2rem; color:green;"></div>
+    </section>
+  </main>
+</body>
+</html>
