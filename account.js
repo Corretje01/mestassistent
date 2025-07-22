@@ -242,3 +242,5 @@ if (logoutBtn) {
 }
 
 console.log("[account.js] Script einde");
+console.log("Einde bestand gehaald");
+
