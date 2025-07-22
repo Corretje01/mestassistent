@@ -1,7 +1,11 @@
+console.log("[account.js] Start script laden");
+
 const SUPABASE_URL = "https://joxzxtdkjenyayddtwmn.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpveHp4dGRramVueWF5ZGR0d21uIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMwOTI4NTEsImV4cCI6MjA2ODY2ODg1MX0.4gHFI3jPjiVxLVTlgOsvhoa-i6XDkzcQP22FTPcaHm4";
 
+console.log("[account.js] Voor createClient");
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+console.log("[account.js] Supabase client aangemaakt", supabase);
 
 // Tabs
 const tabRegister = document.getElementById('tab-register');
@@ -11,9 +15,13 @@ const loginForm = document.getElementById('loginForm');
 const registerSuccess = document.getElementById('register-success');
 const logoutBtn = document.getElementById('nav-logout');
 
+console.log("[account.js] DOM elementen:", {tabRegister, tabLogin, registerForm, loginForm, registerSuccess, logoutBtn});
+
 // Tabswitching
 if (tabRegister && tabLogin) {
+  console.log("[account.js] Tab functies worden ingesteld");
   tabRegister.onclick = () => {
+    console.log("[account.js] Tab register klik");
     registerForm.style.display = "block";
     loginForm.style.display = "none";
     tabRegister.classList.add('btn-primary');
@@ -21,6 +29,7 @@ if (tabRegister && tabLogin) {
     registerSuccess.style.display = "none";
   };
   tabLogin.onclick = () => {
+    console.log("[account.js] Tab login klik");
     registerForm.style.display = "none";
     loginForm.style.display = "block";
     tabLogin.classList.add('btn-primary');
@@ -40,10 +49,13 @@ const svgEyeClosed = `<svg xmlns="http://www.w3.org/2000/svg" width="22" height=
   <line x1="4" y1="20" x2="20" y2="4" stroke="#000" stroke-width="2"/>
 </svg>`;
 
+console.log("[account.js] Oog SVGs klaar");
+
 // Toggle password REGISTRATIE
 const pwInput = document.getElementById('password');
 const pwToggle = document.getElementById('toggle-password');
 if (pwInput && pwToggle) {
+  console.log("[account.js] Password toggle REGISTRATIE ready");
   pwToggle.addEventListener('click', () => {
     if (pwInput.type === 'password') {
       pwInput.type = 'text';
@@ -59,6 +71,7 @@ if (pwInput && pwToggle) {
 const loginPwInput = document.getElementById('loginPassword');
 const loginPwToggle = document.getElementById('toggle-login-password');
 if (loginPwInput && loginPwToggle) {
+  console.log("[account.js] Password toggle LOGIN ready");
   loginPwToggle.addEventListener('click', () => {
     if (loginPwInput.type === 'password') {
       loginPwInput.type = 'text';
@@ -72,6 +85,8 @@ if (loginPwInput && loginPwToggle) {
 
 // Live validatie bij typen
 function validateField(id, value) {
+  // Log elke validatie
+  console.log("[account.js] validateField", id, value);
   switch (id) {
     case 'firstName':
       return /^[A-Z][a-zA-Z]+$/.test(value) ? "" : "Voornaam moet beginnen met een hoofdletter en alleen letters bevatten.";
@@ -101,29 +116,42 @@ function validateField(id, value) {
 }
 
 if (registerForm) {
+  console.log("[account.js] Register form gevonden!");
+
   Array.from(registerForm.elements).forEach(input => {
+    console.log("[account.js] Koppel oninput event aan:", input.id);
     input.oninput = e => {
       const err = validateField(e.target.id, e.target.value);
+      console.log("[account.js] oninput", e.target.id, "err:", err);
       document.getElementById(`err-${e.target.id}`)?.textContent = err;
     };
   });
 
   // Submit registratie
   registerForm.onsubmit = async e => {
+    console.log("[account.js] Register submit klik!");
     e.preventDefault();
     let errors = 0;
     Array.from(registerForm.elements).forEach(input => {
       const err = validateField(input.id, input.value);
       if (err) {
+        console.log("[account.js] Error bij veld:", input.id, err);
         document.getElementById(`err-${input.id}`)?.textContent = err;
         errors++;
       } else {
         document.getElementById(`err-${input.id}`)?.textContent = "";
       }
     });
-    if (errors > 0) return;
+    if (errors > 0) {
+      console.log("[account.js] Errors gevonden, abort submit.");
+      return;
+    }
 
     // Supabase registratie
+    console.log("[account.js] Verstuur signup request:", {
+      email: registerForm.email.value,
+      password: registerForm.password.value
+    });
     const { data, error } = await supabase.auth.signUp({
       email: registerForm.email.value,
       password: registerForm.password.value,
@@ -142,6 +170,7 @@ if (registerForm) {
         emailRedirectTo: `${window.location.origin}/mestplan.html`
       }
     });
+    console.log("[account.js] Signup response", {data, error});
     if (error) {
       document.getElementById("err-email").textContent = error.message && error.message.includes("already registered")
         ? "Dit e-mailadres is al geregistreerd." : error.message;
@@ -151,11 +180,16 @@ if (registerForm) {
     registerSuccess.style.display = "block";
     registerForm.style.display = "none";
   };
+} else {
+  console.log("[account.js] Geen registerForm gevonden!");
 }
 
 // Submit login
 if (loginForm) {
+  console.log("[account.js] loginForm gevonden!");
+
   loginForm.onsubmit = async e => {
+    console.log("[account.js] Login submit klik!");
     e.preventDefault();
     document.getElementById('err-login-general').textContent = '';
     try {
@@ -163,6 +197,7 @@ if (loginForm) {
         email: loginForm.loginEmail.value,
         password: loginForm.loginPassword.value,
       });
+      console.log("[account.js] Login response", {data, error});
       if (error) {
         document.getElementById('err-login-general').textContent = "Foutieve inloggegevens of e-mail niet geverifieerd.";
         return;
@@ -173,22 +208,37 @@ if (loginForm) {
       }
       window.location.href = "/mestplan.html";
     } catch (err) {
+      console.log("[account.js] Login error:", err);
       document.getElementById('err-login-general').textContent = "Er is een fout opgetreden bij het inloggen.";
     }
   };
+} else {
+  console.log("[account.js] Geen loginForm gevonden!");
 }
 
 // Session check: protect route mestplan.html
 if (window.location.pathname.endsWith('mestplan.html')) {
+  console.log("[account.js] Check session voor mestplan.html");
   supabase.auth.getSession().then(({ data: { session } }) => {
-    if (!session) window.location.href = '/account.html';
+    if (!session) {
+      console.log("[account.js] Geen actieve sessie, redirect naar account.html");
+      window.location.href = '/account.html';
+    } else {
+      console.log("[account.js] Sessie gevonden:", session);
+    }
   });
 }
 
 // Uitloggen
 if (logoutBtn) {
+  console.log("[account.js] Logout knop gevonden!");
   logoutBtn.onclick = async () => {
+    console.log("[account.js] Uitloggen...");
     await supabase.auth.signOut();
     window.location.href = "/account.html";
   };
+} else {
+  console.log("[account.js] Geen logoutBtn gevonden!");
 }
+
+console.log("[account.js] Script einde");
