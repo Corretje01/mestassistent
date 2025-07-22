@@ -15,7 +15,7 @@ const loginForm = document.getElementById('loginForm');
 const registerSuccess = document.getElementById('register-success');
 const logoutBtn = document.getElementById('nav-logout');
 
-console.log("[account.js] DOM elementen:", {tabRegister, tabLogin, registerForm, loginForm, registerSuccess, logoutBtn});
+console.log("[account.js] DOM elementen:", { tabRegister, tabLogin, registerForm, loginForm, registerSuccess, logoutBtn });
 
 // Tabswitching
 if (tabRegister && tabLogin) {
@@ -85,7 +85,6 @@ if (loginPwInput && loginPwToggle) {
 
 // Live validatie bij typen
 function validateField(id, value) {
-  // Log elke validatie
   console.log("[account.js] validateField", id, value);
   switch (id) {
     case 'firstName':
@@ -123,7 +122,8 @@ if (registerForm) {
     input.oninput = e => {
       const err = validateField(e.target.id, e.target.value);
       console.log("[account.js] oninput", e.target.id, "err:", err);
-      document.getElementById(`err-${e.target.id}`)?.textContent = err;
+      const errEl = document.getElementById(`err-${e.target.id}`);
+      if (errEl) errEl.textContent = err;
     };
   });
 
@@ -136,10 +136,12 @@ if (registerForm) {
       const err = validateField(input.id, input.value);
       if (err) {
         console.log("[account.js] Error bij veld:", input.id, err);
-        document.getElementById(`err-${input.id}`)?.textContent = err;
+        const errEl = document.getElementById(`err-${input.id}`);
+        if (errEl) errEl.textContent = err;
         errors++;
       } else {
-        document.getElementById(`err-${input.id}`)?.textContent = "";
+        const errEl = document.getElementById(`err-${input.id}`);
+        if (errEl) errEl.textContent = "";
       }
     });
     if (errors > 0) {
@@ -170,9 +172,10 @@ if (registerForm) {
         emailRedirectTo: `${window.location.origin}/mestplan.html`
       }
     });
-    console.log("[account.js] Signup response", {data, error});
+    console.log("[account.js] Signup response", { data, error });
     if (error) {
-      document.getElementById("err-email").textContent = error.message && error.message.includes("already registered")
+      const errEl = document.getElementById("err-email");
+      if (errEl) errEl.textContent = error.message && error.message.includes("already registered")
         ? "Dit e-mailadres is al geregistreerd." : error.message;
       return;
     }
@@ -191,25 +194,26 @@ if (loginForm) {
   loginForm.onsubmit = async e => {
     console.log("[account.js] Login submit klik!");
     e.preventDefault();
-    document.getElementById('err-login-general').textContent = '';
+    const generalErrEl = document.getElementById('err-login-general');
+    if (generalErrEl) generalErrEl.textContent = '';
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
         email: loginForm.loginEmail.value,
         password: loginForm.loginPassword.value,
       });
-      console.log("[account.js] Login response", {data, error});
+      console.log("[account.js] Login response", { data, error });
       if (error) {
-        document.getElementById('err-login-general').textContent = "Foutieve inloggegevens of e-mail niet geverifieerd.";
+        if (generalErrEl) generalErrEl.textContent = "Foutieve inloggegevens of e-mail niet geverifieerd.";
         return;
       }
       if (!data || !data.session) {
-        document.getElementById('err-login-general').textContent = "Uw account is nog niet geactiveerd (controleer uw e-mail).";
+        if (generalErrEl) generalErrEl.textContent = "Uw account is nog niet geactiveerd (controleer uw e-mail).";
         return;
       }
       window.location.href = "/mestplan.html";
     } catch (err) {
       console.log("[account.js] Login error:", err);
-      document.getElementById('err-login-general').textContent = "Er is een fout opgetreden bij het inloggen.";
+      if (generalErrEl) generalErrEl.textContent = "Er is een fout opgetreden bij het inloggen.";
     }
   };
 } else {
