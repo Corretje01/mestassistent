@@ -16,8 +16,12 @@
     <nav class="navbar">
       <a href="#" class="nav-logo">MestAssistent</a>
       <ul class="nav-links">
-        <!-- Home verwijderd -->
-        <li><a href="#" class="btn-login">Inloggen</a></li>
+        <!-- Voor niet-ingelogde gebruikers -->
+        <li><a href="account.html" class="btn-login" id="nav-register">Registreren / Inloggen</a></li>
+      
+        <!-- Voor ingelogde gebruikers (initieel verborgen) -->
+        <li><a href="account.html" class="nav__item" id="nav-account" style="display:none;">Mijn account</a></li>
+        <li><button class="btn-login" id="nav-logout" style="display:none;">Uitloggen</button></li>
       </ul>
     </nav>
   </header>
