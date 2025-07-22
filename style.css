@@ -331,3 +331,29 @@ h3 { font-size: 1.125rem; }
     box-sizing: border-box;
   }
 }
+
+/* 1. Zorg dat de nav-links (ul) een flex-container is en items midden uitlijnt */
+.nav-links {
+  list-style: none;
+  display: flex;
+  align-items: center; /* verticale centrering */
+  margin: 0;
+  padding: 0;
+}
+
+/* 2. Verwijder alle onderstreping van <a> en <button> in de nav */
+.nav-links a,
+.nav-links button {
+  text-decoration: none;  /* geen lijn onder de tekst */
+}
+
+/* 3. Optioneel: voeg wat ruimte toe tussen je nav-items */
+.nav-links li + li {
+  margin-left: 1rem;
+}
+
+/* 4. Specifiek voor de logout-knop: zorg dat hij midden in de nav hangt */
+#nav-logout {
+  align-self: center;     /* verticale centering binnen de .nav-links */
+  margin-left: auto;      /* duw hem naar de rechterkant */
+}
