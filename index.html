@@ -12,20 +12,30 @@
   />
 </head>
 <body>
-  <header class="site-header">
+    <header class="site-header">
     <nav class="navbar">
-      <a href="#" class="nav-logo">MestAssistent</a>
+      <a href="index.html" class="nav-logo">MestAssistent</a>
       <ul class="nav-links">
-        <!-- Voor niet-ingelogde gebruikers -->
-        <li><a href="account.html" class="btn-login" id="nav-register">Registreren / Inloggen</a></li>
-      
-        <!-- Voor ingelogde gebruikers (initieel verborgen) -->
-        <li><a href="account.html" class="nav__item" id="nav-account" style="display:none;">Mijn account</a></li>
-        <li><button class="btn-login" id="nav-logout" style="display:none;">Uitloggen</button></li>
+        <!-- Niet-ingelogd -->
+        <li>
+          <a href="account.html" class="btn-login" id="nav-register">
+            Registreren / Inloggen
+          </a>
+        </li>
+        <!-- Ingloged -->
+        <li>
+          <a href="account.html" class="nav__item" id="nav-account" style="display:none;">
+            Mijn account
+          </a>
+        </li>
+        <li>
+          <button class="btn-login" id="nav-logout" style="display:none;">
+            Uitloggen
+          </button>
+        </li>
       </ul>
     </nav>
   </header>
-
   <main class="container">
     <!-- Introductie -->
     <section class="intro">
