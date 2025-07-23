@@ -4,8 +4,6 @@
   <meta charset="UTF-8" />
   <title>Registratie & Inloggen | MestAssistent</title>
   <link rel="stylesheet" href="style.css" />
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-  <script defer src="account.js"></script>
 </head>
 <body>
   <header class="site-header">
@@ -130,5 +128,14 @@
       <div id="register-success" style="display:none; margin-top:2rem; color:green;"></div>
     </section>
   </main>
+  
+  <!-- 1) Supabase SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+
+  <!-- 2) Gedeelde navigatie‐logic -->
+  <script defer src="nav.js"></script>
+
+  <!-- 3) Paginapecifieke scripts -->
+  <script defer src="account.js"></script>
 </body>
 </html>
