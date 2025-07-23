@@ -1,4 +1,3 @@
-<!-- mestplan.html -->
 <!DOCTYPE html>
 <html lang="nl">
 <head>
@@ -7,6 +6,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Optimaliseer je mestplan</title>
   <link rel="stylesheet" href="style.css" />
+
+  <!-- 1) GLPK (module voor optimalisatie) -->
   <script src="./scripts/glpk.js"></script>
 </head>
 <body>
@@ -20,7 +21,7 @@
             Registreren / Inloggen
           </a>
         </li>
-        <!-- Ingloged -->
+        <!-- Ingelogd -->
         <li>
           <a href="account.html" class="nav__item" id="nav-account" style="display:none;">
             Mijn account
@@ -34,6 +35,7 @@
       </ul>
     </nav>
   </header>
+
   <main class="container">
     <h2>2. Optimaliseer je mestplan</h2>
     <p>Kies je gewenste mestsoorten en pas de hoeveelheden aan met de schuifknoppen. Gebruik de 'Optimaliseer' knop voor een automatische berekening van jouw ideale mestplan.</p>
@@ -73,14 +75,19 @@
       <div id="sliders-container" class="sliders-grid" style="display: none;">
         <!-- Standaard sliders komen hier -->
         <div id="standard-sliders" class="sliders-grid"></div>
-
         <!-- Dynamisch toegevoegde mestsliders -->
         <div id="mestsliders" class="sliders-grid"></div>
       </div>
     </section>
   </main>
 
-  <!-- ✅ Laad jouw eigen JavaScript als module -->
-  <script type="module" src="./main.js"></script>
+  <!-- 1) Supabase SDK: laden vóór al je eigen scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+
+  <!-- 2) nav.js: gedeelde navigatie‐logic (login/account/logout) -->
+  <script defer src="nav.js"></script>
+
+  <!-- 3) Paginapecifiek script (module) -->
+  <script defer type="module" src="./main.js"></script>
 </body>
 </html>
