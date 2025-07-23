@@ -22,7 +22,7 @@
             Registreren / Inloggen
           </a>
         </li>
-        <!-- Ingloged -->
+        <!-- Ingelogd -->
         <li>
           <a href="account.html" class="nav__item" id="nav-account" style="display:none;">
             Mijn account
@@ -36,6 +36,7 @@
       </ul>
     </nav>
   </header>
+
   <main class="container">
     <!-- Introductie -->
     <section class="intro">
@@ -70,13 +71,19 @@
 
     <!-- Resultaat + stap-2 knop -->
     <section id="resultaat" class="result-section">
-      <!-- dit vullen we dynamisch via berekening.js -->
-      <!-- de knop “Ga naar stap 2” komt onderaan, als onderdeel van innerHTML -->
+      <!-- wordt ingevuld door berekening.js -->
     </section>
   </main>
 
+  <!-- 1) Supabase SDK: moet vóór al je eigen scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+
+  <!-- 2) nav.js: gedeelde navigatie‐logic (login/account/logout) -->
+  <script defer src="nav.js"></script>
+
+  <!-- 3) Leaflet en jouw page-scripts -->
   <script src="https://unpkg.com/leaflet@1.3.1/dist/leaflet.js"></script>
-  <script src="kaart.js"></script>
-  <script src="berekening.js"></script>
+  <script defer src="kaart.js"></script>
+  <script defer src="berekening.js"></script>
 </body>
 </html>
