@@ -10,20 +10,30 @@
   <script src="./scripts/glpk.js"></script>
 </head>
 <body>
-  <header class="header">
-    <nav class="nav">
-      <a href="index.html" class="nav__item">Home</a>
+    <header class="site-header">
+    <nav class="navbar">
+      <a href="index.html" class="nav-logo">MestAssistent</a>
       <ul class="nav-links">
-        <!-- Voor niet-ingelogde gebruikers -->
-        <li><a href="account.html" class="btn-login" id="nav-register">Registreren / Inloggen</a></li>
-      
-        <!-- Voor ingelogde gebruikers (initieel verborgen) -->
-        <li><a href="account.html" class="nav__item" id="nav-account" style="display:none;">Mijn account</a></li>
-        <li><button class="btn-login" id="nav-logout" style="display:none;">Uitloggen</button></li>
+        <!-- Niet-ingelogd -->
+        <li>
+          <a href="account.html" class="btn-login" id="nav-register">
+            Registreren / Inloggen
+          </a>
+        </li>
+        <!-- Ingloged -->
+        <li>
+          <a href="account.html" class="nav__item" id="nav-account" style="display:none;">
+            Mijn account
+          </a>
+        </li>
+        <li>
+          <button class="btn-login" id="nav-logout" style="display:none;">
+            Uitloggen
+          </button>
+        </li>
       </ul>
     </nav>
   </header>
-
   <main class="container">
     <h2>2. Optimaliseer je mestplan</h2>
     <p>Kies je gewenste mestsoorten en pas de hoeveelheden aan met de schuifknoppen. Gebruik de 'Optimaliseer' knop voor een automatische berekening van jouw ideale mestplan.</p>
