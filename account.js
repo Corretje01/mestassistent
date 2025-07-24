@@ -191,29 +191,56 @@ if (registerForm) {
 if (loginForm) {
   console.log("[account.js] loginForm gevonden!");
 
+  // Optioneel: luister op alle auth-states
+  supabase.auth.onAuthStateChange((event, session) => {
+    console.log("[account.js] onAuthStateChange:", event, session);
+  });
+
   loginForm.onsubmit = async e => {
-    console.log("[account.js] Login submit klik!");
     e.preventDefault();
+    console.log("[account.js] Login submit klik!");
+    
+    // 1) Inspecteer direct de ingevoerde credentials
+    const email    = loginForm.loginEmail.value;
+    const password = loginForm.loginPassword.value;
+    console.log("[account.js] Ingevoerde credentials:", { email, password });
+    
+    // Maak het fout‐element schoon
     const generalErrEl = document.getElementById('err-login-general');
     if (generalErrEl) generalErrEl.textContent = '';
+    
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: loginForm.loginEmail.value,
-        password: loginForm.loginPassword.value,
-      });
-      console.log("[account.js] Login response", { data, error });
-      if (error) {
-        if (generalErrEl) generalErrEl.textContent = "Foutieve inloggegevens of e-mail niet geverifieerd.";
+      // 2) Roep Supabase aan en log de raw response
+      const response = await supabase.auth.signInWithPassword({ email, password });
+      console.log("[account.js] Supabase signInWithPassword response:", response);
+      
+      // 3) Check op error
+      if (response.error) {
+        console.warn("[account.js] signIn error:", response.error);
+        if (generalErrEl) {
+          generalErrEl.textContent = "Foutieve inloggegevens of e-mail niet geverifieerd.";
+        }
         return;
       }
-      if (!data || !data.session) {
-        if (generalErrEl) generalErrEl.textContent = "Uw account is nog niet geactiveerd (controleer uw e-mail).";
+      
+      // 4) Check of er een session terugkwam
+      const session = response.data?.session;
+      console.log("[account.js] session object:", session);
+      if (!session) {
+        if (generalErrEl) {
+          generalErrEl.textContent = "Uw account is nog niet geactiveerd (controleer uw e-mail).";
+        }
         return;
       }
+
+      // 5) Alles OK, redirect
+      console.log("[account.js] Inloggen gelukt, ga naar mestplan.html");
       window.location.href = "/mestplan.html";
     } catch (err) {
-      console.log("[account.js] Login error:", err);
-      if (generalErrEl) generalErrEl.textContent = "Er is een fout opgetreden bij het inloggen.";
+      console.error("[account.js] Login exception:", err);
+      if (generalErrEl) {
+        generalErrEl.textContent = "Er is een fout opgetreden bij het inloggen.";
+      }
     }
   };
 } else {
