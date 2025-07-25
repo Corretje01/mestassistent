@@ -86,6 +86,17 @@
 
   <!-- 2) nav.js: gedeelde navigatie‐logic (login/account/logout) -->
   <script defer src="nav.js"></script>
+  
+  <!-- Route‑guard: niet-ingelogd → account.html -->
+  <script defer>
+    document.addEventListener('DOMContentLoaded', async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        // Redirect naar login/registratie
+        window.location.href = '/account.html';
+      }
+    });
+  </script>
 
   <!-- 3) Paginapecifiek script (module) -->
   <script defer type="module" src="./main.js"></script>
