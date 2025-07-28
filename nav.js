@@ -29,36 +29,27 @@ async function updateNavUI() {
 
 // Initialize navigation when the DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
-  // Initial render
   updateNavUI();
+  supabase.auth.onAuthStateChange(() => updateNavUI());
 
-  // Update on auth state changes (login, logout)
-  supabase.auth.onAuthStateChange(() => {
-    updateNavUI();
+  // "Mijn account" link
+  const btnAccount = document.getElementById('nav-account');
+  btnAccount?.addEventListener('click', e => {
+    e.preventDefault();
+    window.location.href = '/account.html';
   });
 
-  // "Mijn account" button click ➔ account.html
-  const btnAccount = document.getElementById('nav-account');
-  if (btnAccount) {
-    btnAccount.addEventListener('click', e => {
-      e.preventDefault();
-      window.location.href = '/account.html';
-    });
-  }
-
-  // Logout button click ➔ sign out and redirect
+  // Logout button
   const btnLogout = document.getElementById('nav-logout');
-  if (btnLogout) {
-    btnLogout.addEventListener('click', async () => {
-      btnLogout.disabled = true;
-      const { error } = await supabase.auth.signOut();
-      btnLogout.disabled = false;
-      if (error) {
-        console.error('Logout failed:', error.message);
-      } else {
-        updateNavUI();
-        window.location.href = '/account.html';
-      }
-    });
-  }
+  btnLogout?.addEventListener('click', async () => {
+    btnLogout.disabled = true;
+    const { error } = await supabase.auth.signOut();
+    btnLogout.disabled = false;
+    if (error) {
+      console.error('Logout failed:', error.message);
+    } else {
+      updateNavUI();
+      window.location.href = '/account.html';
+    }
+  });
 });
