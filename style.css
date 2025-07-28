@@ -135,6 +135,15 @@ p { margin-bottom: 1rem; }
   box-shadow: 0 0 0 3px rgba(241,196,15,0.2);
 }
 
+/* Leaflet-kaart */
+#map {
+  height: 450px;
+  width: 100%;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  margin-bottom: 2rem;
+}
+
 /* Knoppen */
 .btn-primary {
   background: var(--color-yellow);
