@@ -1,21 +1,19 @@
 <!DOCTYPE html>
 <html lang="nl">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Account | MestAssistent</title>
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <header class="site-header">
+  <header class="site-header">
     <nav class="navbar">
       <a href="index.html" class="nav-logo">MestAssistent</a>
       <ul class="nav-links">
         <!-- Niet-ingelogd -->
         <li>
-          <a href="account.html" class="btn-login" id="nav-register">
-            Inloggen
-          </a>
+          <a href="account.html" class="btn-login" id="nav-register">Inloggen</a>
         </li>
         <!-- Ingelogd -->
         <li>
@@ -31,113 +29,111 @@
       </ul>
     </nav>
   </header>
+
   <main class="container">
+
     <div id="auth-message" class="message"></div>
-    <!-- AUTH-SECTION: login & registratie -->
-    <section id="auth-section">
-        <!-- LOGINFORMULIER -->
-      <form id="loginForm" class="auth-form" style="display:none; margin-top:2rem;" autocomplete="off">
-        <!-- Voor ingevulde tab via hash -->
+
+    <!-- Login & registratie sectie -->
+    <section id="auth-section" style="display:none; margin-top:2rem;">
+
+      <!-- Loginformulier -->
+      <form id="loginForm" class="auth-form">
+        <h2>Inloggen</h2>
         <div class="field-group">
-          <label for="loginEmail">E-mail</label>
-          <input type="email" id="loginEmail" name="email" required />
-          <div class="error" id="err-loginEmail"></div>
+          <label for="email">E-mail</label>
+          <input type="email" id="email" name="email" required>
         </div>
-        <div class="field-group pwd-group" style="position: relative;">
-          <label for="loginPassword">Wachtwoord</label>
-          <input type="password" id="loginPassword" name="password" required autocomplete="current-password" />
-          <button type="button" id="toggle-login-password" class="btn-icon"></button>
-          <div class="error" id="err-loginPassword"></div>
+        <div class="field-group">
+          <label for="password">Wachtwoord</label>
+          <input type="password" id="password" name="password" required>
         </div>
         <button type="submit" class="btn-primary">Inloggen</button>
-        <p class="mt-2">Nog geen account? <a href="#register" class="link-underline" id="toRegisterBottom">Registreer hier</a></p>
-        <div class="error" id="err-login-general"></div>
+        <p class="mt-2">Nog geen account? 
+          <a href="#" id="show-register">Registreer hier</a>
+        </p>
       </form>
 
-      <!-- REGISTERFORMULIER -->
-      <form id="registerForm" class="auth-form" style="display:none; margin-top:2rem;" autocomplete="off">
-        <p>Heb je al een account? <a href="#login" class="link-underline" id="toLoginTop">Klik hier</a></p>
+      <!-- Registratieformulier -->
+      <form id="registerForm" class="auth-form" style="display:none;">
+        <h2>Registreren</h2>
         <div class="field-group">
-          <label for="firstName">Voornaam</label>
-          <input type="text" id="firstName" name="firstName" required />
-          <div class="error" id="err-firstName"></div>
+          <label for="voornaam">Voornaam</label>
+          <input type="text" id="voornaam" name="voornaam" required>
         </div>
         <div class="field-group">
           <label for="tussenvoegsel">Tussenvoegsel (optioneel)</label>
-          <input type="text" id="tussenvoegsel" name="tussenvoegsel" />
-          <div class="error" id="err-tussenvoegsel"></div>
+          <input type="text" id="tussenvoegsel" name="tussenvoegsel">
         </div>
         <div class="field-group">
-          <label for="lastName">Achternaam</label>
-          <input type="text" id="lastName" name="lastName" required />
-          <div class="error" id="err-lastName"></div>
+          <label for="achternaam">Achternaam</label>
+          <input type="text" id="achternaam" name="achternaam" required>
         </div>
         <div class="field-group">
-          <label for="email">E-mail</label>
-          <input type="email" id="email" name="email" required />
-          <div class="error" id="err-email"></div>
+          <label for="email_reg">E-mail</label>
+          <input type="email" id="email_reg" name="email" required>
         </div>
         <div class="field-group">
-          <label for="phone">Telefoon</label>
-          <input type="text" id="phone" name="phone" placeholder="+31 6 12345678" required />
-          <div class="error" id="err-phone"></div>
+          <label for="telefoon">Telefoon</label>
+          <input type="text" id="telefoon" name="telefoon" placeholder="+31 6 12345678" required>
         </div>
         <div class="field-group">
-          <label for="city">Woonplaats</label>
-          <input type="text" id="city" name="city" required />
-          <div class="error" id="err-city"></div>
+          <label for="woonplaats">Woonplaats</label>
+          <input type="text" id="woonplaats" name="woonplaats" required>
         </div>
         <div class="field-group">
           <label for="postcode">Postcode</label>
-          <input type="text" id="postcode" name="postcode" placeholder="1234 AB" required />
-          <div class="error" id="err-postcode"></div>
+          <input type="text" id="postcode" name="postcode" placeholder="1234 AB" required>
         </div>
         <div class="field-group">
-          <label for="street">Straat</label>
-          <input type="text" id="street" name="street" required />
-          <div class="error" id="err-street"></div>
+          <label for="straat">Straat</label>
+          <input type="text" id="straat" name="straat" required>
         </div>
         <div class="field-group">
           <label for="huisnummer">Huisnummer</label>
-          <input type="number" id="huisnummer" name="huisnummer" required />
-          <div class="error" id="err-huisnummer"></div>
+          <input type="number" id="huisnummer" name="huisnummer" required>
         </div>
         <div class="field-group">
           <label for="huisnummer_toevoeging">Toevoeging (optioneel)</label>
-          <input type="text" id="huisnummer_toevoeging" name="huisnummer_toevoeging" />
+          <input type="text" id="huisnummer_toevoeging" name="huisnummer_toevoeging">
         </div>
-        <div class="field-group pwd-group" style="position: relative;">
-          <label for="password">Wachtwoord</label>
-          <input type="password" id="password" name="password" required autocomplete="new-password" />
-          <button type="button" id="toggle-password" class="btn-icon"></button>
-          <div class="error" id="err-password"></div>
+        <div class="field-group">
+          <label for="password_reg">Wachtwoord</label>
+          <input type="password" id="password_reg" name="password" required>
         </div>
         <button type="submit" class="btn-primary">Account aanmaken</button>
-        <div id="register-success" class="success-message"></div>
+        <p class="mt-2">Heb je al een account? 
+          <a href="#" id="show-login">Log hier in</a>
+        </p>
       </form>
+
     </section>
 
-    <!-- PROFILE‑SECTION: alleen zichtbaar na inloggen -->
+    <!-- Profiel sectie -->
     <section id="profile-section" style="display:none;">
       <h2>Mijn profiel</h2>
       <form id="profileForm">
-        <div class="field-group"><label>Voornaam</label><input id="voornaam"/></div>
-        <div class="field-group"><label>Tussenvoegsel</label><input id="tussenvoegsel"/></div>
-        <div class="field-group"><label>Achternaam</label><input id="achternaam"/></div>
-        <div class="field-group"><label>Telefoon</label><input id="telefoon"/></div>
-        <div class="field-group"><label>Woonplaats</label><input id="woonplaats"/></div>
-        <div class="field-group"><label>Postcode</label><input id="postcode"/></div>
-        <div class="field-group"><label>Straat</label><input id="straat"/></div>
-        <div class="field-group"><label>Huisnummer</label><input id="huisnummer"/></div>
-        <div class="field-group"><label>Toevoeging</label><input id="huisnummer_toevoeging"/></div>
+        <div class="field-group"><label>Voornaam</label><input id="profile_voornaam"></div>
+        <div class="field-group"><label>Tussenvoegsel</label><input id="profile_tussenvoegsel"></div>
+        <div class="field-group"><label>Achternaam</label><input id="profile_achternaam"></div>
+        <div class="field-group"><label>Telefoon</label><input id="profile_telefoon"></div>
+        <div class="field-group"><label>Woonplaats</label><input id="profile_woonplaats"></div>
+        <div class="field-group"><label>Postcode</label><input id="profile_postcode"></div>
+        <div class="field-group"><label>Straat</label><input id="profile_straat"></div>
+        <div class="field-group"><label>Huisnummer</label><input id="profile_huisnummer"></div>
+        <div class="field-group"><label>Toevoeging</label><input id="profile_huisnummer_toevoeging"></div>
         <button type="submit" class="btn-primary">Wijzigingen opslaan</button>
-        <button type="button" class="btn-danger" id="deleteAccount">Account verwijderen</button>
+        <button type="button" id="deleteAccount" class="btn-danger">Account verwijderen</button>
       </form>
       <div id="profile-message" class="message"></div>
     </section>
+
   </main>
 
+  <!-- Supabase SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+
+  <!-- Scripts -->
   <script defer src="nav.js"></script>
   <script defer src="account.js"></script>
 </body>
