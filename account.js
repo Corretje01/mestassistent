@@ -23,7 +23,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       show(loginForm); hide(registerForm);
     }
   }
-  showTab(window.location.hash);
+  window.addEventListener('hashchange', () => {
+    showTab(window.location.hash);
+  });
 
   // Toggle buttons
   document.getElementById('showLogin').addEventListener('click', () => {
