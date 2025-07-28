@@ -99,24 +99,35 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Voorinvullen
     const user = session.user;
     const md   = user.user_metadata || {};
-    document.getElementById('profileFirstName').value = md.voornaam  || '';
-    document.getElementById('profileLastName').value  = md.achternaam || '';
-    // voeg extra metadata-velden hier toe indien gewenst...
+    document.getElementById('profileFirstName').value             = md.voornaam              || '';
+    document.getElementById('profileLastName').value              = md.achternaam            || '';
+    document.getElementById('profilePhone').value                 = md.telefoon              || '';
+    document.getElementById('profileCity').value                  = md.woonplaats            || '';
+    document.getElementById('profilePostcode').value              = md.postcode              || '';
+    document.getElementById('profileStreet').value                = md.straat                || '';
+    document.getElementById('profileHuisnummer').value            = md.huisnummer            || '';
+    document.getElementById('profileHuisnummer_toevoeging').value = md.huisnummer_toevoeging || '';
     document.getElementById('profileEmail').value = user.email || '';
 
     // OPSLAAN knoplabel
     document.getElementById('btnSaveProfile').textContent = 'Wijzigingen opslaan';
 
-    // PROFIEL OP SLAAN
+    // PROFIEL OPSLAAN
     if (profileForm) {
       profileForm.onsubmit = async e => {
         e.preventDefault();
         document.getElementById('btnSaveProfile').disabled = true;
         const updates = {
           data: {
-            voornaam: document.getElementById('profileFirstName').value,
-            achternaam: document.getElementById('profileLastName').value,
-            // voeg hier extra fields toe...
+            voornaam:           document.getElementById('profileFirstName').value,
+            achternaam:         document.getElementById('profileLastName').value,
+            // Email laat je achterwege of alleen lezen: updateUser pakt email niet via data
+            telefoon:           document.getElementById('profilePhone').value,
+            woonplaats:         document.getElementById('profileCity').value,
+            postcode:           document.getElementById('profilePostcode').value,
+            straat:             document.getElementById('profileStreet').value,
+            huisnummer:         document.getElementById('profileHuisnummer').value,
+            huisnummer_toevoeging: document.getElementById('profileHuisnummer_toevoeging').value
           }
         };
         const { error } = await supabase.auth.updateUser(updates);
