@@ -100,6 +100,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const user = session.user;
     const md   = user.user_metadata || {};
     document.getElementById('profileFirstName').value             = md.voornaam              || '';
+    document.getElementById('profiletussenvoegsel').value         = md.tussenvoegsel         || '';
     document.getElementById('profileLastName').value              = md.achternaam            || '';
     document.getElementById('profilePhone').value                 = md.telefoon              || '';
     document.getElementById('profileCity').value                  = md.woonplaats            || '';
@@ -120,6 +121,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const updates = {
           data: {
             voornaam:           document.getElementById('profileFirstName').value,
+            tussenvoegsel:      document.getElementById('profileTussenvoegsel').value,
             achternaam:         document.getElementById('profileLastName').value,
             // Email laat je achterwege of alleen lezen: updateUser pakt email niet via data
             telefoon:           document.getElementById('profilePhone').value,
