@@ -32,6 +32,7 @@
     </nav>
   </header>
   <main class="container">
+    <div id="auth-message" class="message"></div>
     <!-- AUTH-SECTION: login & registratie -->
     <section id="auth-section">
         <!-- LOGINFORMULIER -->
@@ -117,9 +118,22 @@
     </section>
 
     <!-- PROFILE‑SECTION: alleen zichtbaar na inloggen -->
-    <section id="profile-section" style="display:none; margin-top:2rem;">
+    <section id="profile-section" style="display:none;">
       <h2>Mijn profiel</h2>
-      <!-- profiel formulier code hier (ongewijzigd) -->
+      <form id="profileForm">
+        <div class="field-group"><label>Voornaam</label><input id="voornaam"/></div>
+        <div class="field-group"><label>Tussenvoegsel</label><input id="tussenvoegsel"/></div>
+        <div class="field-group"><label>Achternaam</label><input id="achternaam"/></div>
+        <div class="field-group"><label>Telefoon</label><input id="telefoon"/></div>
+        <div class="field-group"><label>Woonplaats</label><input id="woonplaats"/></div>
+        <div class="field-group"><label>Postcode</label><input id="postcode"/></div>
+        <div class="field-group"><label>Straat</label><input id="straat"/></div>
+        <div class="field-group"><label>Huisnummer</label><input id="huisnummer"/></div>
+        <div class="field-group"><label>Toevoeging</label><input id="huisnummer_toevoeging"/></div>
+        <button type="submit" class="btn-primary">Wijzigingen opslaan</button>
+        <button type="button" class="btn-danger" id="deleteAccount">Account verwijderen</button>
+      </form>
+      <div id="profile-message" class="message"></div>
     </section>
   </main>
 
