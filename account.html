@@ -2,7 +2,8 @@
 <html lang="nl">
 <head>
   <meta charset="UTF-8" />
-  <title>Registratie & Inloggen | MestAssistent</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Registratie &amp; Inloggen | MestAssistent</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -10,13 +11,11 @@
     <nav class="navbar">
       <a href="index.html" class="nav-logo">MestAssistent</a>
       <ul class="nav-links">
-        <!-- Niet-ingelogd -->
         <li>
           <a href="account.html" class="btn-login" id="nav-register">
             Registreren / Inloggen
           </a>
         </li>
-        <!-- Ingloged -->
         <li>
           <a href="account.html" class="nav__item" id="nav-account" style="display:none;">
             Mijn account
@@ -30,107 +29,139 @@
       </ul>
     </nav>
   </header>
+
   <main class="container">
+    <!-- AUTH-SECTION: registreren / inloggen -->
     <section id="auth-section">
-      <!-- REGISTRATIEFORMULIER -->
-      <form id="registerForm" style="display: block; margin-top:2rem;" autocomplete="off">
+      <!-- Registratieformulier -->
+      <form id="registerForm" class="auth-form" style="display:block;" autocomplete="off">
+        <!-- Voornaam -->
         <div class="field-group">
           <label for="firstName">Voornaam</label>
           <input type="text" id="firstName" name="firstName" required />
           <div class="error" id="err-firstName"></div>
         </div>
+        <!-- Tussenvoegsel -->
         <div class="field-group">
           <label for="tussenvoegsel">Tussenvoegsel (optioneel)</label>
           <input type="text" id="tussenvoegsel" name="tussenvoegsel" />
           <div class="error" id="err-tussenvoegsel"></div>
         </div>
+        <!-- Achternaam -->
         <div class="field-group">
           <label for="lastName">Achternaam</label>
           <input type="text" id="lastName" name="lastName" required />
           <div class="error" id="err-lastName"></div>
         </div>
+        <!-- E-mail -->
         <div class="field-group">
           <label for="email">E-mail</label>
           <input type="email" id="email" name="email" required />
           <div class="error" id="err-email"></div>
         </div>
+        <!-- Telefoon -->
         <div class="field-group">
           <label for="phone">Telefoon</label>
           <input type="text" id="phone" name="phone" value="+31 6 " required />
           <div class="error" id="err-phone"></div>
         </div>
+        <!-- Woonplaats -->
         <div class="field-group">
           <label for="city">Woonplaats</label>
           <input type="text" id="city" name="city" required />
           <div class="error" id="err-city"></div>
         </div>
+        <!-- Postcode -->
         <div class="field-group">
           <label for="postcode">Postcode</label>
           <input type="text" id="postcode" name="postcode" placeholder="1234 AB" required />
           <div class="error" id="err-postcode"></div>
         </div>
+        <!-- Straat -->
         <div class="field-group">
           <label for="street">Straat</label>
           <input type="text" id="street" name="street" required />
           <div class="error" id="err-street"></div>
         </div>
+        <!-- Huisnummer -->
         <div class="field-group">
           <label for="huisnummer">Huisnummer</label>
           <input type="number" id="huisnummer" name="huisnummer" required />
           <div class="error" id="err-huisnummer"></div>
         </div>
+        <!-- Toevoeging -->
         <div class="field-group">
           <label for="huisnummer_toevoeging">Huisnummertoevoeging (optioneel)</label>
           <input type="text" id="huisnummer_toevoeging" name="huisnummer_toevoeging" />
         </div>
+        <!-- Wachtwoord -->
         <div class="field-group" style="position: relative;">
           <label for="password">Wachtwoord</label>
-          <input type="password" id="password" name="password" required style="padding-right: 3rem;" autocomplete="new-password" />
-          <button type="button" id="toggle-password"
-            style="position: absolute; right: 8px; top: 33px; background: transparent; border: none; cursor: pointer;">
-            <svg id="eye-open" xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="none" viewBox="0 0 24 24">
-              <path stroke="#888" stroke-width="2" d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7Z"/>
-              <circle cx="12" cy="12" r="3" stroke="#888" stroke-width="2"/>
-            </svg>
+          <input type="password" id="password" name="password" required autocomplete="new-password" style="padding-right:2.5rem;" />
+          <button type="button" id="toggle-password" class="btn-icon">
+            <!-- oog‑icoon hier -->
           </button>
           <div class="error" id="err-password"></div>
         </div>
         <button type="submit" class="btn-primary">Account aanmaken</button>
+        <div id="register-success" style="display:none; color:green; margin-top:1rem;"></div>
       </form>
 
-      <!-- LOGINFORMULIER -->
-      <form id="loginForm" style="display:none; margin-top:2rem;">
+      <!-- Loginformulier -->
+      <form id="loginForm" class="auth-form" style="display:none; margin-top:2rem;">
         <div class="field-group">
           <label for="loginEmail">E-mail</label>
           <input type="email" id="loginEmail" name="loginEmail" required />
           <div class="error" id="err-loginEmail"></div>
         </div>
-        <div class="field-group" style="position: relative;">
+        <div class="field-group" style="position:relative;">
           <label for="loginPassword">Wachtwoord</label>
-          <input type="password" id="loginPassword" name="loginPassword" required style="padding-right: 3rem;" autocomplete="current-password" />
-          <button type="button" id="toggle-login-password"
-            style="position: absolute; right: 8px; top: 33px; background: transparent; border: none; cursor: pointer;">
-            <svg id="eye-open-login" xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="none" viewBox="0 0 24 24">
-              <path stroke="#888" stroke-width="2" d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7Z"/>
-              <circle cx="12" cy="12" r="3" stroke="#888" stroke-width="2"/>
-            </svg>
+          <input type="password" id="loginPassword" name="loginPassword" required autocomplete="current-password" style="padding-right:2.5rem;" />
+          <button type="button" id="toggle-login-password" class="btn-icon">
+            <!-- oog‑icoon hier -->
           </button>
           <div class="error" id="err-loginPassword"></div>
         </div>
         <button type="submit" class="btn-primary">Inloggen</button>
-        <div class="error" id="err-login-general"></div>
+        <div class="error" id="err-login-general" style="margin-top:1rem;"></div>
       </form>
-      <div id="register-success" style="display:none; margin-top:2rem; color:green;"></div>
+    </section>
+
+    <!-- PROFILE‑SECTION: bewerken / verwijderen / uitloggen -->
+    <section id="profile-section" style="display:none; margin-top:2rem;">
+      <h2>Mijn profiel</h2>
+      <form id="profileForm">
+        <div class="field-group">
+          <label for="profileFirstName">Voornaam</label>
+          <input type="text" id="profileFirstName" name="firstName" required />
+          <div class="error" id="err-profileFirstName"></div>
+        </div>
+        <div class="field-group">
+          <label for="profileLastName">Achternaam</label>
+          <input type="text" id="profileLastName" name="lastName" required />
+          <div class="error" id="err-profileLastName"></div>
+        </div>
+        <!-- Voeg hier extra metadata‑velden toe indien nodig -->
+        <div class="field-group">
+          <label for="profileEmail">E-mail</label>
+          <input type="email" id="profileEmail" name="email" disabled />
+        </div>
+        <button type="submit" id="btnSaveProfile" class="btn-primary">Wijzigingen opslaan</button>
+      </form>
+      <div style="margin-top:1rem;">
+        <button id="btnDeleteAccount" class="btn-login">Account verwijderen</button>
+        <button id="btnLogoutInline" class="btn-login">Uitloggen</button>
+      </div>
     </section>
   </main>
-  
+
   <!-- 1) Supabase SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 
-  <!-- 2) Gedeelde navigatie‐logic -->
+  <!-- 2) Gedeelde navigatie-logic -->
   <script defer src="nav.js"></script>
 
-  <!-- 3) Paginapecifieke scripts -->
+  <!-- 3) Paginapecifieke logic -->
   <script defer src="account.js"></script>
 </body>
 </html>
