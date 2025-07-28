@@ -37,25 +37,48 @@ body {
   align-items: center;
   justify-content: space-between;
 }
-.nav-logo, .nav__item {
+.nav-logo {
   color: var(--color-white);
-  text-decoration: none;
   font-weight: bold;
+  font-size: 1.25rem;
+  text-decoration: none;
 }
-.nav-logo { font-size: 1.25rem; }
+.nav-links {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  margin: 0;
+  padding: 0;
+}
+.nav-links li + li {
+  margin-left: 1rem;
+}
 .nav__item {
-  font-size: 0.9rem;
-  margin-right: 1rem;
-}
-.nav__item--right, .btn-login {
-  margin-left: auto;
-}
-.btn-login {
+  display: inline-block;
+  padding: 0.75rem 1.5rem;
+  border-radius: 6px;
   background: var(--color-yellow);
   color: var(--color-black);
-  padding: 0.4rem 0.8rem;
-  border-radius: 4px;
+  text-decoration: none;
+  font-size: 0.9rem;
   font-weight: 600;
+}
+.btn-login, .btn-primary {
+  background: var(--color-yellow);
+  color: var(--color-black);
+  padding: 0.75rem 1.5rem;
+  border-radius: 6px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+.btn-login:hover, .btn-primary:hover {
+  background: #d4ac0d;
+}
+#nav-logout {
+  align-self: center;
+  margin-left: auto;
 }
 
 /* 4. Container & titels */
