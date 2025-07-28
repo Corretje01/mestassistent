@@ -18,11 +18,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Determine initial tab from URL hash
   function showTab(hash) {
     if (hash === '#register') {
-      show(registerForm); hide(loginForm);
+      registerForm.style.display = 'block';
+      loginForm.style.display    = 'none';
     } else {
-      show(loginForm); hide(registerForm);
+      loginForm.style.display    = 'block';
+      registerForm.style.display = 'none';
     }
   }
+
+  // toon direct de juiste tab bij page-load
+  showTab(window.location.hash);
+  // **toevoeging**: luister naar hash‑changes zonder reload
   window.addEventListener('hashchange', () => {
     showTab(window.location.hash);
   });
