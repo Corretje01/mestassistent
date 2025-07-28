@@ -4,85 +4,117 @@ const SUPABASE_URL = "https://joxzxtdkjenyayddtwmn.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpveHp4dGRramVueWF5ZGR0d21uIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMwOTI4NTEsImV4cCI6MjA2ODY2ODg1MX0.4gHFI3jPjiVxLVTlgOsvhoa-i6XDkzcQP22FTPcaHm4";
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// Toggle visibility helpers
+// Utility-functies
 function show(el) { el.style.display = 'block'; }
 function hide(el) { el.style.display = 'none'; }
 
-// On load
 document.addEventListener('DOMContentLoaded', async () => {
-  const loginForm = document.getElementById('loginForm');
-  const registerForm = document.getElementById('registerForm');
-  const profileSect = document.getElementById('profile-section');
-  const authSect = document.getElementById('auth-section');
 
+  const authSect = document.getElementById('auth-section');
+  const profileSect = document.getElementById('profile-section');
   const messageEl = document.getElementById('auth-message');
 
-  async function handleAuth(form, action) {
-    const formData = Object.fromEntries(new FormData(form));
-    let result;
+  const loginForm = document.getElementById('loginForm');
+  const registerForm = document.getElementById('registerForm');
+  const profileForm = document.getElementById('profileForm');
+  const profileMsg = document.getElementById('profile-message');
 
-    if (action === 'login') {
-      result = await supabase.auth.signInWithPassword({
-        email: formData.email,
-        password: formData.password,
-      });
-    } else if (action === 'register') {
-      result = await supabase.auth.signUp({
-        email: formData.email,
-        password: formData.password,
-        options: { data: formData }
-      });
-    }
+  const showLogin = () => { show(loginForm); hide(registerForm); };
+  const showRegister = () => { hide(loginForm); show(registerForm); };
 
-    if (result.error) {
-      messageEl.textContent = result.error.message;
-      messageEl.className = 'message error';
-    } else {
-      messageEl.textContent = action === 'login' ? 'Succesvol ingelogd!' : 'Registratie geslaagd! Controleer je mail.';
-      messageEl.className = 'message success';
-      setTimeout(() => location.href = '/mestplan.html', 1500);
-    }
-  }
+  document.getElementById('show-register').onclick = (e) => { e.preventDefault(); showRegister(); };
+  document.getElementById('show-login').onclick = (e) => { e.preventDefault(); showLogin(); };
 
-  loginForm.onsubmit = (e) => {
-    e.preventDefault();
-    handleAuth(e.target, 'login');
-  };
-
-  registerForm.onsubmit = (e) => {
-    e.preventDefault();
-    handleAuth(e.target, 'register');
-  };
-
+  // Controleer sessie bij laden
   const { data: { session } } = await supabase.auth.getSession();
 
   if (session) {
-    authSect.style.display = 'none';
-    profileSect.style.display = 'block';
+    hide(authSect);
+    show(profileSect);
 
+    // Vul profielgegevens in
     const { data: { user } } = await supabase.auth.getUser();
     const md = user.user_metadata;
-    ['voornaam', 'tussenvoegsel', 'achternaam', 'telefoon', 'woonplaats', 'postcode', 'straat', 'huisnummer', 'huisnummer_toevoeging']
-    .forEach(id => document.getElementById(id).value = md[id] || '');
+
+    Object.entries(md).forEach(([key, value]) => {
+      const el = document.getElementById(`profile_${key}`);
+      if (el) el.value = value;
+    });
+
+  } else {
+    show(authSect);
+    showLogin();
+    hide(profileSect);
   }
 
-  document.getElementById('profileForm').onsubmit = async (e) => {
+  // Login-functionaliteit
+  loginForm.onsubmit = async (e) => {
     e.preventDefault();
-    const updates = Object.fromEntries(new FormData(e.target));
+    const email = loginForm.email.value;
+    const password = loginForm.password.value;
+
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+
+    if (error) {
+      messageEl.textContent = error.message;
+      messageEl.className = 'message error';
+    } else {
+      messageEl.textContent = 'Succesvol ingelogd!';
+      messageEl.className = 'message success';
+      setTimeout(() => location.href = '/mestplan.html', 1500);
+    }
+  };
+
+  // Registratie-functionaliteit
+  registerForm.onsubmit = async (e) => {
+    e.preventDefault();
+    const formData = Object.fromEntries(new FormData(registerForm));
+
+    const { error } = await supabase.auth.signUp({
+      email: formData.email,
+      password: formData.password,
+      options: { data: formData }
+    });
+
+    if (error) {
+      messageEl.textContent = error.message;
+      messageEl.className = 'message error';
+    } else {
+      messageEl.textContent = 'Registratie geslaagd! Controleer je mail om je account te activeren.';
+      messageEl.className = 'message success';
+      showLogin();
+    }
+  };
+
+  // Profielgegevens opslaan
+  profileForm.onsubmit = async (e) => {
+    e.preventDefault();
+    const updates = {
+      voornaam: document.getElementById('profile_voornaam').value,
+      tussenvoegsel: document.getElementById('profile_tussenvoegsel').value,
+      achternaam: document.getElementById('profile_achternaam').value,
+      telefoon: document.getElementById('profile_telefoon').value,
+      woonplaats: document.getElementById('profile_woonplaats').value,
+      postcode: document.getElementById('profile_postcode').value,
+      straat: document.getElementById('profile_straat').value,
+      huisnummer: document.getElementById('profile_huisnummer').value,
+      huisnummer_toevoeging: document.getElementById('profile_huisnummer_toevoeging').value
+    };
+
     const { error } = await supabase.auth.updateUser({ data: updates });
 
-    const profileMsg = document.getElementById('profile-message');
     if (error) {
       profileMsg.textContent = error.message;
       profileMsg.className = 'message error';
     } else {
-      profileMsg.textContent = 'Wijzigingen opgeslagen!';
+      profileMsg.textContent = 'Wijzigingen succesvol opgeslagen!';
       profileMsg.className = 'message success';
     }
   };
 
+  // Account verwijderen (vereist Supabase Function)
   document.getElementById('deleteAccount').onclick = async () => {
-    if (confirm('Weet je zeker dat je jouw account permanent wilt verwijderen?')) {
+    if (confirm('Weet je zeker dat je jouw account permanent wilt verwijderen? Deze actie kan niet ongedaan gemaakt worden.')) {
       const { error } = await supabase.functions.invoke('delete-user');
       if (!error) {
         await supabase.auth.signOut();
@@ -92,6 +124,5 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     }
   };
-}); 
-// end DOMContentLoaded
-console.log("[account.js] Script end");
+
+});
