@@ -57,16 +57,19 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
   
-    messageEl.textContent = 'Inloggen gelukt. Sessie wordt geladen...';
+    messageEl.textContent = 'Inloggen gelukt!';
     messageEl.className = 'message success';
-  
-    // Wacht tot Supabase bevestigt dat de sessie live is
-    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_IN' && session) {
-        // Zodra echt ingelogd → redirect
+
+    // Wacht kort totdat sessie echt beschikbaar is
+    setTimeout(async () => {
+      const { data: { session: newSession } } = await supabase.auth.getSession();
+      if (newSession) {
         window.location.href = '/mestplan.html';
+      } else {
+        messageEl.textContent = 'Er ging iets mis met inloggen. Probeer opnieuw.';
+        messageEl.className = 'message error';
       }
-    });
+    }, 500);
   };
 
   // Registratie-functionaliteit
