@@ -59,4 +59,3 @@ document.addEventListener('DOMContentLoaded', () => {
       window.location.href = '/account.html';
     }
   });
-});
