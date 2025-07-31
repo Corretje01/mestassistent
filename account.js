@@ -48,17 +48,25 @@ document.addEventListener('DOMContentLoaded', async () => {
     e.preventDefault();
     const email = loginForm.email.value;
     const password = loginForm.password.value;
-
+  
     const { error } = await supabase.auth.signInWithPassword({ email, password });
-
+  
     if (error) {
       messageEl.textContent = error.message;
       messageEl.className = 'message error';
-    } else {
-      messageEl.textContent = 'Succesvol ingelogd!';
-      messageEl.className = 'message success';
-      setTimeout(() => location.href = '/mestplan.html', 1500);
+      return;
     }
+  
+    messageEl.textContent = 'Inloggen gelukt. Sessie wordt geladen...';
+    messageEl.className = 'message success';
+  
+    // Wacht tot Supabase bevestigt dat de sessie live is
+    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' && session) {
+        // Zodra echt ingelogd → redirect
+        window.location.href = '/mestplan.html';
+      }
+    });
   };
 
   // Registratie-functionaliteit
