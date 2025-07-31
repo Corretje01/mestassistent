@@ -7,18 +7,24 @@ async function updateNavUI() {
     return;
   }
 
-  const navRegister = document.getElementById('nav-register');
-  const navAccount  = document.getElementById('nav-account');
-  const navLogout   = document.getElementById('nav-logout');
-
+  const navRegister  = document.getElementById('nav-register');
+  const navAccount   = document.getElementById('nav-account');
+  const navLogout    = document.getElementById('nav-logout');
+  const navBereken   = document.getElementById('nav-bereken');
+  const navMestplan  = document.getElementById('nav-mestplan');
+  
   if (session) {
-    navRegister.style.display = 'none';
-    navAccount.style.display  = 'inline-block';
-    navLogout.style.display   = 'inline-block';
+    navRegister && (navRegister.style.display = 'none');
+    navAccount  && (navAccount.style.display  = 'inline-block');
+    navLogout   && (navLogout.style.display   = 'inline-block');
+    navBereken  && (navBereken.style.display  = 'inline-block');
+    navMestplan && (navMestplan.style.display = 'inline-block');
   } else {
-    navRegister.style.display = 'inline-block';
-    navAccount.style.display  = 'none';
-    navLogout.style.display   = 'none';
+    navRegister && (navRegister.style.display = 'inline-block');
+    navAccount  && (navAccount.style.display  = 'none');
+    navLogout   && (navLogout.style.display   = 'none');
+    navBereken  && (navBereken.style.display  = 'none');
+    navMestplan && (navMestplan.style.display = 'none');
   }
 }
 
