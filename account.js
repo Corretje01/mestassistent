@@ -1,66 +1,74 @@
-// Handles login, registration and profile toggles based on URL hash and Supabase session
+// account.js – veilig accountbeheer met Supabase-authenticatie
 
-// Utility-functies
+// ===== UTILITIES =====
 function show(el) { el.style.display = 'block'; }
 function hide(el) { el.style.display = 'none'; }
 
+// ===== INIT =====
 document.addEventListener('DOMContentLoaded', async () => {
+  const authSect     = document.getElementById('auth-section');
+  const profileSect  = document.getElementById('profile-section');
+  const messageEl    = document.getElementById('auth-message');
+  const profileMsg   = document.getElementById('profile-message');
 
-  const authSect = document.getElementById('auth-section');
-  const profileSect = document.getElementById('profile-section');
-  const messageEl = document.getElementById('auth-message');
-
-  const loginForm = document.getElementById('loginForm');
+  const loginForm    = document.getElementById('loginForm');
   const registerForm = document.getElementById('registerForm');
-  const profileForm = document.getElementById('profileForm');
-  const profileMsg = document.getElementById('profile-message');
+  const profileForm  = document.getElementById('profileForm');
 
-  const showLogin = () => { show(loginForm); hide(registerForm); };
+  const showLogin    = () => { show(loginForm); hide(registerForm); };
   const showRegister = () => { hide(loginForm); show(registerForm); };
 
-  document.getElementById('show-register').onclick = (e) => { e.preventDefault(); showRegister(); };
-  document.getElementById('show-login').onclick = (e) => { e.preventDefault(); showLogin(); };
+  document.getElementById('show-register')?.addEventListener('click', e => {
+    e.preventDefault();
+    showRegister();
+  });
 
-  // Controleer sessie bij laden
+  document.getElementById('show-login')?.addEventListener('click', e => {
+    e.preventDefault();
+    showLogin();
+  });
+
+  // ===== SESSIECHECK BIJ PAGINALADEN =====
   const { data: { session } } = await supabase.auth.getSession();
 
   if (session) {
     hide(authSect);
     show(profileSect);
-
-    // Vul profielgegevens in
-    const { data: { user } } = await supabase.auth.getUser();
-    const md = user.user_metadata;
-
-    Object.entries(md).forEach(([key, value]) => {
-      const el = document.getElementById(`profile_${key}`);
-      if (el) el.value = value;
-    });
-
+    loadProfileData();
   } else {
     show(authSect);
     showLogin();
     hide(profileSect);
   }
 
-  // Login-functionaliteit
+  // ===== PROFIEL INVULLEN BIJ INGLOGD =====
+  async function loadProfileData() {
+    const { data: { user } } = await supabase.auth.getUser();
+    const md = user.user_metadata || {};
+    Object.entries(md).forEach(([key, value]) => {
+      const el = document.getElementById(`profile_${key}`);
+      if (el) el.value = value;
+    });
+  }
+
+  // ===== LOGIN =====
   loginForm.onsubmit = async (e) => {
     e.preventDefault();
-    const email = loginForm.email.value;
+    const email    = loginForm.email.value;
     const password = loginForm.password.value;
-  
+
     const { error } = await supabase.auth.signInWithPassword({ email, password });
-  
+
     if (error) {
       messageEl.textContent = error.message;
       messageEl.className = 'message error';
       return;
     }
-  
+
     messageEl.textContent = 'Inloggen gelukt!';
     messageEl.className = 'message success';
 
-    // Wacht kort totdat sessie echt beschikbaar is
+    // Wacht kort op sessie en redirect
     setTimeout(async () => {
       const { data: { session: newSession } } = await supabase.auth.getSession();
       if (newSession) {
@@ -72,7 +80,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }, 500);
   };
 
-  // Registratie-functionaliteit
+  // ===== REGISTRATIE =====
   registerForm.onsubmit = async (e) => {
     e.preventDefault();
     const formData = Object.fromEntries(new FormData(registerForm));
@@ -87,25 +95,26 @@ document.addEventListener('DOMContentLoaded', async () => {
       messageEl.textContent = error.message;
       messageEl.className = 'message error';
     } else {
-      messageEl.textContent = 'Registratie geslaagd! Controleer je mail om je account te activeren.';
+      messageEl.textContent = 'Registratie geslaagd! Bevestig je e-mail om verder te gaan.';
       messageEl.className = 'message success';
       showLogin();
     }
   };
 
-  // Profielgegevens opslaan
+  // ===== PROFIEL OPSLAAN =====
   profileForm.onsubmit = async (e) => {
     e.preventDefault();
+
     const updates = {
-      voornaam: document.getElementById('profile_voornaam').value,
-      tussenvoegsel: document.getElementById('profile_tussenvoegsel').value,
-      achternaam: document.getElementById('profile_achternaam').value,
-      telefoon: document.getElementById('profile_telefoon').value,
-      woonplaats: document.getElementById('profile_woonplaats').value,
-      postcode: document.getElementById('profile_postcode').value,
-      straat: document.getElementById('profile_straat').value,
-      huisnummer: document.getElementById('profile_huisnummer').value,
-      huisnummer_toevoeging: document.getElementById('profile_huisnummer_toevoeging').value
+      voornaam: document.getElementById('profile_voornaam')?.value,
+      tussenvoegsel: document.getElementById('profile_tussenvoegsel')?.value,
+      achternaam: document.getElementById('profile_achternaam')?.value,
+      telefoon: document.getElementById('profile_telefoon')?.value,
+      woonplaats: document.getElementById('profile_woonplaats')?.value,
+      postcode: document.getElementById('profile_postcode')?.value,
+      straat: document.getElementById('profile_straat')?.value,
+      huisnummer: document.getElementById('profile_huisnummer')?.value,
+      huisnummer_toevoeging: document.getElementById('profile_huisnummer_toevoeging')?.value
     };
 
     const { error } = await supabase.auth.updateUser({ data: updates });
@@ -119,17 +128,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   };
 
-  // Account verwijderen (vereist Supabase Function)
-  document.getElementById('deleteAccount').onclick = async () => {
-    if (confirm('Weet je zeker dat je jouw account permanent wilt verwijderen? Deze actie kan niet ongedaan gemaakt worden.')) {
-      const { error } = await supabase.functions.invoke('delete-user');
-      if (!error) {
-        await supabase.auth.signOut();
-        location.href = '/index.html';
-      } else {
-        alert('Fout bij verwijderen account: ' + error.message);
-      }
-    }
-  };
+  // ===== ACCOUNT VERWIJDEREN =====
+  document.getElementById('deleteAccount')?.addEventListener('click', async () => {
+    const confirmDelete = confirm('Weet je zeker dat je jouw account permanent wilt verwijderen?');
+    if (!confirmDelete) return;
 
+    const { error } = await supabase.functions.invoke('delete-user');
+
+    if (error) {
+      alert('Fout bij verwijderen account: ' + error.message);
+    } else {
+      await supabase.auth.signOut();
+      location.href = '/index.html';
+    }
+  });
 });
