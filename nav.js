@@ -7,11 +7,11 @@ async function updateNavUI() {
     return;
   }
 
-  const navRegister  = document.getElementById('nav-register');
-  const navAccount   = document.getElementById('nav-account');
-  const navLogout    = document.getElementById('nav-logout');
-  const navBereken   = document.getElementById('nav-bereken');
-  const navMestplan  = document.getElementById('nav-mestplan');
+  const navRegister = document.getElementById('nav-register');
+  const navAccount  = document.getElementById('nav-account');
+  const navLogout   = document.getElementById('nav-logout');
+  const navBereken  = document.getElementById('nav-bereken');
+  const navMestplan = document.getElementById('nav-mestplan');
 
   if (session) {
     navRegister && (navRegister.style.display = 'none');
@@ -32,8 +32,13 @@ document.addEventListener('DOMContentLoaded', () => {
   updateNavUI();
   supabase.auth.onAuthStateChange(updateNavUI);
 
-  document.getElementById('nav-register').onclick = () => { location.href = '/account.html'; };
-  document.getElementById('nav-account').onclick = () => { location.href = '/account.html'; };
+  document.getElementById('nav-register')?.addEventListener('click', () => {
+    location.href = '/account.html';
+  });
+
+  document.getElementById('nav-account')?.addEventListener('click', () => {
+    location.href = '/account.html';
+  });
 
   document.getElementById('nav-logout')?.addEventListener('click', async (e) => {
     e.preventDefault();
@@ -49,12 +54,11 @@ document.addEventListener('DOMContentLoaded', () => {
       console.error('Uitloggen mislukt:', error.message);
       alert('Uitloggen mislukt. Probeer opnieuw.');
     } else {
-      // Session cleanup
-      document.getElementById('nav-register')?.style.display = 'inline-block';
-      document.getElementById('nav-account')?.style.display = 'none';
-      document.getElementById('nav-bereken')?.style.display = 'none';
-      document.getElementById('nav-mestplan')?.style.display = 'none';
-      document.getElementById('nav-logout')?.style.display = 'none';
+      document.getElementById('nav-register')?.style.display  = 'inline-block';
+      document.getElementById('nav-account')?.style.display   = 'none';
+      document.getElementById('nav-bereken')?.style.display   = 'none';
+      document.getElementById('nav-mestplan')?.style.display  = 'none';
+      document.getElementById('nav-logout')?.style.display    = 'none';
 
       window.location.href = '/account.html';
     }
