@@ -1,66 +1,85 @@
-// nav.js
+// nav.js – robuuste, foutvrije navigatiemanager
+
+// 1) Update zichtbaarheid van alle nav-items op basis van Supabase-sessie
 async function updateNavUI() {
-  const { data: { session }, error } = await supabase.auth.getSession();
+  const { data, error } = await supabase.auth.getSession();
+  const session = data.session;
 
   if (error) {
     console.error('Sessie ophalen mislukt:', error.message);
     return;
   }
 
-  const navRegister = document.getElementById('nav-register');
-  const navAccount  = document.getElementById('nav-account');
-  const navLogout   = document.getElementById('nav-logout');
-  const navBereken  = document.getElementById('nav-bereken');
-  const navMestplan = document.getElementById('nav-mestplan');
+  // Nav-elementen
+  var navRegister = document.getElementById('nav-register');
+  var navBereken  = document.getElementById('nav-bereken');
+  var navMestplan = document.getElementById('nav-mestplan');
+  var navAccount  = document.getElementById('nav-account');
+  var navLogout   = document.getElementById('nav-logout');
 
   if (session) {
-    navRegister && (navRegister.style.display = 'none');
-    navAccount  && (navAccount.style.display  = 'inline-block');
-    navLogout   && (navLogout.style.display   = 'inline-block');
-    navBereken  && (navBereken.style.display  = 'inline-block');
-    navMestplan && (navMestplan.style.display = 'inline-block');
+    // Inglogd → toon alles behalve “Inloggen”
+    if (navRegister)  navRegister.style.display = 'none';
+    if (navBereken)   navBereken.style.display  = 'inline-block';
+    if (navMestplan)  navMestplan.style.display = 'inline-block';
+    if (navAccount)   navAccount.style.display  = 'inline-block';
+    if (navLogout)    navLogout.style.display   = 'inline-block';
   } else {
-    navRegister && (navRegister.style.display = 'inline-block');
-    navAccount  && (navAccount.style.display  = 'none');
-    navLogout   && (navLogout.style.display   = 'none');
-    navBereken  && (navBereken.style.display  = 'none');
-    navMestplan && (navMestplan.style.display = 'none');
+    // Niet inglogd → toon alleen “Inloggen”
+    if (navRegister)  navRegister.style.display = 'inline-block';
+    if (navBereken)   navBereken.style.display  = 'none';
+    if (navMestplan)  navMestplan.style.display = 'none';
+    if (navAccount)   navAccount.style.display  = 'none';
+    if (navLogout)    navLogout.style.display   = 'none';
   }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+// 2) Nadat DOM geladen is, initialiseer nav en knop-listeners
+document.addEventListener('DOMContentLoaded', function() {
+  // Direct UI updaten
   updateNavUI();
-  supabase.auth.onAuthStateChange(updateNavUI);
 
-  document.getElementById('nav-register')?.addEventListener('click', () => {
-    location.href = '/account.html';
+  // Ook updaten bij auth-state change
+  supabase.auth.onAuthStateChange(function() {
+    updateNavUI();
   });
 
-  document.getElementById('nav-account')?.addEventListener('click', () => {
-    location.href = '/account.html';
-  });
-
-  document.getElementById('nav-logout')?.addEventListener('click', async (e) => {
-    e.preventDefault();
-
-    const logoutBtn = document.getElementById('nav-logout');
-    logoutBtn.disabled = true;
-
-    const { error } = await supabase.auth.signOut();
-
-    logoutBtn.disabled = false;
-
-    if (error) {
-      console.error('Uitloggen mislukt:', error.message);
-      alert('Uitloggen mislukt. Probeer opnieuw.');
-    } else {
-      document.getElementById('nav-register')?.style.display  = 'inline-block';
-      document.getElementById('nav-account')?.style.display   = 'none';
-      document.getElementById('nav-bereken')?.style.display   = 'none';
-      document.getElementById('nav-mestplan')?.style.display  = 'none';
-      document.getElementById('nav-logout')?.style.display    = 'none';
-
-      window.location.href = '/account.html';
+  // Hulpmethode om listener toe te voegen
+  function bindClick(id, href) {
+    var el = document.getElementById(id);
+    if (el) {
+      el.addEventListener('click', function(evt) {
+        evt.preventDefault();
+        window.location.href = href;
+      });
     }
-  });
+  }
+
+  // 3) Klap de redirects netjes uit
+  bindClick('nav-register',  '/account.html');
+  bindClick('nav-bereken',   '/index.html');
+  bindClick('nav-mestplan',  '/mestplan.html');
+  bindClick('nav-account',   '/account.html');
+
+  // 4) Logout-knop
+  var btnLogout = document.getElementById('nav-logout');
+  if (btnLogout) {
+    btnLogout.addEventListener('click', async function(evt) {
+      evt.preventDefault();
+      btnLogout.disabled = true;
+
+      // Uitloggen
+      var { error } = await supabase.auth.signOut();
+      btnLogout.disabled = false;
+
+      if (error) {
+        console.error('Uitloggen mislukt:', error.message);
+        alert('Uitloggen mislukt. Probeer opnieuw.');
+      } else {
+        // Update UI en redirect
+        updateNavUI();
+        window.location.href = '/account.html';
+      }
+    });
+  }
 });
