@@ -34,8 +34,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('nav-register').onclick = () => location.href = '/account.html';
   document.getElementById('nav-account').onclick = () => location.href = '/account.html';
-  document.getElementById('nav-logout').onclick = async () => {
-    await supabase.auth.signOut();
-    location.href = '/account.html';
-  };
+  document.getElementById('nav-logout')?.addEventListener('click', async (e) => {
+    e.preventDefault();
+  
+    const logoutBtn = document.getElementById('nav-logout');
+    logoutBtn.disabled = true;
+  
+    const { error } = await supabase.auth.signOut();
+  
+    logoutBtn.disabled = false;
+  
+    if (error) {
+      console.error('Uitloggen mislukt:', error.message);
+      alert('Uitloggen mislukt. Probeer opnieuw.');
+    } else {
+      // Optioneel: session cleanup in UI
+      document.getElementById('nav-register')?.style.display = 'inline-block';
+      document.getElementById('nav-account')?.style.display = 'none';
+      document.getElementById('nav-bereken')?.style.display = 'none';
+      document.getElementById('nav-mestplan')?.style.display = 'none';
+      document.getElementById('nav-logout')?.style.display = 'none';
+  
+      // Redirect na succesvolle logout
+      window.location.href = '/account.html';
+    }
+  });
 });
