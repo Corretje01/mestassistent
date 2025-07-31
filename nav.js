@@ -32,8 +32,8 @@ document.addEventListener('DOMContentLoaded', () => {
   updateNavUI();
   supabase.auth.onAuthStateChange(updateNavUI);
 
-  document.getElementById('nav-register').onclick = () => location.href = '/account.html';
-  document.getElementById('nav-account').onclick = () => location.href = '/account.html';
+  document.getElementById('nav-register').onclick = () => { location.href = '/account.html'; };
+  document.getElementById('nav-account').onclick = () => { location.href = '/account.html'; };
 
   document.getElementById('nav-logout')?.addEventListener('click', async (e) => {
     e.preventDefault();
