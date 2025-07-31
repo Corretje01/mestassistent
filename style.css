@@ -395,3 +395,13 @@ p { margin-bottom: 1rem; }
     box-sizing: border-box;
   }
 }
+
+/* Navigatielinks (ingelogd): altijd wit, niet-paars */
+.nav__item {
+  color: var(--color-white);
+  text-decoration: none;
+}
+
+.nav__item:hover {
+  text-decoration: underline;
+}
