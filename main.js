@@ -29,20 +29,40 @@ async function initializeApp() {
     // Wacht op GLPK-initialisatie
     await waitForGLPK();
 
-    // Haal gebruiksruimte uit URL-queryparameters
-    const queryParams = new URLSearchParams(window.location.search);
-    const totaalA = Number(queryParams.get('totaalA') || 0);
-    const totaalB = Number(queryParams.get('totaalB') || 0);
-    const totaalC = Number(queryParams.get('totaalC') || 0);
-
-    if (!totaalA || !totaalB || !totaalC) {
-      alert("⚠️ Waarschuwing: gebruiksruimte ontbreekt. Controleer de invoer.");
-      return;
-    }
+    // Lees de drie waarden uit localStorage (of 0 als leeg)
+    const totaalA = Number(localStorage.getItem('res_n_dierlijk') || 0);
+    const totaalB = Number(localStorage.getItem('res_n_totaal')  || 0);
+    const totaalC = Number(localStorage.getItem('res_p_totaal')  || 0);
 
     // Stel gebruiksruimte in
     StateManager.setGebruiksruimte(totaalA, totaalB, totaalC);
 
+    // 1. Vul de inputs van stap 2 met localStorage-waarden
+    [
+      ['res_n_dierlijk', 'prev_res_n_dierlijk'],
+      ['res_n_totaal',  'prev_res_n_totaal'],
+      ['res_p_totaal',  'prev_res_p_totaal']
+    ].forEach(([key, prevId]) => {
+      const val = localStorage.getItem(key);
+      const input = document.getElementById(prevId);
+      if (input) {
+        if (val !== null) input.value = val;
+        // 2. Schrijf wijzigingen direct terug
+        input.addEventListener('input', () => {
+          // a) Update localStorage
+          localStorage.setItem(key, input.value);
+        
+          // b) Lees álle drie actuele waarden uit de DOM
+          const a = Number(localStorage.getItem('res_n_dierlijk') || 0);
+          const b = Number(localStorage.getItem('res_n_totaal')  || 0);
+          const c = Number(localStorage.getItem('res_p_totaal')  || 0);
+        
+          // c) Geef ze als trio door aan je state manager
+          StateManager.setGebruiksruimte(a, b, c);
+        });
+      }
+    });
+    
     // Initialiseer standaard sliders
     UIController.initStandardSliders();
     UIController.updateSliders();
