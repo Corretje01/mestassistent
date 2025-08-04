@@ -53,23 +53,21 @@ if (mestForm) {
       totaalC += C_ha * ha;
     });
 
-    // 5) Render conclusie inclusief uitleg
-    document.getElementById('resultaat').innerHTML = `
-      <h2>Conclusie gebruiksruimte</h2>
-      <p>Op basis van de geselecteerde percelen is dit de maximale hoeveelheid stikstof en fosfaat die je mag gebruiken:</p>
-      <div class="resultaat-blok">
-        <p><strong>Max. stikstof (N) uit dierlijke mest:</strong> ${totaalA.toFixed(0)} kg</p>
-        <p><strong>Max. stikstof (N) uit alle soorten mest:</strong> ${totaalB.toFixed(0)} kg</p>
-        <p><strong>Max. fosfaat (P):</strong> ${totaalC.toFixed(0)} kg</p>
-      </div>
-      <div style="margin-top:1.5rem; text-align:right;">
-        <button
-          class="btn btn-primary"
-          onclick="window.location.href='mestplan.html?totaalA=' + ${totaalA.toFixed(0)} + '&totaalB=' + ${totaalB.toFixed(0)} + '&totaalC=' + ${totaalC.toFixed(0)}"
-        >
-          Ga naar stap 2
-        </button>
-      </div>
-    `;
+    // 5) Vul de drie resultaten‐velden
+    document.getElementById('res_n_dierlijk').value = totaalA.toFixed(0);
+    document.getElementById('res_n_totaal').value  = totaalB.toFixed(0);
+    document.getElementById('res_p_totaal').value  = totaalC.toFixed(0);
+  
+    // 6) Bewaar in localStorage voor stap 2
+    localStorage.setItem('res_n_dierlijk', totaalA.toFixed(0));
+    localStorage.setItem('res_n_totaal',  totaalB.toFixed(0));
+    localStorage.setItem('res_p_totaal',  totaalC.toFixed(0));
+  
+    // 7) Toon en bind stap 2-knop
+    const btnStep2 = document.getElementById('go-to-step2');
+    btnStep2.style.display = 'inline-block';
+    btnStep2.onclick = () => {
+      window.location.href = '/mestplan.html';
+    };
   });
 }
