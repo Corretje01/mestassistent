@@ -59,9 +59,6 @@ async function initializeApp() {
         
           // c) Geef ze als trio door aan je state manager
           StateManager.setGebruiksruimte(a, b, c);
-          
-          // d) **Update de sliders in de UI** op basis van de nieuwe limits
-          UIController.updateSliders();
         });
       }
     });
