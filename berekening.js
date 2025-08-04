@@ -63,11 +63,12 @@ if (mestForm) {
     localStorage.setItem('res_n_totaal',  totaalB.toFixed(0));
     localStorage.setItem('res_p_totaal',  totaalC.toFixed(0));
   
-    // 7) Toon en bind stap 2-knop
+    // 7) Bind stap 2-knop
     const btnStep2 = document.getElementById('go-to-step2');
-    btnStep2.style.display = 'inline-block';
-    btnStep2.onclick = () => {
-      window.location.href = '/mestplan.html';
-    };
+    if (btnStep2) {
+      btnStep2.addEventListener('click', () => {
+        window.location.href = '/mestplan.html';
+      });
+    }
   });
 }
