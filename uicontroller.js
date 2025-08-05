@@ -74,6 +74,7 @@ export const UIController = (() => {
   }
 
   function updateSliders() {
+    const ruimte = StateManager.getGebruiksruimte();
     const nutDierlijk = CalculationEngine.berekenNutriënten(false);
     const nutInclKunstmest = CalculationEngine.berekenNutriënten(true);
 
