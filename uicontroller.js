@@ -74,55 +74,35 @@ export const UIController = (() => {
   }
 
   function updateSliders() {
-    const ruimte = StateManager.getGebruiksruimte();
     const nutDierlijk = CalculationEngine.berekenNutriënten(false);
     const nutInclKunstmest = CalculationEngine.berekenNutriënten(true);
 
     const sliders = [
-      { id: 'stikstof', value: nutDierlijk.stikstof, max: ruimte.A, unit: 'kg' },
-      { id: 'fosfaat', value: nutDierlijk.fosfaat, max: ruimte.C, unit: 'kg' },
-      { id: 'kalium', value: nutDierlijk.kalium, max: ruimte.B * 1.25, unit: 'kg' },
-      { id: 'organisch', value: nutDierlijk.organisch, max: 3000, unit: 'kg' },
-      { id: 'kunststikstof', value: StateManager.getKunstmest(), max: ruimte.B unit: 'kg' },
-      { id: 'financieel', value: nutInclKunstmest.financieel, max: 10000, unit: 'eur' }
+      { id: 'stikstof', value: nutDierlijk.stikstof, unit: 'kg' },
+      { id: 'fosfaat', value: nutDierlijk.fosfaat, unit: 'kg' },
+      { id: 'kalium', value: nutDierlijk.kalium, unit: 'kg' },
+      { id: 'organisch', value: nutDierlijk.organisch, unit: 'kg' },
+      { id: 'kunststikstof', value: StateManager.getKunstmest(), unit: 'kg' },
+      { id: 'financieel', value: nutInclKunstmest.financieel, unit: 'eur' }
     ];
 
     sliders.forEach(({ id, value, unit }) => {
-      const sliderEl = document.getElementById(`slider-${id}`);
-      const valueEl = document.getElementById(`value-${id}`);
+      const sliderEl = document.getElementById(slider-${id});
+      const valueEl = document.getElementById(value-${id});
       if (!sliderEl || !valueEl) return;
 
-      // Álleen max updaten, ongeacht lock-status
-      sliderEl.max = max;
-      
       const afgerond = Math.round(value * 10) / 10;
 
       if (!StateManager.isLocked(id)) {
         sliderEl.value = afgerond;
       }
 
-      // Tekstuele weergave
-      valueEl.textContent = `${afgerond} ${unit} / ${sliderEl.max} ${unit}`;
+      const formattedVal = ${afgerond} ${unit};
+      const formattedMax = ${sliderEl.max} ${unit};
+      valueEl.textContent = ${formattedVal} / ${formattedMax};
     });
-  
-    // 2) Mest-sliders: recalc max per mest-type + set value
-    const actieveMest = StateManager.getActieveMest();
-    for (const [id, mest] of Object.entries(actieveMest)) {
-      const sliderEl = document.getElementById(`slider-${id}`);
-      const valueEl  = document.getElementById(`value-${id}`);
-      if (!sliderEl || !valueEl) continue;
-  
-      // Nieuw maximum berekenen via ValidationEngine
-      const newMax = ValidationEngine.getMaxTonnage(id);
-      sliderEl.max = newMax;
-  
-      const afgerond = Math.round(mest.ton * 10) / 10;
-      if (!StateManager.isLocked(id)) {
-        sliderEl.value = afgerond;
-      }
-  
-      valueEl.textContent = `${afgerond} ton / ${sliderEl.max} ton`;
-    }
+
+    updateMestsoortenSliders();
   }
 
   function updateMestsoortenSliders() {
