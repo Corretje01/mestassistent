@@ -30,12 +30,15 @@ async function initializeApp() {
     await waitForGLPK();
 
     function resetMestPlanUI() {
-      StateManager.clearAllMestTypes();
-      UIController.hideSlidersContainer();        
-      document.querySelectorAll('.slider-group')
-        .forEach(el => el.remove());
+      document.querySelectorAll('.mest-btn.active').forEach(btn => {
+        btn.classList.remove('active');
+        const key = `${btn.dataset.type}-${btn.dataset.animal}`;
+        StateManager.removeMestType(key);
+      });
+      // Container verbergen, mocht dat nodig zijn
+      UIController.hideSlidersContainer();
     }
-    
+            
     // Lees de drie waarden uit localStorage (of 0 als leeg)
     const totaalA = Number(localStorage.getItem('res_n_dierlijk') || 0);
     const totaalB = Number(localStorage.getItem('res_n_totaal')  || 0);
