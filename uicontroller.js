@@ -74,37 +74,50 @@ export const UIController = (() => {
   }
 
   function updateSliders() {
-    const nutDierlijk = CalculationEngine.berekenNutriënten(false);
-    const nutInclKunstmest = CalculationEngine.berekenNutriënten(true);
-
-    const sliders = [
-      { id: 'stikstof', value: nutDierlijk.stikstof, unit: 'kg' },
-      { id: 'fosfaat', value: nutDierlijk.fosfaat, unit: 'kg' },
-      { id: 'kalium', value: nutDierlijk.kalium, unit: 'kg' },
-      { id: 'organisch', value: nutDierlijk.organisch, unit: 'kg' },
-      { id: 'kunststikstof', value: StateManager.getKunstmest(), unit: 'kg' },
-      { id: 'financieel', value: nutInclKunstmest.financieel, unit: 'eur' }
+    const nutDierlijk       = CalculationEngine.berekenNutriënten(false);
+    const nutInclKunstmest  = CalculationEngine.berekenNutriënten(true);
+    const { A, B, C }       = StateManager.getGebruiksruimte();
+  
+    // 1) Standaard sliders
+    const standaard = [
+      { id: 'stikstof',      value: nutDierlijk.stikstof,      max: A,           unit: 'kg'  },
+      { id: 'fosfaat',       value: nutDierlijk.fosfaat,       max: C,           unit: 'kg'  },
+      { id: 'kalium',        value: nutDierlijk.kalium,        max: B * 1.25,    unit: 'kg'  },
+      { id: 'organisch',     value: nutDierlijk.organisch,     max: 3000,        unit: 'kg'  },
+      { id: 'kunststikstof', value: StateManager.getKunstmest(), max: B,          unit: 'kg'  },
+      { id: 'financieel',    value: nutInclKunstmest.financieel, max: 10000,     unit: 'eur' }
     ];
-
-    sliders.forEach(({ id, value, unit }) => {
-      const sliderEl = document.getElementById(slider-${id});
-      const valueEl = document.getElementById(value-${id});
+  
+    standaard.forEach(({ id, value, max, unit }) => {
+      const sliderEl = document.getElementById(`slider-${id}`);
+      const valueEl  = document.getElementById(`value-${id}`);
       if (!sliderEl || !valueEl) return;
-
+  
+      sliderEl.max = max;
       const afgerond = Math.round(value * 10) / 10;
-
       if (!StateManager.isLocked(id)) {
         sliderEl.value = afgerond;
       }
-
-      const formattedVal = ${afgerond} ${unit};
-      const formattedMax = ${sliderEl.max} ${unit};
-      valueEl.textContent = ${formattedVal} / ${formattedMax};
+      valueEl.textContent = `${afgerond} ${unit} / ${sliderEl.max} ${unit}`;
     });
-
-    updateMestsoortenSliders();
+  
+    // 2) Mest-sliders
+    const actieveMest = StateManager.getActieveMest();
+    Object.entries(actieveMest).forEach(([id, mest]) => {
+      const sliderEl = document.getElementById(`slider-${id}`);
+      const valueEl  = document.getElementById(`value-${id}`);
+      if (!sliderEl || !valueEl) return;
+  
+      const newMax = ValidationEngine.getMaxTonnage(id);
+      sliderEl.max = newMax;
+      const afgerond = Math.round(mest.ton * 10) / 10;
+      if (!StateManager.isLocked(id)) {
+        sliderEl.value = afgerond;
+      }
+      valueEl.textContent = `${afgerond} ton / ${sliderEl.max} ton`;
+    });
   }
-
+  
   function updateMestsoortenSliders() {
     const actieveMest = StateManager.getActieveMest();
 
