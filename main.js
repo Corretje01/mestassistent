@@ -1,13 +1,14 @@
 // main.js
+
 import { StateManager } from './statemanager.js';
 import { UIController } from './uicontroller.js';
 import { LogicEngine } from './logicengine.js';
 import { ValidationEngine } from './validationengine.js';
 
-// Wacht tot GLPK is geladen door te controleren op window.glp_create_prob
+// 1) Wacht tot GLPK in window zit
 async function waitForGLPK() {
   return new Promise((resolve, reject) => {
-    const maxAttempts = 100; // Max 10 seconden (100 * 100ms)
+    const maxAttempts = 100;
     let attempts = 0;
     const checkGLPK = () => {
       if (typeof window.glp_create_prob !== 'undefined') {
@@ -24,14 +25,13 @@ async function waitForGLPK() {
   });
 }
 
-// Hoofdinitialisatiefunctie
+// 2) Hoofdinitialisatie
 async function initializeApp() {
   try {
-    // 1) Wacht op GLPK
     await waitForGLPK();
 
-    // Helper om actieve mest-knoppen te resetten
-default function resetMestPlanUI() {
+    // Helper: reset alle actieve mest-knoppen + hide container
+    function resetMestPlanUI() {
       document.querySelectorAll('.mest-btn.active').forEach(btn => {
         btn.classList.remove('active');
         const key = `${btn.dataset.type}-${btn.dataset.animal}`;
@@ -40,22 +40,20 @@ default function resetMestPlanUI() {
       UIController.hideSlidersContainer();
     }
 
-    // 2) Zorg dat de drie gebruiksruimte-keys bestaan
+    // 3) Zorg dat gebruiksruimte-keys altijd bestaan in localStorage
     ['res_n_dierlijk', 'res_n_totaal', 'res_p_totaal'].forEach(key => {
       if (localStorage.getItem(key) === null) {
         localStorage.setItem(key, '0');
       }
     });
 
-    // 3) Lees gegarandeerd numerieke waarden
+    // 4) Lees initiële gebruiksruimte en zet in state
     const totaalA = Number(localStorage.getItem('res_n_dierlijk'));
     const totaalB = Number(localStorage.getItem('res_n_totaal'));
     const totaalC = Number(localStorage.getItem('res_p_totaal'));
-
-    // 4) Zet initiële gebruiksruimte
     StateManager.setGebruiksruimte(totaalA, totaalB, totaalC);
 
-    // 5) Vul Stap 2-inputs en hang live-listener
+    // 5) Vul Stap-2-inputs en hang live-listeners
     [
       ['res_n_dierlijk', 'prev_res_n_dierlijk'],
       ['res_n_totaal',   'prev_res_n_totaal'],
@@ -63,23 +61,32 @@ default function resetMestPlanUI() {
     ].forEach(([key, prevId]) => {
       const input = document.getElementById(prevId);
       if (!input) return;
+
+      // vullen vanuit storage (nooit leeg)
       input.value = localStorage.getItem(key);
+
+      // live-update bij typen
       input.addEventListener('input', () => {
         const num = Number(input.value) || 0;
         localStorage.setItem(key, num.toString());
+
+        // reset mest-UI en recalc state
         resetMestPlanUI();
         const a = Number(document.getElementById('prev_res_n_dierlijk').value) || 0;
         const b = Number(document.getElementById('prev_res_n_totaal').value)  || 0;
         const c = Number(document.getElementById('prev_res_p_totaal').value)  || 0;
         StateManager.setGebruiksruimte(a, b, c);
+
+        // herteken alle sliders
         UIController.updateSliders();
       });
     });
 
-    // 6) Init en teken sliders\    UIController.initStandardSliders();
+    // 6) Init & render standaard sliders
+    UIController.initStandardSliders();
     UIController.updateSliders();
 
-    // 7) Laad mestsoorten.json
+    // 7) Laad mestsoorten.json en configureer mest-knoppen
     let mestsoortenData = {};
     try {
       const response = await fetch('/data/mestsoorten.json');
@@ -92,23 +99,23 @@ default function resetMestPlanUI() {
       return;
     }
 
-    // 8) Mest-knop handlers
+    // 8) Click-handlers voor mest-knoppen
     document.querySelectorAll('.mest-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         btn.classList.toggle('active');
         const type = btn.dataset.type;
         const animal = btn.dataset.animal;
         const key = `${type}-${animal}`;
+
         if (btn.classList.contains('active')) {
           const jsonType = { drijfmest: 'drijfmest', vastemest: 'vaste_mest', overig: 'overig' }[type];
           const mestData = mestsoortenData?.[jsonType]?.[animal];
           if (!mestData) {
-            console.warn(`⚠️ Geen mestdata gevonden voor ${key}`);
+            console.warn(`⚠️ Geen mestdata voor ${key}`);
             return;
           }
           StateManager.addMestType(key, mestData);
-          const maxTon = ValidationEngine.getMaxTonnage(key);
-          UIController.renderMestsoortSlider(key, `${type} ${animal}`, maxTon);
+          UIController.renderMestsoortSlider(key, `${type} ${animal}`, ValidationEngine.getMaxTonnage(key));
           UIController.showSlidersContainer();
         } else {
           StateManager.removeMestType(key);
@@ -118,15 +125,16 @@ default function resetMestPlanUI() {
             UIController.hideSlidersContainer();
           }
         }
+
         UIController.updateSliders();
       });
     });
 
   } catch (err) {
-    console.error('❌ Fout bij initialisatie van GLPK:', err);
-    alert('⚠️ GLPK kon niet worden geladen. Controleer of het script correct is ingeladen.');
+    console.error('❌ Fout bij initialisatie:', err);
+    alert('⚠️ GLPK kon niet worden geladen.');
   }
 }
 
-// Start initialisatie bij window.onload
+// 9) Start de app op window load
 window.onload = initializeApp;
