@@ -61,7 +61,7 @@ async function initializeApp() {
         input.addEventListener('input', () => {
           // a) Update localStorage
           const num = Number(input.value) || 0;
-          localStorage.setItem(key, input.value);
+          localStorage.setItem(key, num.toString());
 
           // b) Reset alle mest-UI naar beginstaat
           resetMestPlanUI();
