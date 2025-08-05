@@ -60,6 +60,7 @@ async function initializeApp() {
         // 2. Schrijf wijzigingen direct terug
         input.addEventListener('input', () => {
           // a) Update localStorage
+          const num = Number(input.value) || 0;
           localStorage.setItem(key, input.value);
 
           // b) Reset alle mest-UI naar beginstaat
