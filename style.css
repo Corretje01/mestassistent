@@ -364,7 +364,7 @@ p { margin-bottom: 1rem; }
 /* Optimaliseerknop */
 #optimaliseer-btn {
   margin-top: 1rem;
-  display: inline-block;
+  display: none !important;
 }
 
 /* Kaarten / sliders / secties */
