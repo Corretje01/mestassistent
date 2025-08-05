@@ -30,10 +30,6 @@ export const StateManager = (() => {
       delete state.actieveMest[id];
     },
     
-    clearAllMestTypes() {
-      state.actieveMest = {};
-    },
-    
     setMestTonnage(id, ton) {
       if (!state.actieveMest[id]) return;
       state.actieveMest[id].ton = ton;
