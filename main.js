@@ -29,6 +29,13 @@ async function initializeApp() {
     // Wacht op GLPK-initialisatie
     await waitForGLPK();
 
+    function resetMestPlanUI() {
+      StateManager.clearAllMestTypes();
+      UIController.hideSlidersContainer();        
+      document.querySelectorAll('.slider-group')
+        .forEach(el => el.remove());
+    }
+    
     // Lees de drie waarden uit localStorage (of 0 als leeg)
     const totaalA = Number(localStorage.getItem('res_n_dierlijk') || 0);
     const totaalB = Number(localStorage.getItem('res_n_totaal')  || 0);
@@ -51,14 +58,20 @@ async function initializeApp() {
         input.addEventListener('input', () => {
           // a) Update localStorage
           localStorage.setItem(key, input.value);
-        
-          // b) Lees álle drie actuele waarden uit de DOM
+
+          // b) Reset alle mest-UI naar beginstaat
+          resetMestPlanUI();
+
+          // c) Lees álle drie actuele waarden uit de DOM
           const a = Number(localStorage.getItem('res_n_dierlijk') || 0);
           const b = Number(localStorage.getItem('res_n_totaal')  || 0);
           const c = Number(localStorage.getItem('res_p_totaal')  || 0);
         
-          // c) Geef ze als trio door aan je state manager
+          // d) Geef ze als trio door aan je state manager
           StateManager.setGebruiksruimte(a, b, c);
+
+          // e) Herteken sliders
+          UIController.updateSliders();
         });
       }
     });
