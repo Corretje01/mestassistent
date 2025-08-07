@@ -98,25 +98,24 @@
     </section>
   </main>
 
-  <!-- 1) Supabase SDK: laden vóór al je eigen scripts -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-  <script defer src="supabaseClient.js"></script>
-  
-  <!-- 2) nav.js: gedeelde navigatie‐logic (login/account/logout) -->
-  <script defer src="nav.js"></script>
-  
-  <!-- Route‑guard: niet-ingelogd → account.html -->
-  <script defer>
+  <!-- 1) ESM Supabase-client -->
+  <script type="module" src="supabaseClient.js"></script>
+
+  <!-- 2) Nav logic als module -->
+  <script type="module" src="nav.js"></script>
+
+  <!-- 3) Route-guard als module -->
+  <script type="module">
+    import { supabase } from './supabaseClient.js';
     document.addEventListener('DOMContentLoaded', async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-        // Redirect naar login/registratie
         window.location.href = '/account.html';
       }
     });
   </script>
 
-  <!-- 3) Paginapecifiek script (module) -->
-  <script defer type="module" src="./main.js"></script>
+  <!-- 4) Paginapecifiek script als module -->
+  <script type="module" src="./main.js"></script>
 </body>
 </html>
