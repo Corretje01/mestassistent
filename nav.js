@@ -59,7 +59,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // 3) Klap de redirects netjes uit
   bindClick('nav-register',  '/account.html');
-  bindClick('nav-bereken',   '/index.html');
+  bindClick('nav-bereken',   '/stap1.html');
   bindClick('nav-mestplan',  '/mestplan.html');
   bindClick('nav-account',   '/account.html');
 
