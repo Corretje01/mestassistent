@@ -11,7 +11,7 @@ let saveTimeout;
 function saveMestplan(key, value) {
   clearTimeout(saveTimeout);
   saveTimeout = setTimeout(async () => {
-    const user = supabase.auth.user();
+    const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
     const updates = {
       user_id: user.id,
@@ -27,7 +27,7 @@ function saveMestplan(key, value) {
 
 // Haal per-account opgeslagen waarden op (of maak lege entry aan)
 async function loadMestplan() {
-  const user = supabase.auth.user();
+  const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { A: 0, B: 0, C: 0 };
 
   const { data, error } = await supabase
