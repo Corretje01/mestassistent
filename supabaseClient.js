@@ -1,8 +1,8 @@
 
 // supabaseClient.js
 
-// 1) ESM-import uit de npm-package
-import { createClient } from '@supabase/supabase-js';
+// 1) ESM-build rechtstreeks vanaf CDN
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
 // 2) Jouw project-gegevens
 const SUPABASE_URL  = 'https://joxzxtdkjenyayddtwmn.supabase.co';
