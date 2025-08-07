@@ -6,21 +6,28 @@ import { LogicEngine } from './logicengine.js';
 import { ValidationEngine } from './validationengine.js';
 import { supabase } from './supabaseClient.js';
 
-// Debounced helper: upsert gebruiker’s mestplan in Supabase
+// Debounced helper: upsert het volledige trio A/B/C
 let saveTimeout;
-function saveMestplan(key, value) {
+function saveMestplan() {
   clearTimeout(saveTimeout);
   saveTimeout = setTimeout(async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-    const updates = {
-      user_id: user.id,
-      [key]:      value,
-      updated_at: new Date()
-    };
+
+    const a = Number(document.getElementById('prev_res_n_dierlijk').value) || 0;
+    const b = Number(document.getElementById('prev_res_n_totaal').value)  || 0;
+    const c = Number(document.getElementById('prev_res_p_totaal').value)  || 0;
+
     const { error } = await supabase
       .from('user_mestplan')
-      .upsert(updates, { onConflict: 'user_id' });
+      .upsert({
+        user_id:        user.id,
+        res_n_dierlijk: a,
+        res_n_totaal:   b,
+        res_p_totaal:   c,
+        updated_at:     new Date().toISOString()
+      }, { onConflict: 'user_id' });
+
     if (error) console.error('Save error:', error);
   }, 300);
 }
@@ -34,25 +41,13 @@ async function loadMestplan() {
     .from('user_mestplan')
     .select('res_n_dierlijk, res_n_totaal, res_p_totaal')
     .eq('user_id', user.id)
-    .maybeSingle(); // <- belangrijk
+    .maybeSingle();
 
   if (error) {
     console.error('loadMestplan error:', error);
     return { A: 0, B: 0, C: 0 };
   }
-
-  if (!data) {
-    const { error: insErr } = await supabase
-      .from('user_mestplan')
-      .insert({
-        user_id: user.id,
-        res_n_dierlijk: 0,
-        res_n_totaal:   0,
-        res_p_totaal:   0
-      });
-    if (insErr) console.error('insert user_mestplan error:', insErr);
-    return { A: 0, B: 0, C: 0 };
-  }
+  if (!data) return { A: 0, B: 0, C: 0 };
 
   return {
     A: Number(data.res_n_dierlijk ?? 0),
@@ -86,6 +81,15 @@ async function initializeApp() {
   try {
     await waitForGLPK();
 
+    // Pak de drie inputvelden 1x vast
+    const aEl = document.getElementById('prev_res_n_dierlijk');
+    const bEl = document.getElementById('prev_res_n_totaal');
+    const cEl = document.getElementById('prev_res_p_totaal');
+    if (!aEl || !bEl || !cEl) {
+      console.warn('Stap-2 inputs ontbreken in de DOM.');
+      return;
+    }
+
     // Helper om alle actieve mest-knoppen te resetten
     function resetMestPlanUI() {
       document.querySelectorAll('.mest-btn.active').forEach(btn => {
@@ -100,38 +104,25 @@ async function initializeApp() {
     const { A, B, C } = await loadMestplan();
     StateManager.setGebruiksruimte(A, B, C);
 
-    // 2) Vul Stap-2-inputs met deze waarden
-    document.getElementById('prev_res_n_dierlijk').value = A;
-    document.getElementById('prev_res_n_totaal').value    = B;
-    document.getElementById('prev_res_p_totaal').value    = C;
+    // 2) Vul inputs met deze waarden
+    aEl.value = A;
+    bEl.value = B;
+    cEl.value = C;
 
-    // 3) Hang live-listeners op de drie inputs
-    [
-      ['res_n_dierlijk', 'prev_res_n_dierlijk'],
-      ['res_n_totaal',   'prev_res_n_totaal'],
-      ['res_p_totaal',   'prev_res_p_totaal']
-    ].forEach(([key, prevId]) => {
-      const input = document.getElementById(prevId);
-      if (!input) return;
-
+    // 3) Live-listeners op de inputs
+    [aEl, bEl, cEl].forEach(input => {
       input.addEventListener('input', () => {
-        const num = Number(input.value) || 0;
+        // Recalc state op basis van actuele velden
+        const a = Number(aEl.value) || 0;
+        const b = Number(bEl.value) || 0;
+        const c = Number(cEl.value) || 0;
 
-        // Optioneel: bewaar ook in localStorage voor fallback
-        localStorage.setItem(key, num.toString());
-
-        // Reset mest-UI en recalc state
         resetMestPlanUI();
-        const a = Number(document.getElementById('prev_res_n_dierlijk').value) || 0;
-        const b = Number(document.getElementById('prev_res_n_totaal').value)  || 0;
-        const c = Number(document.getElementById('prev_res_p_totaal').value)  || 0;
         StateManager.setGebruiksruimte(a, b, c);
-
-        // Herteken sliders
         UIController.updateSliders();
 
-        // Opslaan naar Supabase
-        saveMestplan(key, num);
+        // Debounced upsert van het volledige trio
+        saveMestplan();
       });
     });
 
@@ -149,7 +140,7 @@ async function initializeApp() {
     } catch (err) {
       console.error('Fout bij laden mestsoorten.json:', err);
       alert('⚠️ Kan mestsoorten.json niet laden.');
-      return;
+      return; // stop init
     }
 
     // 6) Event handlers voor mest-knoppen
@@ -182,6 +173,34 @@ async function initializeApp() {
         UIController.updateSliders();
       });
     });
+
+    // 7) Realtime sync (na UI-setup) – luister op INSERT + UPDATE
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const channel = supabase
+        .channel('mestplan-sync')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'user_mestplan', filter: `user_id=eq.${user.id}` },
+          (payload) => {
+            const nA = Number(payload.new?.res_n_dierlijk ?? 0);
+            const nB = Number(payload.new?.res_n_totaal   ?? 0);
+            const nC = Number(payload.new?.res_p_totaal   ?? 0);
+
+            StateManager.setGebruiksruimte(nA, nB, nC);
+            aEl.value = nA;
+            bEl.value = nB;
+            cEl.value = nC;
+            UIController.updateSliders();
+          }
+        )
+        .subscribe();
+
+      // Opruimen bij navigatie
+      window.addEventListener('beforeunload', () => {
+        supabase.removeChannel(channel);
+      });
+    }
 
   } catch (err) {
     console.error('❌ Fout bij initialisatie:', err);
