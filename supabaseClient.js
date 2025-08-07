@@ -1,4 +1,3 @@
-
 // supabaseClient.js
 
 // 1) ESM-build rechtstreeks vanaf CDN
