@@ -1,11 +1,10 @@
 // kaart.js — toggling van perceelsselectie met behoud van originele flow
-
 const map = L.map('map').setView([52.1, 5.1], 7);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   attribution: '© OSM contributors'
 }).addTo(map);
 
-let parcels = [];
+export let parcels = [];
 function uuid() {
   return 'p_' + Math.random().toString(36).slice(2);
 }
