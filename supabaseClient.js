@@ -1,3 +1,4 @@
+
 // supabaseClient.js
 
 // 1) ESM-import uit de npm-package
