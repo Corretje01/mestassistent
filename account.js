@@ -75,7 +75,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     setTimeout(async () => {
       const { data: { session: newSession } } = await supabase.auth.getSession();
       if (newSession) {
-        window.location.href = '/mestplan.html';
+        window.location.href = '/index.html';
       } else {
         messageEl.textContent = 'Er ging iets mis met inloggen. Probeer opnieuw.';
         messageEl.className = 'message error';
