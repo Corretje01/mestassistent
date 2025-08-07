@@ -55,19 +55,22 @@ if (mestForm) {
       totaalC += C_ha * ha;
     });
 
-    // 5a) Vul de drie resultaten‐velden
-    document.getElementById('res_n_dierlijk').value = totaalA.toFixed(0);
-    document.getElementById('res_n_totaal').value  = totaalB.toFixed(0);
-    document.getElementById('res_p_totaal').value  = totaalC.toFixed(0);
-
-    resAEl.value = totaalA.toFixed(0);
-    resBEl.value = totaalB.toFixed(0);
-    resCEl.value = totaalC.toFixed(0);
-    
-    // 5b) Toon de resultaten-sectie (was initieel hidden in index.html)
+    // 5) Vul de drie resultaten-velden en toon de sectie
     const resultsSection = document.getElementById('results-section');
+    const aInput = document.getElementById('res_n_dierlijk');
+    const bInput = document.getElementById('res_n_totaal');
+    const cInput = document.getElementById('res_p_totaal');
+    
+    // waarden invullen (afgerond op hele kg)
+    if (aInput) aInput.value = Math.round(totaalA).toString();
+    if (bInput) bInput.value = Math.round(totaalB).toString();
+    if (cInput) cInput.value = Math.round(totaalC).toString();
+    
+    // sectie zichtbaar maken (die stond initieel op display:none)
     if (resultsSection) {
       resultsSection.style.display = 'block';
+      // eventueel smooth scroll:
+      // resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   
     // 6) Bewaar in localStorage voor stap 2
