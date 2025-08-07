@@ -1,4 +1,6 @@
-// nav.js – robuuste, foutvrije navigatiemanager
+// nav.js
+// importeer de gedeelde Supabase-client
+import { supabase } from './supabaseClient.js';
 
 // 1) Update zichtbaarheid van alle nav-items op basis van Supabase-sessie
 async function updateNavUI() {
@@ -40,7 +42,7 @@ document.addEventListener('DOMContentLoaded', function() {
   updateNavUI();
 
   // Ook updaten bij auth-state change
-  supabase.auth.onAuthStateChange(function() {
+  supabase.auth.onAuthStateChange((event, session) => {
     updateNavUI();
   });
 
