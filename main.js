@@ -34,22 +34,26 @@ async function loadMestplan() {
     .from('user_mestplan')
     .select('res_n_dierlijk, res_n_totaal, res_p_totaal')
     .eq('user_id', user.id)
-    .single();
+    .maybeSingle(); // <- belangrijk
 
-  if (error && error.code === 'PGRST116') {
-    // Nog geen record: insert lege defaults
-    await supabase.from('user_mestplan').insert({ user_id: user.id });
+  if (error) {
+    console.error('loadMestplan error:', error);
     return { A: 0, B: 0, C: 0 };
   }
-  if (error) {
-    console.error('Error loadMestplan():', error);
+
+  if (!data) {
+    // 0 rijen => maak een nieuwe rij aan
+    const { error: insErr } = await supabase
+      .from('user_mestplan')
+      .insert({ user_id: user.id });
+    if (insErr) console.error('insert user_mestplan error:', insErr);
     return { A: 0, B: 0, C: 0 };
   }
 
   return {
-    A: Number(data.res_n_dierlijk),
-    B: Number(data.res_n_totaal),
-    C: Number(data.res_p_totaal),
+    A: Number(data.res_n_dierlijk ?? 0),
+    B: Number(data.res_n_totaal ?? 0),
+    C: Number(data.res_p_totaal ?? 0),
   };
 }
 
