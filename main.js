@@ -42,10 +42,14 @@ async function loadMestplan() {
   }
 
   if (!data) {
-    // 0 rijen => maak een nieuwe rij aan
     const { error: insErr } = await supabase
       .from('user_mestplan')
-      .insert({ user_id: user.id });
+      .insert({
+        user_id: user.id,
+        res_n_dierlijk: 0,
+        res_n_totaal:   0,
+        res_p_totaal:   0
+      });
     if (insErr) console.error('insert user_mestplan error:', insErr);
     return { A: 0, B: 0, C: 0 };
   }
