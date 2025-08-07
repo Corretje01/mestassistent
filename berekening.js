@@ -55,10 +55,20 @@ if (mestForm) {
       totaalC += C_ha * ha;
     });
 
-    // 5) Vul de drie resultaten‐velden
+    // 5a) Vul de drie resultaten‐velden
     document.getElementById('res_n_dierlijk').value = totaalA.toFixed(0);
     document.getElementById('res_n_totaal').value  = totaalB.toFixed(0);
     document.getElementById('res_p_totaal').value  = totaalC.toFixed(0);
+
+    resAEl.value = totaalA.toFixed(0);
+    resBEl.value = totaalB.toFixed(0);
+    resCEl.value = totaalC.toFixed(0);
+    
+    // 5b) Toon de resultaten-sectie (was initieel hidden in index.html)
+    const resultsSection = document.getElementById('results-section');
+    if (resultsSection) {
+      resultsSection.style.display = 'block';
+    }
   
     // 6) Bewaar in localStorage voor stap 2
     (async () => {
