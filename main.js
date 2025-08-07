@@ -4,7 +4,7 @@ import { StateManager } from './statemanager.js';
 import { UIController } from './uicontroller.js';
 import { LogicEngine } from './logicengine.js';
 import { ValidationEngine } from './validationengine.js';
-import { Supabase } from './supabaseClient.js';
+import { supabase } from './supabaseClient.js';
 
 // Debounced helper: upsert gebruiker’s mestplan in Supabase
 let saveTimeout;
