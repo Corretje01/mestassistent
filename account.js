@@ -75,7 +75,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     setTimeout(async () => {
       const { data: { session: newSession } } = await supabase.auth.getSession();
       if (newSession) {
-        window.location.href = '/index.html';
+        window.location.href = '/stap1.html';
       } else {
         messageEl.textContent = 'Er ging iets mis met inloggen. Probeer opnieuw.';
         messageEl.className = 'message error';
@@ -141,7 +141,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       alert('Fout bij verwijderen account: ' + error.message);
     } else {
       await supabase.auth.signOut();
-      location.href = '/index.html';
+      location.href = '/stap1.html';
     }
   });
 });
