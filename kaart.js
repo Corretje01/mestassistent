@@ -43,7 +43,7 @@ map.on('click', async e => {
     const feat = data.features?.[0];
     if (!feat) throw new Error('Geen perceel gevonden');
 
-    // Unieke naam bepalen (zoals in origineel) :contentReference[oaicite:0]{index=0}:contentReference[oaicite:1]{index=1}
+    // Unieke naam bepalen (zoals in origineel) :contentReference[oaicite:0]{stap1=0}:contentReference[oaicite:1]{stap1=1}
     const props = feat.properties;
     const name  = props.weergavenaam
                 || `${props.kadastraleGemeenteWaarde} ${props.sectie} ${props.perceelnummer}`;
@@ -57,7 +57,7 @@ map.on('click', async e => {
       return;
     }
 
-    // 3) Bodemsoort ophalen (net als origineel) :contentReference[oaicite:2]{index=2}:contentReference[oaicite:3]{index=3}
+    // 3) Bodemsoort ophalen (net als origineel) :contentReference[oaicite:2]{stap1=2}:contentReference[oaicite:3]{stap1=3}
     const bodemResp = await fetch(`/.netlify/functions/bodemsoort?lon=${lng}&lat=${lat}`);
     if (!bodemResp.ok) throw new Error('Bodemsoort-API ' + bodemResp.status);
     const bodem = await bodemResp.json();
