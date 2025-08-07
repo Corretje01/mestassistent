@@ -1,4 +1,5 @@
 // berekening.js — mestplaatsingsruimte-berekening
+import { parcels } from './kaart.js';
 
 // 1) Laad JSON met grondgebonden stikstofnormen (Tabel 2)
 let stikstofnormen = {};
