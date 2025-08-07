@@ -6,10 +6,3 @@
 # Functies liggen in de map "functions" in de root
 [functions]
   directory = "functions"
-
-# Root naar index.html (status 200 = rewrite, URL blijft "/")
-[[redirects]]
-  from = "/"
-  to = "/index.html"
-  status = 200
-  # force = true  # optioneel, alleen nodig als er al een bestand op "/" zou conflicteren
