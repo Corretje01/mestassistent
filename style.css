@@ -396,12 +396,127 @@ p { margin-bottom: 1rem; }
   }
 }
 
-/* Navigatielinks (ingelogd): altijd wit, niet-paars */
+/* Navigatielinks (ingelogd): altijd wit, geen underline */
 .nav__item {
   color: var(--color-white);
   text-decoration: none;
 }
 
 .nav__item:hover {
-  text-decoration: underline;
+  text-decoration: none;
+  opacity: .9;
 }
+
+/* ===== Typografie polish ===== */
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  letter-spacing: 0.01em;
+}
+
+h1, h2, h3 {
+  line-height: 1.25;
+  margin: 0 0 .6rem;
+}
+
+p {
+  margin: .4rem 0 1rem;
+}
+
+/* ===== Buttons & nav-links: nooit onderstreept ===== */
+a.btn, .btn, .nav-links a, .nav-logo, .btn-login, .nav__item {
+  text-decoration: none !important;
+}
+
+/* ===== Base button (subtiel, geen schreeuw) ===== */
+.btn {
+  display: inline-block;
+  padding: .65rem 1rem;
+  border-radius: 10px;
+  border: 1px solid rgba(0,0,0,.08);
+  background: #fff;
+  cursor: pointer;
+  font-weight: 500;
+  transition: transform .08s ease, box-shadow .18s ease, border-color .18s ease, background-color .18s ease;
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(0,0,0,.06);
+  border-color: rgba(0,0,0,.12);
+}
+
+.btn:active {
+  transform: translateY(0);
+  box-shadow: 0 3px 10px rgba(0,0,0,.06);
+}
+
+/* Respecteer je bestaande primary kleuren, maar geef 'm wat depth */
+.btn-primary {
+  background: var(--color-yellow);
+  color: var(--color-black);
+  border: none;
+  transition: background .2s ease, transform .08s ease, box-shadow .18s ease;
+}
+
+.btn-primary:hover {
+  background: var(--color-yellow-dark);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(0,0,0,.08);
+}
+
+.btn-primary:active {
+  transform: translateY(0);
+}
+
+/* ===== Cards nét wat zachter (consistent met jouw stijl) ===== */
+.card {
+  border-radius: 12px;
+  box-shadow: 0 8px 28px rgba(0,0,0,.05);
+}
+
+/* ===== Bullets: strak en consistent ===== */
+.bullets {
+  list-style: none;
+  padding-left: 1.25rem;  /* ruimte voor custom bullet */
+  margin: .5rem 0 0;
+}
+
+.bullets li {
+  position: relative;
+  margin: .35rem 0;
+  padding-left: .25rem;
+  line-height: 1.55;
+}
+
+.bullets li::before {
+  content: "•";
+  position: absolute;
+  left: -1.25rem;
+  top: 0;
+  line-height: 1.2;
+  font-weight: 600;
+  color: var(--color-black);
+  opacity: .55;
+}
+
+/* Ordered lists in cards ook netjes */
+.card ol {
+  padding-left: 1.25rem;
+  margin: .5rem 0 0;
+}
+
+.card ol li {
+  margin: .35rem 0;
+  line-height: 1.55;
+}
+
+/* Hero subtiele toon */
+.hero .lead {
+  color: var(--color-gray-dark);
+}
+
