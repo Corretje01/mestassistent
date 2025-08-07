@@ -1,6 +1,6 @@
 // berekening.js — mestplaatsingsruimte-berekening
-import { parcels } from './kaart.js';
 import { supabase } from './supabaseClient.js';
+import { parcels } from './kaart.js';
 
 // 1) Laad JSON met grondgebonden stikstofnormen (Tabel 2)
 let stikstofnormen = {};
@@ -61,10 +61,6 @@ if (mestForm) {
     document.getElementById('res_p_totaal').value  = totaalC.toFixed(0);
   
     // 6) Bewaar in localStorage voor stap 2
-    localStorage.setItem('res_n_dierlijk', totaalA.toFixed(0));
-    localStorage.setItem('res_n_totaal',  totaalB.toFixed(0));
-    localStorage.setItem('res_p_totaal',  totaalC.toFixed(0));
-
     (async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return; // niet ingelogd → alleen localStorage
