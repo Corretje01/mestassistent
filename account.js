@@ -1,5 +1,8 @@
 // account.js – veilig accountbeheer met Supabase-authenticatie
 
+// importeer de gedeelde Supabase-client
+import { supabase } from './supabaseClient.js';
+
 // ===== UTILITIES =====
 function show(el) { el.style.display = 'block'; }
 function hide(el) { el.style.display = 'none'; }
@@ -134,7 +137,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!confirmDelete) return;
 
     const { error } = await supabase.functions.invoke('delete-user');
-
     if (error) {
       alert('Fout bij verwijderen account: ' + error.message);
     } else {
