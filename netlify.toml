@@ -7,9 +7,9 @@
 [functions]
   directory = "functions"
 
-# Root naar home.html (status 200 = rewrite, URL blijft "/")
+# Root naar index.html (status 200 = rewrite, URL blijft "/")
 [[redirects]]
   from = "/"
-  to = "/home.html"
+  to = "/index.html"
   status = 200
   # force = true  # optioneel, alleen nodig als er al een bestand op "/" zou conflicteren
