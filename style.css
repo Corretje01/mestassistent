@@ -520,3 +520,5 @@ a.btn, .btn, .nav-links a, .nav-logo, .btn-login, .nav__item {
   color: var(--color-gray-dark);
 }
 
+/* Homepage: Social proof */
+.testimonials .card { text-align: center; }
