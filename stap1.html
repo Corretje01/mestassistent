@@ -6,41 +6,48 @@
   <title>Mestplaatsingsruimte 2025</title>
   <link rel="stylesheet" href="style.css" />
   <!-- Leaflet CSS -->
-  <link
-    rel="stylesheet"
-    href="https://unpkg.com/leaflet@1.3.1/dist/leaflet.css"
-  />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.3.1/dist/leaflet.css" />
 </head>
 <body>
   <header class="site-header">
     <nav class="navbar">
       <a href="/" class="nav-logo">KoeHandelaar</a>
-      <ul class="nav-links">
-        <!-- Niet-ingelogd -->
-        <li>
-          <a href="account.html" class="btn-login" id="nav-register">Inloggen</a>
-        </li>
-        
-        <!-- Ingelogd -->
-        <li>
-          <a href="stap1.html" class="nav__item" id="nav-bereken" style="display:none;">Bereken plaatsingsruimte</a>
-        </li>
-        <li>
-          <a href="mestplan.html" class="nav__item" id="nav-mestplan" style="display:none;">Maak mestplan</a>
-        </li>
-        <li>
-          <a href="account.html" class="nav__item" id="nav-account" style="display:none;">Mijn account</a>
-        </li>
-        <li>
-          <button class="btn-login" id="nav-logout" style="display:none;">Uitloggen</button>
-        </li>
-      </ul>
+
+      <!-- Hamburger toggle (mobiel) -->
+      <button id="nav-toggle" class="nav-toggle" aria-label="Menu" aria-controls="site-menu" aria-expanded="false">
+        <span class="bars" aria-hidden="true"></span>
+      </button>
+
+      <!-- Menu (overlay op mobiel, inline op desktop)
+           Let op: role/aria-modal en hidden worden breakpoint-bewust beheerd in nav-menu.js -->
+      <div id="site-menu" class="site-menu" hidden>
+        <ul class="nav-links">
+          <!-- Gast -->
+          <li class="guest-only">
+            <a href="account.html" class="btn-login" id="nav-register">Inloggen</a>
+          </li>
+
+          <!-- Ingelogd -->
+          <li class="auth-only">
+            <a href="stap1.html" class="nav__item" id="nav-bereken">Bereken plaatsingsruimte</a>
+          </li>
+          <li class="auth-only">
+            <a href="mestplan.html" class="nav__item" id="nav-mestplan">Maak mestplan</a>
+          </li>
+          <li class="auth-only">
+            <a href="account.html" class="nav__item" id="nav-account">Mijn account</a>
+          </li>
+          <li class="auth-only">
+            <button class="btn-login" id="nav-logout">Uitloggen</button>
+          </li>
+        </ul>
+      </div>
     </nav>
   </header>
 
-  <main class="container">
-    <!-- Introductie stap 1 -->
-    <section class="intro">
+  <main id="main" class="container">
+    <!-- Intro -->
+    <section class="card" style="margin-top:1rem;">
       <h2>1. Bereken mestplaatsingsruimte</h2>
       <p>De hoeveelheid dierlijke mest die je kan plaatsen is afhankelijk van drie normen:</p>
       <ul>
@@ -93,11 +100,26 @@
     </section>
   </main>
 
+  <footer id="footer" class="container" style="padding:2rem 0; color:#777; font-size:0.9rem;">
+    <div style="display:flex; flex-wrap:wrap; gap:0.75rem; justify-content:space-between; align-items:center;">
+      <div>© <span id="year"></span> KoeHandelaar</div>
+      <div style="display:flex; gap:1rem;">
+        <a href="#" style="color:inherit;">Privacy</a>
+        <a href="#" style="color:inherit;">Voorwaarden</a>
+        <a href="account.html" style="color:inherit;">Inloggen</a>
+      </div>
+    </div>
+  </footer>
+
   <!-- 1) ES-module Supabase-client -->
   <script type="module" src="supabaseClient.js"></script>
 
   <!-- 2) Nav logic -->
   <script type="module" src="nav.js"></script>
+  <script type="module">
+    import { initNavMenu } from './nav-menu.js';
+    initNavMenu({ menuId: 'site-menu', toggleId: 'nav-toggle' });
+  </script>
 
   <!-- 3) Leaflet inladen (UMD mag blijven) -->
   <script src="https://unpkg.com/leaflet@1.3.1/dist/leaflet.js"></script>
@@ -111,14 +133,13 @@
     import { supabase } from './supabaseClient.js';
     document.addEventListener('DOMContentLoaded', async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      const btn = document.getElementById('go-to-step2');  // let op: id klopt nu met je HTML
+      const btn = document.getElementById('go-to-step2');
       if (!btn) return;
       btn.addEventListener('click', e => {
         e.preventDefault();
-        window.location.href = session
-          ? '/mestplan.html'
-          : '/account.html';
+        window.location.href = session ? '/mestplan.html' : '/account.html';
       });
+      document.getElementById('year').textContent = new Date().getFullYear();
     });
   </script>
 </body>
