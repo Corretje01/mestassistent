@@ -1,141 +1,273 @@
 <!DOCTYPE html>
 <html lang="nl">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Account | KoeHandelaar</title>
-  <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Account – Inloggen & Registreren</title>
+  <link rel="stylesheet" href="style.css" />
+  <meta name="description" content="Log in, registreer een nieuw account of beheer je profielgegevens.">
 </head>
 <body>
   <header class="site-header">
     <nav class="navbar">
       <a href="/" class="nav-logo">KoeHandelaar</a>
-      <ul class="nav-links">
-        <!-- Niet-ingelogd -->
-        <li>
-          <a href="account.html" class="btn-login" id="nav-register">Inloggen</a>
-        </li>
-        
-        <!-- Ingelogd -->
-        <li>
-          <a href="stap1.html" class="nav__item" id="nav-bereken" style="display:none;">Bereken plaatsingsruimte</a>
-        </li>
-        <li>
-          <a href="mestplan.html" class="nav__item" id="nav-mestplan" style="display:none;">Maak mestplan</a>
-        </li>
-        <li>
-          <a href="account.html" class="nav__item" id="nav-account" style="display:none;">Mijn account</a>
-        </li>
-        <li>
-          <button class="btn-login" id="nav-logout" style="display:none;">Uitloggen</button>
-        </li>
-      </ul>
+
+      <!-- Hamburger toggle (mobiel) -->
+      <button id="nav-toggle" class="nav-toggle" aria-label="Menu" aria-controls="site-menu" aria-expanded="false">
+        <span class="bars" aria-hidden="true"></span>
+      </button>
+
+      <!-- Menu (overlay op mobiel, inline op desktop)
+           Let op: role/aria-modal en hidden worden breakpoint-bewust beheerd in nav-menu.js -->
+      <div id="site-menu" class="site-menu" hidden>
+        <ul class="nav-links">
+          <!-- Gast -->
+          <li class="guest-only">
+            <a href="account.html" class="btn-login" id="nav-register">Inloggen</a>
+          </li>
+
+          <!-- Ingelogd -->
+          <li class="auth-only">
+            <a href="stap1.html" class="nav__item" id="nav-bereken">Bereken plaatsingsruimte</a>
+          </li>
+          <li class="auth-only">
+            <a href="mestplan.html" class="nav__item" id="nav-mestplan">Maak mestplan</a>
+          </li>
+          <li class="auth-only">
+            <a href="account.html" class="nav__item" id="nav-account">Mijn account</a>
+          </li>
+          <li class="auth-only">
+            <button class="btn-login" id="nav-logout">Uitloggen</button>
+          </li>
+        </ul>
+      </div>
     </nav>
   </header>
 
-  <main class="container">
+  <main id="main" class="container">
 
-    <div id="auth-message" class="message"></div>
-
-    <!-- Login & registratie sectie -->
-    <section id="auth-section" style="display:none; margin-top:2rem;">
-
-      <!-- Loginformulier -->
-      <form id="loginForm" class="auth-form">
-        <h2>Inloggen</h2>
+    <!-- =========================
+         GAST: Inloggen
+    ========================== -->
+    <section id="login-section" class="card guest-only" style="margin-top:1rem;">
+      <h2>Inloggen</h2>
+      <form id="loginForm" novalidate>
         <div class="field-group">
-          <label for="email">E-mail</label>
-          <input type="email" id="email" name="email" required>
+          <label for="loginEmail">E-mail</label>
+          <input type="email" id="loginEmail" autocomplete="email" required />
+          <small id="err-loginEmail" class="error"></small>
         </div>
         <div class="field-group">
-          <label for="password">Wachtwoord</label>
-          <input type="password" id="password" name="password" required>
+          <label for="loginPassword">Wachtwoord</label>
+          <input type="password" id="loginPassword" autocomplete="current-password" required minlength="6" />
+          <small id="err-loginPassword" class="error"></small>
         </div>
-        <button type="submit" class="btn-primary">Inloggen</button>
-        <p class="mt-2">Nog geen account? 
-          <a href="#" id="show-register">Registreer hier</a>
-        </p>
+
+        <button id="btnLogin" type="submit" class="btn btn-primary">Inloggen</button>
       </form>
 
-      <!-- Registratieformulier -->
-      <form id="registerForm" class="auth-form" style="display:none;">
-        <h2>Registreren</h2>
-        <div class="field-group">
-          <label for="voornaam">Voornaam</label>
-          <input type="text" id="voornaam" name="voornaam" required>
-        </div>
-        <div class="field-group">
-          <label for="tussenvoegsel">Tussenvoegsel (optioneel)</label>
-          <input type="text" id="tussenvoegsel" name="tussenvoegsel">
-        </div>
-        <div class="field-group">
-          <label for="achternaam">Achternaam</label>
-          <input type="text" id="achternaam" name="achternaam" required>
-        </div>
-        <div class="field-group">
-          <label for="email_reg">E-mail</label>
-          <input type="email" id="email_reg" name="email" required>
-        </div>
-        <div class="field-group">
-          <label for="telefoon">Telefoon</label>
-          <input type="text" id="telefoon" name="telefoon" placeholder="+31 6 12345678" required>
-        </div>
-        <div class="field-group">
-          <label for="woonplaats">Woonplaats</label>
-          <input type="text" id="woonplaats" name="woonplaats" required>
-        </div>
-        <div class="field-group">
-          <label for="postcode">Postcode</label>
-          <input type="text" id="postcode" name="postcode" placeholder="1234 AB" required>
-        </div>
-        <div class="field-group">
-          <label for="straat">Straat</label>
-          <input type="text" id="straat" name="straat" required>
-        </div>
-        <div class="field-group">
-          <label for="huisnummer">Huisnummer</label>
-          <input type="number" id="huisnummer" name="huisnummer" required>
-        </div>
-        <div class="field-group">
-          <label for="huisnummer_toevoeging">Toevoeging (optioneel)</label>
-          <input type="text" id="huisnummer_toevoeging" name="huisnummer_toevoeging">
-        </div>
-        <div class="field-group">
-          <label for="password_reg">Wachtwoord</label>
-          <input type="password" id="password_reg" name="password" required>
-        </div>
-        <button type="submit" class="btn-primary">Account aanmaken</button>
-        <p class="mt-2">Heb je al een account? 
-          <a href="#" id="show-login">Log hier in</a>
-        </p>
-      </form>
-
+      <p style="margin-top:0.75rem;">
+        Nog geen account?
+        <a href="#register-section" id="link-to-register">Registreer hier</a>
+      </p>
     </section>
 
-    <!-- Profiel sectie -->
-    <section id="profile-section" style="display:none;">
-      <h2>Mijn profiel</h2>
-      <form id="profileForm">
-        <div class="field-group"><label>Voornaam</label><input id="profile_voornaam"></div>
-        <div class="field-group"><label>Tussenvoegsel</label><input id="profile_tussenvoegsel"></div>
-        <div class="field-group"><label>Achternaam</label><input id="profile_achternaam"></div>
-        <div class="field-group"><label>Telefoon</label><input id="profile_telefoon"></div>
-        <div class="field-group"><label>Woonplaats</label><input id="profile_woonplaats"></div>
-        <div class="field-group"><label>Postcode</label><input id="profile_postcode"></div>
-        <div class="field-group"><label>Straat</label><input id="profile_straat"></div>
-        <div class="field-group"><label>Huisnummer</label><input id="profile_huisnummer"></div>
-        <div class="field-group"><label>Toevoeging</label><input id="profile_huisnummer_toevoeging"></div>
-        <button type="submit" class="btn-primary">Wijzigingen opslaan</button>
-        <button type="button" id="deleteAccount" class="btn-danger">Account verwijderen</button>
+    <!-- =========================
+         GAST: Registreren
+    ========================== -->
+    <section id="register-section" class="card guest-only" style="margin-top:1rem;">
+      <h2>Registreer je account</h2>
+      <form id="registerForm" novalidate>
+        <!-- Persoonsgegevens -->
+        <div class="form-row">
+          <div class="field-group">
+            <label for="regFirstName">Voornaam</label>
+            <input type="text" id="regFirstName" autocomplete="given-name" required />
+            <small id="err-regFirstName" class="error"></small>
+          </div>
+          <div class="field-group">
+            <label for="regMiddleName">Tussenvoegsel <span aria-hidden="true">(optioneel)</span></label>
+            <input type="text" id="regMiddleName" autocomplete="additional-name" />
+            <small id="err-regMiddleName" class="error"></small>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="field-group">
+            <label for="regLastName">Achternaam</label>
+            <input type="text" id="regLastName" autocomplete="family-name" required />
+            <small id="err-regLastName" class="error"></small>
+          </div>
+          <div class="field-group">
+            <label for="regPhone">Telefoon</label>
+            <input type="tel" id="regPhone" inputmode="tel" placeholder="+31 6" required />
+            <small id="err-regPhone" class="error"></small>
+          </div>
+        </div>
+
+        <!-- Adres -->
+        <div class="form-row">
+          <div class="field-group">
+            <label for="regCity">Woonplaats</label>
+            <input type="text" id="regCity" autocomplete="address-level2" required />
+            <small id="err-regCity" class="error"></small>
+          </div>
+          <div class="field-group">
+            <label for="regPostal">Postcode</label>
+            <input type="text" id="regPostal" inputmode="text" placeholder="1234 AB" autocomplete="postal-code" required />
+            <small id="err-regPostal" class="error"></small>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="field-group">
+            <label for="regStreet">Straat</label>
+            <input type="text" id="regStreet" autocomplete="address-line1" required />
+            <small id="err-regStreet" class="error"></small>
+          </div>
+          <div class="field-group">
+            <label for="regHouseNo">Huisnummer</label>
+            <input type="text" id="regHouseNo" inputmode="numeric" required />
+            <small id="err-regHouseNo" class="error"></small>
+          </div>
+        </div>
+
+        <div class="field-group">
+          <label for="regHouseNoAdd">Huisnummertoevoeging <span aria-hidden="true">(optioneel)</span></label>
+          <input type="text" id="regHouseNoAdd" />
+          <small id="err-regHouseNoAdd" class="error"></small>
+        </div>
+
+        <!-- Account -->
+        <div class="form-row">
+          <div class="field-group">
+            <label for="regEmail">E-mail</label>
+            <input type="email" id="regEmail" autocomplete="email" required />
+            <small id="err-regEmail" class="error"></small>
+          </div>
+          <div class="field-group">
+            <label for="regPassword">Wachtwoord</label>
+            <input type="password" id="regPassword" autocomplete="new-password" minlength="6" required />
+            <small id="err-regPassword" class="error"></small>
+          </div>
+        </div>
+
+        <button id="btnRegister" type="submit" class="btn btn-primary">Account aanmaken</button>
+        <p style="margin-top:0.75rem; font-size:0.95rem; color:#666;">
+          Na registratie ontvang je een bevestigingsmail. Activeer je account via die mail om verder te gaan.
+        </p>
       </form>
-      <div id="profile-message" class="message"></div>
+    </section>
+
+    <!-- =========================
+         INGELOGD: Mijn account
+    ========================== -->
+    <section id="profile-section" class="card auth-only is-hidden" style="margin-top:1rem;">
+      <h2>Mijn account</h2>
+      <form id="profileForm" novalidate>
+        <!-- Persoonsgegevens -->
+        <div class="form-row">
+          <div class="field-group">
+            <label for="profileFirstName">Voornaam</label>
+            <input type="text" id="profileFirstName" required />
+          </div>
+          <div class="field-group">
+            <label for="profileMiddleName">Tussenvoegsel <span aria-hidden="true">(optioneel)</span></label>
+            <input type="text" id="profileMiddleName" />
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="field-group">
+            <label for="profileLastName">Achternaam</label>
+            <input type="text" id="profileLastName" required />
+          </div>
+          <div class="field-group">
+            <label for="profilePhone">Telefoon</label>
+            <input type="tel" id="profilePhone" inputmode="tel" />
+          </div>
+        </div>
+
+        <!-- Adres -->
+        <div class="form-row">
+          <div class="field-group">
+            <label for="profileCity">Woonplaats</label>
+            <input type="text" id="profileCity" />
+          </div>
+          <div class="field-group">
+            <label for="profilePostal">Postcode</label>
+            <input type="text" id="profilePostal" />
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="field-group">
+            <label for="profileStreet">Straat</label>
+            <input type="text" id="profileStreet" />
+          </div>
+          <div class="field-group">
+            <label for="profileHouseNo">Huisnummer</label>
+            <input type="text" id="profileHouseNo" inputmode="numeric" />
+          </div>
+        </div>
+
+        <div class="field-group">
+          <label for="profileHouseNoAdd">Huisnummertoevoeging</label>
+          <input type="text" id="profileHouseNoAdd" />
+        </div>
+
+        <!-- Account -->
+        <div class="field-group">
+          <label for="profileEmail">E-mail</label>
+          <input type="email" id="profileEmail" disabled />
+        </div>
+
+        <div class="form-row" style="gap:.75rem;">
+          <button id="btnSaveProfile" type="submit" class="btn btn-primary">Wijzigingen opslaan</button>
+          <button id="btnDeleteAccount" type="button" class="btn btn-danger">Account verwijderen</button>
+          <button id="btnLogoutProfile" type="button" class="btn">Uitloggen</button>
+        </div>
+      </form>
     </section>
 
   </main>
 
-  <!-- Laad ES-modules in plaats van UMD/C globals -->
+  <footer id="footer" class="container" style="padding:2rem 0; color:#777; font-size:0.9rem;">
+    <div style="display:flex; flex-wrap:wrap; gap:0.75rem; justify-content:space-between; align-items:center;">
+      <div>© <span id="year"></span> KoeHandelaar</div>
+      <div style="display:flex; gap:1rem;">
+        <a href="#" style="color:inherit;">Privacy</a>
+        <a href="#" style="color:inherit;">Voorwaarden</a>
+        <a href="account.html" style="color:inherit;">Inloggen</a>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Supabase client + nav logic (ESM) -->
   <script type="module" src="supabaseClient.js"></script>
   <script type="module" src="nav.js"></script>
+  <script type="module">
+    import { initNavMenu } from './nav-menu.js';
+    initNavMenu({ menuId: 'site-menu', toggleId: 'nav-toggle' });
+  </script>
+
+  <!-- Accountpagina logica (jouw bestaande account.js kan deze IDs gebruiken) -->
   <script type="module" src="account.js"></script>
+
+  <script>
+    // Jaar in footer
+    document.getElementById('year').textContent = new Date().getFullYear();
+
+    // Klein hulplinkje: smooth scroll naar registreren
+    const l = document.getElementById('link-to-register');
+    l && l.addEventListener('click', e => {
+      // laat de hash staan, maar smooth scroll
+      const target = document.getElementById('register-section');
+      if (target) {
+        e.preventDefault();
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
+  </script>
 </body>
 </html>
