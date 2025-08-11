@@ -1,6 +1,8 @@
 /* style.css - MestAssistent */
 
-/* CSS-variabelen */
+/* =========================
+   CSS-variabelen
+========================= */
 :root {
   --color-black: #0d0d0d;
   --color-white: #ffffff;
@@ -16,11 +18,15 @@
   --color-danger-dark: #c0392b;
 }
 
-/* Reset & basisstijlen */
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
+/* =========================
+   Reset & basisstijlen
+========================= */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 body {
@@ -28,10 +34,13 @@ body {
   background: var(--color-gray-light);
   color: var(--color-black);
   line-height: 1.6;
+  letter-spacing: 0.01em;
   overflow-x: hidden;
 }
 
-/* Header & navigatie */
+/* =========================
+   Header & navigatie
+========================= */
 .site-header {
   background: var(--color-black);
   border-bottom: 4px solid var(--color-yellow);
@@ -59,9 +68,7 @@ body {
   align-items: center;
 }
 
-.nav-links li + li {
-  margin-left: 1rem;
-}
+.nav-links li + li { margin-left: 1rem; }
 
 .nav-links a,
 .nav-links button {
@@ -74,34 +81,152 @@ body {
   border: none;
 }
 
-.btn-login, .btn-primary {
-  background: var(--color-yellow);
-  color: var(--color-black);
-}
+/* Login-knop styled als primary */
+.btn-login { background: var(--color-yellow); color: var(--color-black); }
+.btn-login:hover { background: var(--color-yellow-dark); }
 
-.btn-login:hover, .btn-primary:hover {
-  background: var(--color-yellow-dark);
-}
+/* Navigatielinks (ingelogd): altijd wit, geen underline */
+.nav__item { color: var(--color-white); text-decoration: none; }
+.nav__item:hover { text-decoration: none; opacity: .9; }
 
-/* Container & algemene layout */
+/* =========================
+   Container & layout
+========================= */
 .container {
   max-width: 1000px;
   margin: 2rem auto;
   padding: 0 1rem;
 }
 
-/* Typografie */
-h1, h2, h3 {
-  margin-bottom: 1rem;
+/* =========================
+   Typografie (geconsolideerd)
+========================= */
+h1 { font-size: 2rem; line-height: 1.25; margin: 0 0 .6rem; }
+h2 { font-size: 1.5rem; line-height: 1.25; margin: 0 0 .6rem; }
+h3 { font-size: 1.25rem; line-height: 1.25; margin: 0 0 .6rem; }
+p  { margin: .4rem 0 1rem; }
+
+/* =========================
+   Buttons & links
+========================= */
+a.btn, .btn, .nav-links a, .nav-logo, .btn-login, .nav__item {
+  text-decoration: none !important;
 }
 
-h1 { font-size: 2rem; }
-h2 { font-size: 1.5rem; }
-h3 { font-size: 1.25rem; }
+.btn {
+  display: inline-block;
+  padding: .65rem 1rem;
+  border-radius: 10px;
+  border: 1px solid rgba(0,0,0,.08);
+  background: #fff;
+  cursor: pointer;
+  font-weight: 500;
+  transition: transform .08s ease, box-shadow .18s ease, border-color .18s ease, background-color .18s ease;
+}
 
-p { margin-bottom: 1rem; }
+.btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(0,0,0,.06);
+  border-color: rgba(0,0,0,.12);
+}
 
-/* Formulieren en velden */
+.btn:active {
+  transform: translateY(0);
+  box-shadow: 0 3px 10px rgba(0,0,0,.06);
+}
+
+/* Primary */
+.btn-primary {
+  background: var(--color-yellow);
+  color: var(--color-black);
+  border: none;
+  padding: 0.75rem 1.5rem;
+  font-weight: 600;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background .2s ease, transform .08s ease, box-shadow .18s ease;
+}
+.btn-primary:hover {
+  background: var(--color-yellow-dark);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(0,0,0,.08);
+}
+.btn-primary:active { transform: translateY(0); }
+
+/* Danger */
+.btn-danger {
+  background: var(--color-danger);
+  color: var(--color-white);
+  border: none;
+  padding: 0.75rem 1.5rem;
+  font-weight: 600;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+.btn-danger:hover { background: var(--color-danger-dark); }
+
+/* Toegankelijke focus-states */
+a.btn:focus-visible,
+.btn:focus-visible,
+.nav-links a:focus-visible,
+.btn-login:focus-visible,
+.nav__item:focus-visible {
+  outline: 3px solid rgba(241,196,15,.6);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+/* =========================
+   Kaarten / sliders / secties
+========================= */
+.card {
+  background: var(--color-white);
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 8px 28px rgba(0,0,0,.05);
+  margin-bottom: 2rem;
+}
+
+/* Hero subtiele toon */
+.hero .lead { color: var(--color-gray-dark); }
+
+/* Bullets */
+.bullets {
+  list-style: none;
+  padding-left: 1.25rem;  /* ruimte voor custom bullet */
+  margin: .5rem 0 0;
+}
+.bullets li {
+  position: relative;
+  margin: .35rem 0;
+  padding-left: .25rem;
+  line-height: 1.55;
+}
+.bullets li::before {
+  content: "•";
+  position: absolute;
+  left: -1.25rem;
+  top: 0;
+  line-height: 1.2;
+  font-weight: 600;
+  color: var(--color-black);
+  opacity: .55;
+}
+
+/* Ordered lists in cards ook netjes */
+.card ol { padding-left: 1.25rem; margin: .5rem 0 0; }
+.card ol li { margin: .35rem 0; line-height: 1.55; }
+
+/* Koppen in cards centreren (alleen directe h2-kinderen) */
+.container.card > h2 { text-align: center; }
+
+/* Homepage: Social proof */
+.testimonials .card { text-align: center; }
+
+/* =========================
+   Formulieren & velden
+========================= */
 .auth-form, #profileForm {
   background: var(--color-white);
   padding: 1.5rem;
@@ -135,46 +260,6 @@ p { margin-bottom: 1rem; }
   box-shadow: 0 0 0 3px rgba(241,196,15,0.2);
 }
 
-/* Leaflet-kaart */
-#map {
-  height: 450px;
-  width: 100%;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-  margin-bottom: 2rem;
-}
-
-/* Knoppen */
-.btn-primary {
-  background: var(--color-yellow);
-  color: var(--color-black);
-  border: none;
-  padding: 0.75rem 1.5rem;
-  font-weight: 600;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: background 0.2s ease;
-}
-
-.btn-primary:hover {
-  background: var(--color-yellow-dark);
-}
-
-.btn-danger {
-  background: var(--color-danger);
-  color: var(--color-white);
-  border: none;
-  padding: 0.75rem 1.5rem;
-  font-weight: 600;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: background 0.2s ease;
-}
-
-.btn-danger:hover {
-  background: var(--color-danger-dark);
-}
-
 /* Succes- en foutmeldingen */
 .message {
   padding: 1rem;
@@ -183,16 +268,8 @@ p { margin-bottom: 1rem; }
   text-align: center;
   font-weight: 600;
 }
-
-.message.success {
-  background: var(--color-success-bg);
-  color: var(--color-success-text);
-}
-
-.message.error {
-  background: var(--color-error-bg);
-  color: var(--color-error-text);
-}
+.message.success { background: var(--color-success-bg); color: var(--color-success-text); }
+.message.error   { background: var(--color-error-bg);   color: var(--color-error-text); }
 
 /* Linkjes binnen formulieren */
 .auth-form a {
@@ -200,53 +277,22 @@ p { margin-bottom: 1rem; }
   text-decoration: none;
   font-weight: 600;
 }
+.auth-form a:hover { text-decoration: underline; }
 
-.auth-form a:hover {
-  text-decoration: underline;
+/* =========================
+   Leaflet-kaart
+========================= */
+#map {
+  height: 450px;
+  width: 100%;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  margin-bottom: 2rem;
 }
 
-/* Responsiviteit voor kleinere schermen */
-@media (max-width: 768px) {
-  .navbar, .container {
-    padding: 0.75rem;
-  }
-
-  .nav-links {
-    flex-direction: column;
-  }
-
-  .nav-links li {
-    margin-left: 0;
-    margin-bottom: 0.5rem;
-  }
-
-  .nav-links li:last-child {
-    margin-bottom: 0;
-  }
-
-  .field-group {
-    width: 100%;
-  }
-
-  .btn-primary, .btn-danger {
-    width: 100%;
-  }
-}
-
-/* Animaties (bijvoorbeeld shake-effect bij fouten) */
-@keyframes shake {
-  0% { transform: translateX(0); }
-  25% { transform: translateX(-4px); }
-  50% { transform: translateX(4px); }
-  75% { transform: translateX(-4px); }
-  100% { transform: translateX(0); }
-}
-
-.shake {
-  animation: shake 0.3s ease-in-out;
-}
-
-/* Mestplan: categorieën en knoppen */
+/* =========================
+   Mestplan: categorieën & knoppen
+========================= */
 .category {
   display: flex;
   align-items: center;
@@ -275,11 +321,7 @@ p { margin-bottom: 1rem; }
   cursor: pointer;
   transition: background 0.2s, border-color 0.2s;
 }
-
-.btn.mest-btn.active {
-  background: var(--color-yellow);
-  border-color: var(--color-yellow);
-}
+.btn.mest-btn.active { background: var(--color-yellow); border-color: var(--color-yellow); }
 
 /* Checkbox-highlighting bij selectie */
 .category input[type="checkbox"]:checked + label {
@@ -288,7 +330,9 @@ p { margin-bottom: 1rem; }
   padding: 0.2rem 0.4rem;
 }
 
-/* Slidersecties */
+/* =========================
+   Slidersecties
+========================= */
 .sliders-grid {
   max-width: 1000px;
   margin: 0 auto;
@@ -296,13 +340,9 @@ p { margin-bottom: 1rem; }
 }
 
 #mest-sliders,
-#nutrient-sliders {
-  display: block;
-}
+#nutrient-sliders { display: block; }
 
-.slider-group {
-  margin-bottom: 1rem;
-}
+.slider-group { margin-bottom: 1rem; }
 
 .slider-header {
   display: flex;
@@ -310,13 +350,11 @@ p { margin-bottom: 1rem; }
   justify-content: space-between;
   margin-bottom: 0.5rem;
 }
-
 .slider-header label {
   flex: 1;
   font-size: 0.9rem;
   margin: 0;
 }
-
 .slider-header .value {
   font-size: 0.9rem;
   white-space: nowrap;
@@ -330,7 +368,6 @@ p { margin-bottom: 1rem; }
   border-radius: 2px;
   outline: none;
 }
-
 .slider-group input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
   width: 14px;
@@ -351,7 +388,6 @@ p { margin-bottom: 1rem; }
   background: transparent;
   cursor: pointer;
 }
-
 .slider-header input[type="checkbox"]:checked {
   background-image: url("data:image/svg+xml;charset=UTF-8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23000' viewBox='0 0 16 16'><path d='M8 1a3 3 0 0 0-3 3v3H3.5A1.5 1.5 0 0 0 2 8.5v6A1.5 1.5 0 0 0 3.5 16h9A1.5 1.5 0 0 0 14 14.5v-6A1.5 1.5 0 0 0 12.5 7H11V4a3 3 0 0 0-3-3zm0 1a2 2 0 0 1 2 2v3H6V4a2 2 0 0 1 2-2zm-4.5 5a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-.5.5h-7a.5.5 0 0 1-.5-.5v-6z'/></svg>");
   background-size: 12px 12px;
@@ -361,32 +397,27 @@ p { margin-bottom: 1rem; }
   border: none;
 }
 
-/* Optimaliseerknop */
-#optimaliseer-btn {
-  margin-top: 1rem;
-  display: none !important;
-}
+/* =========================
+   Optimaliseerknop
+========================= */
+#optimaliseer-btn { margin-top: 1rem; display: none !important; }
 
-/* Kaarten / sliders / secties */
-.card {
-  background: var(--color-white);
-  padding: 1.5rem;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-  margin-bottom: 2rem;
-}
-
-/* Mobielvriendelijke mestknoppen */
+/* =========================
+   Responsiviteit
+========================= */
 @media (max-width: 768px) {
-  .category {
-    flex-wrap: wrap;
-    gap: 0.5rem;
-  }
+  .navbar, .container { padding: 0.75rem; }
 
-  .category__label {
-    width: 100%;
-    margin-bottom: 0.25rem;
-  }
+  .nav-links { flex-direction: column; }
+  .nav-links li { margin-left: 0; margin-bottom: 0.5rem; }
+  .nav-links li:last-child { margin-bottom: 0; }
+
+  .field-group { width: 100%; }
+
+  .btn-primary, .btn-danger { width: 100%; }
+
+  .category { flex-wrap: wrap; gap: 0.5rem; }
+  .category__label { width: 100%; margin-bottom: 0.25rem; }
 
   .btn.mest-btn {
     flex: 1 1 calc(50% - 0.5rem);
@@ -396,134 +427,23 @@ p { margin-bottom: 1rem; }
   }
 }
 
-/* Navigatielinks (ingelogd): altijd wit, geen underline */
-.nav__item {
-  color: var(--color-white);
-  text-decoration: none;
+/* =========================
+   Animaties & voorkeuren
+========================= */
+@keyframes shake {
+  0% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  50% { transform: translateX(4px); }
+  75% { transform: translateX(-4px); }
+  100% { transform: translateX(0); }
+}
+.shake { animation: shake 0.3s ease-in-out; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
 }
 
-.nav__item:hover {
-  text-decoration: none;
-  opacity: .9;
-}
-
-/* ===== Typografie polish ===== */
-html {
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-rendering: optimizeLegibility;
-}
-
-body {
-  letter-spacing: 0.01em;
-}
-
-h1, h2, h3 {
-  line-height: 1.25;
-  margin: 0 0 .6rem;
-}
-
-p {
-  margin: .4rem 0 1rem;
-}
-
-/* ===== Buttons & nav-links: nooit onderstreept ===== */
-a.btn, .btn, .nav-links a, .nav-logo, .btn-login, .nav__item {
-  text-decoration: none !important;
-}
-
-/* ===== Base button (subtiel, geen schreeuw) ===== */
-.btn {
-  display: inline-block;
-  padding: .65rem 1rem;
-  border-radius: 10px;
-  border: 1px solid rgba(0,0,0,.08);
-  background: #fff;
-  cursor: pointer;
-  font-weight: 500;
-  transition: transform .08s ease, box-shadow .18s ease, border-color .18s ease, background-color .18s ease;
-}
-
-.btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 6px 16px rgba(0,0,0,.06);
-  border-color: rgba(0,0,0,.12);
-}
-
-.btn:active {
-  transform: translateY(0);
-  box-shadow: 0 3px 10px rgba(0,0,0,.06);
-}
-
-/* Respecteer je bestaande primary kleuren, maar geef 'm wat depth */
-.btn-primary {
-  background: var(--color-yellow);
-  color: var(--color-black);
-  border: none;
-  transition: background .2s ease, transform .08s ease, box-shadow .18s ease;
-}
-
-.btn-primary:hover {
-  background: var(--color-yellow-dark);
-  transform: translateY(-1px);
-  box-shadow: 0 8px 20px rgba(0,0,0,.08);
-}
-
-.btn-primary:active {
-  transform: translateY(0);
-}
-
-/* ===== Cards nét wat zachter (consistent met jouw stijl) ===== */
-.card {
-  border-radius: 12px;
-  box-shadow: 0 8px 28px rgba(0,0,0,.05);
-}
-
-/* ===== Bullets: strak en consistent ===== */
-.bullets {
-  list-style: none;
-  padding-left: 1.25rem;  /* ruimte voor custom bullet */
-  margin: .5rem 0 0;
-}
-
-.bullets li {
-  position: relative;
-  margin: .35rem 0;
-  padding-left: .25rem;
-  line-height: 1.55;
-}
-
-.bullets li::before {
-  content: "•";
-  position: absolute;
-  left: -1.25rem;
-  top: 0;
-  line-height: 1.2;
-  font-weight: 600;
-  color: var(--color-black);
-  opacity: .55;
-}
-
-/* Ordered lists in cards ook netjes */
-.card ol {
-  padding-left: 1.25rem;
-  margin: .5rem 0 0;
-}
-
-.card ol li {
-  margin: .35rem 0;
-  line-height: 1.55;
-}
-
-/* Hero subtiele toon */
-.hero .lead {
-  color: var(--color-gray-dark);
-}
-
-/* Homepage: Social proof */
-.testimonials .card { text-align: center; }
-
-/* Koppen in cards centreren */
-.container.card h2 { 
-  text-align: center; 
-}
+/* =========================
+   Utilities
+========================= */
+.text-center { text-align: center !important; }
