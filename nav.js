@@ -102,9 +102,9 @@ async function robustSignOut() {
 /* ========== bindings ========== */
 function bindNavLinks() {
   const map = [
-    ['nav-bereken',  'stap1.html'],
-    ['nav-mestplan', 'mestplan.html'],
-    ['nav-account',  'account.html'],
+    ['nav-bereken',  '/stap1.html'],
+    ['nav-mestplan', '/mestplan.html'],
+    ['nav-account',  '/account.html'],
   ];
   for (const [id, href] of map) {
     const el = $(id);
@@ -124,10 +124,10 @@ async function handleAuthClick(e, btn) {
     btn.textContent = 'Uitloggen…';
     await robustSignOut();
     // **Directe harde redirect** naar account met signaal voor melding
-    hardNavigate('account.html?logout=1', { replace: true });
+    hardNavigate('/account.html?logout=1', { replace: true });
   } else {
     // login vanuit nav: wijs gebruiker de weg naar loginsectie
-    hardNavigate('account.html?signin=1', { replace: false });
+    hardNavigate('/account.html?signin=1', { replace: false });
   }
 }
 
