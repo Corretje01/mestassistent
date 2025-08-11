@@ -65,25 +65,24 @@ async function fillProfileFromUser() {
     const el = $(`profile_${key}`);
     if (el) el.value = md[key] ?? '';
   });
-  // Optioneel: e-mail veld vullen als aanwezig
-  const emailEl = $('profile_email');
+  const emailEl = $('profile_email'); // optioneel veld
   if (emailEl) emailEl.value = user.email || '';
 }
 
 /* Na succesvolle login: directe harde redirect (voorkom terug naar auth) */
 function gotoAfterLogin() {
-  location.replace('/stap1.html');
+  // Relatief pad werkt overal (root/subdir/Netlify)
+  location.replace('stap1.html');
 }
 
 /* Na account delete: zeker weten uitgelogd + terug naar account.html */
 async function robustSignOutAndBackToAccount() {
   try { await supabase.auth.signOut(); } catch {}
-  // kleine failsafe: tokens die soms blijven hangen in ITP
   try {
     Object.keys(localStorage).forEach(k => k.startsWith('sb-') && localStorage.removeItem(k));
     Object.keys(sessionStorage).forEach(k => k.startsWith('sb-') && sessionStorage.removeItem(k));
   } catch {}
-  location.replace('/account.html?logout=1');
+  location.replace('account.html?logout=1');
 }
 
 /* ========== INIT ========== */
@@ -99,7 +98,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     profileForm  = $('profileForm');
 
     // Progressive enhancement: startsituatie voor mobiel/slow JS
-    // Login zichtbaar, profiel verborgen
     authSect?.removeAttribute('hidden');
     profileSect?.setAttribute('hidden', '');
 
@@ -115,8 +113,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       hide(registerForm);
     });
 
-    // Query feedback (bv. ?signin=1 of ?logout=1)
+    // Query feedback (bv. ?signin=1 / ?logout=1 / ?register=1)
     const q = parseQuery();
+    if (q.signin)  setMsg(messageEl, 'Log in om verder te gaan.', 'info');
     if (q.logout)  setMsg(messageEl, 'Je bent uitgelogd.', 'success');
     if (q.register) {
       hide(loginForm);
@@ -145,15 +144,19 @@ document.addEventListener('DOMContentLoaded', async () => {
           return;
         }
 
-        // Geen timer; direct checken + redirecten
-        const session = await getSessionSafe();
-        if (session) {
-          setMsg(messageEl, 'Inloggen gelukt! Je wordt doorgestuurd…', 'success');
-          gotoAfterLogin();
-        } else {
-          setMsg(messageEl, 'Inloggen gelukt, maar sessie is nog niet beschikbaar. Vernieuw de pagina of probeer opnieuw.', 'warning');
-          if (btn) btn.disabled = false;
-        }
+        // ✅ Meteen navigeren; guard op /stap1(.html) beschermt als sessie nog niet klaar is
+        const go = (href) => { location.replace(href); };
+        go('stap1.html');
+
+        // ✅ Watchdog (max ~2s): als we nog op account zitten, check sessie en navigeer alsnog.
+        let tries = 0;
+        const t = setInterval(async () => {
+          tries++;
+          if (!/account\.html$/i.test(location.pathname)) { clearInterval(t); return; }
+          const s = await getSessionSafe();
+          if (s) { clearInterval(t); go('stap1.html'); }
+          if (tries > 10) { clearInterval(t); if (btn) btn.disabled = false; }
+        }, 200);
       });
     }
 
