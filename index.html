@@ -5,25 +5,36 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>KoeHandelaar – Slimmer plannen, meer rendement</title>
   <link rel="stylesheet" href="style.css" />
-  <meta name="description" content="Ontgrendel real-time mestprijzen. Minder geiswerk, meer zekerheid.">
+  <meta name="description" content="Ontgrendel real-time mestprijzen. Minder giswerk, meer zekerheid.">
 </head>
 <body>
   <header class="site-header">
     <nav class="navbar">
       <a href="/" class="nav-logo">KoeHandelaar</a>
-      <ul class="nav-links">
-        <!-- Niet-ingelogd -->
-        <li><a href="account.html" class="btn-login" id="nav-register">Inloggen</a></li>
-        <!-- Ingelogd -->
-        <li><a href="stap1.html" class="nav__item" id="nav-bereken" style="display:none;">Bereken plaatsingsruimte</a></li>
-        <li><a href="mestplan.html" class="nav__item" id="nav-mestplan" style="display:none;">Maak mestplan</a></li>
-        <li><a href="account.html" class="nav__item" id="nav-account" style="display:none;">Mijn account</a></li>
-        <li><button class="btn-login" id="nav-logout" style="display:none;">Uitloggen</button></li>
-      </ul>
+
+      <!-- Hamburger toggle (mobiel) -->
+      <button id="nav-toggle" class="nav-toggle" aria-label="Menu" aria-controls="site-menu" aria-expanded="false">
+        <span class="bars" aria-hidden="true"></span>
+      </button>
+
+      <!-- Menu (overlay op mobiel, inline op desktop)
+           Let op: role/aria-modal en hidden worden breakpoint-bewust beheerd in nav-menu.js -->
+      <div id="site-menu" class="site-menu" hidden>
+        <ul class="nav-links">
+          <!-- Gast -->
+          <li class="guest-only"><a href="account.html" class="btn-login" id="nav-register">Inloggen</a></li>
+
+          <!-- Ingelogd -->
+          <li class="auth-only"><a href="stap1.html" class="nav__item" id="nav-bereken">Bereken plaatsingsruimte</a></li>
+          <li class="auth-only"><a href="mestplan.html" class="nav__item" id="nav-mestplan">Maak mestplan</a></li>
+          <li class="auth-only"><a href="account.html" class="nav__item" id="nav-account">Mijn account</a></li>
+          <li class="auth-only"><button class="btn-login" id="nav-logout">Uitloggen</button></li>
+        </ul>
+      </div>
     </nav>
   </header>
 
-  <main>
+  <main id="main">
 
     <!-- HERO -->
     <section class="hero container" style="padding:3rem 0; text-align:center;">
@@ -103,7 +114,6 @@
       </div>
     </section>
 
-
     <!-- SOCIAL PROOF -->
     <section class="container card" style="margin-top:1rem;">
       <h2 style="margin-bottom:0.5rem;">Wat anderen zeggen</h2>
@@ -139,7 +149,7 @@
 
   </main>
 
-  <footer class="container" style="padding:2rem 0; color:#777; font-size:0.9rem;">
+  <footer id="footer" class="container" style="padding:2rem 0; color:#777; font-size:0.9rem;">
     <div style="display:flex; flex-wrap:wrap; gap:0.75rem; justify-content:space-between; align-items:center;">
       <div>© <span id="year"></span> KoeHandelaar</div>
       <div style="display:flex; gap:1rem;">
@@ -153,7 +163,12 @@
   <!-- Supabase client + nav logic (ESM) -->
   <script type="module" src="supabaseClient.js"></script>
   <script type="module" src="nav.js"></script>
+  <script type="module">
+    import { initNavMenu } from './nav-menu.js';
+    initNavMenu({ menuId: 'site-menu', toggleId: 'nav-toggle' });
+  </script>
   <script>
+    // Jaar in footer
     document.getElementById('year').textContent = new Date().getFullYear();
   </script>
 </body>
