@@ -27,11 +27,19 @@
         </button>
   
         <ul class="nav-links">
-          <!-- Ingelogd -->
-          <li class="auth-only"><a href="stap1.html" class="nav__item" id="nav-bereken">Bereken plaatsingsruimte</a></li>
-          <li class="auth-only"><a href="mestplan.html" class="nav__item" id="nav-mestplan">Maak mestplan</a></li>
-          <li class="auth-only"><a href="account.html" class="nav__item" id="nav-account">Mijn account</a></li>
-          <li class="auth-only"><button class="btn-login" id="nav-logout">Uitloggen</button></li>
+          <!-- Altijd zichtbaar; JS verandert label/actie (Inloggen ↔ Uitloggen) -->
+          <li><button class="btn-login" id="nav-auth">Inloggen</button></li>
+        
+          <!-- Alleen na inloggen zichtbaar -->
+          <li class="auth-only">
+            <a href="stap1.html" class="nav__item" id="nav-bereken">Bereken plaatsingsruimte</a>
+          </li>
+          <li class="auth-only">
+            <a href="mestplan.html" class="nav__item" id="nav-mestplan">Maak mestplan</a>
+          </li>
+          <li class="auth-only">
+            <a href="account.html" class="nav__item" id="nav-account">Mijn account</a>
+          </li>
         </ul>
       </div>
     </nav>
