@@ -581,3 +581,10 @@ body.is-auth  .guest-only { display: none !important; }
 @media (prefers-reduced-motion: reduce) {
   .site-menu { transition: none !important; }
 }
+
+/* Overlay boven alles; header erboven bij animaties */
+@media (max-width: 1023px) {
+  .site-menu { z-index: 1000; }
+  .navbar    { position: relative; z-index: 2; }
+}
+
