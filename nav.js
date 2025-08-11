@@ -1,7 +1,6 @@
 // nav.js
 import { supabase } from './supabaseClient.js';
 
-/* =============== Helpers =============== */
 function closeMenuIfOpen() {
   const menu = document.getElementById('site-menu');
   const toggle = document.getElementById('nav-toggle');
@@ -14,129 +13,75 @@ function closeMenuIfOpen() {
     }, 150));
   }
 }
+function navigate(href){ closeMenuIfOpen(); window.location.href = href; }
 
-function navigate(href) {
-  closeMenuIfOpen();
-  window.location.href = href; // relatieve paden blijven werken
-}
-
-/** Vind jouw bestaande auth-knop zonder HTML te hoeven wijzigen */
-function getAuthToggleEl() {
-  return (
-    document.getElementById('nav-auth') ||      // als je ooit deze toevoegt
-    document.getElementById('nav-register') ||  // jouw oude "Inloggen" link/knop
-    document.getElementById('nav-logout')       // jouw huidige "Uitloggen" knop
-  );
-}
-
-/* =============== UI state =============== */
-export async function updateNavUI() {
+async function updateNavUI() {
   const { data, error } = await supabase.auth.getSession();
-  if (error) {
-    console.error('Sessie ophalen mislukt:', error.message);
-    return;
-  }
+  if (error) { console.error('Sessie ophalen mislukt:', error.message); return; }
   const session = data.session;
 
-  // Body classes voor zichtbaarheid van menu-items
   document.body.classList.toggle('is-auth',  !!session);
   document.body.classList.toggle('is-guest', !session);
 
-  // Auth-toggle knop tekst en type
-  const authEl = getAuthToggleEl();
-  if (authEl) {
-    // Soms is het een <a>, soms een <button>
-    // We zetten in beide gevallen de label/tekst goed.
-    const setText = (txt) => {
-      if ('value' in authEl) authEl.value = txt;
-      authEl.textContent = txt;
-    };
-
-    if (session) {
-      setText('Uitloggen');
-      authEl.setAttribute('data-auth-mode', 'logout');
-    } else {
-      setText('Inloggen');
-      authEl.setAttribute('data-auth-mode', 'login');
-      // Zorg dat een <a> nog steeds naar account kan als JS uitvalt
-      if (authEl.tagName === 'A' && !authEl.getAttribute('href')) {
-        authEl.setAttribute('href', 'account.html');
-      }
-    }
+  // Toggle-knop label/stand
+  const btn = document.getElementById('nav-auth');
+  if (btn) {
+    const label = session ? 'Uitloggen' : 'Inloggen';
+    btn.textContent = label;
+    btn.setAttribute('data-auth-mode', session ? 'logout' : 'login');
   }
 }
 
-/* =============== Actieve link (a11y) =============== */
 function setActiveLink() {
   const currentPath = location.pathname.replace(/\/+$/, '');
-  const links = document.querySelectorAll('#site-menu .nav-links a');
-  links.forEach(a => {
+  document.querySelectorAll('#site-menu .nav-links a').forEach(a => {
     try {
-      const url = new URL(a.getAttribute('href'), location.origin);
-      const linkPath = url.pathname.replace(/\/+$/, '');
+      const linkPath = new URL(a.getAttribute('href'), location.origin).pathname.replace(/\/+$/, '');
       if (linkPath && linkPath === currentPath) a.setAttribute('aria-current', 'page');
       else a.removeAttribute('aria-current');
     } catch { /* noop */ }
   });
 }
 
-/* =============== Bindings =============== */
 function bindNavLinks() {
-  const bindClick = (id, href) => {
+  const bind = (id, href) => {
     const el = document.getElementById(id);
     if (!el) return;
-    el.addEventListener('click', evt => {
-      evt.preventDefault();
-      navigate(href);
-    });
+    el.addEventListener('click', e => { e.preventDefault(); navigate(href); });
   };
-
-  // Deze blijven gewoon werken wanneer ingelogd
-  bindClick('nav-bereken',  'stap1.html');
-  bindClick('nav-mestplan', 'mestplan.html');
-  bindClick('nav-account',  'account.html');
+  bind('nav-bereken',  'stap1.html');
+  bind('nav-mestplan', 'mestplan.html');
+  bind('nav-account',  'account.html');
 }
 
 function bindAuthToggle() {
-  const el = getAuthToggleEl();
-  if (!el || el.dataset.bound === 'true') return;
+  const btn = document.getElementById('nav-auth');
+  if (!btn || btn.dataset.bound === 'true') return;
 
-  el.addEventListener('click', async (evt) => {
-    // Zowel <a> als <button> ondersteunen
-    evt.preventDefault();
-    const mode = el.getAttribute('data-auth-mode');
+  btn.addEventListener('click', async e => {
+    e.preventDefault();
+    const mode = btn.getAttribute('data-auth-mode');
     if (mode === 'logout') {
-      el.disabled = true;
+      btn.disabled = true;
       const { error } = await supabase.auth.signOut();
-      el.disabled = false;
-      if (error) {
-        console.error('Uitloggen mislukt:', error.message);
-        alert('Uitloggen mislukt. Probeer opnieuw.');
-        return;
-      }
-      // UI verversen en naar account
+      btn.disabled = false;
+      if (error) { console.error('Uitloggen mislukt:', error.message); alert('Uitloggen mislukt. Probeer opnieuw.'); return; }
       await updateNavUI();
       navigate('account.html');
     } else {
-      // login-modus: ga naar account pagina
-      navigate('account.html');
+      navigate('account.html'); // login-flow start
     }
   });
-
-  el.dataset.bound = 'true';
+  btn.dataset.bound = 'true';
 }
 
-/* =============== Init =============== */
 document.addEventListener('DOMContentLoaded', async () => {
-  await updateNavUI();      // zet body classes én knoplabel
-  bindNavLinks();           // andere links
-  bindAuthToggle();         // één knop die wisselt login/uitlog
-
+  await updateNavUI();     // zet body-classes + knoplabel
+  bindNavLinks();          // overige links
+  bindAuthToggle();        // 1 knop die wisselt
   setActiveLink();
 
-  // Reageer op auth-wissels
   supabase.auth.onAuthStateChange(async () => {
-    await updateNavUI();
-    // Knoplabel kan wisselen; eventhandler blijft geldig
+    await updateNavUI();   // label updaten bij statuswijziging
   });
 });
