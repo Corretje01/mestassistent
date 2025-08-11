@@ -546,26 +546,36 @@ body.is-auth  .guest-only { display: none !important; }
 
 /* Desktop: inline navigatie, geen overlay */
 @media (min-width: 1024px){
-  .nav-links { display: flex; align-items: center; gap: 1rem; }
-  .nav-auth-item { margin-left: auto; } /* zet laatste item helemaal rechts */
-}
-   
   .nav-toggle { display: none; }
-  .site-menu {
-    position: static; inset: auto;
-    background: transparent; color: inherit; padding: 0; 
-    opacity: 1; pointer-events: auto;
-  }
-  .site-menu .nav-links {
-    flex-direction: row; gap: 1rem;
-  }
-  
   .nav-close { display: none; }
-  .site-menu[hidden] { display: block; opacity: 1; pointer-events: auto; }
-}
 
-/* Body scroll lock bij open menu */
-.body--no-scroll { overflow: hidden; }
+  .site-menu {
+    position: static;
+    inset: auto;
+    background: transparent;
+    color: inherit;
+    padding: 0;
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .site-menu .nav-links {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  /* Auth-knop helemaal rechts */
+  .nav-auth-item { margin-left: auto; }
+
+  /* Alleen op desktop mag hidden genegeerd worden */
+  .site-menu[hidden] {
+    display: block;
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
 
 /* Respecteer reduced motion */
 @media (prefers-reduced-motion: reduce) {
