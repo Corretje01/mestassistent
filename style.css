@@ -447,3 +447,105 @@ a.btn:focus-visible,
    Utilities
 ========================= */
 .text-center { text-align: center !important; }
+
+/* =========================================
+   Tokens & breakpoints
+========================================= */
+:root{
+  --bp-sm: 480px;
+  --bp-md: 768px;
+  --bp-lg: 1024px;
+  --bp-xl: 1280px;
+
+  /* Type scale (voorbeeld; mobiel-first) */
+  --fs-h1: clamp(1.625rem, 1.2rem + 2vw, 2.25rem);
+  --fs-h2: clamp(1.25rem, 1.1rem + 1.2vw, 1.75rem);
+  --fs-h3: clamp(1.125rem, 1rem + .8vw, 1.375rem);
+  --fs-body: clamp(1rem, .95rem + .3vw, 1.0625rem);
+}
+
+h1 { font-size: var(--fs-h1); }
+h2 { font-size: var(--fs-h2); }
+h3 { font-size: var(--fs-h3); }
+body, p, li { font-size: var(--fs-body); }
+
+/* Fluid container */
+.container { 
+  max-width: 72rem;
+  padding-inline: clamp(0.75rem, 2vw, 1.5rem);
+}
+
+/* Utilities */
+.is-hidden { display: none !important; }
+.text-balance { text-wrap: balance; }
+
+/* Auth visibility via body class */
+body.is-guest .auth-only { display: none !important; }
+body.is-auth  .guest-only { display: none !important; }
+
+/* =========================================
+   NAV: Hamburger + overlay/off-canvas
+========================================= */
+.nav-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px; height: 44px;
+  border: 0; background: transparent; color: var(--color-white);
+  cursor: pointer;
+}
+.nav-toggle:focus-visible { outline: 3px solid rgba(241,196,15,.6); outline-offset: 2px; border-radius: 8px; }
+
+/* Hamburger icoon (CSS) */
+.nav-toggle .bars, .nav-toggle .bars::before, .nav-toggle .bars::after {
+  content: ""; display: block; width: 22px; height: 2px; background: currentColor;
+  border-radius: 2px; position: relative;
+}
+.nav-toggle .bars::before { position: absolute; top: -6px; }
+.nav-toggle .bars::after  { position: absolute; top: 6px; }
+
+/* Menu overlay - mobiel */
+.site-menu {
+  position: fixed; inset: 0; padding: 1rem;
+  background: rgba(13,13,13,.96); color: #fff;
+  overflow: auto;
+  display: grid; align-content: start;
+  opacity: 0; pointer-events: none;
+  transition: opacity .2s ease;
+}
+.site-menu[hidden] { display: block; opacity: 0; pointer-events: none; } /* allow transition out */
+.site-menu[data-open="true"] { opacity: 1; pointer-events: auto; }
+.site-menu[aria-modal="true"] { /* for SRs */ }
+
+/* Nav-list in overlay */
+.site-menu .nav-links {
+  list-style: none;
+  display: flex; flex-direction: column; gap: .5rem; margin-top: .5rem;
+}
+.site-menu .nav-links a,
+.site-menu .nav-links button {
+  display: block; width: 100%;
+  padding: 1rem 1.25rem; border-radius: 10px;
+  text-align: left;
+}
+
+/* Desktop: inline navigatie, geen overlay */
+@media (min-width: 1024px){
+  .nav-toggle { display: none; }
+  .site-menu {
+    position: static; inset: auto;
+    background: transparent; color: inherit; padding: 0; 
+    opacity: 1; pointer-events: auto;
+  }
+  .site-menu .nav-links {
+    flex-direction: row; gap: 1rem;
+  }
+}
+
+/* Body scroll lock bij open menu */
+.body--no-scroll { overflow: hidden; }
+
+/* Respecteer reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .site-menu { transition: none !important; }
+}
