@@ -23,6 +23,12 @@
       <!-- Menu (overlay op mobiel, inline op desktop)
            Let op: role/aria-modal en hidden worden breakpoint-bewust beheerd in nav-menu.js -->
       <div id="site-menu" class="site-menu" hidden>
+
+        <!-- Close-button (X) voor mobiel menu -->
+        <button id="nav-close" class="nav-close" aria-label="Menu sluiten">
+          <span aria-hidden="true">&times;</span>
+        </button>
+        
         <ul class="nav-links">
           <!-- Gast -->
           <li class="guest-only">
