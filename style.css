@@ -555,7 +555,7 @@ body.is-auth  .guest-only { display: none !important; }
   .site-menu .nav-links {
     flex-direction: row; gap: 1rem;
   }
-  /* aanvullingen */
+  
   .nav-close { display: none; }
   .site-menu[hidden] { display: block; opacity: 1; pointer-events: auto; }
 }
