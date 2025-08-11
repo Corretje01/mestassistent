@@ -47,11 +47,16 @@
 
   <!-- Originele inhoud hersteld -->
   <main id="main" class="container">
+    <noscript>
+      <div class="message error" style="margin-top:1rem;">
+        JavaScript staat uit. Schakel JavaScript in om in te loggen of te registreren.
+      </div>
+    </noscript>
 
     <div id="auth-message" class="message"></div>
 
-    <!-- Login & registratie sectie (zoals origineel: register verborgen, toggle met links) -->
-    <section id="auth-section" style="display:none; margin-top:2rem;">
+    <!-- Login & registratie sectie -->
+    <section id="auth-section" style="margin-top:2rem;">
 
       <!-- Loginformulier -->
       <form id="loginForm" class="auth-form">
@@ -126,7 +131,7 @@
     </section>
 
     <!-- Profiel sectie -->
-    <section id="profile-section" style="display:none;">
+    <section id="profile-section" hidden>
       <h2>Mijn profiel</h2>
       <form id="profileForm">
         <div class="field-group"><label>Voornaam</label><input id="profile_voornaam"></div>
