@@ -115,7 +115,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Query feedback (bv. ?signin=1 / ?logout=1 / ?register=1)
     const q = parseQuery();
-    if (q.signin)  setMsg(messageEl, 'Log in om verder te gaan.', 'info');
     if (q.logout)  setMsg(messageEl, 'Je bent uitgelogd.', 'success');
     if (q.register) {
       hide(loginForm);
