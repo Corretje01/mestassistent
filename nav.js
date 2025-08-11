@@ -156,14 +156,18 @@ function bindAuthButton() {
 
 /* ========== route guard ========== */
 async function guardProtectedPages() {
-  const protectedPages = new Set(['stap1.html','mestplan.html']);
-  const here = location.pathname.split('/').pop().toLowerCase();
-  if (!protectedPages.has(here)) return;
+  // accepteer zowel /stap1 als /stap1.html (idem voor mestplan)
+  const slug = location.pathname
+    .replace(/\/+$/, '')        // strip trailing slash
+    .split('/').pop().toLowerCase();
 
-  const session = await getSessionSafe();
+  const protectedSet = new Set(['stap1', 'stap1.html', 'mestplan', 'mestplan.html']);
+  if (!protectedSet.has(slug)) return;
+
+  const { data: { session } } = await supabase.auth.getSession();
   if (!session) {
-    // stuur naar account met duidelijk signin-signaal
-    hardNavigate('account.html?signin=1', { replace: true });
+    // duidelijke hint voor account-pagina
+    navigate('account.html?signin=1', { replace: true });
   }
 }
 
