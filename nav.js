@@ -25,16 +25,17 @@ function closeMenuIfOpen() {
     toggle.setAttribute('aria-expanded', 'false');
     menu.dataset.open = 'false';
     document.body.classList.remove('body--no-scroll');
-    // verbergen na kleine delay i.v.m. fade-out (als je die gebruikt)
-    requestAnimationFrame(() => setTimeout(() => {
-      if (menu.dataset.open !== 'true') menu.hidden = true;
-    }, 150));
+    requestAnimationFrame(() =>
+      setTimeout(() => {
+        if (menu.dataset.open !== 'true') menu.hidden = true;
+      }, 150)
+    );
   }
 }
 
 function navigate(href) {
   closeMenuIfOpen();
-  window.location.href = href; // relatieve paden
+  window.location.href = href; // relatieve paden (werkt ook in subdir)
 }
 
 function bindClick(id, href) {
@@ -46,12 +47,9 @@ function bindClick(id, href) {
   });
 }
 
-/**
- * Zet aria-current="page" op de actieve link
- * Vergelijkt pathname zonder trailing slash met het href-pad van de <a>.
- */
+/** aria-current op actieve link */
 function setActiveLink() {
-  const currentPath = location.pathname.replace(/\/+$/, ''); // strip trailing slash
+  const currentPath = location.pathname.replace(/\/+$/, '');
   const links = document.querySelectorAll('#site-menu .nav-links a');
   links.forEach(a => {
     try {
@@ -62,31 +60,33 @@ function setActiveLink() {
       } else {
         a.removeAttribute('aria-current');
       }
-    } catch {
-      // ignore malformed href
-    }
+    } catch { /* noop */ }
   });
 }
 
 /* ==============================
-   Init
+   Bindings (kan herhaald veilig)
 ============================== */
-document.addEventListener('DOMContentLoaded', () => {
-  updateNavUI().then(setActiveLink);
+export function initNavBindings() {
+  // Close-button (kruisje) sluit overlay
+  const closeBtn = document.getElementById('nav-close');
+  if (closeBtn && !closeBtn.dataset.bound) {
+    closeBtn.addEventListener('click', e => {
+      e.preventDefault();
+      closeMenuIfOpen();
+    });
+    closeBtn.dataset.bound = 'true';
+  }
 
-  supabase.auth.onAuthStateChange(() => {
-    updateNavUI();
-    // actieve link verandert niet op auth-wissel, maar kan blijven staan
-  });
-
-  // Relatieve paden (compatibel met subdirectory hosting)
+  // Link bindings (relatieve paden)
   bindClick('nav-register', 'account.html');
   bindClick('nav-bereken',  'stap1.html');
   bindClick('nav-mestplan', 'mestplan.html');
   bindClick('nav-account',  'account.html');
 
+  // Logout
   const btnLogout = document.getElementById('nav-logout');
-  if (btnLogout) {
+  if (btnLogout && !btnLogout.dataset.bound) {
     btnLogout.addEventListener('click', async evt => {
       evt.preventDefault();
       btnLogout.disabled = true;
@@ -100,5 +100,29 @@ document.addEventListener('DOMContentLoaded', () => {
         navigate('account.html');
       }
     });
+    btnLogout.dataset.bound = 'true';
   }
-});
+
+  setActiveLink();
+}
+
+/* ==============================
+   Auto-init, ook met latere injectie
+============================== */
+function initWhenReady() {
+  const navRoot = document.getElementById('site-menu');
+  if (navRoot) {
+    updateNavUI().then(initNavBindings);
+    return true;
+  }
+  return false;
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  if (initWhenReady()) return;
+
+  // Als nav later wordt toegevoegd (bv. partial), wacht even mee
+  const obs = new MutationObserver(() => {
+    if (initWhenReady()) obs.disconnect();
+  });
+  obs.observe(document.documentElement, { childList: true, subtree: tr
