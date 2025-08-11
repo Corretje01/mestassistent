@@ -546,6 +546,10 @@ body.is-auth  .guest-only { display: none !important; }
 
 /* Desktop: inline navigatie, geen overlay */
 @media (min-width: 1024px){
+  .nav-links { display: flex; align-items: center; gap: 1rem; }
+  .nav-auth-item { margin-left: auto; } /* zet laatste item helemaal rechts */
+}
+   
   .nav-toggle { display: none; }
   .site-menu {
     position: static; inset: auto;
