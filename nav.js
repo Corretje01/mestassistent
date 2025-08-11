@@ -16,9 +16,20 @@ function closeMenuIfOpen() {
     );
   }
 }
-function navigate(href) {
+
+function navigate(href, { replace = false } = {}) {
   closeMenuIfOpen();
-  window.location.assign(href); // harde navigatie, zeker gedrag
+  if (replace) window.location.replace(href);
+  else window.location.assign(href);
+}
+
+function clearSupabaseLocal() {
+  try {
+    const keys = Object.keys(localStorage);
+    for (const k of keys) {
+      if (k.startsWith('sb-')) localStorage.removeItem(k);
+    }
+  } catch {}
 }
 
 /* =============== UI state =============== */
@@ -30,18 +41,17 @@ export async function updateNavUI() {
   }
   const session = data.session;
 
-  // Toon/verberg menu-items via body-classes
+  // toon/verberg menu-items via body-classes
   document.body.classList.toggle('is-auth', !!session);
   document.body.classList.toggle('is-guest', !session);
 
-  // Auth-toggle knop label/stand
+  // auth-toggle knop label/stand
   const btn = document.getElementById('nav-auth');
   if (btn) {
     btn.setAttribute('type', 'button'); // voorkom form submit
     const mode = session ? 'logout' : 'login';
     btn.textContent = session ? 'Uitloggen' : 'Inloggen';
     btn.setAttribute('data-auth-mode', mode);
-    // fallback href indien het ooit een <a> is
     if (btn.tagName === 'A' && !btn.getAttribute('href')) {
       btn.setAttribute('href', 'account.html');
     }
@@ -55,11 +65,8 @@ function setActiveLink() {
     try {
       const linkPath = new URL(a.getAttribute('href'), location.origin)
         .pathname.replace(/\/+$/, '');
-      if (linkPath && linkPath === currentPath) {
-        a.setAttribute('aria-current', 'page');
-      } else {
-        a.removeAttribute('aria-current');
-      }
+      if (linkPath && linkPath === currentPath) a.setAttribute('aria-current', 'page');
+      else a.removeAttribute('aria-current');
     } catch { /* noop */ }
   });
 }
@@ -90,10 +97,10 @@ function bindAuthToggle() {
       try {
         btn.disabled = true;
 
-        // 1) Probeer globale sign-out
+        // Probeer globale sign-out
         let { error } = await supabase.auth.signOut();
 
-        // 2) Fallback: sommige setups vragen om 'local'
+        // Fallback: local scope (sommige setups)
         if (error) {
           console.warn('Global signOut faalde, probeer local:', error.message);
           const res2 = await supabase.auth.signOut({ scope: 'local' });
@@ -105,9 +112,15 @@ function bindAuthToggle() {
           }
         }
 
-        // 3) UI verversen en terug naar account
-        await updateNavUI();
-        navigate('account.html');
+        // Optimistisch: UI direct naar gast, lokale tokens weg
+        clearSupabaseLocal();
+        document.body.classList.add('is-guest');
+        document.body.classList.remove('is-auth');
+        btn.textContent = 'Inloggen';
+        btn.setAttribute('data-auth-mode', 'login');
+
+        // Harde redirect naar account (geen terug in history)
+        navigate('account.html?logout=1', { replace: true });
       } catch (err) {
         console.error('Uitloggen exception:', err);
         alert('Uitloggen mislukt. Probeer opnieuw.');
@@ -123,12 +136,25 @@ function bindAuthToggle() {
   btn.dataset.bound = 'true';
 }
 
+/* =============== Route guard (gasten weg van protected pages) =============== */
+async function guardProtectedPages() {
+  const protectedPages = ['stap1.html', 'mestplan.html'];
+  const here = location.pathname.split('/').pop().toLowerCase();
+  if (!protectedPages.includes(here)) return;
+
+  const { data } = await supabase.auth.getSession();
+  if (!data.session) {
+    navigate('account.html?signin=1', { replace: true });
+  }
+}
+
 /* =============== Init =============== */
 document.addEventListener('DOMContentLoaded', async () => {
   await updateNavUI();   // zet body-classes + knoplabel/type
   bindNavLinks();        // overige navigatie
   bindAuthToggle();      // toggleknop Inloggen ↔ Uitloggen
   setActiveLink();
+  await guardProtectedPages();
 
   // UI updaten zodra sessie wijzigt (bv. na login op account.html)
   supabase.auth.onAuthStateChange(async () => {
