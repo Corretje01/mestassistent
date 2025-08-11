@@ -11,19 +11,25 @@
   <header class="site-header">
     <nav class="navbar">
       <a href="/" class="nav-logo">KoeHandelaar</a>
-
+  
       <!-- Hamburger toggle (mobiel) -->
       <button id="nav-toggle" class="nav-toggle" aria-label="Menu" aria-controls="site-menu" aria-expanded="false">
         <span class="bars" aria-hidden="true"></span>
       </button>
-
+  
       <!-- Menu (overlay op mobiel, inline op desktop)
            Let op: role/aria-modal en hidden worden breakpoint-bewust beheerd in nav-menu.js -->
       <div id="site-menu" class="site-menu" hidden>
+  
+        <!-- Close-button (X) voor mobiel menu -->
+        <button id="nav-close" class="nav-close" aria-label="Menu sluiten">
+          <span aria-hidden="true">&times;</span>
+        </button>
+  
         <ul class="nav-links">
           <!-- Gast -->
           <li class="guest-only"><a href="account.html" class="btn-login" id="nav-register">Inloggen</a></li>
-
+  
           <!-- Ingelogd -->
           <li class="auth-only"><a href="stap1.html" class="nav__item" id="nav-bereken">Bereken plaatsingsruimte</a></li>
           <li class="auth-only"><a href="mestplan.html" class="nav__item" id="nav-mestplan">Maak mestplan</a></li>
