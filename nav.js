@@ -1,23 +1,7 @@
 // nav.js
 import { supabase } from './supabaseClient.js';
 
-/* ==============================
-   Auth UI: body state toggles
-============================== */
-export async function updateNavUI() {
-  const { data, error } = await supabase.auth.getSession();
-  if (error) {
-    console.error('Sessie ophalen mislukt:', error.message);
-    return;
-  }
-  const session = data.session;
-  document.body.classList.toggle('is-auth',  !!session);
-  document.body.classList.toggle('is-guest', !session);
-}
-
-/* ==============================
-   Helpers
-============================== */
+/* =============== Helpers =============== */
 function closeMenuIfOpen() {
   const menu = document.getElementById('site-menu');
   const toggle = document.getElementById('nav-toggle');
@@ -25,29 +9,64 @@ function closeMenuIfOpen() {
     toggle.setAttribute('aria-expanded', 'false');
     menu.dataset.open = 'false';
     document.body.classList.remove('body--no-scroll');
-    requestAnimationFrame(() =>
-      setTimeout(() => {
-        if (menu.dataset.open !== 'true') menu.hidden = true;
-      }, 150)
-    );
+    requestAnimationFrame(() => setTimeout(() => {
+      if (menu.dataset.open !== 'true') menu.hidden = true;
+    }, 150));
   }
 }
 
 function navigate(href) {
   closeMenuIfOpen();
-  window.location.href = href; // relatieve paden (werkt ook in subdir)
+  window.location.href = href; // relatieve paden blijven werken
 }
 
-function bindClick(id, href) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  el.addEventListener('click', evt => {
-    evt.preventDefault();
-    navigate(href);
-  });
+/** Vind jouw bestaande auth-knop zonder HTML te hoeven wijzigen */
+function getAuthToggleEl() {
+  return (
+    document.getElementById('nav-auth') ||      // als je ooit deze toevoegt
+    document.getElementById('nav-register') ||  // jouw oude "Inloggen" link/knop
+    document.getElementById('nav-logout')       // jouw huidige "Uitloggen" knop
+  );
 }
 
-/** aria-current op actieve link */
+/* =============== UI state =============== */
+export async function updateNavUI() {
+  const { data, error } = await supabase.auth.getSession();
+  if (error) {
+    console.error('Sessie ophalen mislukt:', error.message);
+    return;
+  }
+  const session = data.session;
+
+  // Body classes voor zichtbaarheid van menu-items
+  document.body.classList.toggle('is-auth',  !!session);
+  document.body.classList.toggle('is-guest', !session);
+
+  // Auth-toggle knop tekst en type
+  const authEl = getAuthToggleEl();
+  if (authEl) {
+    // Soms is het een <a>, soms een <button>
+    // We zetten in beide gevallen de label/tekst goed.
+    const setText = (txt) => {
+      if ('value' in authEl) authEl.value = txt;
+      authEl.textContent = txt;
+    };
+
+    if (session) {
+      setText('Uitloggen');
+      authEl.setAttribute('data-auth-mode', 'logout');
+    } else {
+      setText('Inloggen');
+      authEl.setAttribute('data-auth-mode', 'login');
+      // Zorg dat een <a> nog steeds naar account kan als JS uitvalt
+      if (authEl.tagName === 'A' && !authEl.getAttribute('href')) {
+        authEl.setAttribute('href', 'account.html');
+      }
+    }
+  }
+}
+
+/* =============== Actieve link (a11y) =============== */
 function setActiveLink() {
   const currentPath = location.pathname.replace(/\/+$/, '');
   const links = document.querySelectorAll('#site-menu .nav-links a');
@@ -55,74 +74,69 @@ function setActiveLink() {
     try {
       const url = new URL(a.getAttribute('href'), location.origin);
       const linkPath = url.pathname.replace(/\/+$/, '');
-      if (linkPath && linkPath === currentPath) {
-        a.setAttribute('aria-current', 'page');
-      } else {
-        a.removeAttribute('aria-current');
-      }
+      if (linkPath && linkPath === currentPath) a.setAttribute('aria-current', 'page');
+      else a.removeAttribute('aria-current');
     } catch { /* noop */ }
   });
 }
 
-/* ==============================
-   Bindings (kan herhaald veilig)
-============================== */
-export function initNavBindings() {
-  // Close-button (kruisje) sluit overlay
-  const closeBtn = document.getElementById('nav-close');
-  if (closeBtn && !closeBtn.dataset.bound) {
-    closeBtn.addEventListener('click', e => {
-      e.preventDefault();
-      closeMenuIfOpen();
+/* =============== Bindings =============== */
+function bindNavLinks() {
+  const bindClick = (id, href) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('click', evt => {
+      evt.preventDefault();
+      navigate(href);
     });
-    closeBtn.dataset.bound = 'true';
-  }
+  };
 
-  // Link bindings (relatieve paden)
-  bindClick('nav-register', 'account.html');
+  // Deze blijven gewoon werken wanneer ingelogd
   bindClick('nav-bereken',  'stap1.html');
   bindClick('nav-mestplan', 'mestplan.html');
   bindClick('nav-account',  'account.html');
+}
 
-  // Logout
-  const btnLogout = document.getElementById('nav-logout');
-  if (btnLogout && !btnLogout.dataset.bound) {
-    btnLogout.addEventListener('click', async evt => {
-      evt.preventDefault();
-      btnLogout.disabled = true;
+function bindAuthToggle() {
+  const el = getAuthToggleEl();
+  if (!el || el.dataset.bound === 'true') return;
+
+  el.addEventListener('click', async (evt) => {
+    // Zowel <a> als <button> ondersteunen
+    evt.preventDefault();
+    const mode = el.getAttribute('data-auth-mode');
+    if (mode === 'logout') {
+      el.disabled = true;
       const { error } = await supabase.auth.signOut();
-      btnLogout.disabled = false;
+      el.disabled = false;
       if (error) {
         console.error('Uitloggen mislukt:', error.message);
         alert('Uitloggen mislukt. Probeer opnieuw.');
-      } else {
-        await updateNavUI();
-        navigate('account.html');
+        return;
       }
-    });
-    btnLogout.dataset.bound = 'true';
-  }
+      // UI verversen en naar account
+      await updateNavUI();
+      navigate('account.html');
+    } else {
+      // login-modus: ga naar account pagina
+      navigate('account.html');
+    }
+  });
+
+  el.dataset.bound = 'true';
+}
+
+/* =============== Init =============== */
+document.addEventListener('DOMContentLoaded', async () => {
+  await updateNavUI();      // zet body classes én knoplabel
+  bindNavLinks();           // andere links
+  bindAuthToggle();         // één knop die wisselt login/uitlog
 
   setActiveLink();
-}
 
-/* ==============================
-   Auto-init, ook met latere injectie
-============================== */
-function initWhenReady() {
-  const navRoot = document.getElementById('site-menu');
-  if (navRoot) {
-    updateNavUI().then(initNavBindings);
-    return true;
-  }
-  return false;
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-  if (initWhenReady()) return;
-
-  // Als nav later wordt toegevoegd (bv. partial), wacht even mee
-  const obs = new MutationObserver(() => {
-    if (initWhenReady()) obs.disconnect();
+  // Reageer op auth-wissels
+  supabase.auth.onAuthStateChange(async () => {
+    await updateNavUI();
+    // Knoplabel kan wisselen; eventhandler blijft geldig
   });
-  obs.observe(document.documentElement, { childList: true, subtree: tr
+});
