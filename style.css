@@ -191,6 +191,19 @@ a.btn:focus-visible,
 /* Hero subtiele toon */
 .hero .lead { color: var(--color-gray-dark); }
 
+/* Hero spacing */
+.hero { 
+  padding-top: 3rem; 
+  padding-bottom: 3rem; 
+}
+
+@media (max-width: 768px) {
+  .hero { 
+    padding-top: 2rem; 
+    padding-bottom: 2rem; 
+  }
+}
+
 /* Bullets */
 .bullets {
   list-style: none;
