@@ -25,12 +25,7 @@
         </button>
   
         <ul class="nav-links">
-          <!-- Alleen zichtbaar als je NIET bent ingelogd -->
-          <li class="guest-only">
-            <a href="account.html" class="btn-login" id="nav-register">Inloggen</a>
-          </li>
-  
-          <!-- Alleen zichtbaar als je WEL bent ingelogd -->
+          <!-- Alleen na inloggen zichtbaar -->
           <li class="auth-only">
             <a href="stap1.html" class="nav__item" id="nav-bereken">Bereken plaatsingsruimte</a>
           </li>
@@ -40,8 +35,10 @@
           <li class="auth-only">
             <a href="account.html" class="nav__item" id="nav-account">Mijn account</a>
           </li>
-          <li class="auth-only">
-            <button class="btn-login" id="nav-logout">Uitloggen</button>
+  
+          <!-- Altijd aanwezig, tekst/actie wisselt: Inloggen ↔ Uitloggen -->
+          <li class="nav-auth-item">
+            <button class="btn-login" id="nav-auth">Inloggen</button>
           </li>
         </ul>
       </div>
