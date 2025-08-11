@@ -1,147 +1,242 @@
-// account.js – veilig accountbeheer met Supabase-authenticatie
-
-// importeer de gedeelde Supabase-client
+// account.js — robuuste login/registratie/profiel + mobiele fixes
 import { supabase } from './supabaseClient.js';
 
-// ===== UTILITIES =====
-function show(el) { el.style.display = 'block'; }
-function hide(el) { el.style.display = 'none'; }
+/* ========== kleine helpers ========== */
+const $ = (id) => document.getElementById(id);
+const show = (el) => el && (el.style.display = 'block');
+const hide = (el) => el && (el.style.display = 'none');
 
-// ===== INIT =====
-document.addEventListener('DOMContentLoaded', async () => {
-  const authSect     = document.getElementById('auth-section');
-  const profileSect  = document.getElementById('profile-section');
-  const messageEl    = document.getElementById('auth-message');
-  const profileMsg   = document.getElementById('profile-message');
+function setMsg(el, text, type = 'info') {
+  if (!el) return;
+  el.textContent = text || '';
+  el.className = `message ${type}`;
+}
 
-  const loginForm    = document.getElementById('loginForm');
-  const registerForm = document.getElementById('registerForm');
-  const profileForm  = document.getElementById('profileForm');
+function parseQuery() {
+  const p = new URLSearchParams(location.search);
+  return {
+    signin:  p.get('signin') === '1',
+    logout:  p.get('logout') === '1',
+    register:p.get('register') === '1'
+  };
+}
 
-  const showLogin    = () => { show(loginForm); hide(registerForm); };
-  const showRegister = () => { hide(loginForm); show(registerForm); };
+async function getSessionSafe() {
+  try { return (await supabase.auth.getSession()).data.session; }
+  catch { return null; }
+}
 
-  document.getElementById('show-register')?.addEventListener('click', e => {
-    e.preventDefault();
-    showRegister();
-  });
+/* ========== secties/elementen ========== */
+let authSect, profileSect, messageEl, profileMsg;
+let loginForm, registerForm, profileForm;
 
-  document.getElementById('show-login')?.addEventListener('click', e => {
-    e.preventDefault();
-    showLogin();
-  });
+/* ========== UI schakelen ========== */
+async function syncUIBySession() {
+  const session = await getSessionSafe();
+  const isAuthed = !!session;
 
-  // ===== SESSIECHECK BIJ PAGINALADEN =====
-  const { data: { session } } = await supabase.auth.getSession();
-
-  if (session) {
+  if (isAuthed) {
     hide(authSect);
     show(profileSect);
-    loadProfileData();
+    await fillProfileFromUser();
   } else {
     show(authSect);
-    showLogin();
+    show(loginForm);
+    hide(registerForm);
     hide(profileSect);
   }
+}
 
-  // ===== PROFIEL INVULLEN BIJ INGLOGD =====
-  async function loadProfileData() {
-    const { data: { user } } = await supabase.auth.getUser();
-    const md = user.user_metadata || {};
-    Object.entries(md).forEach(([key, value]) => {
-      const el = document.getElementById(`profile_${key}`);
-      if (el) el.value = value;
+/* Profielvelden vullen vanuit user_metadata */
+async function fillProfileFromUser() {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+  const md = user.user_metadata || {};
+  const mapping = [
+    'voornaam','tussenvoegsel','achternaam','telefoon',
+    'woonplaats','postcode','straat','huisnummer','huisnummer_toevoeging'
+  ];
+  mapping.forEach(key => {
+    const el = $(`profile_${key}`);
+    if (el) el.value = md[key] ?? '';
+  });
+  const emailEl = $('profile_email');
+  if (emailEl) emailEl.value = user.email || '';
+}
+
+/* Na succesvolle login: directe harde redirect (voorkom terug naar auth) */
+function gotoAfterLogin() {
+  // stap1.html is de logische landingspagina in je app. :contentReference[oaicite:2]{index=2}
+  location.replace('/stap1.html');
+}
+
+/* Na account delete: zeker weten uitgelogd + terug naar account.html */
+async function robustSignOutAndBackToAccount() {
+  try {
+    await supabase.auth.signOut();
+  } catch {}
+  // kleine failsafe: tokens die soms blijven hangen in ITP
+  try {
+    Object.keys(localStorage).forEach(k => k.startsWith('sb-') && localStorage.removeItem(k));
+    Object.keys(sessionStorage).forEach(k => k.startsWith('sb-') && sessionStorage.removeItem(k));
+  } catch {}
+  location.replace('/account.html?logout=1');
+}
+
+/* ========== INIT ========== */
+document.addEventListener('DOMContentLoaded', async () => {
+  authSect    = $('auth-section');
+  profileSect = $('profile-section');
+  messageEl   = $('auth-message');
+  profileMsg  = $('profile-message');
+
+  loginForm    = $('loginForm');
+  registerForm = $('registerForm');
+  profileForm  = $('profileForm');
+
+  // toggles login <-> register
+  $('show-register')?.addEventListener('click', (e) => { e.preventDefault(); hide(loginForm); show(registerForm); });
+  $('show-login')?.addEventListener('click', (e) => { e.preventDefault(); show(loginForm); hide(registerForm); });
+
+  // Query feedback (bv. uit nav.js: ?signin=1 of ?logout=1). :contentReference[oaicite:3]{index=3}
+  const q = parseQuery();
+  if (q.signin)  setMsg(messageEl, 'Log in om verder te gaan.', 'info');
+  if (q.logout)  setMsg(messageEl, 'Je bent uitgelogd.', 'success');
+  if (q.register) {
+    hide(loginForm); show(registerForm);
+    setMsg(messageEl, 'Maak je account aan om te starten.', 'info');
+  }
+
+  // UI sync bij laden
+  await syncUIBySession();
+
+  /* ===== LOGIN ===== */
+  if (loginForm) {
+    loginForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      setMsg(messageEl, '');
+      const btn = loginForm.querySelector('button[type="submit"]');
+      btn && (btn.disabled = true);
+
+      const email = loginForm.email.value.trim();
+      const password = loginForm.password.value;
+
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) {
+        setMsg(messageEl, error.message, 'error');
+        btn && (btn.disabled = false);
+        return;
+      }
+
+      // Geen timer; direct checken + redirecten
+      const session = await getSessionSafe();
+      if (session) {
+        setMsg(messageEl, 'Inloggen gelukt! Je wordt doorgestuurd…', 'success');
+        gotoAfterLogin(); // harde redirect
+      } else {
+        setMsg(messageEl, 'Inloggen gelukt, maar sessie is nog niet beschikbaar. Vernieuw de pagina of probeer opnieuw.', 'warning');
+        btn && (btn.disabled = false);
+      }
     });
   }
 
-  // ===== LOGIN =====
-  loginForm.onsubmit = async (e) => {
-    e.preventDefault();
-    const email    = loginForm.email.value;
-    const password = loginForm.password.value;
+  /* ===== REGISTRATIE ===== */
+  if (registerForm) {
+    registerForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      setMsg(messageEl, '');
+      const btn = registerForm.querySelector('button[type="submit"]');
+      btn && (btn.disabled = true);
 
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+      const fd = new FormData(registerForm);
+      const formData = Object.fromEntries(fd);
 
-    if (error) {
-      messageEl.textContent = error.message;
-      messageEl.className = 'message error';
-      return;
-    }
+      // Let op id’s in account.html: email_reg / password_reg / etc. :contentReference[oaicite:4]{index=4}
+      const { error } = await supabase.auth.signUp({
+        email: formData.email,               // komt uit #email_reg (name="email")
+        password: formData.password,         // komt uit #password_reg (name="password")
+        options: { data: {
+          voornaam: formData.voornaam || '',
+          tussenvoegsel: formData.tussenvoegsel || '',
+          achternaam: formData.achternaam || '',
+          telefoon: formData.telefoon || '',
+          woonplaats: formData.woonplaats || '',
+          postcode: formData.postcode || '',
+          straat: formData.straat || '',
+          huisnummer: formData.huisnummer || '',
+          huisnummer_toevoeging: formData.huisnummer_toevoeging || ''
+        }}
+      });
 
-    messageEl.textContent = 'Inloggen gelukt!';
-    messageEl.className = 'message success';
-
-    // Wacht kort op sessie en redirect
-    setTimeout(async () => {
-      const { data: { session: newSession } } = await supabase.auth.getSession();
-      if (newSession) {
-        window.location.href = '/stap1.html';
-      } else {
-        messageEl.textContent = 'Er ging iets mis met inloggen. Probeer opnieuw.';
-        messageEl.className = 'message error';
+      if (error) {
+        setMsg(messageEl, error.message, 'error');
+        btn && (btn.disabled = false);
+        return;
       }
-    }, 500);
-  };
 
-  // ===== REGISTRATIE =====
-  registerForm.onsubmit = async (e) => {
-    e.preventDefault();
-    const formData = Object.fromEntries(new FormData(registerForm));
-
-    const { error } = await supabase.auth.signUp({
-      email: formData.email,
-      password: formData.password,
-      options: { data: formData }
+      setMsg(messageEl, 'Registratie gelukt! Bevestig je e-mail om in te loggen.', 'success');
+      // Terug naar inloggen tonen
+      show(loginForm); hide(registerForm);
+      btn && (btn.disabled = false);
     });
+  }
 
-    if (error) {
-      messageEl.textContent = error.message;
-      messageEl.className = 'message error';
-    } else {
-      messageEl.textContent = 'Registratie geslaagd! Bevestig je e-mail om verder te gaan.';
-      messageEl.className = 'message success';
-      showLogin();
-    }
-  };
+  /* ===== PROFIEL OPSLAAN ===== */
+  if (profileForm) {
+    profileForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      setMsg(profileMsg, '');
 
-  // ===== PROFIEL OPSLAAN =====
-  profileForm.onsubmit = async (e) => {
-    e.preventDefault();
+      const btn = profileForm.querySelector('button[type="submit"]');
+      btn && (btn.disabled = true);
 
-    const updates = {
-      voornaam: document.getElementById('profile_voornaam')?.value,
-      tussenvoegsel: document.getElementById('profile_tussenvoegsel')?.value,
-      achternaam: document.getElementById('profile_achternaam')?.value,
-      telefoon: document.getElementById('profile_telefoon')?.value,
-      woonplaats: document.getElementById('profile_woonplaats')?.value,
-      postcode: document.getElementById('profile_postcode')?.value,
-      straat: document.getElementById('profile_straat')?.value,
-      huisnummer: document.getElementById('profile_huisnummer')?.value,
-      huisnummer_toevoeging: document.getElementById('profile_huisnummer_toevoeging')?.value
-    };
+      const updates = {
+        voornaam: $('profile_voornaam')?.value ?? '',
+        tussenvoegsel: $('profile_tussenvoegsel')?.value ?? '',
+        achternaam: $('profile_achternaam')?.value ?? '',
+        telefoon: $('profile_telefoon')?.value ?? '',
+        woonplaats: $('profile_woonplaats')?.value ?? '',
+        postcode: $('profile_postcode')?.value ?? '',
+        straat: $('profile_straat')?.value ?? '',
+        huisnummer: $('profile_huisnummer')?.value ?? '',
+        huisnummer_toevoeging: $('profile_huisnummer_toevoeging')?.value ?? ''
+      };
 
-    const { error } = await supabase.auth.updateUser({ data: updates });
+      const { error } = await supabase.auth.updateUser({ data: updates });
+      if (error) {
+        setMsg(profileMsg, error.message, 'error');
+      } else {
+        setMsg(profileMsg, 'Wijzigingen succesvol opgeslagen!', 'success');
+      }
+      btn && (btn.disabled = false);
+    });
+  }
 
-    if (error) {
-      profileMsg.textContent = error.message;
-      profileMsg.className = 'message error';
-    } else {
-      profileMsg.textContent = 'Wijzigingen succesvol opgeslagen!';
-      profileMsg.className = 'message success';
-    }
-  };
+  /* ===== ACCOUNT VERWIJDEREN ===== */
+  $('deleteAccount')?.addEventListener('click', async () => {
+    if (!confirm('Weet je zeker dat je je account permanent wilt verwijderen?')) return;
 
-  // ===== ACCOUNT VERWIJDEREN =====
-  document.getElementById('deleteAccount')?.addEventListener('click', async () => {
-    const confirmDelete = confirm('Weet je zeker dat je jouw account permanent wilt verwijderen?');
-    if (!confirmDelete) return;
-
-    const { error } = await supabase.functions.invoke('delete-user');
-    if (error) {
-      alert('Fout bij verwijderen account: ' + error.message);
-    } else {
-      await supabase.auth.signOut();
-      location.href = '/stap1.html';
+    try {
+      // Je edge function moet server-side authenticatie en delete doen
+      const { error } = await supabase.functions.invoke('delete-user');
+      if (error) throw error;
+      await robustSignOutAndBackToAccount();
+    } catch (err) {
+      alert('Fout bij verwijderen account: ' + (err?.message || err));
     }
   });
+
+  /* ===== Auth-state volgen voor UI-consistentie ===== */
+  supabase.auth.onAuthStateChange(async (_evt, _sess) => {
+    // Als je op deze pagina inlogt, ga direct door naar stap1
+    if (_evt === 'SIGNED_IN') {
+      gotoAfterLogin();
+      return;
+    }
+    // Anders alleen UI syncen (bijv. SIGNED_OUT of token refresh)
+    await syncUIBySession();
+  });
+
+  /* ===== BFCache fix: terugknop moet UI updaten ===== */
+  window.addEventListener('pageshow', () => { syncUIBySession(); });
 });
