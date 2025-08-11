@@ -522,3 +522,8 @@ a.btn, .btn, .nav-links a, .nav-logo, .btn-login, .nav__item {
 
 /* Homepage: Social proof */
 .testimonials .card { text-align: center; }
+
+/* Koppen in cards centreren */
+.container.card h2 { 
+  text-align: center; 
+}
