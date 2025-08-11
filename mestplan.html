@@ -14,31 +14,42 @@
   <header class="site-header">
     <nav class="navbar">
       <a href="/" class="nav-logo">KoeHandelaar</a>
-      <ul class="nav-links">
-        <!-- Niet-ingelogd -->
-        <li>
-          <a href="account.html" class="btn-login" id="nav-register">Inloggen</a>
-        </li>
-        
-        <!-- Ingelogd -->
-        <li>
-          <a href="stap1.html" class="nav__item" id="nav-bereken" style="display:none;">Bereken plaatsingsruimte</a>
-        </li>
-        <li>
-          <a href="mestplan.html" class="nav__item" id="nav-mestplan" style="display:none;">Maak mestplan</a>
-        </li>
-        <li>
-          <a href="account.html" class="nav__item" id="nav-account" style="display:none;">Mijn account</a>
-        </li>
-        <li>
-          <button class="btn-login" id="nav-logout" style="display:none;">Uitloggen</button>
-        </li>
-      </ul>
+
+      <!-- Hamburger toggle (mobiel) -->
+      <button id="nav-toggle" class="nav-toggle" aria-label="Menu" aria-controls="site-menu" aria-expanded="false">
+        <span class="bars" aria-hidden="true"></span>
+      </button>
+
+      <!-- Menu (overlay op mobiel, inline op desktop)
+           Let op: role/aria-modal en hidden worden breakpoint-bewust beheerd in nav-menu.js -->
+      <div id="site-menu" class="site-menu" hidden>
+        <ul class="nav-links">
+          <!-- Gast -->
+          <li class="guest-only">
+            <a href="account.html" class="btn-login" id="nav-register">Inloggen</a>
+          </li>
+
+          <!-- Ingelogd -->
+          <li class="auth-only">
+            <a href="stap1.html" class="nav__item" id="nav-bereken">Bereken plaatsingsruimte</a>
+          </li>
+          <li class="auth-only">
+            <a href="mestplan.html" class="nav__item" id="nav-mestplan">Maak mestplan</a>
+          </li>
+          <li class="auth-only">
+            <a href="account.html" class="nav__item" id="nav-account">Mijn account</a>
+          </li>
+          <li class="auth-only">
+            <button class="btn-login" id="nav-logout">Uitloggen</button>
+          </li>
+        </ul>
+      </div>
     </nav>
   </header>
-  <main class="container">
+
+  <main id="main" class="container">
     <h2>2. Optimaliseer je mestplan</h2>
-    <p>Kies je gewenste mestsoorten en pas de hoeveelheden aan met de schuifknoppen. Gebruik de 'Optimaliseer' knop voor een automatische berekening van jouw ideale mestplan.</p>
+    <p>Kies je gewenste mestsoorten en pas de hoeveelheden aan met de schuifregelaars. Klik op <em>Optimaliseer</em> voor een automatische berekening van jouw ideale mestplan.</p>
 
     <!-- 1. Vorige resultaten uit stap 1 -->
     <section id="prev-results-section" class="card">
@@ -69,8 +80,8 @@
         <span class="category__label">Vaste mest</span>
         <button class="btn mest-btn" data-type="vastemest" data-animal="varken">Varken</button>
         <button class="btn mest-btn" data-type="vastemest" data-animal="koe">Koe</button>
-        <button class="btn mest-btn" data-type="vastemest" data-animal="geit">Geit</button>
         <button class="btn mest-btn" data-type="vastemest" data-animal="kip">Kip</button>
+        <button class="btn mest-btn" data-type="vastemest" data-animal="geit">Geit</button>
         <button class="btn mest-btn" data-type="vastemest" data-animal="paard">Paard</button>
       </div>
       <div class="category">
@@ -98,11 +109,26 @@
     </section>
   </main>
 
+  <footer id="footer" class="container" style="padding:2rem 0; color:#777; font-size:0.9rem;">
+    <div style="display:flex; flex-wrap:wrap; gap:0.75rem; justify-content:space-between; align-items:center;">
+      <div>© <span id="year"></span> KoeHandelaar</div>
+      <div style="display:flex; gap:1rem;">
+        <a href="#" style="color:inherit;">Privacy</a>
+        <a href="#" style="color:inherit;">Voorwaarden</a>
+        <a href="account.html" style="color:inherit;">Inloggen</a>
+      </div>
+    </div>
+  </footer>
+
   <!-- 1) ESM Supabase-client -->
   <script type="module" src="supabaseClient.js"></script>
 
   <!-- 2) Nav logic als module -->
   <script type="module" src="nav.js"></script>
+  <script type="module">
+    import { initNavMenu } from './nav-menu.js';
+    initNavMenu({ menuId: 'site-menu', toggleId: 'nav-toggle' });
+  </script>
 
   <!-- 3) Route-guard als module -->
   <script type="module">
@@ -112,6 +138,9 @@
       if (!session) {
         window.location.href = '/account.html';
       }
+      // Jaar in footer
+      const y = document.getElementById('year');
+      if (y) y.textContent = new Date().getFullYear();
     });
   </script>
 
