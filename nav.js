@@ -1,33 +1,28 @@
-// nav.js (robuste versie)
+// nav.js — robuuste navigatie + login/logout (desktop & mobiel)
 import { supabase } from './supabaseClient.js';
 
-/* ===== Helpers ===== */
+/* ========== helpers ========== */
+const $ = (id) => document.getElementById(id);
+
 function closeMenuIfOpen() {
-  const menu = document.getElementById('site-menu');
-  const toggle = document.getElementById('nav-toggle');
+  const menu   = $('site-menu');
+  const toggle = $('nav-toggle');
   if (!menu || !toggle) return;
   if (menu.dataset.open === 'true') {
     toggle.setAttribute('aria-expanded', 'false');
     menu.dataset.open = 'false';
     document.body.classList.remove('body--no-scroll');
+    // verberg pas ná close-animatie
     requestAnimationFrame(() => setTimeout(() => {
       if (menu.dataset.open !== 'true') menu.hidden = true;
-    }, 140));
+    }, 150));
   }
 }
 
-function hardNavigate(href, { replace = true } = {}) {
+function hardNavigate(href, { replace = false } = {}) {
   closeMenuIfOpen();
   if (replace) location.replace(href);
   else location.assign(href);
-}
-
-// Wis alle Supabase tokens in deze tab (failsafe)
-function clearSupabaseStorage() {
-  try {
-    Object.keys(localStorage).forEach(k => { if (k.startsWith('sb-')) localStorage.removeItem(k); });
-    Object.keys(sessionStorage).forEach(k => { if (k.startsWith('sb-')) sessionStorage.removeItem(k); });
-  } catch {}
 }
 
 async function getSessionSafe() {
@@ -35,53 +30,67 @@ async function getSessionSafe() {
   catch { return null; }
 }
 
-/* ===== UI state ===== */
+function clearSupabaseStorage() {
+  try {
+    Object.keys(localStorage).forEach(k => k.startsWith('sb-') && localStorage.removeItem(k));
+    Object.keys(sessionStorage).forEach(k => k.startsWith('sb-') && sessionStorage.removeItem(k));
+  } catch {}
+}
+
+/* ========== UI state ========== */
 export async function updateNavUI() {
   const session = await getSessionSafe();
-  document.body.classList.toggle('is-auth', !!session);
-  document.body.classList.toggle('is-guest', !session);
+  const isLoggedIn = !!session;
 
-  const btn = document.getElementById('nav-auth');
-  if (btn) {
-    btn.type = 'button';
-    const isLoggedIn = !!session;
-    btn.textContent = isLoggedIn ? 'Uitloggen' : 'Inloggen';
-    btn.setAttribute('data-auth-mode', isLoggedIn ? 'logout' : 'login');
+  document.body.classList.toggle('is-auth', isLoggedIn);
+  document.body.classList.toggle('is-guest', !isLoggedIn);
+
+  // Toon/verberg links met .auth-only
+  document.querySelectorAll('.auth-only').forEach(li => {
+    li.style.display = isLoggedIn ? '' : 'none';
+  });
+
+  // Auth-knop: Inloggen ↔ Uitloggen
+  const authBtn = $('nav-auth');
+  if (authBtn) {
+    authBtn.type = 'button';
+    authBtn.textContent = isLoggedIn ? 'Uitloggen' : 'Inloggen';
+    authBtn.setAttribute('data-auth-mode', isLoggedIn ? 'logout' : 'login');
   }
 
-  // Active link (aria-current)
-  const currentPath = location.pathname.replace(/\/+$/, '');
+  setActiveLink();
+}
+
+function setActiveLink() {
+  const current = new URL(location.href);
   document.querySelectorAll('#site-menu .nav-links a').forEach(a => {
     try {
-      const linkPath = new URL(a.getAttribute('href'), location.origin).pathname.replace(/\/+$/, '');
-      if (linkPath && linkPath === currentPath) a.setAttribute('aria-current', 'page');
-      else a.removeAttribute('aria-current');
+      const href = new URL(a.getAttribute('href'), location.origin);
+      if (href.pathname.replace(/\/+$/,'') === current.pathname.replace(/\/+$/,'')) {
+        a.setAttribute('aria-current','page');
+      } else {
+        a.removeAttribute('aria-current');
+      }
     } catch {}
   });
 }
 
-/* ===== Auth actions ===== */
+/* ========== auth actions ========== */
 async function robustSignOut() {
-  // 1) UI meteen naar guest
+  // UI meteen naar guest (snappier gevoel)
   document.body.classList.add('is-guest');
   document.body.classList.remove('is-auth');
 
-  // 2) Sign out (global -> local fallback)
   try {
-    let { error } = await supabase.auth.signOut(); // global (v2)
+    let { error } = await supabase.auth.signOut();
     if (error) {
-      const res2 = await supabase.auth.signOut({ scope: 'local' });
-      if (res2.error) console.warn('signOut local fallback error:', res2.error.message);
+      // fallback (sommige browsers/ITP)
+      await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
     }
-  } catch (e) {
-    console.warn('signOut threw:', e?.message || e);
-  }
-
-  // 3) Storage opschonen; dit maakt getSession() vrijwel meteen null
+  } catch {}
   clearSupabaseStorage();
 
-  // 4) Heel korte, best-effort wacht om race conditions te dempen (niet blokkerend)
-  //    We wachten max 250ms, maar redirecten sowieso direct erna.
+  // heel korte best-effort wacht (niet zichtbaar), dempt race conditions
   const t0 = Date.now();
   while (Date.now() - t0 < 250) {
     const s = await getSessionSafe();
@@ -90,7 +99,7 @@ async function robustSignOut() {
   }
 }
 
-/* ===== Bindings ===== */
+/* ========== bindings ========== */
 function bindNavLinks() {
   const map = [
     ['nav-bereken',  'stap1.html'],
@@ -98,46 +107,46 @@ function bindNavLinks() {
     ['nav-account',  'account.html'],
   ];
   for (const [id, href] of map) {
-    const el = document.getElementById(id);
+    const el = $(id);
     if (!el) continue;
-    const go = e => { e.preventDefault(); hardNavigate(href, { replace: false }); };
+    const go = (e) => { e.preventDefault(); hardNavigate(href); };
     el.addEventListener('click', go, { passive: false });
-    el.addEventListener('pointerup', go, { passive: false });
+    el.addEventListener('pointerup', go, { passive: false }); // mobiel-tap zekerheid
   }
 }
 
-async function handleAuthButton(e, btn) {
+async function handleAuthClick(e, btn) {
   e.preventDefault();
   const mode = btn.getAttribute('data-auth-mode');
 
   if (mode === 'logout') {
     btn.disabled = true;
-    btn.textContent = 'Uitloggen...';
+    btn.textContent = 'Uitloggen…';
     await robustSignOut();
-    // **Cruciaal**: direct hard redirect, niet wachten op events
+    // **Directe harde redirect** naar account met signaal voor melding
     hardNavigate('account.html?logout=1', { replace: true });
   } else {
-    hardNavigate('account.html', { replace: false });
+    // login vanuit nav: wijs gebruiker de weg naar loginsectie
+    hardNavigate('account.html?signin=1', { replace: false });
   }
 }
 
-function bindAuthControls() {
-  const direct = document.getElementById('nav-auth');
-  if (direct && !direct.dataset.bound) {
-    const on = e => handleAuthButton(e, direct);
-    direct.type = 'button';
-    direct.addEventListener('click', on, { passive: false });
-    direct.addEventListener('pointerup', on, { passive: false });
-    direct.dataset.bound = 'true';
+function bindAuthButton() {
+  const btn = $('nav-auth');
+  if (btn && !btn.dataset.bound) {
+    const on = (e) => handleAuthClick(e, btn);
+    btn.addEventListener('click', on, { passive: false });
+    btn.addEventListener('pointerup', on, { passive: false });
+    btn.dataset.bound = 'true';
   }
 
-  // Defensieve delegatie (vangt overlay/touch edge cases in het menu)
+  // defensieve delegatie — pakt taps in overlay/menus
   if (!document.body.dataset.authDelegated) {
-    const delegate = e => {
-      const targetBtn = e.target?.closest?.('#nav-auth');
-      if (!targetBtn) return;
+    const delegate = (e) => {
+      const tgt = e.target?.closest?.('#nav-auth');
+      if (!tgt) return;
       e.preventDefault();
-      handleAuthButton(e, targetBtn);
+      handleAuthClick(e, tgt);
     };
     document.addEventListener('click', delegate, { passive: false });
     document.addEventListener('pointerup', delegate, { passive: false });
@@ -145,29 +154,32 @@ function bindAuthControls() {
   }
 }
 
-/* ===== Route guard (beschermde pagina's) ===== */
-async function guardProtected() {
+/* ========== route guard ========== */
+async function guardProtectedPages() {
   const protectedPages = new Set(['stap1.html','mestplan.html']);
   const here = location.pathname.split('/').pop().toLowerCase();
   if (!protectedPages.has(here)) return;
 
   const session = await getSessionSafe();
-  if (!session) hardNavigate('account.html?signin=1', { replace: true });
+  if (!session) {
+    // stuur naar account met duidelijk signin-signaal
+    hardNavigate('account.html?signin=1', { replace: true });
+  }
 }
 
-/* ===== Init ===== */
-(async function init() {
+/* ========== init ========== */
+document.addEventListener('DOMContentLoaded', async () => {
   await updateNavUI();
   bindNavLinks();
-  bindAuthControls();
-  await guardProtected();
+  bindAuthButton();
+  await guardProtectedPages();
 
-  // UI bij auth-wijziging
-  supabase.auth.onAuthStateChange(() => updateNavUI());
+  // Auth-wijzigingen => nav meteen bijwerken
+  supabase.auth.onAuthStateChange(() => { updateNavUI(); });
 
-  // BFCache / terug-navigatie fix
+  // BFCache/terugknop: zorg dat UI klopt als user terug navigeert
   window.addEventListener('pageshow', () => { updateNavUI(); });
 
-  // Zorg dat de menuoverlay niet open achterblijft bij resize
+  // Als de viewport naar desktop springt, sluit het mobiele menu
   window.matchMedia('(min-width: 1024px)').addEventListener('change', closeMenuIfOpen);
-})();
+});
