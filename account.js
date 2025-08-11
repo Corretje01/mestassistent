@@ -72,7 +72,7 @@ async function fillProfileFromUser() {
 /* Na succesvolle login: directe harde redirect (voorkom terug naar auth) */
 function gotoAfterLogin() {
   // Relatief pad werkt overal (root/subdir/Netlify)
-  location.replace('stap1.html');
+  location.replace('/stap1.html');
 }
 
 /* Na account delete: zeker weten uitgelogd + terug naar account.html */
@@ -82,7 +82,7 @@ async function robustSignOutAndBackToAccount() {
     Object.keys(localStorage).forEach(k => k.startsWith('sb-') && localStorage.removeItem(k));
     Object.keys(sessionStorage).forEach(k => k.startsWith('sb-') && sessionStorage.removeItem(k));
   } catch {}
-  location.replace('account.html?logout=1');
+  location.replace('/account.html?logout=1');
 }
 
 /* ========== INIT ========== */
@@ -145,13 +145,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // ✅ Meteen navigeren; guard op /stap1(.html) beschermt als sessie nog niet klaar is
         const go = (href) => { location.replace(href); };
-        go('stap1.html');
+        go('/stap1.html');
 
         // ✅ Watchdog (max ~2s): als we nog op account zitten, check sessie en navigeer alsnog.
         let tries = 0;
         const t = setInterval(async () => {
           tries++;
-          if (!/account\.html$/i.test(location.pathname)) { clearInterval(t); return; }
+          if (!/\/account(?:\.html)?$/i.test(location.pathname)) { clearInterval(t); return; }
           const s = await getSessionSafe();
           if (s) { clearInterval(t); go('stap1.html'); }
           if (tries > 10) { clearInterval(t); if (btn) btn.disabled = false; }
