@@ -25,11 +25,35 @@ function navigate(href, { replace = false } = {}) {
 
 function clearSupabaseLocal() {
   try {
-    const keys = Object.keys(localStorage);
-    for (const k of keys) {
+    Object.keys(localStorage).forEach(k => {
       if (k.startsWith('sb-')) localStorage.removeItem(k);
-    }
+    });
   } catch {}
+}
+
+/* Wacht op SIGNED_OUT of tot session null is (met korte timeout) */
+async function waitForSignedOut(timeoutMs = 1200) {
+  let resolved = false;
+
+  const done = () => { resolved = true; };
+  const start = Date.now();
+
+  // 1) one-shot subscription
+  const { data: sub } = supabase.auth.onAuthStateChange((_event, _session) => {
+    if (_event === 'SIGNED_OUT') done();
+  });
+
+  // 2) poll fallback (sommige omgevingen sturen geen event)
+  while (!resolved && Date.now() - start < timeoutMs) {
+    const { data } = await supabase.auth.getSession();
+    if (!data.session) break;
+    await new Promise(r => setTimeout(r, 120));
+  }
+
+  // cleanup listener
+  try { sub?.subscription?.unsubscribe?.(); } catch {}
+
+  return;
 }
 
 /* =============== UI state =============== */
@@ -41,11 +65,9 @@ export async function updateNavUI() {
   }
   const session = data.session;
 
-  // toon/verberg menu-items via body-classes
   document.body.classList.toggle('is-auth', !!session);
   document.body.classList.toggle('is-guest', !session);
 
-  // auth-toggle knop label/stand
   const btn = document.getElementById('nav-auth');
   if (btn) {
     btn.setAttribute('type', 'button'); // voorkom form submit
@@ -67,7 +89,7 @@ function setActiveLink() {
         .pathname.replace(/\/+$/, '');
       if (linkPath && linkPath === currentPath) a.setAttribute('aria-current', 'page');
       else a.removeAttribute('aria-current');
-    } catch { /* noop */ }
+    } catch {}
   });
 }
 
@@ -83,60 +105,66 @@ function bindNavLinks() {
   bind('nav-account',  'account.html');
 }
 
-function bindAuthToggle() {
-  const btn = document.getElementById('nav-auth');
-  if (!btn || btn.dataset.bound === 'true') return;
+async function handleAuthClick(e, btnEl) {
+  e.preventDefault();
+  const btn = btnEl || document.getElementById('nav-auth');
+  if (!btn) return;
 
-  btn.setAttribute('type', 'button'); // extra zekerheid
+  const mode = btn.getAttribute('data-auth-mode');
+  if (mode === 'logout') {
+    try {
+      btn.disabled = true;
 
-  btn.addEventListener('click', async e => {
-    e.preventDefault();
-    const mode = btn.getAttribute('data-auth-mode');
-
-    if (mode === 'logout') {
-      try {
-        btn.disabled = true;
-
-        // Probeer globale sign-out
-        let { error } = await supabase.auth.signOut();
-
-        // Fallback: local scope (sommige setups)
-        if (error) {
-          console.warn('Global signOut faalde, probeer local:', error.message);
-          const res2 = await supabase.auth.signOut({ scope: 'local' });
-          if (res2.error) {
-            console.error('Ook local signOut faalde:', res2.error.message);
-            alert('Uitloggen mislukt. Probeer opnieuw.');
-            btn.disabled = false;
-            return;
-          }
-        }
-
-        // Optimistisch: UI direct naar gast, lokale tokens weg
-        clearSupabaseLocal();
-        document.body.classList.add('is-guest');
-        document.body.classList.remove('is-auth');
-        btn.textContent = 'Inloggen';
-        btn.setAttribute('data-auth-mode', 'login');
-
-        // Harde redirect naar account (geen terug in history)
-        navigate('account.html?logout=1', { replace: true });
-      } catch (err) {
-        console.error('Uitloggen exception:', err);
-        alert('Uitloggen mislukt. Probeer opnieuw.');
-      } finally {
-        btn.disabled = false;
+      // signOut + fallback
+      let { error } = await supabase.auth.signOut();
+      if (error) {
+        console.warn('Global signOut faalde, probeer local:', error.message);
+        const res2 = await supabase.auth.signOut({ scope: 'local' });
+        if (res2.error) throw res2.error;
       }
-    } else {
-      // login-modus → naar account (loginflow)
-      navigate('account.html');
-    }
-  });
 
-  btn.dataset.bound = 'true';
+      // tokens opschonen + UI direct naar gast
+      clearSupabaseLocal();
+      document.body.classList.add('is-guest');
+      document.body.classList.remove('is-auth');
+      btn.textContent = 'Inloggen';
+      btn.setAttribute('data-auth-mode', 'login');
+
+      // wacht kort op state en redirect hard
+      await waitForSignedOut(1200);
+      navigate('account.html?logout=1', { replace: true });
+    } catch (err) {
+      console.error('Uitloggen mislukt:', err?.message || err);
+      alert('Uitloggen mislukt. Probeer opnieuw.');
+      btn.disabled = false;
+    }
+  } else {
+    navigate('account.html'); // start login-flow
+  }
 }
 
-/* =============== Route guard (gasten weg van protected pages) =============== */
+function bindAuthToggle() {
+  const btn = document.getElementById('nav-auth');
+  if (btn && !btn.dataset.bound) {
+    btn.setAttribute('type', 'button');
+    btn.addEventListener('click', (e) => handleAuthClick(e, btn));
+    btn.dataset.bound = 'true';
+  }
+
+  // extra: event-delegatie (vangt mobiele edge cases)
+  if (!document.body.dataset.authDelegated) {
+    document.addEventListener('click', (e) => {
+      const targetBtn = e.target?.closest?.('#nav-auth');
+      if (targetBtn && !targetBtn.dataset.bound) {
+        // als directe binding om wat voor reden niet aanwezig is
+        handleAuthClick(e, targetBtn);
+      }
+    }, { passive: false });
+    document.body.dataset.authDelegated = 'true';
+  }
+}
+
+/* =============== Route guard =============== */
 async function guardProtectedPages() {
   const protectedPages = ['stap1.html', 'mestplan.html'];
   const here = location.pathname.split('/').pop().toLowerCase();
@@ -150,13 +178,12 @@ async function guardProtectedPages() {
 
 /* =============== Init =============== */
 document.addEventListener('DOMContentLoaded', async () => {
-  await updateNavUI();   // zet body-classes + knoplabel/type
-  bindNavLinks();        // overige navigatie
-  bindAuthToggle();      // toggleknop Inloggen ↔ Uitloggen
+  await updateNavUI();
+  bindNavLinks();
+  bindAuthToggle();
   setActiveLink();
   await guardProtectedPages();
 
-  // UI updaten zodra sessie wijzigt (bv. na login op account.html)
   supabase.auth.onAuthStateChange(async () => {
     await updateNavUI();
   });
