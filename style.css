@@ -612,3 +612,33 @@ body.is-auth  .guest-only { display: none !important; }
 .badge.green{ background:#d1fae5 }
 .badge.red{ background:#fee2e2 }
 
+/* === NAV compactness overrides === */
+
+/* Desktop (≥1024px): iets kleinere titels + compacter spacing */
+@media (min-width: 1024px) {
+  .site-menu .nav-links {
+    gap: 0.5rem;                 /* was 1rem */
+  }
+  .site-menu .nav-links a.nav__item {
+    font-size: 0.95rem;          /* was ~1rem */
+    padding: 0.5rem 0.75rem;     /* was 0.75rem 1.5rem via .nav-links a */
+    line-height: 1.2;
+  }
+  .nav-auth-item .btn-login {
+    font-size: 0.95rem;
+    padding: 0.5rem 0.75rem;
+  }
+}
+
+/* Mobiel (<1024px): iets compacter maar tap-targets toegankelijk */
+@media (max-width: 1023px) {
+  .site-menu .nav-links { gap: 0.35rem; }  /* was 0.5rem */
+  .site-menu .nav-links a.nav__item,
+  .nav-auth-item .btn-login {
+    font-size: 1rem;
+    padding: 0.6rem 0.9rem;      /* behoud ±44px klikhoogte */
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+}
