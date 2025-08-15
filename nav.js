@@ -106,11 +106,11 @@ async function robustSignOut() {
 /* ========== bindings ========== */
 function bindNavLinks() {
   const map = [
-    ['nav-bereken',  '/stap1.html'],
-    ['nav-mestplan', '/mestplan.html'],
-    ['nav-upload',   '/upload.html'],   // NEW
-    ['nav-account',  '/account.html'],
-    ['nav-beheer',   '/beheer.html'],   // NEW (admin-only)
+    ['nav-bereken',  'stap1.html'],
+    ['nav-mestplan', 'mestplan.html'],
+    ['nav-upload',   'upload.html'],   // NEW
+    ['nav-account',  'account.html'],
+    ['nav-beheer',   'beheer.html'],   // NEW (admin-only)
   ];
   for (const [id, href] of map) {
     const el = $(id);
@@ -128,9 +128,9 @@ async function handleAuthClick(e, btn) {
     btn.disabled = true;
     btn.textContent = 'Uitloggen…';
     await robustSignOut();
-    hardNavigate('/account.html?logout=1', { replace: true });
+    hardNavigate('account.html?logout=1', { replace: true });
   } else {
-    hardNavigate('/account.html?signin=1', { replace: false });
+    hardNavigate('account.html?signin=1', { replace: false });
   }
 }
 
