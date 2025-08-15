@@ -1,7 +1,16 @@
 // upload.js
 import { supabase } from './supabaseClient.js';
-import { isValidPostcode, formatPostcode, isPositiveNumberMax2Dec, isFileAllowed,
-         showInlineError, clearInlineError, disable, toast, extractAnalysis } from './utils.js';
+import {
+  isValidPostcode,
+  formatPostcode,
+  isPositiveNumberMax2Dec,
+  isFileAllowed,
+  showInlineError,
+  clearInlineError,
+  disable,
+  toast,
+  extractAnalysis
+} from './utils.js';
 
 const form = document.getElementById('uploadForm');
 const elNaam = document.getElementById('naam');
@@ -36,15 +45,19 @@ let session, profile, userId;
   }
   userId = session.user.id;
 
-  // fetch profile (voor postcode)
+  // fetch profile (voor evt. postcode)
   const { data: prof } = await supabase.from('profiles').select('*').eq('id', userId).single();
   profile = prof || {};
 
-  // Set default: hide postcode if using profile
+  // Slimme default voor checkbox o.b.v. profiel of user_metadata
+  const profilePostcode = getProfilePostcode();
+  cbUseProfile.checked = !!profilePostcode;
+  wrapPostcode.style.display = cbUseProfile.checked ? 'none' : 'block';
+
   cbUseProfile.addEventListener('change', () => {
     wrapPostcode.style.display = cbUseProfile.checked ? 'none' : 'block';
+    if (!cbUseProfile.checked) elPostcode.focus();
   });
-  wrapPostcode.style.display = cbUseProfile.checked ? 'none' : 'block';
 
   // Categorie/Type dropdowns vanuit mestsoorten.json
   await loadMestSoortenOptions();
@@ -58,6 +71,11 @@ let session, profile, userId;
   // Load my uploads
   await loadMyUploads();
 })();
+
+function getProfilePostcode() {
+  // leest eerst user_metadata.postcode, dan profiles.postcode (indien aanwezig)
+  return session?.user?.user_metadata?.postcode || profile?.postcode || null;
+}
 
 async function loadMestSoortenOptions(){
   try {
@@ -88,7 +106,7 @@ async function loadMestSoortenOptions(){
     toast('Kon mestsoorten niet laden.', 'error');
   }
 }
-function labelCategorie(c){ // voor netjes NL label
+function labelCategorie(c){
   const map = { vaste_mest:'Vaste mest', dikke_fractie:'Dikke fractie', drijfmest:'Drijfmest', overig:'Overig' };
   return map[c] || c;
 }
@@ -128,7 +146,7 @@ async function onSubmit(e){
   e.preventDefault();
   // Client validatie
   let ok = true;
-  for (const el of [elNaam, elCat, elType, elFile, elPrijs, elTon]) clearInlineError(el);
+  for (const el of [elNaam, elCat, elType, elFile, elPrijs, elTon, elPostcode]) clearInlineError(el);
 
   if (!elNaam.value || elNaam.value.trim().length < 2 || elNaam.value.trim().length > 60) {
     showInlineError(elNaam, '2–60 tekens.');
@@ -143,21 +161,27 @@ async function onSubmit(e){
   if (!isPositiveNumberMax2Dec(elPrijs.value)) { showInlineError(elPrijs, 'Bedrag > 0, max 2 dec.'); ok = false; }
   if (!isPositiveNumberMax2Dec(elTon.value))   { showInlineError(elTon, 'Aantal > 0, max 2 dec.'); ok = false; }
 
+  // Postcode bepalen
   let postcodeVal = null;
+  const profilePostcodeNow = getProfilePostcode();
+
   if (cbUseProfile.checked) {
-    // Gebruik profile.email (optioneel) / maar postcode uit profiel zou hier kunnen
-    // Als je postcode in profiles opslaat, haal hem hier op. Zo niet, require input:
-    if (profile?.postcode) {
-      postcodeVal = formatPostcode(profile.postcode);
+    if (profilePostcodeNow) {
+      postcodeVal = formatPostcode(profilePostcodeNow);
     } else {
-      // fallback: verplicht veld zichtbaar maken
+      // Geen postcode bekend in profiel/metadata → switch naar handmatig
       wrapPostcode.style.display = 'block';
       cbUseProfile.checked = false;
+      showInlineError(elPostcode, 'Geen postcode in profiel. Vul handmatig in.');
+      ok = false;
     }
-  }
-  if (!cbUseProfile.checked) {
-    if (!isValidPostcode(elPostcode.value)) { showInlineError(elPostcode, 'Ongeldige NL postcode.'); ok = false; }
-    else postcodeVal = formatPostcode(elPostcode.value);
+  } else {
+    if (!isValidPostcode(elPostcode.value)) {
+      showInlineError(elPostcode, 'Ongeldige NL postcode.');
+      ok = false;
+    } else {
+      postcodeVal = formatPostcode(elPostcode.value);
+    }
   }
 
   if (!ok) return;
@@ -166,13 +190,14 @@ async function onSubmit(e){
 
   try {
     // 1) Upload bestand -> Storage private bucket
-    const fileExt = file.name.split('.').pop();
     const now = new Date();
-    const path = `${userId}/${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,'0')}/${String(now.getDate()).padStart(2,'0')}/${crypto.randomUUID()}.${fileExt}`;
-    const { error: upErr } = await supabase.storage.from('mest-analyses').upload(path, file, {
-      contentType: file.type,
-      upsert: false
-    });
+    const fileExt = (file.name?.split('.').pop() || 'bin').toLowerCase();
+    const uuid = makeUUID();
+    const path = `${userId}/${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,'0')}/${String(now.getDate()).padStart(2,'0')}/${uuid}.${fileExt}`;
+
+    const { error: upErr } = await supabase.storage
+      .from('mest-analyses')
+      .upload(path, file, { contentType: file.type || 'application/octet-stream', upsert: false });
     if (upErr) throw upErr;
 
     // 2) Insert mest_uploads (status in_behandeling)
@@ -182,7 +207,7 @@ async function onSubmit(e){
       mest_categorie: elCat.value,
       mest_type: elType.value,
       file_path: path,
-      file_mime: file.type,
+      file_mime: file.type || 'application/octet-stream',
       postcode: postcodeVal,
       inkoopprijs_per_ton: Number(elPrijs.value),
       aantal_ton: Number(elTon.value),
@@ -194,13 +219,18 @@ async function onSubmit(e){
       Biogaspotentieel_m3_per_ton: toNumOrNull(elBio.value),
       status: 'in_behandeling'
     };
+
     const { error: insErr } = await supabase.from('mest_uploads').insert(payload);
     if (insErr) throw insErr;
 
     toast('Upload opgeslagen. Status: In behandeling.', 'success');
+
+    // Form reset + postcode-checkbox weer slim instellen
     form.reset();
-    // reset RO velden
     [elDS, elN, elP, elK, elOS, elBio].forEach(i => i.value = '');
+    cbUseProfile.checked = !!profilePostcodeNow;
+    wrapPostcode.style.display = cbUseProfile.checked ? 'none' : 'block';
+
     await loadMyUploads();
   } catch (e) {
     console.error(e);
@@ -214,6 +244,21 @@ function toNumOrNull(v){
   if (v===null || v===undefined || String(v).trim()==='') return null;
   const n = Number(v);
   return Number.isFinite(n) ? n : null;
+}
+
+function makeUUID(){
+  // crypto.randomUUID (moderne browsers) + fallback
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+  if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+    const bytes = crypto.getRandomValues(new Uint8Array(16));
+    // RFC4122 variant 4
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    const hex = [...bytes].map(b => b.toString(16).padStart(2,'')).join('');
+    return `${hex.substr(0,8)}-${hex.substr(8,4)}-${hex.substr(12,4)}-${hex.substr(16,4)}-${hex.substr(20)}`;
+  }
+  // worst-case fallback
+  return String(Date.now()) + '-' + Math.random().toString(16).slice(2);
 }
 
 // --- Overview "Mijn uploads" ---
@@ -239,7 +284,7 @@ async function loadMyUploads(){
 function renderBadge(status){
   const map = { in_behandeling:'gray', gepubliceerd:'green', afgewezen:'red' };
   const cls = map[status] || 'gray';
-  const label = status.replace('_',' ');
+  const label = String(status).replace(/_/g, ' ');
   return `<span class="badge ${cls}">${label}</span>`;
 }
 function renderUploadsTable(rows){
@@ -307,7 +352,7 @@ function bindUploadActions(rows){
       const pcFmt = formatPostcode(elPC.value);
       if (!ok) return;
 
-      // Beperkte UPDATE (policies bewaken immutable kolommen)
+      // Beperkte UPDATE (policies + trigger bewaken immutable kolommen)
       const { error } = await supabase.from('mest_uploads').update({
         naam: elN.value.trim(),
         inkoopprijs_per_ton: Number(elP.value),
