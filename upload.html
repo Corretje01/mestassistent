@@ -27,11 +27,10 @@
   </style>
 </head>
 <body>
-  
-  <!-- NAV / HEADER met vereiste IDs -->
   <header class="site-header">
     <nav class="navbar">
-      <a href="/" class="nav-logo">KoeHandelaar</a>
+      <!-- Home: altijd relatief naar index.html -->
+      <a href="index.html" class="nav-logo">KoeHandelaar</a>
   
       <!-- Hamburger toggle (mobiel) -->
       <button id="nav-toggle" class="nav-toggle" aria-label="Menu" aria-controls="site-menu" aria-expanded="false">
@@ -53,23 +52,19 @@
           <li class="auth-only">
             <a href="mestplan.html" class="nav__item" id="nav-mestplan">Maak mestplan</a>
           </li>
-  
-          <!-- NIEUW: Upload (alleen ingelogd) -->
           <li class="auth-only">
             <a href="upload.html" class="nav__item" id="nav-upload">Mest uploaden</a>
           </li>
-  
-          <!-- Alleen ingelogd -->
           <li class="auth-only">
             <a href="account.html" class="nav__item" id="nav-account">Mijn account</a>
           </li>
   
-          <!-- NIEUW: Beheer (alleen admin) -->
+          <!-- Alleen admin -->
           <li class="auth-only admin-only">
             <a href="beheer.html" class="nav__item" id="nav-beheer">Beheer</a>
           </li>
   
-          <!-- Altijd aanwezig, tekst/actie wisselt: Inloggen ↔ Uitloggen -->
+          <!-- Altijd aanwezig; tekst/actie wisselt: Inloggen ↔ Uitloggen -->
           <li class="nav-auth-item">
             <button class="btn-login" id="nav-auth">Inloggen</button>
           </li>
