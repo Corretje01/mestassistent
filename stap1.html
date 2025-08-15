@@ -11,22 +11,21 @@
 <body>
   <header class="site-header">
     <nav class="navbar">
-      <a href="/" class="nav-logo">KoeHandelaar</a>
-
+      <!-- Home: altijd relatief naar index.html -->
+      <a href="index.html" class="nav-logo">KoeHandelaar</a>
+  
       <!-- Hamburger toggle (mobiel) -->
       <button id="nav-toggle" class="nav-toggle" aria-label="Menu" aria-controls="site-menu" aria-expanded="false">
         <span class="bars" aria-hidden="true"></span>
       </button>
-
-      <!-- Menu (overlay op mobiel, inline op desktop)
-           Let op: role/aria-modal en hidden worden breakpoint-bewust beheerd in nav-menu.js -->
+  
+      <!-- Menu (overlay op mobiel, inline op desktop) -->
       <div id="site-menu" class="site-menu" hidden>
-
         <!-- Close-button (X) voor mobiel menu -->
         <button id="nav-close" class="nav-close" aria-label="Menu sluiten">
           <span aria-hidden="true">&times;</span>
         </button>
-        
+  
         <ul class="nav-links">
           <!-- Alleen na inloggen zichtbaar -->
           <li class="auth-only">
@@ -36,10 +35,18 @@
             <a href="mestplan.html" class="nav__item" id="nav-mestplan">Maak mestplan</a>
           </li>
           <li class="auth-only">
+            <a href="upload.html" class="nav__item" id="nav-upload">Mest uploaden</a>
+          </li>
+          <li class="auth-only">
             <a href="account.html" class="nav__item" id="nav-account">Mijn account</a>
           </li>
-          
-          <!-- Altijd aanwezig, tekst/actie wisselt: Inloggen ↔ Uitloggen -->
+  
+          <!-- Alleen admin -->
+          <li class="auth-only admin-only">
+            <a href="beheer.html" class="nav__item" id="nav-beheer">Beheer</a>
+          </li>
+  
+          <!-- Altijd aanwezig; tekst/actie wisselt: Inloggen ↔ Uitloggen -->
           <li class="nav-auth-item">
             <button class="btn-login" id="nav-auth">Inloggen</button>
           </li>
