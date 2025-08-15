@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Mest uploaden – MestAssistent</title>
+  <link rel="stylesheet" href="style.css"/>
+  <script type="module" src="supabaseClient.js"></script>
+  <script type="module" src="nav-menu.js"></script>
+  <style>
+    .container { max-width: 980px; margin: 0 auto; padding: 1rem; }
+    .card { background: #fff; border-radius: 12px; padding: 1rem; box-shadow: 0 8px 28px rgba(0,0,0,.05); margin-bottom: 1rem; }
+    .row { display: grid; grid-template-columns: 1fr; gap: .75rem; }
+    @media (min-width: 720px){ .row-2 { grid-template-columns: 1fr 1fr; } }
+    label { font-weight: 600; }
+    input, select, button { padding: .6rem .75rem; border-radius: .5rem; border: 1px solid #ddd; width: 100%; }
+    .actions { display:flex; gap:.5rem; flex-wrap:wrap; }
+    .btn-primary { background:#5b67f1; color:#fff; border:none; }
+    .btn-danger { background:#c62828; color:#fff; border:none; }
+    .muted { color:#666; font-size:.9rem; }
+    .readonly { background: #fafafa; }
+    table { width:100%; border-collapse: collapse; }
+    th, td { padding:.6rem; border-bottom: 1px solid #eee; vertical-align: top; }
+    .right { text-align: right; }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <nav class="navbar">
+      <a href="/" class="nav-logo">MestAssistent</a>
+      <ul class="nav-links" id="nav"></ul>
+    </nav>
+  </header>
+
+  <main class="container">
+    <section class="card" aria-labelledby="h-upload">
+      <h2 id="h-upload">Mest uploaden</h2>
+      <form id="uploadForm" class="row row-2" novalidate>
+        <div>
+          <label for="naam">Naam<span aria-hidden="true">*</span></label>
+          <input id="naam" name="naam" placeholder="Bijv. Mest opslag 34" maxlength="60" required/>
+        </div>
+
+        <div>
+          <label for="categorie">Categorie<span aria-hidden="true">*</span></label>
+          <select id="categorie" required>
+            <option value="">Kies categorie…</option>
+            <!-- vaste_mest / dikke_fractie / drijfmest / overig -->
+          </select>
+        </div>
+
+        <div>
+          <label for="type">Type<span aria-hidden="true">*</span></label>
+          <select id="type" required disabled>
+            <option value="">Kies type…</option>
+            <!-- dynamisch obv categorie en mestsoorten.json -->
+          </select>
+        </div>
+
+        <div>
+          <label for="file">Analyse (PDF/JPG/PNG) <span aria-hidden="true">*</span></label>
+          <input id="file" type="file" accept=".pdf,.png,.jpg,.jpeg" required/>
+          <div class="muted">Max 10 MB. Wordt niet publiek gedeeld.</div>
+        </div>
+
+        <div>
+          <label for="inkoopprijs">Inkoopprijs per ton (€)<span aria-hidden="true">*</span></label>
+          <input id="inkoopprijs" inputmode="decimal" placeholder="Bijv. 12.50" required/>
+        </div>
+
+        <div>
+          <label for="aantalTon">Aantal ton<span aria-hidden="true">*</span></label>
+          <input id="aantalTon" inputmode="decimal" placeholder="Bijv. 80" required/>
+        </div>
+
+        <div class="row" style="grid-column:1 / -1;">
+          <label><input type="checkbox" id="useProfilePostcode" checked/> Laadlocatie = postcode bedrijfsadres</label>
+          <div id="postcodeWrap" style="display:none;">
+            <label for="postcode">Postcode (NL)</label>
+            <input id="postcode" placeholder="1234 AB"/>
+          </div>
+        </div>
+
+        <fieldset class="row" style="grid-column:1 / -1;">
+          <legend>Analyse (uit bestand)</legend>
+          <div><label>Droge stof (DS%)</label><input id="DS_percent" class="readonly" readonly/></div>
+          <div><label>Stikstof (N kg/ton)</label><input id="N_kg_per_ton" class="readonly" readonly/></div>
+          <div><label>Fosfor (P kg/ton)</label><input id="P_kg_per_ton" class="readonly" readonly/></div>
+          <div><label>Kalium (K kg/ton)</label><input id="K_kg_per_ton" class="readonly" readonly/></div>
+          <div><label>OS % (optioneel)</label><input id="OS_percent" class="readonly" readonly/></div>
+          <div><label>Biogas m³/ton (optioneel)</label><input id="Biogas" class="readonly" readonly/></div>
+          <div class="muted" style="grid-column:1/-1;">Velden zijn read-only en komen uit de analyse. Mist er iets? Beheerder kijkt mee.</div>
+        </fieldset>
+
+        <div class="actions" style="grid-column:1 / -1;">
+          <button class="btn-primary" id="btnSubmit" type="submit">Opslaan (in behandeling)</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="card" aria-labelledby="h-overview">
+      <h2 id="h-overview">Mijn uploads</h2>
+      <div id="myUploads"></div>
+    </section>
+  </main>
+
+  <script type="module" src="utils.js"></script>
+  <script type="module" src="upload.js"></script>
+</body>
+</html>
