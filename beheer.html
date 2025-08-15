@@ -1,3 +1,4 @@
+<!-- beheer.html -->
 <!DOCTYPE html>
 <html lang="nl">
 <head>
@@ -5,8 +6,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>Beheer – MestAssistent</title>
   <link rel="stylesheet" href="style.css"/>
+  <!-- supabaseClient kan in head blijven als je dat elders ook zo doet -->
   <script type="module" src="supabaseClient.js"></script>
-  <script type="module" src="nav-menu.js"></script>
+  <!-- nav-menu.js NIET meer hier inladen; we importeren en initialiseren onderaan -->
   <style>
     .container { max-width: 1100px; margin: 0 auto; padding: 1rem; }
     .filters { display:grid; grid-template-columns: repeat(4,1fr); gap:.5rem; }
@@ -15,7 +17,19 @@
   </style>
 </head>
 <body>
-  <main class="container">
+
+  <!-- NAV / HEADER met vereiste IDs -->
+  <header class="site-header">
+    <nav class="navbar">
+      <a href="/" class="nav-logo">MestAssistent</a>
+      <button id="nav-toggle" aria-label="Menu" aria-expanded="false">☰</button>
+      <!-- Overlay container voor het menu; verborgen totdat nav open is -->
+      <div id="site-menu" hidden></div>
+    </nav>
+  </header>
+
+  <!-- hoofdcontent moet id="main" hebben voor inert/focus-trap -->
+  <main id="main" class="container">
     <h1>Beheer</h1>
     <div class="muted">Alleen zichtbaar voor admins.</div>
 
@@ -38,7 +52,17 @@
     </section>
   </main>
 
+  <!-- optioneel: footer voor inert -->
+  <footer id="footer"></footer>
+
+  <!-- Pagina-scripts -->
   <script type="module" src="utils.js"></script>
   <script type="module" src="beheer.js"></script>
+
+  <!-- NAV init: als LAATSTE, net boven </body> -->
+  <script type="module">
+    import { initNavMenu } from './nav-menu.js';
+    initNavMenu({ menuId: 'site-menu', toggleId: 'nav-toggle' });
+  </script>
 </body>
 </html>
