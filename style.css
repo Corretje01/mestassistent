@@ -601,3 +601,14 @@ body.is-auth  .guest-only { display: none !important; }
   .navbar    { position: relative; z-index: 2; }
 }
 
+/* Gerelateerd aan uploaden van eigen mest */ 
+.input-error { border-color: #c62828; }
+[data-error]::after {
+  content: attr(data-error);
+  color: #c62828; font-size: .85rem; display:block; margin-top:.25rem;
+}
+.badge { display:inline-block; padding:.15rem .5rem; border-radius:.5rem; font-size:.75rem; }
+.badge.gray{ background:#eee }
+.badge.green{ background:#d1fae5 }
+.badge.red{ background:#fee2e2 }
+
