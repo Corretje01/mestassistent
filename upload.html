@@ -1,3 +1,4 @@
+<!-- upload.html -->
 <!DOCTYPE html>
 <html lang="nl">
 <head>
@@ -5,8 +6,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>Mest uploaden – MestAssistent</title>
   <link rel="stylesheet" href="style.css"/>
+  <!-- supabaseClient kan in head blijven (zoals op je andere pagina's) -->
   <script type="module" src="supabaseClient.js"></script>
-  <script type="module" src="nav-menu.js"></script>
+  <!-- nav-menu.js NIET hier inladen; we initialiseren expliciet onderaan -->
   <style>
     .container { max-width: 980px; margin: 0 auto; padding: 1rem; }
     .card { background: #fff; border-radius: 12px; padding: 1rem; box-shadow: 0 8px 28px rgba(0,0,0,.05); margin-bottom: 1rem; }
@@ -25,14 +27,19 @@
   </style>
 </head>
 <body>
+
+  <!-- NAV / HEADER met vereiste IDs -->
   <header class="site-header">
     <nav class="navbar">
       <a href="/" class="nav-logo">MestAssistent</a>
-      <ul class="nav-links" id="nav"></ul>
+      <button id="nav-toggle" aria-label="Menu" aria-expanded="false">☰</button>
+      <!-- Overlay container voor het menu; verborgen totdat nav open is -->
+      <div id="site-menu" hidden></div>
     </nav>
   </header>
 
-  <main class="container">
+  <!-- hoofdcontent moet id="main" hebben voor inert/focus-trap -->
+  <main id="main" class="container">
     <section class="card" aria-labelledby="h-upload">
       <h2 id="h-upload">Mest uploaden</h2>
       <form id="uploadForm" class="row row-2" novalidate>
@@ -104,7 +111,17 @@
     </section>
   </main>
 
+  <!-- optioneel: footer voor inert -->
+  <footer id="footer"></footer>
+
+  <!-- Pagina-scripts -->
   <script type="module" src="utils.js"></script>
   <script type="module" src="upload.js"></script>
+
+  <!-- NAV init: als LAATSTE, net boven </body> -->
+  <script type="module">
+    import { initNavMenu } from './nav-menu.js';
+    initNavMenu({ menuId: 'site-menu', toggleId: 'nav-toggle' });
+  </script>
 </body>
 </html>
