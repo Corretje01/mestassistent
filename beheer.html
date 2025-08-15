@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Beheer – MestAssistent</title>
+  <link rel="stylesheet" href="style.css"/>
+  <script type="module" src="supabaseClient.js"></script>
+  <script type="module" src="nav-menu.js"></script>
+  <style>
+    .container { max-width: 1100px; margin: 0 auto; padding: 1rem; }
+    .filters { display:grid; grid-template-columns: repeat(4,1fr); gap:.5rem; }
+    @media (max-width: 800px){ .filters { grid-template-columns: 1fr 1fr; } }
+    textarea { width:100%; min-height: 70px; }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <h1>Beheer</h1>
+    <div class="muted">Alleen zichtbaar voor admins.</div>
+
+    <section class="card">
+      <div class="filters">
+        <select id="fStatus">
+          <option value="">Alle statussen</option>
+          <option value="in_behandeling">In behandeling</option>
+          <option value="gepubliceerd">Gepubliceerd</option>
+          <option value="afgewezen">Afgewezen</option>
+        </select>
+        <input id="fQuery" placeholder="Zoek naam/postcode"/>
+        <select id="fCategorie"><option value="">Alle categorieën</option></select>
+        <select id="fType"><option value="">Alle types</option></select>
+      </div>
+    </section>
+
+    <section class="card">
+      <div id="adminList">Laden…</div>
+    </section>
+  </main>
+
+  <script type="module" src="utils.js"></script>
+  <script type="module" src="beheer.js"></script>
+</body>
+</html>
