@@ -12,7 +12,6 @@ function closeMenuIfOpen() {
     toggle.setAttribute('aria-expanded', 'false');
     menu.dataset.open = 'false';
     document.body.classList.remove('body--no-scroll');
-    // verberg pas ná close-animatie
     requestAnimationFrame(() => setTimeout(() => {
       if (menu.dataset.open !== 'true') menu.hidden = true;
     }, 150));
@@ -46,9 +45,17 @@ export async function updateNavUI() {
   document.body.classList.toggle('is-guest', !isLoggedIn);
 
   // Toon/verberg links met .auth-only
-  document.querySelectorAll('.auth-only').forEach(li => {
-    li.style.display = isLoggedIn ? '' : 'none';
-  });
+  document.querySelectorAll('.auth-only').forEach(li => { li.style.display = isLoggedIn ? '' : 'none'; });
+
+  // NEW: admin-only toggling
+  let isAdmin = false;
+  if (isLoggedIn) {
+    try {
+      const { data: prof } = await supabase.from('profiles').select('role').eq('id', session.user.id).single();
+      isAdmin = prof?.role === 'admin';
+    } catch {}
+  }
+  document.querySelectorAll('.admin-only').forEach(li => { li.style.display = (isLoggedIn && isAdmin) ? '' : 'none'; });
 
   // Auth-knop: Inloggen ↔ Uitloggen
   const authBtn = $('nav-auth');
@@ -77,20 +84,17 @@ function setActiveLink() {
 
 /* ========== auth actions ========== */
 async function robustSignOut() {
-  // UI meteen naar guest (snappier gevoel)
   document.body.classList.add('is-guest');
   document.body.classList.remove('is-auth');
 
   try {
     let { error } = await supabase.auth.signOut();
     if (error) {
-      // fallback (sommige browsers/ITP)
       await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
     }
   } catch {}
   clearSupabaseStorage();
 
-  // heel korte best-effort wacht (niet zichtbaar), dempt race conditions
   const t0 = Date.now();
   while (Date.now() - t0 < 250) {
     const s = await getSessionSafe();
@@ -104,29 +108,28 @@ function bindNavLinks() {
   const map = [
     ['nav-bereken',  '/stap1.html'],
     ['nav-mestplan', '/mestplan.html'],
+    ['nav-upload',   '/upload.html'],   // NEW
     ['nav-account',  '/account.html'],
+    ['nav-beheer',   '/beheer.html'],   // NEW (admin-only)
   ];
   for (const [id, href] of map) {
     const el = $(id);
     if (!el) continue;
     const go = (e) => { e.preventDefault(); hardNavigate(href); };
     el.addEventListener('click', go, { passive: false });
-    el.addEventListener('pointerup', go, { passive: false }); // mobiel-tap zekerheid
+    el.addEventListener('pointerup', go, { passive: false });
   }
 }
 
 async function handleAuthClick(e, btn) {
   e.preventDefault();
   const mode = btn.getAttribute('data-auth-mode');
-
   if (mode === 'logout') {
     btn.disabled = true;
     btn.textContent = 'Uitloggen…';
     await robustSignOut();
-    // **Directe harde redirect** naar account met signaal voor melding
     hardNavigate('/account.html?logout=1', { replace: true });
   } else {
-    // login vanuit nav: wijs gebruiker de weg naar loginsectie
     hardNavigate('/account.html?signin=1', { replace: false });
   }
 }
@@ -139,8 +142,6 @@ function bindAuthButton() {
     btn.addEventListener('pointerup', on, { passive: false });
     btn.dataset.bound = 'true';
   }
-
-  // defensieve delegatie — pakt taps in overlay/menus
   if (!document.body.dataset.authDelegated) {
     const delegate = (e) => {
       const tgt = e.target?.closest?.('#nav-auth');
@@ -156,18 +157,13 @@ function bindAuthButton() {
 
 /* ========== route guard ========== */
 async function guardProtectedPages() {
-  // accepteer zowel /stap1 als /stap1.html (idem voor mestplan)
-  const slug = location.pathname
-    .replace(/\/+$/, '')        // strip trailing slash
-    .split('/').pop().toLowerCase();
-
+  const slug = location.pathname.replace(/\/+$/, '').split('/').pop().toLowerCase();
   const protectedSet = new Set(['stap1', 'stap1.html', 'mestplan', 'mestplan.html']);
   if (!protectedSet.has(slug)) return;
 
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) {
-    // duidelijke hint voor account-pagina
-    navigate('account.html?signin=1', { replace: true });
+    location.assign('account.html?signin=1');
   }
 }
 
@@ -178,12 +174,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   bindAuthButton();
   await guardProtectedPages();
 
-  // Auth-wijzigingen => nav meteen bijwerken
   supabase.auth.onAuthStateChange(() => { updateNavUI(); });
-
-  // BFCache/terugknop: zorg dat UI klopt als user terug navigeert
   window.addEventListener('pageshow', () => { updateNavUI(); });
-
-  // Als de viewport naar desktop springt, sluit het mobiele menu
   window.matchMedia('(min-width: 1024px)').addEventListener('change', closeMenuIfOpen);
 });
