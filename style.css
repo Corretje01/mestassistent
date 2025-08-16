@@ -612,6 +612,95 @@ body.is-auth  .guest-only { display: none !important; }
 .badge.green{ background:#d1fae5 }
 .badge.red{ background:#fee2e2 }
 
+/* =========================
+   Uploads-overzicht (upload.html)
+   ========================= */
+#myUploads .table-wrap {
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-top: .5rem;
+}
+
+#myUploads .uploads-table {
+  width: 100%;
+  min-width: 720px;            /* forceer horizontaal scrollen op mobiel */
+  border-collapse: separate;
+  border-spacing: 0;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.05);
+}
+
+#myUploads .uploads-table thead th {
+  position: sticky;
+  top: 0;
+  background: #fafafa;
+  font-weight: 700;
+  text-align: left;
+  font-size: .92rem;
+  padding: .75rem .85rem;
+  border-bottom: 1px solid #eee;
+  z-index: 1;
+}
+
+#myUploads .uploads-table td {
+  padding: .55rem .65rem;
+  vertical-align: middle;
+  border-bottom: 1px solid #f2f2f2;
+}
+#myUploads .uploads-table tr:last-child td { border-bottom: 0; }
+
+/* Kolombreedtes & uitlijning */
+#myUploads .uploads-table .col-name { min-width: 180px; }
+#myUploads .uploads-table .col-kind { min-width: 160px; }
+#myUploads .uploads-table .col-analysis { min-width: 260px; }
+#myUploads .uploads-table .col-price,
+#myUploads .uploads-table .col-ton { width: 110px; text-align: right; }
+#myUploads .uploads-table .col-actions { min-width: 180px; text-align: right; }
+#myUploads .uploads-table th.col-actions { text-align: right; }
+
+/* In-cel inputs */
+#myUploads .uploads-table .cell-input { display: flex; align-items: center; }
+#myUploads .uploads-table .cell-input--right { justify-content: flex-end; }
+#myUploads .uploads-table .input--sm .input { padding: .4rem .5rem; }
+#myUploads .uploads-table .input {
+  width: 100%;
+  max-width: 100%;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  border-radius: 8px;
+  padding: .5rem .6rem;
+}
+#myUploads .uploads-table .col-price .input,
+#myUploads .uploads-table .col-ton .input { text-align: right; }
+#myUploads .uploads-table .col-ton .input { max-width: 90px; }
+
+/* Actieknoppen in rij */
+#myUploads .uploads-table .row-actions {
+  display: flex;
+  gap: .4rem;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+/* Truncation helpers */
+#myUploads .uploads-table .truncate {
+  max-width: 320px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Badges (kleuren al aanwezig, maar hier nog even zeker stellen) */
+#myUploads .badge { display:inline-block; padding:.15rem .5rem; border-radius:.5rem; font-size:.75rem; }
+#myUploads .badge.gray{ background:#eee }
+#myUploads .badge.green{ background:#d1fae5 }
+#myUploads .badge.red{ background:#fee2e2 }
+
+@media (max-width: 768px){
+  #myUploads .uploads-table { min-width: 680px; }
+}
+
 /* === NAV compactness overrides === */
 
 /* Desktop (≥1024px): iets kleinere titels + compacter spacing */
