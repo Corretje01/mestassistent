@@ -1,15 +1,8 @@
-// upload.js
+// upload.js — single-select mestsoort in dezelfde JSON-structuur als mestplan
 import { supabase } from './supabaseClient.js';
 import {
-  isValidPostcode,
-  formatPostcode,
-  isPositiveNumberMax2Dec,
-  isFileAllowed,
-  showInlineError,
-  clearInlineError,
-  disable,
-  toast,
-  extractAnalysis
+  isValidPostcode, formatPostcode, isPositiveNumberMax2Dec, isFileAllowed,
+  showInlineError, clearInlineError, disable, toast, extractAnalysis
 } from './utils.js';
 
 const form = document.getElementById('uploadForm');
@@ -35,12 +28,12 @@ const elOS  = document.getElementById('OS_percent');
 const elBio = document.getElementById('Biogas');
 
 let session, profile, userId;
-let mestsoortenCache = [];
-let selectedCat = null;
-let selectedType = null;
+let mestsoortenObj = {};    // zelfde vorm als mestplan
+let selectedCat = null;     // bv. 'drijfmest' | 'vaste_mest' | 'dikke_fractie' | 'overig'
+let selectedType = null;    // bv. 'koe' | 'varken' | 'compost' ...
 
-// init
 (async function init(){
+  // auth
   ({ data: { session } } = await supabase.auth.getSession());
   if (!session) {
     toast('Log eerst in om te kunnen uploaden.', 'info');
@@ -53,7 +46,7 @@ let selectedType = null;
   const { data: prof } = await supabase.from('profiles').select('*').eq('id', userId).single();
   profile = prof || {};
 
-  // Postcode default
+  // postcode default
   const profilePostcode = getProfilePostcode();
   cbUseProfile.checked = !!profilePostcode;
   wrapPostcode.style.display = cbUseProfile.checked ? 'none' : 'block';
@@ -62,16 +55,12 @@ let selectedType = null;
     if (!cbUseProfile.checked) elPostcode.focus();
   });
 
-  // Laad & render categorielijst met type-knoppen
+  // laad JSON (LET OP: zonder leading slash voor submap-compat!)
   await renderMestChoices();
 
-  // Bestands-analyse auto-start
   elFile.addEventListener('change', handleFileChange);
-
-  // Submit
   form.addEventListener('submit', onSubmit);
 
-  // Overzicht
   await loadMyUploads();
 })();
 
@@ -79,48 +68,57 @@ function getProfilePostcode() {
   return session?.user?.user_metadata?.postcode || profile?.postcode || null;
 }
 
-/* ========= UI: lijst per categorie met type-knoppen (single select) ========= */
+/* ========================
+   MEST KEUZE UI (single-select)
+======================== */
 function labelCategorie(c){
-  const map = { vaste_mest:'Vaste mest', dikke_fractie:'Dikke fractie', drijfmest:'Drijfmest', overig:'Overig' };
-  return map[c] || c;
+  const map = {
+    drijfmest:'Drijfmest',
+    vaste_mest:'Vaste mest',
+    dikke_fractie:'Dikke fractie',
+    overig:'Overig'
+  };
+  return map[c] || (c?.replace(/_/g,' ') || '');
 }
-function labelType(t){ return t.charAt(0).toUpperCase()+t.slice(1); }
+function labelType(t){ return t ? t.charAt(0).toUpperCase()+t.slice(1) : ''; }
 
 async function renderMestChoices(){
   try {
-    const resp = await fetch('data/mestsoorten.json');
-    mestsoortenCache = await resp.json();
+    const resp = await fetch('data/mestsoorten.json', { cache: 'no-store' });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const raw = await resp.json();
 
-    // groepeer op categorie
-    const byCat = mestsoortenCache.reduce((acc, m) => {
-      (acc[m.categorie] ||= new Set()).add(m.type);
-      return acc;
-    }, {});
+    // Normaliseer naar objectvorm zoals mestplan gebruikt:
+    // { drijfmest: { koe: {...}, varken: {...} }, vaste_mest: { ... }, overig: { ... } }
+    mestsoortenObj = toObjectShapedMest(raw);
 
-    // bouw DOM: één .category per categorie met knoppen voor types
-    listContainer.innerHTML = Object.entries(byCat).map(([cat, typeSet]) => {
-      const types = Array.from(typeSet);
-      const buttons = types.map(t => {
-        const id = `mest_${cat}_${t}`.replace(/\s+/g,'_');
+    // Prioriteitsvolgorde voor rendering
+    const order = ['drijfmest', 'vaste_mest', 'dikke_fractie', 'overig'];
+    const cats = Object.keys(mestsoortenObj);
+    const orderedCats = order.filter(c => cats.includes(c)).concat(cats.filter(c => !order.includes(c)));
+
+    listContainer.innerHTML = orderedCats.map(cat => {
+      const animals = Object.keys(mestsoortenObj[cat] || {});
+      if (!animals.length) return '';
+      const buttons = animals.map(an => {
+        const id = `mest_${cat}_${an}`.replace(/\s+/g,'_');
         return `
-          <input type="radio" id="${id}" name="mest_one" value="${t}" data-cat="${cat}" data-type="${t}">
-          <label for="${id}" class="btn mest-btn">${labelType(t)}</label>
+          <input type="radio" id="${id}" name="mest_one" value="${an}" data-cat="${cat}" data-type="${an}">
+          <label for="${id}" class="btn mest-btn">${labelType(an)}</label>
         `;
       }).join('');
       return `
         <div class="category">
           <div class="category__label">${labelCategorie(cat)}</div>
-          <div class="category__choices">
-            ${buttons}
-          </div>
+          <div class="category__choices">${buttons}</div>
         </div>
       `;
-    }).join('');
+    }).join('') || `<div class="muted">Geen mestsoorten gevonden.</div>`;
 
-    // bind change: één selectie totaal
+    // één selectie totaal
     listContainer.querySelectorAll('input[name="mest_one"]').forEach(r => {
       r.addEventListener('change', () => {
-        selectedCat = r.dataset.cat;
+        selectedCat  = r.dataset.cat;
         selectedType = r.dataset.type;
         clearInlineError(listContainer);
       });
@@ -128,11 +126,32 @@ async function renderMestChoices(){
 
   } catch (e) {
     console.error(e);
-    toast('Kon mestsoorten niet laden.', 'error');
+    listContainer.innerHTML = `<div class="message error">Kon mestsoorten niet laden.</div>`;
   }
 }
 
-/* ========= Bestandsanalyse ========= */
+// Converteer elk redelijk formaat naar objectvorm
+function toObjectShapedMest(raw){
+  if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+    // Lijkt al goed: check of values objecten zijn
+    return raw;
+  }
+  // array-vorm => { cat: { type: true } } (we hebben alleen namen nodig voor UI)
+  if (Array.isArray(raw)) {
+    const obj = {};
+    for (const m of raw) {
+      const cat = m?.categorie; const typ = m?.type;
+      if (!cat || !typ) continue;
+      (obj[cat] ||= {})[typ] = true;
+    }
+    return obj;
+  }
+  return {};
+}
+
+/* ========================
+   BESTANDSANALYSE
+======================== */
 async function handleFileChange() {
   clearInlineError(elFile);
   const file = elFile.files?.[0];
@@ -161,10 +180,11 @@ function toFixedOrEmpty(v){
   return (v===null || v===undefined || v==='') ? '' : Number(v).toFixed(2).replace(/\.00$/,'');
 }
 
-/* ========= Submit ========= */
+/* ========================
+   SUBMIT
+======================== */
 async function onSubmit(e){
   e.preventDefault();
-
   let ok = true;
   [elNaam, elFile, elPrijs, elTon, elPostcode, listContainer].forEach(clearInlineError);
 
@@ -172,7 +192,6 @@ async function onSubmit(e){
     showInlineError(elNaam, '2–60 tekens.');
     ok = false;
   }
-  // selectie vereist
   if (!selectedCat || !selectedType) {
     showInlineError(listContainer, 'Kies een mestsoort.');
     ok = false;
@@ -180,42 +199,29 @@ async function onSubmit(e){
 
   const file = elFile.files?.[0];
   if (!file || !isFileAllowed(file)) { showInlineError(elFile, 'Kies een geldig bestand.'); ok = false; }
-
   if (!isPositiveNumberMax2Dec(elPrijs.value)) { showInlineError(elPrijs, 'Bedrag > 0, max 2 dec.'); ok = false; }
   if (!isPositiveNumberMax2Dec(elTon.value))   { showInlineError(elTon, 'Aantal > 0, max 2 dec.'); ok = false; }
 
   // Postcode
   let postcodeVal = null;
   const profilePostcodeNow = getProfilePostcode();
-
   if (cbUseProfile.checked) {
-    if (profilePostcodeNow) {
-      postcodeVal = formatPostcode(profilePostcodeNow);
-    } else {
-      wrapPostcode.style.display = 'block';
-      cbUseProfile.checked = false;
-      showInlineError(elPostcode, 'Geen postcode in profiel. Vul handmatig in.');
-      ok = false;
-    }
+    if (profilePostcodeNow) postcodeVal = formatPostcode(profilePostcodeNow);
+    else { wrapPostcode.style.display = 'block'; cbUseProfile.checked = false; showInlineError(elPostcode, 'Geen postcode in profiel. Vul handmatig in.'); ok = false; }
   } else {
-    if (!isValidPostcode(elPostcode.value)) {
-      showInlineError(elPostcode, 'Ongeldige NL postcode.');
-      ok = false;
-    } else {
-      postcodeVal = formatPostcode(elPostcode.value);
-    }
+    if (!isValidPostcode(elPostcode.value)) { showInlineError(elPostcode,'Ongeldige NL postcode.'); ok=false; }
+    else postcodeVal = formatPostcode(elPostcode.value);
   }
 
   if (!ok) return;
   disable(btnSubmit, true);
 
   try {
-    // 1) Storage upload
+    // 1) Upload naar Storage
     const now = new Date();
     const fileExt = (file.name?.split('.').pop() || 'bin').toLowerCase();
     const uuid = makeUUID();
     const path = `${userId}/${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,'0')}/${String(now.getDate()).padStart(2,'0')}/${uuid}.${fileExt}`;
-
     const { error: upErr } = await supabase.storage
       .from('mest-analyses')
       .upload(path, file, { contentType: file.type || 'application/octet-stream', upsert: false });
@@ -225,8 +231,8 @@ async function onSubmit(e){
     const payload = {
       user_id: userId,
       naam: elNaam.value.trim(),
-      mest_categorie: selectedCat,
-      mest_type: selectedType,
+      mest_categorie: selectedCat,     // bv. 'vaste_mest' i.p.v. 'vastemest' (zoals mestplan)
+      mest_type: selectedType,         // bv. 'koe'
       file_path: path,
       file_mime: file.type || 'application/octet-stream',
       postcode: postcodeVal,
@@ -269,7 +275,6 @@ function toNumOrNull(v){
   const n = Number(v);
   return Number.isFinite(n) ? n : null;
 }
-
 function makeUUID(){
   if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
   if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
@@ -282,7 +287,7 @@ function makeUUID(){
   return String(Date.now()) + '-' + Math.random().toString(16).slice(2);
 }
 
-/* --- Overzicht "Mijn uploads" (ongewijzigd) --- */
+/* --- Overzicht "Mijn uploads" unchanged --- */
 async function loadMyUploads(){
   myUploads.innerHTML = 'Laden…';
   const { data, error } = await supabase
@@ -337,20 +342,9 @@ function renderUploadsTable(rows){
     </table>
   `;
 }
-function fmt(v,suf=''){
-  if (v===null || v===undefined) return '—';
-  const n = Number(v);
-  if (!Number.isFinite(n)) return '—';
-  return `${n}${suf}`;
-}
-function fmtEdit(v){
-  if (v===null || v===undefined) return '';
-  const n = Number(v);
-  return Number.isFinite(n) ? String(n) : '';
-}
-function escapeHtml(s){
-  return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-}
+function fmt(v,suf=''){ if (v===null || v===undefined) return '—'; const n = Number(v); return Number.isFinite(n) ? `${n}${suf}` : '—'; }
+function fmtEdit(v){ if (v===null || v===undefined) return ''; const n = Number(v); return Number.isFinite(n) ? String(n) : ''; }
+function escapeHtml(s){ return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
 function bindUploadActions(rows){
   rows.forEach(r => {
     const tr = myUploads.querySelector(`tr[data-id="${r.id}"]`);
