@@ -1,4 +1,10 @@
-// upload.js — single-select mestsoort in dezelfde JSON-structuur als mestplan
+// upload.js — mest uploaden met single-select mestsoort + defaults uit mestsoorten.json
+// - Bestandsupload is optioneel (we forceren dit ook als HTML nog 'required' heeft)
+// - Vraagprijs kan ± zijn; 2 decimalen; ton is integer
+// - Postcode NL-validatie en nette formatting
+// - RO-analysevelden worden direct gevuld met standaardwaardes van de gekozen mestsoort
+// - Eventuele geüploade analyse overschrijft daarna desgewenst de RO-velden
+
 import { supabase } from './supabaseClient.js';
 import {
   isValidPostcode, formatPostcode,
@@ -6,14 +12,14 @@ import {
   isFileAllowed, showInlineError, clearInlineError, disable, toast, extractAnalysis
 } from './utils.js';
 
-const form = document.getElementById('uploadForm');
-const elNaam = document.getElementById('naam');
-const elFile = document.getElementById('file');
-const elPrijs= document.getElementById('inkoopprijs');
-const elTon  = document.getElementById('aantalTon');
-const elPriceSign = document.getElementById('priceSign'); // 'pos' | 'neg' (optioneel; aanwezig als je toggle in HTML gebruikt)
+const form         = document.getElementById('uploadForm');
+const elNaam       = document.getElementById('naam');
+const elFile       = document.getElementById('file');
+const elPrijs      = document.getElementById('inkoopprijs');
+const elTon        = document.getElementById('aantalTon');
+const elPriceSign  = document.getElementById('priceSign'); // 'pos' | 'neg' als aanwezig (±-toggle)
 
-const listContainer = document.getElementById('mestChoiceList');
+const listContainer= document.getElementById('mestChoiceList');
 
 const cbUseProfile = document.getElementById('useProfilePostcode');
 const wrapPostcode = document.getElementById('postcodeWrap');
@@ -30,9 +36,9 @@ const elOS  = document.getElementById('OS_percent');
 const elBio = document.getElementById('Biogas');
 
 let session, profile, userId;
-let mestsoortenObj = {};    // zelfde vorm als mestplan
-let selectedCat = null;     // bv. 'drijfmest' | 'vaste_mest' | 'dikke_fractie' | 'overig'
-let selectedType = null;    // bv. 'koe' | 'varken' | 'compost' ...
+let mestsoortenObj = {};    // { categorie: { type: { DS_percent, N_kg_per_ton, ... } } }
+let selectedCat  = null;    // 'drijfmest' | 'vaste_mest' | 'dikke_fractie' | 'overig'
+let selectedType = null;    // 'koe' | 'varken' | 'compost' | ...
 
 (async function init(){
   // auth
@@ -43,6 +49,9 @@ let selectedType = null;    // bv. 'koe' | 'varken' | 'compost' ...
     return;
   }
   userId = session.user.id;
+
+  // maak file optioneel (als HTML nog required bevat)
+  elFile?.removeAttribute('required');
 
   // profiel (voor postcode)
   const { data: prof } = await supabase.from('profiles').select('*').eq('id', userId).single();
@@ -57,9 +66,10 @@ let selectedType = null;    // bv. 'koe' | 'varken' | 'compost' ...
     if (!cbUseProfile.checked) elPostcode?.focus();
   });
 
-  // laad JSON (LET OP: zonder leading slash voor submap-compat!)
+  // laad JSON en bouw keuzeknoppen
   await renderMestChoices();
 
+  // listeners
   elFile.addEventListener('change', handleFileChange);
   form.addEventListener('submit', onSubmit);
 
@@ -71,7 +81,7 @@ function getProfilePostcode() {
 }
 
 /* ========================
-   MEST KEUZE UI (single-select)
+   MEST KEUZE UI (single-select) + defaults vullen
 ======================== */
 function labelCategorie(c){
   const map = {
@@ -90,11 +100,9 @@ async function renderMestChoices(){
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const raw = await resp.json();
 
-    // Normaliseer naar objectvorm zoals mestplan gebruikt:
-    // { drijfmest: { koe: {...}, varken: {...} }, vaste_mest: { ... }, overig: { ... } }
-    mestsoortenObj = toObjectShapedMest(raw);
+    // naar { cat: { type: defaults } }
+    mestsoortenObj = toObjectWithDefaults(raw);
 
-    // Prioriteitsvolgorde voor rendering
     const order = ['drijfmest', 'vaste_mest', 'dikke_fractie', 'overig'];
     const cats = Object.keys(mestsoortenObj);
     const orderedCats = order.filter(c => cats.includes(c)).concat(cats.filter(c => !order.includes(c)));
@@ -117,11 +125,13 @@ async function renderMestChoices(){
       `;
     }).join('') || `<div class="muted">Geen mestsoorten gevonden.</div>`;
 
-    // één selectie totaal
+    // bij keuze → defaults in RO-velden zetten
     listContainer.querySelectorAll('input[name="mest_one"]').forEach(r => {
       r.addEventListener('change', () => {
         selectedCat  = r.dataset.cat;
         selectedType = r.dataset.type;
+        const defs = getDefaults(selectedCat, selectedType) || {};
+        applyRODefaults(defs);
         clearInlineError(listContainer);
       });
     });
@@ -132,26 +142,64 @@ async function renderMestChoices(){
   }
 }
 
-// Converteer elk redelijk formaat naar objectvorm
-function toObjectShapedMest(raw){
+// raw → { cat: { type: { DS_percent, N_kg_per_ton, ... } } }
+function toObjectWithDefaults(raw){
   if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
-    return raw; // lijkt al goed
+    const out = {};
+    for (const [cat, types] of Object.entries(raw)) {
+      out[cat] = {};
+      if (types && typeof types === 'object') {
+        for (const [typ, val] of Object.entries(types)) {
+          out[cat][typ] = normalizeDefaults(val);
+        }
+      }
+    }
+    return out;
   }
-  // array-vorm => { cat: { type: true } } (UI heeft namen nodig; details niet verplicht)
   if (Array.isArray(raw)) {
-    const obj = {};
+    const out = {};
     for (const m of raw) {
       const cat = m?.categorie; const typ = m?.type;
       if (!cat || !typ) continue;
-      (obj[cat] ||= {})[typ] = true;
+      (out[cat] ||= {})[typ] = normalizeDefaults(m);
     }
-    return obj;
+    return out;
   }
   return {};
 }
 
+function normalizeDefaults(obj){
+  if (!obj || typeof obj !== 'object') return {};
+  const num = v => {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+  };
+  return {
+    DS_percent: obj.DS_percent != null ? num(obj.DS_percent) : null,
+    N_kg_per_ton: obj.N_kg_per_ton != null ? num(obj.N_kg_per_ton) : null,
+    P_kg_per_ton: obj.P_kg_per_ton != null ? num(obj.P_kg_per_ton) : null,
+    K_kg_per_ton: obj.K_kg_per_ton != null ? num(obj.K_kg_per_ton) : null,
+    OS_percent: obj.OS_percent != null ? num(obj.OS_percent) : null,
+    Biogaspotentieel_m3_per_ton: obj.Biogaspotentieel_m3_per_ton != null ? num(obj.Biogaspotentieel_m3_per_ton) : null
+  };
+}
+
+function getDefaults(cat, typ){
+  return (mestsoortenObj?.[cat]?.[typ]) || {};
+}
+
+function applyRODefaults(defs){
+  const set = (el, v) => el && (el.value = toFixedOrEmpty(v));
+  set(elDS,  defs.DS_percent);
+  set(elN,   defs.N_kg_per_ton);
+  set(elP,   defs.P_kg_per_ton);
+  set(elK,   defs.K_kg_per_ton);
+  set(elOS,  defs.OS_percent);
+  set(elBio, defs.Biogaspotentieel_m3_per_ton);
+}
+
 /* ========================
-   BESTANDSANALYSE
+   BESTANDSANALYSE (optioneel)
 ======================== */
 async function handleFileChange() {
   clearInlineError(elFile);
@@ -164,19 +212,16 @@ async function handleFileChange() {
   disable(btnSubmit, true);
   try {
     const parsed = await extractAnalysis(file);
-    elDS.value = toFixedOrEmpty(parsed.DS_percent);
-    elN.value  = toFixedOrEmpty(parsed.N_kg_per_ton);
-    elP.value  = toFixedOrEmpty(parsed.P_kg_per_ton);
-    elK.value  = toFixedOrEmpty(parsed.K_kg_per_ton);
-    elOS.value = toFixedOrEmpty(parsed.OS_percent);
-    elBio.value= toFixedOrEmpty(parsed.Biogaspotentieel_m3_per_ton);
+    // overschrijf defaults met analysewaarden (waar beschikbaar)
+    if (parsed) applyRODefaults(parsed);
   } catch (e) {
     console.error(e);
-    toast('Analyse uitlezen mislukt. Item kan wel als "in behandeling" worden opgeslagen.', 'warning');
+    toast('Analyse uitlezen mislukt. Je kunt alsnog opslaan als "in behandeling".', 'warning');
   } finally {
     disable(btnSubmit, false);
   }
 }
+
 function toFixedOrEmpty(v){
   return (v===null || v===undefined || v==='') ? '' : Number(v).toFixed(2).replace(/\.00$/,'');
 }
@@ -187,11 +232,11 @@ function toFixedOrEmpty(v){
 function getSignedPriceFromUI() {
   // 1) Als er een sign-toggle is, gebruik die (clean UX)
   if (elPriceSign) {
-    const raw = parsePrice2dec(elPrijs.value);
+    const raw = parsePrice2dec(elPrijs.value); // 0..2 dec, komma/punt toegestaan in utils
     if (raw === null) return null;
     return (elPriceSign.value === 'neg') ? -raw : raw;
   }
-  // 2) Fallback: sta een getekend getal in het veld toe (bv. "-12.50")
+  // 2) Fallback: parse getekend bedrag (bv. -12,50)
   const signed = parseSignedPrice2dec(elPrijs.value);
   return signed === null ? null : signed;
 }
@@ -216,10 +261,10 @@ async function onSubmit(e){
     ok = false;
   }
 
-  // Bestand
+  // Bestand (optioneel)
   const file = elFile.files?.[0];
-  if (!file || !isFileAllowed(file)) {
-    showInlineError(elFile, 'Kies een geldig bestand.');
+  if (file && !isFileAllowed(file)) {
+    showInlineError(elFile, 'Alleen PDF/JPG/PNG en max 10MB.');
     ok = false;
   }
 
@@ -262,27 +307,36 @@ async function onSubmit(e){
   disable(btnSubmit, true);
 
   try {
-    // 1) Upload naar Storage
-    const now = new Date();
-    const fileExt = (file.name?.split('.').pop() || 'bin').toLowerCase();
-    const uuid = makeUUID();
-    const path = `${userId}/${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,'0')}/${String(now.getDate()).padStart(2,'0')}/${uuid}.${fileExt}`;
-    const { error: upErr } = await supabase.storage
-      .from('mest-analyses')
-      .upload(path, file, { contentType: file.type || 'application/octet-stream', upsert: false });
-    if (upErr) throw upErr;
+    // 1) Optioneel: upload naar Storage
+    let filePath, fileMime;
+    if (file) {
+      const now  = new Date();
+      const ext  = (file.name?.split('.').pop() || 'bin').toLowerCase();
+      const uuid = makeUUID();
+      filePath = `${userId}/${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,'0')}/${String(now.getDate()).padStart(2,'0')}/${uuid}.${ext}`;
+      const { error: upErr } = await supabase.storage
+        .from('mest-analyses')
+        .upload(filePath, file, { contentType: file.type || 'application/octet-stream', upsert: false });
+      if (upErr) throw upErr;
+      fileMime = file.type || 'application/octet-stream';
+    } else {
+      // Geen bestand → set sentinel values, kolommen blijven non-null
+      const uuid = makeUUID();
+      filePath = `manual/${userId}/${uuid}.no-file`;
+      fileMime = 'application/x.empty';
+    }
 
     // 2) Insert mest_uploads
     const payload = {
       user_id: userId,
       naam: elNaam.value.trim(),
-      mest_categorie: selectedCat,     // bv. 'vaste_mest'
-      mest_type: selectedType,         // bv. 'koe'
-      file_path: path,
-      file_mime: file.type || 'application/octet-stream',
+      mest_categorie: selectedCat,
+      mest_type: selectedType,
+      file_path: filePath,
+      file_mime: fileMime,
       postcode: postcodeVal,
-      inkoopprijs_per_ton: signedPrice,  // ± prijs
-      aantal_ton: tonInt,                // integer
+      inkoopprijs_per_ton: signedPrice,
+      aantal_ton: tonInt,
       DS_percent: toNumOrNull(elDS.value),
       N_kg_per_ton: toNumOrNull(elN.value),
       P_kg_per_ton: toNumOrNull(elP.value),
@@ -306,7 +360,6 @@ async function onSubmit(e){
     cbUseProfile.checked = !!profilePostcodeNow;
     wrapPostcode.style.display = cbUseProfile.checked ? 'none' : 'block';
 
-    // (optioneel) reset sign-toggle naar positief
     if (elPriceSign) elPriceSign.value = 'pos';
 
     await loadMyUploads();
@@ -335,7 +388,9 @@ function makeUUID(){
   return String(Date.now()) + '-' + Math.random().toString(16).slice(2);
 }
 
-/* --- Overzicht "Mijn uploads" (met ± prijs en integer ton) --- */
+/* ========================
+   Overzicht "Mijn uploads"
+======================== */
 async function loadMyUploads(){
   myUploads.innerHTML = 'Laden…';
   const { data, error } = await supabase
@@ -377,7 +432,7 @@ function renderUploadsTable(rows){
             <td>${escapeHtml(r.mest_categorie)} / ${escapeHtml(r.mest_type)}</td>
             <td class="muted">${fmt(r.DS_percent,'%')} • N ${fmt(r.N_kg_per_ton,' kg/t')} • P ${fmt(r.P_kg_per_ton,' kg/t')} • K ${fmt(r.K_kg_per_ton,' kg/t')}</td>
             <td class="right"><input class="e-prijs" value="${fmtEdit(r.inkoopprijs_per_ton)}" inputmode="decimal"/></td>
-            <td class="right"><input class="e-ton" value="${fmtEdit(r.aantal_ton)}" inputmode="numeric"/></td>
+            <td class="right"><input class="e-ton"  value="${fmtEdit(r.aantal_ton)}"         inputmode="numeric"/></td>
             <td><input class="e-postcode" value="${escapeHtml(r.postcode)}"/></td>
             <td>${renderBadge(r.status)}</td>
             <td class="actions">
@@ -396,7 +451,7 @@ function escapeHtml(s){ return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;',
 
 function bindUploadActions(rows){
   rows.forEach(r => {
-    const tr = myUploads.querySelector(`tr[data-id="${r.id}"]`);
+    const tr    = myUploads.querySelector(`tr[data-id="${r.id}"]`);
     const btnSave = tr.querySelector('.a-save');
     const btnDel  = tr.querySelector('.a-del');
     const elN     = tr.querySelector('.e-naam');
