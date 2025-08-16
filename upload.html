@@ -83,20 +83,15 @@
           <input id="naam" name="naam" placeholder="Bijv. Mest opslag 34" maxlength="60" required/>
         </div>
 
-        <div>
-          <label for="categorie">Categorie<span aria-hidden="true">*</span></label>
-          <select id="categorie" required>
-            <option value="">Kies categorie…</option>
-            <!-- vaste_mest / dikke_fractie / drijfmest / overig -->
-          </select>
+        <!-- Single-select knoppen, zelfde look als mestplan -->
+        <div class="category" style="grid-column: 1 / -1;">
+          <div class="category__label">Categorie<span aria-hidden="true">*</span></div>
+          <div id="catChoices"></div>
         </div>
-
-        <div>
-          <label for="type">Type<span aria-hidden="true">*</span></label>
-          <select id="type" required disabled>
-            <option value="">Kies type…</option>
-            <!-- dynamisch obv categorie en mestsoorten.json -->
-          </select>
+        
+        <div class="category" style="grid-column: 1 / -1;">
+          <div class="category__label">Type<span aria-hidden="true">*</span></div>
+          <div id="typeChoices" data-disabled="true"></div>
         </div>
 
         <div>
