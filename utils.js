@@ -1,16 +1,30 @@
 // utils.js
+// Gemeenschappelijke helpers: validatie, normalisatie, UI, en (optioneel) analyse-extractie.
+
 export const USE_AI = false; // feature flag; schakel naar true voor AI OCR pipeline
 export const MAX_FILE_SIZE_MB = 10;
 export const ALLOWED_MIME = ['application/pdf', 'image/png', 'image/jpeg'];
 export const ALLOWED_EXT  = ['pdf', 'png', 'jpg', 'jpeg'];
 
-// --- Validatie helpers ---
+/* =========================================
+   POSTCODE (NL) – validatie & normalisatie
+========================================= */
+
+/** Loose check: staat zowel "1234AB" als "1234 AB" toe. */
 export function isValidPostcode(raw) {
   if (!raw) return false;
   const s = String(raw).trim().toUpperCase();
   return /^[1-9][0-9]{3}\s?[A-Z]{2}$/.test(s);
 }
 
+/** Exacte check: vereist spatie: "1234 AB" (alleen dit formaat). */
+export function isExactPostcodeFormat(raw) {
+  if (!raw) return false;
+  const s = String(raw).trim().toUpperCase();
+  return /^[1-9][0-9]{3}\s[A-Z]{2}$/.test(s);
+}
+
+/** Format naar weergave: "1234 AB" (uppercase, enkele spatie). */
 export function formatPostcode(raw) {
   if (!raw) return '';
   const s = String(raw).trim().toUpperCase().replace(/\s+/g, '');
@@ -18,17 +32,27 @@ export function formatPostcode(raw) {
   return String(raw).trim().toUpperCase();
 }
 
-/** Accepteert "12", "12.3", "12,30"; max 2 decimalen; > 0 */
-export function isPositiveNumberMax2Dec(val) {
-  if (val === '' || val === null || val === undefined) return false;
-  const str = String(val).trim();
-  // Sta , of . toe
-  if (!/^\d+(?:[.,]\d{1,2})?$/.test(str)) return false;
-  const n = parseDecimal(str);
-  return Number.isFinite(n) && n > 0;
+/**
+ * Live-normalisatie voor invoerveld: forceert "1234 " tijdens typen en daarna "1234 AB".
+ * - Neemt alleen de eerste 4 cijfers en eerste 2 letters.
+ * - Letters worden uppercase.
+ * - Retourneert een PARTIËLE string tijdens invoer (bijv. "1234 ").
+ */
+export function normalizePostcodeLive(raw) {
+  const text = String(raw ?? '');
+  const digits  = (text.match(/\d/g) || []).join('').slice(0, 4);
+  const letters = (text.match(/[A-Za-z]/g) || []).join('').toUpperCase().slice(0, 2);
+  if (!digits) return '';
+  if (digits.length < 4) return digits;             // nog cijfers aan het typen
+  if (!letters) return `${digits} `;                // spatie na 4 cijfers
+  return `${digits} ${letters}`;
 }
 
-/** Parseert NL/EU decimalen ("12,3") naar Number (12.3); geeft NaN bij ongeldige input */
+/* =========================================
+   NUMBERS – decimalen & integers
+========================================= */
+
+/** Parseert NL/EU decimalen ("12,3") naar Number (12.3); geeft NaN bij ongeldige input. */
 export function parseDecimal(str) {
   if (str === null || str === undefined) return NaN;
   const s = String(str).trim().replace(',', '.');
@@ -36,6 +60,71 @@ export function parseDecimal(str) {
   const n = Number(s);
   return Number.isFinite(n) ? n : NaN;
 }
+
+/** Accepteert "12", "12.3", "12,30"; max 2 decimalen; > 0. */
+export function isPositiveNumberMax2Dec(val) {
+  if (val === '' || val === null || val === undefined) return false;
+  const str = String(val).trim();
+  if (!/^\d+(?:[.,]\d{1,2})?$/.test(str)) return false;
+  const n = parseDecimal(str);
+  return Number.isFinite(n) && n > 0;
+}
+
+/** 0 of meer, met max 2 decimalen. */
+export function isNonNegativeNumberMax2Dec(val) {
+  if (val === '' || val === null || val === undefined) return false;
+  const str = String(val).trim();
+  if (!/^\d+(?:[.,]\d{1,2})?$/.test(str)) return false;
+  const n = parseDecimal(str);
+  return Number.isFinite(n) && n >= 0;
+}
+
+/** Optioneel negatief (±), max 2 decimalen. Voor vraagprijs met teken. */
+export function isSignedNumberMax2Dec(val) {
+  if (val === '' || val === null || val === undefined) return false;
+  const str = String(val).trim().replace(',', '.');
+  return /^-?\d+(?:\.\d{1,2})?$/.test(str);
+}
+
+/** Parse zonder teken (max 2 dec) → Number of null. */
+export function parsePrice2dec(str) {
+  if (str == null) return null;
+  const s = String(str).trim().replace(',', '.');
+  const m = s.match(/^(\d+)(?:\.(\d{1,2}))?$/);
+  if (!m) return null;
+  return Number(m[1] + (m[2] ? '.' + m[2] : ''));
+}
+
+/** Parse met optioneel teken (max 2 dec) → Number of null. */
+export function parseSignedPrice2dec(str) {
+  if (str == null) return null;
+  const s = String(str).trim().replace(',', '.');
+  if (!/^-?\d+(?:\.\d{1,2})?$/.test(s)) return null;
+  const n = Number(s);
+  return Number.isFinite(n) ? n : null;
+}
+
+/** Strict integer (alleen cijfers) → Number of null. */
+export function parseIntStrict(str) {
+  if (str == null) return null;
+  const n = parseInt(String(str).replace(/\D/g, ''), 10);
+  return Number.isInteger(n) ? n : null;
+}
+
+/** Houd alleen cijfers over in een string (voor input-masking). */
+export function sanitizeIntegerString(str) {
+  return String(str ?? '').replace(/\D/g, '');
+}
+
+/** Format getal naar max 2 decimalen (string). */
+export function formatNumber2dec(n) {
+  if (!Number.isFinite(n)) return '';
+  return n.toFixed(2).replace(/\.00$/, '');
+}
+
+/* =========================================
+   BESTANDEN – validatie
+========================================= */
 
 export function getFileExt(filename) {
   if (!filename) return '';
@@ -48,7 +137,7 @@ export function isFileAllowed(file) {
   const ext  = getFileExt(file.name);
   const sizeOk = typeof file.size === 'number' && file.size <= MAX_FILE_SIZE_MB * 1024 * 1024;
 
-  // MIME kan bij sommige browsers "application/octet-stream" zijn; val dan terug op extensie
+  // MIME fallback: sommige browsers geven application/octet-stream.
   const mime = file.type || '';
   const mimeOk = ALLOWED_MIME.includes(mime)
     || (/^image\//.test(mime) && ['png', 'jpg', 'jpeg'].includes(ext))
@@ -59,13 +148,16 @@ export function isFileAllowed(file) {
   return sizeOk && mimeOk && extOk;
 }
 
+/* =========================================
+   UI – inline errors & toasts
+========================================= */
+
 export function showInlineError(el, msg) {
   if (!el) return;
   el.setAttribute('data-error', msg || '');
   el.classList.add('input-error');
   el.setAttribute('aria-invalid', 'true');
-  // hint voor SR's zonder extra markup
-  if (msg) el.setAttribute('title', msg);
+  if (msg) el.setAttribute('title', msg); // minimale SR hint
 }
 
 export function clearInlineError(el) {
@@ -81,16 +173,14 @@ export function disable(el, disabled = true) {
 }
 
 /**
- * Toont een toast. Werkt als:
- * 1) custom event (voor eigen UI-listener),
- * 2) aria-live region #toast-live,
- * 3) fallback: alert().
+ * Toast:
+ * 1) dispatch event (voor eigen UI),
+ * 2) aria-live,
+ * 3) fallback alert().
  */
 export function toast(msg, type = 'info') {
   try {
-    // 1) Custom event (je UI kan hierop subscriben om eigen toasts te renderen)
     document.dispatchEvent(new CustomEvent('app:toast', { detail: { message: msg, type } }));
-    // 2) aria-live area
     let live = document.getElementById('toast-live');
     if (!live) {
       live = document.createElement('div');
@@ -103,9 +193,7 @@ export function toast(msg, type = 'info') {
       document.body.appendChild(live);
     }
     live.textContent = `${type.toUpperCase()}: ${msg}`;
-    // 3) minimale visuele fallback
     if (!document.body.classList.contains('has-toast-ui')) {
-      // Als je een eigen toast-UI hebt, zet class 'has-toast-ui' op body en deze alert wordt niet gebruikt.
       alert(`${type.toUpperCase()}: ${msg}`);
     }
   } catch {
@@ -113,10 +201,12 @@ export function toast(msg, type = 'info') {
   }
 }
 
-// --- Tekst normalisatie helper ---
+/* =========================================
+   TEKST – normalisatie
+========================================= */
+
 export function normalizeLabels(text) {
   if (!text) return '';
-  // Maak labels uniform (DS, N, P, K…) – simpele heuristiek + non-breaking spaces fix
   return String(text)
     .replace(/\r/g, '\n')
     .replace(/\u00A0/g, ' ')
@@ -124,30 +214,28 @@ export function normalizeLabels(text) {
     .trim();
 }
 
-// --- EXTRACTIE (AI / pdf.js + Tesseract fallback) ---
+/* =========================================
+   ANALYSE – OCR/AI (stub & fallback)
+========================================= */
+
 /**
  * @returns {Promise<{DS_percent?:number,N_kg_per_ton?:number,P_kg_per_ton?:number,K_kg_per_ton?:number,OS_percent?:number,Biogaspotentieel_m3_per_ton?:number, raw?:any}>}
  */
 export async function extractAnalysis(file) {
-  // Placeholder pipeline structuur
   if (USE_AI) {
-    // TODO: roep jouw AI endpoint aan (serverless function) die:
-    // - PDF/image ocr’t
-    // - labels herkent (DS, N, P, K, OS, biogas)
+    // TODO: roep je AI endpoint (edge function) aan die:
+    // - PDF/image OCR doet
+    // - labels DS, N, P, K, OS, biogas herkent
     // - units normaliseert (kg/ton, %, etc.)
-    // return { DS_percent, N_kg_per_ton, ... , raw }
     return aiStub();
   } else {
-    // Fallback: client-side. Voor PDF -> pdf.js render naar canvassen; voor images -> direct Tesseract.
-    // i.v.m. performance en CSP kun je dit later naar edge function verplaatsen.
-    // Hier leveren we een veilige "best effort": gebruiker/manager ziet "in behandeling" als niet alles gevonden is.
+    // Fallback: client-side (pdf.js + Tesseract) -> hier vervangen door demo-stub
     return bestEffortRegexStub(file);
   }
 }
 
-// --- Stubs zodat je direct kunt testen (vervang later) ---
+// --- Stubs (vervang later door echte pipeline) ---
 async function aiStub() {
-  // simuleer succesvolle parse
   return {
     DS_percent: 28.5,
     N_kg_per_ton: 6.2,
@@ -160,7 +248,6 @@ async function aiStub() {
 }
 
 async function bestEffortRegexStub(file) {
-  // Simuleer dat niet alle velden altijd gevonden worden.
   return {
     DS_percent: 25,
     N_kg_per_ton: 5.5,
