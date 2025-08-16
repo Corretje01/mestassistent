@@ -1,8 +1,9 @@
 // upload.js — single-select mestsoort in dezelfde JSON-structuur als mestplan
 import { supabase } from './supabaseClient.js';
 import {
-  isValidPostcode, formatPostcode, isPositiveNumberMax2Dec, isFileAllowed,
-  showInlineError, clearInlineError, disable, toast, extractAnalysis
+  isValidPostcode, formatPostcode,
+  parsePrice2dec, parseSignedPrice2dec, parseIntStrict,
+  isFileAllowed, showInlineError, clearInlineError, disable, toast, extractAnalysis
 } from './utils.js';
 
 const form = document.getElementById('uploadForm');
@@ -10,6 +11,7 @@ const elNaam = document.getElementById('naam');
 const elFile = document.getElementById('file');
 const elPrijs= document.getElementById('inkoopprijs');
 const elTon  = document.getElementById('aantalTon');
+const elPriceSign = document.getElementById('priceSign'); // 'pos' | 'neg' (optioneel; aanwezig als je toggle in HTML gebruikt)
 
 const listContainer = document.getElementById('mestChoiceList');
 
@@ -52,7 +54,7 @@ let selectedType = null;    // bv. 'koe' | 'varken' | 'compost' ...
   wrapPostcode.style.display = cbUseProfile.checked ? 'none' : 'block';
   cbUseProfile.addEventListener('change', () => {
     wrapPostcode.style.display = cbUseProfile.checked ? 'none' : 'block';
-    if (!cbUseProfile.checked) elPostcode.focus();
+    if (!cbUseProfile.checked) elPostcode?.focus();
   });
 
   // laad JSON (LET OP: zonder leading slash voor submap-compat!)
@@ -133,10 +135,9 @@ async function renderMestChoices(){
 // Converteer elk redelijk formaat naar objectvorm
 function toObjectShapedMest(raw){
   if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
-    // Lijkt al goed: check of values objecten zijn
-    return raw;
+    return raw; // lijkt al goed
   }
-  // array-vorm => { cat: { type: true } } (we hebben alleen namen nodig voor UI)
+  // array-vorm => { cat: { type: true } } (UI heeft namen nodig; details niet verplicht)
   if (Array.isArray(raw)) {
     const obj = {};
     for (const m of raw) {
@@ -181,6 +182,21 @@ function toFixedOrEmpty(v){
 }
 
 /* ========================
+   PRIJS & TON helpers
+======================== */
+function getSignedPriceFromUI() {
+  // 1) Als er een sign-toggle is, gebruik die (clean UX)
+  if (elPriceSign) {
+    const raw = parsePrice2dec(elPrijs.value);
+    if (raw === null) return null;
+    return (elPriceSign.value === 'neg') ? -raw : raw;
+  }
+  // 2) Fallback: sta een getekend getal in het veld toe (bv. "-12.50")
+  const signed = parseSignedPrice2dec(elPrijs.value);
+  return signed === null ? null : signed;
+}
+
+/* ========================
    SUBMIT
 ======================== */
 async function onSubmit(e){
@@ -188,29 +204,58 @@ async function onSubmit(e){
   let ok = true;
   [elNaam, elFile, elPrijs, elTon, elPostcode, listContainer].forEach(clearInlineError);
 
+  // Naam
   if (!elNaam.value || elNaam.value.trim().length < 2 || elNaam.value.trim().length > 60) {
     showInlineError(elNaam, '2–60 tekens.');
     ok = false;
   }
+
+  // Mestsoort
   if (!selectedCat || !selectedType) {
     showInlineError(listContainer, 'Kies een mestsoort.');
     ok = false;
   }
 
+  // Bestand
   const file = elFile.files?.[0];
-  if (!file || !isFileAllowed(file)) { showInlineError(elFile, 'Kies een geldig bestand.'); ok = false; }
-  if (!isPositiveNumberMax2Dec(elPrijs.value)) { showInlineError(elPrijs, 'Bedrag > 0, max 2 dec.'); ok = false; }
-  if (!isPositiveNumberMax2Dec(elTon.value))   { showInlineError(elTon, 'Aantal > 0, max 2 dec.'); ok = false; }
+  if (!file || !isFileAllowed(file)) {
+    showInlineError(elFile, 'Kies een geldig bestand.');
+    ok = false;
+  }
+
+  // Prijs (±, max 2 dec)
+  const signedPrice = getSignedPriceFromUI();
+  if (signedPrice === null) {
+    showInlineError(elPrijs, 'Ongeldig bedrag (max 2 decimalen).');
+    ok = false;
+  }
+
+  // Ton (integer > 0)
+  const tonInt = parseIntStrict(elTon.value);
+  if (tonInt === null || tonInt <= 0) {
+    showInlineError(elTon, 'Alleen hele aantallen > 0.');
+    ok = false;
+  }
 
   // Postcode
   let postcodeVal = null;
   const profilePostcodeNow = getProfilePostcode();
   if (cbUseProfile.checked) {
-    if (profilePostcodeNow) postcodeVal = formatPostcode(profilePostcodeNow);
-    else { wrapPostcode.style.display = 'block'; cbUseProfile.checked = false; showInlineError(elPostcode, 'Geen postcode in profiel. Vul handmatig in.'); ok = false; }
+    if (profilePostcodeNow) {
+      postcodeVal = formatPostcode(profilePostcodeNow);
+    } else {
+      wrapPostcode.style.display = 'block';
+      cbUseProfile.checked = false;
+      showInlineError(elPostcode, 'Geen postcode in profiel. Vul handmatig in.');
+      ok = false;
+    }
   } else {
-    if (!isValidPostcode(elPostcode.value)) { showInlineError(elPostcode,'Ongeldige NL postcode.'); ok=false; }
-    else postcodeVal = formatPostcode(elPostcode.value);
+    if (!isValidPostcode(elPostcode.value)) {
+      showInlineError(elPostcode,'Ongeldige NL postcode.');
+      ok=false;
+    } else {
+      postcodeVal = formatPostcode(elPostcode.value);
+    }
   }
 
   if (!ok) return;
@@ -231,13 +276,13 @@ async function onSubmit(e){
     const payload = {
       user_id: userId,
       naam: elNaam.value.trim(),
-      mest_categorie: selectedCat,     // bv. 'vaste_mest' i.p.v. 'vastemest' (zoals mestplan)
+      mest_categorie: selectedCat,     // bv. 'vaste_mest'
       mest_type: selectedType,         // bv. 'koe'
       file_path: path,
       file_mime: file.type || 'application/octet-stream',
       postcode: postcodeVal,
-      inkoopprijs_per_ton: Number(elPrijs.value),
-      aantal_ton: Number(elTon.value),
+      inkoopprijs_per_ton: signedPrice,  // ± prijs
+      aantal_ton: tonInt,                // integer
       DS_percent: toNumOrNull(elDS.value),
       N_kg_per_ton: toNumOrNull(elN.value),
       P_kg_per_ton: toNumOrNull(elP.value),
@@ -260,6 +305,9 @@ async function onSubmit(e){
 
     cbUseProfile.checked = !!profilePostcodeNow;
     wrapPostcode.style.display = cbUseProfile.checked ? 'none' : 'block';
+
+    // (optioneel) reset sign-toggle naar positief
+    if (elPriceSign) elPriceSign.value = 'pos';
 
     await loadMyUploads();
   } catch (e) {
@@ -287,7 +335,7 @@ function makeUUID(){
   return String(Date.now()) + '-' + Math.random().toString(16).slice(2);
 }
 
-/* --- Overzicht "Mijn uploads" unchanged --- */
+/* --- Overzicht "Mijn uploads" (met ± prijs en integer ton) --- */
 async function loadMyUploads(){
   myUploads.innerHTML = 'Laden…';
   const { data, error } = await supabase
@@ -329,7 +377,7 @@ function renderUploadsTable(rows){
             <td>${escapeHtml(r.mest_categorie)} / ${escapeHtml(r.mest_type)}</td>
             <td class="muted">${fmt(r.DS_percent,'%')} • N ${fmt(r.N_kg_per_ton,' kg/t')} • P ${fmt(r.P_kg_per_ton,' kg/t')} • K ${fmt(r.K_kg_per_ton,' kg/t')}</td>
             <td class="right"><input class="e-prijs" value="${fmtEdit(r.inkoopprijs_per_ton)}" inputmode="decimal"/></td>
-            <td class="right"><input class="e-ton" value="${fmtEdit(r.aantal_ton)}" inputmode="decimal"/></td>
+            <td class="right"><input class="e-ton" value="${fmtEdit(r.aantal_ton)}" inputmode="numeric"/></td>
             <td><input class="e-postcode" value="${escapeHtml(r.postcode)}"/></td>
             <td>${renderBadge(r.status)}</td>
             <td class="actions">
@@ -345,6 +393,7 @@ function renderUploadsTable(rows){
 function fmt(v,suf=''){ if (v===null || v===undefined) return '—'; const n = Number(v); return Number.isFinite(n) ? `${n}${suf}` : '—'; }
 function fmtEdit(v){ if (v===null || v===undefined) return ''; const n = Number(v); return Number.isFinite(n) ? String(n) : ''; }
 function escapeHtml(s){ return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+
 function bindUploadActions(rows){
   rows.forEach(r => {
     const tr = myUploads.querySelector(`tr[data-id="${r.id}"]`);
@@ -358,21 +407,39 @@ function bindUploadActions(rows){
     btnSave.addEventListener('click', async () => {
       let ok = true;
       [elN, elP, elT, elPC].forEach(clearInlineError);
-      if (!elN.value || elN.value.trim().length < 2 || elN.value.trim().length > 60) { showInlineError(elN,'2–60 tekens'); ok=false; }
-      if (!isPositiveNumberMax2Dec(elP.value)) { showInlineError(elP,'Bedrag >0, max 2 dec'); ok=false; }
-      if (!isPositiveNumberMax2Dec(elT.value)) { showInlineError(elT,'Aantal >0, max 2 dec'); ok=false; }
+
+      // naam
+      if (!elN.value || elN.value.trim().length < 2 || elN.value.trim().length > 60) {
+        showInlineError(elN,'2–60 tekens'); ok=false;
+      }
+
+      // prijs (±, max 2 dec)
+      const priceSigned = parseSignedPrice2dec(elP.value);
+      if (priceSigned === null) { showInlineError(elP,'Bedrag (±) met max 2 decimalen.'); ok=false; }
+
+      // ton (integer > 0)
+      const tonInt = parseIntStrict(elT.value);
+      if (tonInt === null || tonInt <= 0) { showInlineError(elT,'Alleen hele aantallen > 0.'); ok=false; }
+
+      // postcode
       if (!isValidPostcode(elPC.value)) { showInlineError(elPC,'Postcode ongeldig'); ok=false; }
       const pcFmt = formatPostcode(elPC.value);
+
       if (!ok) return;
 
       const { error } = await supabase.from('mest_uploads').update({
         naam: elN.value.trim(),
-        inkoopprijs_per_ton: Number(elP.value),
-        aantal_ton: Number(elT.value),
+        inkoopprijs_per_ton: priceSigned,
+        aantal_ton: tonInt,
         postcode: pcFmt
       }).eq('id', r.id);
-      if (error) toast('Opslaan mislukt: ' + error.message, 'error');
-      else { toast('Bewaard', 'success'); await loadMyUploads(); }
+
+      if (error) {
+        toast('Opslaan mislukt: ' + error.message, 'error');
+      } else {
+        toast('Bewaard', 'success');
+        await loadMyUploads();
+      }
     });
 
     btnDel.addEventListener('click', async () => {
