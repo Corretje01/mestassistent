@@ -303,23 +303,51 @@
     // default
     setSign('pos');
 
-    // Prijs: 0..2 decimalen, UI toont altijd een komma (teken gaat via de ±-toggle)
+    // Prijs: 0..2 decimalen, UI toont altijd komma, geen '-' in veld (teken via toggle)
     const elPrijs = document.getElementById('inkoopprijs');
     if (elPrijs) {
+      const formatPrice = (raw) => {
+        if (raw == null) return '';
+        let s = String(raw);
+    
+        // 1) converteer alle punten naar komma
+        s = s.replace(/\./g, ',');
+    
+        // 2) filter alles behalve cijfers en komma
+        s = s.replace(/[^0-9,]/g, '');
+    
+        // 3) houd maximaal één komma
+        const i = s.indexOf(',');
+        if (i !== -1) {
+          const before = s.slice(0, i);
+          let after = s.slice(i + 1).replace(/,/g, ''); // extra komma's weg
+          after = after.slice(0, 2);                    // max 2 decimalen
+          s = before + (after.length ? ',' + after : ',');
+        }
+        // optioneel: voorkom ",xx" → maak "0,xx"
+        if (s.startsWith(',')) s = '0' + s;
+    
+        return s;
+      };
+    
+      elPrijs.addEventListener('beforeinput', (e) => {
+        // minteken blokkeren; teken kies je met de ±-toggle
+        if (e.data === '-') e.preventDefault();
+      });
+    
       elPrijs.addEventListener('input', () => {
-        // normaliseer invoer: sta digits + . , toe; converteer intern naar '.'
-        let s = elPrijs.value.replace(',', '.').replace(/[^\d.]/g, '');
+        const val = elPrijs.value;
+        const formatted = formatPrice(val);
+        if (formatted !== val) {
+          elPrijs.value = formatted;
+          // caret eenvoudig naar eind — simpel & robuust
+          const end = elPrijs.value.length;
+          elPrijs.setSelectionRange(end, end);
+        }
+      });
     
-        // verwijder extra punten (alleen 1 decimaal-scheider)
-        const parts = s.split('.');
-        if (parts.length > 2) s = parts[0] + '.' + parts.slice(1).join('');
-    
-        let [intPart = '', decPart = ''] = s.split('.');
-        // max 2 decimalen
-        decPart = (decPart || '').slice(0, 2);
-    
-        // render in interface met komma als scheider
-        elPrijs.value = decPart ? `${intPart},${decPart}` : intPart;
+      elPrijs.addEventListener('blur', () => {
+        elPrijs.value = formatPrice(elPrijs.value);
       });
     }
 
