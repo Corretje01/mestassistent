@@ -83,15 +83,9 @@
           <input id="naam" name="naam" placeholder="Bijv. Mest opslag 34" maxlength="60" required/>
         </div>
 
-        <!-- Single-select knoppen, zelfde look als mestplan -->
-        <div class="category" style="grid-column: 1 / -1;">
-          <div class="category__label">Categorie<span aria-hidden="true">*</span></div>
-          <div id="catChoices"></div>
-        </div>
-        
-        <div class="category" style="grid-column: 1 / -1;">
-          <div class="category__label">Type<span aria-hidden="true">*</span></div>
-          <div id="typeChoices" data-disabled="true"></div>
+        <!-- NIEUW: lijst per categorie met type-knoppen (single select) -->
+        <div id="mestChoiceList" style="grid-column:1 / -1;">
+          <!-- Wordt dynamisch gevuld vanuit data/mestsoorten.json -->
         </div>
 
         <div>
