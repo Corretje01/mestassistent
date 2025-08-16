@@ -4,21 +4,20 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>Mest uploaden – MestAssistent</title>
+  <title>Mest uploaden – KoeHandelaar</title>
   <link rel="stylesheet" href="style.css"/>
-  <!-- supabaseClient kan in head blijven (zoals op je andere pagina's) -->
+
+  <!-- Supabase in head (zelfde als andere pagina's) -->
   <script type="module" src="supabaseClient.js"></script>
-  <!-- nav-menu.js NIET hier inladen; we initialiseren expliciet onderaan -->
+
+  <!-- (Optioneel) kleine tabel-stijlen die niet conflicteren met site.css -->
   <style>
     .container { max-width: 980px; margin: 0 auto; padding: 1rem; }
     .card { background: #fff; border-radius: 12px; padding: 1rem; box-shadow: 0 8px 28px rgba(0,0,0,.05); margin-bottom: 1rem; }
     .row { display: grid; grid-template-columns: 1fr; gap: .75rem; }
     @media (min-width: 720px){ .row-2 { grid-template-columns: 1fr 1fr; } }
     label { font-weight: 600; }
-    input, select, button { padding: .6rem .75rem; border-radius: .5rem; border: 1px solid #ddd; width: 100%; }
-    .actions { display:flex; gap:.5rem; flex-wrap:wrap; }
-    .btn-primary { background:#5b67f1; color:#fff; border:none; }
-    .btn-danger { background:#c62828; color:#fff; border:none; }
+    input, select, button { width: 100%; }
     .muted { color:#666; font-size:.9rem; }
     .readonly { background: #fafafa; }
     table { width:100%; border-collapse: collapse; }
@@ -27,25 +26,24 @@
   </style>
 </head>
 <body>
+  <!-- NAV / HEADER (uniform op alle pagina's) -->
   <header class="site-header">
     <nav class="navbar">
-      <!-- Home: altijd relatief naar index.html -->
+      <!-- Home: altijd relatief -->
       <a href="index.html" class="nav-logo">KoeHandelaar</a>
-  
-      <!-- Hamburger toggle (mobiel) -->
+
+      <!-- Hamburger (mobiel) -->
       <button id="nav-toggle" class="nav-toggle" aria-label="Menu" aria-controls="site-menu" aria-expanded="false">
         <span class="bars" aria-hidden="true"></span>
       </button>
-  
-      <!-- Menu (overlay op mobiel, inline op desktop) -->
+
+      <!-- Menu (overlay mobiel, inline desktop) -->
       <div id="site-menu" class="site-menu" hidden>
-        <!-- Close-button (X) voor mobiel menu -->
         <button id="nav-close" class="nav-close" aria-label="Menu sluiten">
           <span aria-hidden="true">&times;</span>
         </button>
-  
+
         <ul class="nav-links">
-          <!-- Alleen na inloggen zichtbaar -->
           <li class="auth-only">
             <a href="stap1.html" class="nav__item" id="nav-bereken">Bereken plaatsingsruimte</a>
           </li>
@@ -58,13 +56,9 @@
           <li class="auth-only">
             <a href="account.html" class="nav__item" id="nav-account">Mijn account</a>
           </li>
-  
-          <!-- Alleen admin -->
           <li class="auth-only admin-only">
             <a href="beheer.html" class="nav__item" id="nav-beheer">Beheer</a>
           </li>
-  
-          <!-- Altijd aanwezig; tekst/actie wisselt: Inloggen ↔ Uitloggen -->
           <li class="nav-auth-item">
             <button class="btn-login" id="nav-auth">Inloggen</button>
           </li>
@@ -73,19 +67,20 @@
     </nav>
   </header>
 
-  <!-- hoofdcontent moet id="main" hebben voor inert/focus-trap -->
+  <!-- main moet id="main" hebben voor inert/focus trap -->
   <main id="main" class="container">
     <section class="card" aria-labelledby="h-upload">
       <h2 id="h-upload">Mest uploaden</h2>
+
       <form id="uploadForm" class="row row-2" novalidate>
         <div>
           <label for="naam">Naam<span aria-hidden="true">*</span></label>
           <input id="naam" name="naam" placeholder="Bijv. Mest opslag 34" maxlength="60" required/>
         </div>
 
-        <!-- NIEUW: lijst per categorie met type-knoppen (single select) -->
+        <!-- Keuze per categorie met type-knoppen (single select) -->
         <div id="mestChoiceList" style="grid-column:1 / -1;">
-          <!-- Wordt dynamisch gevuld vanuit data/mestsoorten.json -->
+          <!-- Wordt dynamisch gevuld vanuit data/mestsoorten.json door upload.js -->
         </div>
 
         <div>
@@ -105,7 +100,10 @@
         </div>
 
         <div class="row" style="grid-column:1 / -1;">
-          <label><input type="checkbox" id="useProfilePostcode" checked/> Laadlocatie = postcode bedrijfsadres</label>
+          <label>
+            <input type="checkbox" id="useProfilePostcode" checked/>
+            Laadlocatie = postcode bedrijfsadres
+          </label>
           <div id="postcodeWrap" style="display:none;">
             <label for="postcode">Postcode (NL)</label>
             <input id="postcode" placeholder="1234 AB"/>
@@ -114,16 +112,16 @@
 
         <fieldset class="row" style="grid-column:1 / -1;">
           <legend>Analyse (uit bestand)</legend>
-          <div><label>Droge stof (DS%)</label><input id="DS_percent" class="readonly" readonly/></div>
-          <div><label>Stikstof (N kg/ton)</label><input id="N_kg_per_ton" class="readonly" readonly/></div>
-          <div><label>Fosfor (P kg/ton)</label><input id="P_kg_per_ton" class="readonly" readonly/></div>
-          <div><label>Kalium (K kg/ton)</label><input id="K_kg_per_ton" class="readonly" readonly/></div>
-          <div><label>OS % (optioneel)</label><input id="OS_percent" class="readonly" readonly/></div>
-          <div><label>Biogas m³/ton (optioneel)</label><input id="Biogas" class="readonly" readonly/></div>
+          <div><label for="DS_percent">Droge stof (DS%)</label><input id="DS_percent" class="readonly" readonly/></div>
+          <div><label for="N_kg_per_ton">Stikstof (N kg/ton)</label><input id="N_kg_per_ton" class="readonly" readonly/></div>
+          <div><label for="P_kg_per_ton">Fosfor (P kg/ton)</label><input id="P_kg_per_ton" class="readonly" readonly/></div>
+          <div><label for="K_kg_per_ton">Kalium (K kg/ton)</label><input id="K_kg_per_ton" class="readonly" readonly/></div>
+          <div><label for="OS_percent">OS % (optioneel)</label><input id="OS_percent" class="readonly" readonly/></div>
+          <div><label for="Biogas">Biogas m³/ton (optioneel)</label><input id="Biogas" class="readonly" readonly/></div>
           <div class="muted" style="grid-column:1/-1;">Velden zijn read-only en komen uit de analyse. Mist er iets? Beheerder kijkt mee.</div>
         </fieldset>
 
-        <div class="actions" style="grid-column:1 / -1;">
+        <div class="actions" style="grid-column:1 / -1; display:flex; gap:.5rem; flex-wrap:wrap;">
           <button class="btn-primary" id="btnSubmit" type="submit">Opslaan (in behandeling)</button>
         </div>
       </form>
@@ -135,14 +133,13 @@
     </section>
   </main>
 
-  <!-- optioneel: footer voor inert -->
+  <!-- footer id=footer t.b.v. inert-logica -->
   <footer id="footer"></footer>
 
   <!-- Pagina-scripts -->
   <script type="module" src="utils.js"></script>
   <script type="module" src="upload.js"></script>
-
-  <!-- NAV init: als LAATSTE, net boven </body> -->
+  <script type="module" src="nav.js"></script>
   <script type="module">
     import { initNavMenu } from './nav-menu.js';
     initNavMenu({ menuId: 'site-menu', toggleId: 'nav-toggle' });
