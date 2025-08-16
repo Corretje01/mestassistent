@@ -4,136 +4,244 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>Mest uploaden – KoeHandelaar</title>
+  <title>Mest uploaden – MestAssistent</title>
   <link rel="stylesheet" href="style.css"/>
 
-  <!-- Supabase in head (zelfde als andere pagina's) -->
+  <!-- Supabase in head (net als andere pagina's) -->
   <script type="module" src="supabaseClient.js"></script>
 
-  <!-- (Optioneel) kleine tabel-stijlen die niet conflicteren met site.css -->
+  <!-- Minimal, scoped form styles (complementair aan style.css) -->
   <style>
     .container { max-width: 980px; margin: 0 auto; padding: 1rem; }
-    .card { background: #fff; border-radius: 12px; padding: 1rem; box-shadow: 0 8px 28px rgba(0,0,0,.05); margin-bottom: 1rem; }
-    .row { display: grid; grid-template-columns: 1fr; gap: .75rem; }
-    @media (min-width: 720px){ .row-2 { grid-template-columns: 1fr 1fr; } }
-    label { font-weight: 600; }
-    input, select, button { width: 100%; }
-    .muted { color:#666; font-size:.9rem; }
-    .readonly { background: #fafafa; }
+    .card { background:#fff; border-radius: 14px; padding: 1.25rem; box-shadow: 0 10px 30px rgba(0,0,0,.06); margin-bottom: 1.25rem; }
+    .form-grid { display: grid; gap: 1rem; }
+    @media (min-width: 720px){ .cols-2 { grid-template-columns: 1fr 1fr; } }
+    .form-section { border: 1px solid #f1f1f1; border-radius: 12px; padding: 1rem; background: #fafafa; }
+    .section-header { display: flex; align-items: center; gap: .5rem; margin-bottom: .75rem; }
+    .step-badge { display:inline-flex; align-items:center; justify-content:center; min-width:26px; height:26px; padding:0 6px; border-radius: 999px; background: var(--color-yellow); color: var(--color-black); font-weight: 700; font-size:.9rem; }
+    .section-title { margin:0; font-size:1.05rem; }
+
+    .field { display:flex; flex-direction: column; gap: .35rem; }
+    .label { font-weight: 600; color: var(--color-black); }
+    .hint { color:#6b7280; font-size:.9rem; }
+    .control { position: relative; }
+    .input, .select, .file {
+      width:100%; border:1px solid #e5e7eb; background:#fff; color:#111827;
+      border-radius: 10px; padding: .7rem .85rem; outline: none;
+      transition: border-color .15s ease, box-shadow .15s ease, background-color .15s ease;
+    }
+    .input:focus, .select:focus, .file:focus {
+      border-color: var(--color-yellow);
+      box-shadow: 0 0 0 3px rgba(241,196,15,.25);
+      background:#fff;
+    }
+    .input[readonly] { background: #f9fafb; color:#4b5563; }
+
+    /* input met addon (€, ton) */
+    .addon-wrap { position: relative; }
+    .addon { position:absolute; left:.6rem; top:50%; transform: translateY(-50%); color:#6b7280; font-weight:600; }
+    .addon-right { left:auto; right:.6rem; }
+    .addon-wrap .input { padding-left: 2rem; }
+    .addon-wrap .input.addon-right-pad { padding-right: 2.2rem; }
+
+    /* tabel overzicht */
     table { width:100%; border-collapse: collapse; }
-    th, td { padding:.6rem; border-bottom: 1px solid #eee; vertical-align: top; }
-    .right { text-align: right; }
+    th, td { padding:.65rem; border-bottom: 1px solid #eee; vertical-align: top; }
+    .right { text-align:right; }
+
+    /* Mestselectie-knoppen, gelijk aan mestplan */
+    .category { display:flex; align-items:flex-start; gap:.75rem; flex-wrap:wrap; margin-bottom: .75rem; }
+    .category__label { width: 140px; min-width:140px; font-weight:700; font-size:.95rem; padding-top:.35rem; }
+    .category__choices { display:flex; flex-wrap:wrap; gap:.35rem; }
+    .btn.mest-btn { border: 2px solid var(--color-black); background: var(--color-white); color: var(--color-black); padding:.5rem .8rem; border-radius: 8px; font-size:.92rem; cursor:pointer; transition: background .18s, border-color .18s, transform .08s; }
+    .btn.mest-btn:hover { transform: translateY(-1px); }
+    .category input[type="radio"] { position:absolute; opacity:0; pointer-events:none; width:0; height:0; }
+    .category input[type="radio"]:checked + label { background: var(--color-yellow); border-color: var(--color-yellow); }
+    .category input[type="radio"]:focus + label { outline: 3px solid rgba(241,196,15,.35); outline-offset: 2px; }
+
+    .actions { display:flex; gap:.75rem; flex-wrap:wrap; }
+    .muted { color:#6b7280; font-size:.9rem; }
+
+    /* Postcode toggle rij */
+    .inline-toggle { display:flex; gap:.75rem; flex-wrap:wrap; align-items:center; }
+    .inline-toggle .field { flex: 1 1 280px; margin: 0; }
+
+    /* kleine badge voor status */
+    .status-note { font-size:.9rem; color:#6b7280; }
+
+    /* behoud fout-styles uit utils */
+    .input-error { border-color: #c62828; }
+    [data-error]::after { content: attr(data-error); color: #c62828; font-size: .85rem; display:block; margin-top:.25rem; }
   </style>
 </head>
 <body>
-  <!-- NAV / HEADER (uniform op alle pagina's) -->
+  <!-- NAV / HEADER (uniform) -->
   <header class="site-header">
     <nav class="navbar">
-      <!-- Home: altijd relatief -->
       <a href="index.html" class="nav-logo">KoeHandelaar</a>
-
-      <!-- Hamburger (mobiel) -->
       <button id="nav-toggle" class="nav-toggle" aria-label="Menu" aria-controls="site-menu" aria-expanded="false">
         <span class="bars" aria-hidden="true"></span>
       </button>
-
-      <!-- Menu (overlay mobiel, inline desktop) -->
       <div id="site-menu" class="site-menu" hidden>
-        <button id="nav-close" class="nav-close" aria-label="Menu sluiten">
-          <span aria-hidden="true">&times;</span>
-        </button>
-
+        <button id="nav-close" class="nav-close" aria-label="Menu sluiten"><span aria-hidden="true">&times;</span></button>
         <ul class="nav-links">
-          <li class="auth-only">
-            <a href="stap1.html" class="nav__item" id="nav-bereken">Bereken plaatsingsruimte</a>
-          </li>
-          <li class="auth-only">
-            <a href="mestplan.html" class="nav__item" id="nav-mestplan">Maak mestplan</a>
-          </li>
-          <li class="auth-only">
-            <a href="upload.html" class="nav__item" id="nav-upload">Mest uploaden</a>
-          </li>
-          <li class="auth-only">
-            <a href="account.html" class="nav__item" id="nav-account">Mijn account</a>
-          </li>
-          <li class="auth-only admin-only">
-            <a href="beheer.html" class="nav__item" id="nav-beheer">Beheer</a>
-          </li>
-          <li class="nav-auth-item">
-            <button class="btn-login" id="nav-auth">Inloggen</button>
-          </li>
+          <li class="auth-only"><a href="stap1.html" class="nav__item" id="nav-bereken">Bereken plaatsingsruimte</a></li>
+          <li class="auth-only"><a href="mestplan.html" class="nav__item" id="nav-mestplan">Maak mestplan</a></li>
+          <li class="auth-only"><a href="upload.html" class="nav__item" id="nav-upload">Mest uploaden</a></li>
+          <li class="auth-only"><a href="account.html" class="nav__item" id="nav-account">Mijn account</a></li>
+          <li class="auth-only admin-only"><a href="beheer.html" class="nav__item" id="nav-beheer">Beheer</a></li>
+          <li class="nav-auth-item"><button class="btn-login" id="nav-auth">Inloggen</button></li>
         </ul>
       </div>
     </nav>
   </header>
 
-  <!-- main moet id="main" hebben voor inert/focus trap -->
+  <!-- MAIN -->
   <main id="main" class="container">
     <section class="card" aria-labelledby="h-upload">
-      <h2 id="h-upload">Mest uploaden</h2>
+      <h2 id="h-upload" style="margin-bottom:.5rem;">Mest uploaden</h2>
+      <p class="muted" style="margin-bottom:1rem;">Vul de velden hieronder in. <em>De analyse upload je als laatste stap.</em></p>
 
-      <form id="uploadForm" class="row row-2" novalidate>
-        <div>
-          <label for="naam">Naam<span aria-hidden="true">*</span></label>
-          <input id="naam" name="naam" placeholder="Bijv. Mest opslag 34" maxlength="60" required/>
+      <form id="uploadForm" class="form-grid" novalidate>
+        <!-- Stap 1: kies mestsoort -->
+        <div class="form-section">
+          <div class="section-header">
+            <span class="step-badge">1</span>
+            <h3 class="section-title">Kies mestsoort</h3>
+          </div>
+          <div id="mestChoiceList" aria-describedby="mestChoiceHelp">
+            <!-- Wordt dynamisch gevuld vanuit data/mestsoorten.json (upload.js) -->
+          </div>
+          <div id="mestChoiceHelp" class="hint">Je kunt <strong>één</strong> mestsoort selecteren. De waarden uit de analyse worden hieraan gekoppeld.</div>
         </div>
 
-        <!-- Keuze per categorie met type-knoppen (single select) -->
-        <div id="mestChoiceList" style="grid-column:1 / -1;">
-          <!-- Wordt dynamisch gevuld vanuit data/mestsoorten.json door upload.js -->
-        </div>
-
-        <div>
-          <label for="file">Analyse (PDF/JPG/PNG) <span aria-hidden="true">*</span></label>
-          <input id="file" type="file" accept=".pdf,.png,.jpg,.jpeg" required/>
-          <div class="muted">Max 10 MB. Wordt niet publiek gedeeld.</div>
-        </div>
-
-        <div>
-          <label for="inkoopprijs">Inkoopprijs per ton (€)<span aria-hidden="true">*</span></label>
-          <input id="inkoopprijs" inputmode="decimal" placeholder="Bijv. 12.50" required/>
-        </div>
-
-        <div>
-          <label for="aantalTon">Aantal ton<span aria-hidden="true">*</span></label>
-          <input id="aantalTon" inputmode="decimal" placeholder="Bijv. 80" required/>
-        </div>
-
-        <div class="row" style="grid-column:1 / -1;">
-          <label>
-            <input type="checkbox" id="useProfilePostcode" checked/>
-            Laadlocatie = postcode bedrijfsadres
-          </label>
-          <div id="postcodeWrap" style="display:none;">
-            <label for="postcode">Postcode (NL)</label>
-            <input id="postcode" placeholder="1234 AB"/>
+        <!-- Stap 2: basisgegevens -->
+        <div class="form-section">
+          <div class="section-header">
+            <span class="step-badge">2</span>
+            <h3 class="section-title">Basisgegevens</h3>
+          </div>
+          <div class="form-grid cols-2">
+            <div class="field" style="grid-column: 1 / -1;">
+              <label for="naam" class="label">Naam<span aria-hidden="true">*</span></label>
+              <div class="control">
+                <input id="naam" name="naam" class="input" placeholder="Bijv. Mest opslag 34" maxlength="60" required/>
+              </div>
+              <div class="hint">2–60 tekens. Handig: locatie of opslagnummer.</div>
+            </div>
           </div>
         </div>
 
-        <fieldset class="row" style="grid-column:1 / -1;">
-          <legend>Analyse (uit bestand)</legend>
-          <div><label for="DS_percent">Droge stof (DS%)</label><input id="DS_percent" class="readonly" readonly/></div>
-          <div><label for="N_kg_per_ton">Stikstof (N kg/ton)</label><input id="N_kg_per_ton" class="readonly" readonly/></div>
-          <div><label for="P_kg_per_ton">Fosfor (P kg/ton)</label><input id="P_kg_per_ton" class="readonly" readonly/></div>
-          <div><label for="K_kg_per_ton">Kalium (K kg/ton)</label><input id="K_kg_per_ton" class="readonly" readonly/></div>
-          <div><label for="OS_percent">OS % (optioneel)</label><input id="OS_percent" class="readonly" readonly/></div>
-          <div><label for="Biogas">Biogas m³/ton (optioneel)</label><input id="Biogas" class="readonly" readonly/></div>
-          <div class="muted" style="grid-column:1/-1;">Velden zijn read-only en komen uit de analyse. Mist er iets? Beheerder kijkt mee.</div>
-        </fieldset>
+        <!-- Stap 3: prijs & hoeveelheid -->
+        <div class="form-section">
+          <div class="section-header">
+            <span class="step-badge">3</span>
+            <h3 class="section-title">Prijs & hoeveelheid</h3>
+          </div>
+          <div class="form-grid cols-2">
+            <div class="field">
+              <label for="inkoopprijs" class="label">Inkoopprijs per ton (€)<span aria-hidden="true">*</span></label>
+              <div class="control addon-wrap">
+                <span class="addon">€</span>
+                <input id="inkoopprijs" class="input" inputmode="decimal" placeholder="Bijv. 12.50" required/>
+              </div>
+              <div class="hint">> 0 en maximaal 2 decimalen.</div>
+            </div>
 
-        <div class="actions" style="grid-column:1 / -1; display:flex; gap:.5rem; flex-wrap:wrap;">
+            <div class="field">
+              <label for="aantalTon" class="label">Aantal ton<span aria-hidden="true">*</span></label>
+              <div class="control addon-wrap">
+                <input id="aantalTon" class="input addon-right-pad" inputmode="decimal" placeholder="Bijv. 80" required/>
+                <span class="addon addon-right">ton</span>
+              </div>
+              <div class="hint">> 0 en maximaal 2 decimalen.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Stap 4: laadlocatie -->
+        <div class="form-section">
+          <div class="section-header">
+            <span class="step-badge">4</span>
+            <h3 class="section-title">Laadlocatie</h3>
+          </div>
+          <div class="inline-toggle">
+            <label class="label" style="display:flex; align-items:center; gap:.5rem;">
+              <input type="checkbox" id="useProfilePostcode" checked/>
+              Laadlocatie = postcode bedrijfsadres
+            </label>
+            <div id="postcodeWrap" class="field" style="display:none;">
+              <label for="postcode" class="label">Postcode (NL)</label>
+              <div class="control">
+                <input id="postcode" class="input" placeholder="1234 AB"/>
+              </div>
+              <div class="hint">Formaat: 1234 AB. Wordt automatisch netjes geformatteerd.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Stap 5: analyse (als laatste) -->
+        <div class="form-section">
+          <div class="section-header">
+            <span class="step-badge">5</span>
+            <h3 class="section-title">Analyse uploaden</h3>
+          </div>
+
+          <div class="form-grid cols-2">
+            <div class="field" style="grid-column: 1 / -1;">
+              <label for="file" class="label">Analysebestand (PDF/JPG/PNG) <span aria-hidden="true">*</span></label>
+              <div class="control">
+                <input id="file" type="file" class="file" accept=".pdf,.png,.jpg,.jpeg" required/>
+              </div>
+              <div class="hint">Max. 10 MB. Bestanden blijven privé. We lezen de belangrijkste waarden automatisch uit.</div>
+            </div>
+
+            <fieldset class="field" style="grid-column: 1 / -1;">
+              <legend class="label" style="margin-bottom:.25rem;">Geëxtraheerde waarden (read-only)</legend>
+              <div class="form-grid cols-2">
+                <div class="field">
+                  <label for="DS_percent" class="label">Droge stof (DS%)</label>
+                  <input id="DS_percent" class="input" readonly/>
+                </div>
+                <div class="field">
+                  <label for="N_kg_per_ton" class="label">Stikstof (N kg/ton)</label>
+                  <input id="N_kg_per_ton" class="input" readonly/>
+                </div>
+                <div class="field">
+                  <label for="P_kg_per_ton" class="label">Fosfor (P kg/ton)</label>
+                  <input id="P_kg_per_ton" class="input" readonly/>
+                </div>
+                <div class="field">
+                  <label for="K_kg_per_ton" class="label">Kalium (K kg/ton)</label>
+                  <input id="K_kg_per_ton" class="input" readonly/>
+                </div>
+                <div class="field">
+                  <label for="OS_percent" class="label">OS % (optioneel)</label>
+                  <input id="OS_percent" class="input" readonly/>
+                </div>
+                <div class="field">
+                  <label for="Biogas" class="label">Biogas m³/ton (optioneel)</label>
+                  <input id="Biogas" class="input" readonly/>
+                </div>
+              </div>
+              <p class="status-note">Ontbreekt er iets? De upload kan gewoon als <em>“in behandeling”</em> worden opgeslagen; een beheerder kan corrigeren.</p>
+            </fieldset>
+          </div>
+        </div>
+
+        <div class="actions">
           <button class="btn-primary" id="btnSubmit" type="submit">Opslaan (in behandeling)</button>
         </div>
       </form>
     </section>
 
     <section class="card" aria-labelledby="h-overview">
-      <h2 id="h-overview">Mijn uploads</h2>
+      <h2 id="h-overview" style="margin-bottom:.25rem;">Mijn uploads</h2>
+      <div class="muted" style="margin-bottom:.5rem;">Wijzig hier alleen prijs/ton, aantal ton en postcode. Nutrient-waarden zijn read-only.</div>
       <div id="myUploads"></div>
     </section>
   </main>
 
-  <!-- footer id=footer t.b.v. inert-logica -->
   <footer id="footer"></footer>
 
   <!-- Pagina-scripts -->
