@@ -7,10 +7,10 @@
   <title>Mest uploaden – MestAssistent</title>
   <link rel="stylesheet" href="style.css"/>
 
-  <!-- Supabase in head (net als andere pagina's) -->
+  <!-- Supabase in head (zoals op je andere pagina's) -->
   <script type="module" src="supabaseClient.js"></script>
 
-  <!-- Minimal, scoped form styles (complementair aan style.css) -->
+  <!-- Pagina-specifieke (scoped) form styles -->
   <style>
     .container { max-width: 980px; margin: 0 auto; padding: 1rem; }
     .card { background:#fff; border-radius: 14px; padding: 1.25rem; box-shadow: 0 10px 30px rgba(0,0,0,.06); margin-bottom: 1.25rem; }
@@ -49,7 +49,7 @@
     th, td { padding:.65rem; border-bottom: 1px solid #eee; vertical-align: top; }
     .right { text-align:right; }
 
-    /* Mestselectie-knoppen, gelijk aan mestplan */
+    /* Mestselectie-knoppen (zelfde look als mestplan) */
     .category { display:flex; align-items:flex-start; gap:.75rem; flex-wrap:wrap; margin-bottom: .75rem; }
     .category__label { width: 140px; min-width:140px; font-weight:700; font-size:.95rem; padding-top:.35rem; }
     .category__choices { display:flex; flex-wrap:wrap; gap:.35rem; }
@@ -58,6 +58,14 @@
     .category input[type="radio"] { position:absolute; opacity:0; pointer-events:none; width:0; height:0; }
     .category input[type="radio"]:checked + label { background: var(--color-yellow); border-color: var(--color-yellow); }
     .category input[type="radio"]:focus + label { outline: 3px solid rgba(241,196,15,.35); outline-offset: 2px; }
+
+    /* Sign segmented control (vraagprijs ±) */
+    .segmented { display:inline-flex; border:1px solid #e5e7eb; border-radius: 10px; overflow:hidden; background:#fff; }
+    .segmented button {
+      appearance: none; border:0; background:transparent; padding:.55rem .8rem; font-weight:600; cursor:pointer;
+    }
+    .segmented button[aria-pressed="true"] { background: var(--color-yellow); color: var(--color-black); }
+    .segmented button:focus-visible { outline:3px solid rgba(241,196,15,.35); outline-offset: -2px; }
 
     .actions { display:flex; gap:.75rem; flex-wrap:wrap; }
     .muted { color:#6b7280; font-size:.9rem; }
@@ -69,21 +77,26 @@
     /* kleine badge voor status */
     .status-note { font-size:.9rem; color:#6b7280; }
 
-    /* behoud fout-styles uit utils */
+    /* fout-styles (worden vanuit utils gezet) */
     .input-error { border-color: #c62828; }
     [data-error]::after { content: attr(data-error); color: #c62828; font-size: .85rem; display:block; margin-top:.25rem; }
   </style>
 </head>
 <body>
-  <!-- NAV / HEADER (uniform) -->
+  <!-- NAV / HEADER -->
   <header class="site-header">
     <nav class="navbar">
       <a href="index.html" class="nav-logo">KoeHandelaar</a>
+
       <button id="nav-toggle" class="nav-toggle" aria-label="Menu" aria-controls="site-menu" aria-expanded="false">
         <span class="bars" aria-hidden="true"></span>
       </button>
+
       <div id="site-menu" class="site-menu" hidden>
-        <button id="nav-close" class="nav-close" aria-label="Menu sluiten"><span aria-hidden="true">&times;</span></button>
+        <button id="nav-close" class="nav-close" aria-label="Menu sluiten">
+          <span aria-hidden="true">&times;</span>
+        </button>
+
         <ul class="nav-links">
           <li class="auth-only"><a href="stap1.html" class="nav__item" id="nav-bereken">Bereken plaatsingsruimte</a></li>
           <li class="auth-only"><a href="mestplan.html" class="nav__item" id="nav-mestplan">Maak mestplan</a></li>
@@ -110,7 +123,7 @@
             <h3 class="section-title">Kies mestsoort</h3>
           </div>
           <div id="mestChoiceList" aria-describedby="mestChoiceHelp">
-            <!-- Wordt dynamisch gevuld vanuit data/mestsoorten.json (upload.js) -->
+            <!-- dynamisch gevuld via upload.js uit data/mestsoorten.json -->
           </div>
           <div id="mestChoiceHelp" class="hint">Je kunt <strong>één</strong> mestsoort selecteren. De waarden uit de analyse worden hieraan gekoppeld.</div>
         </div>
@@ -139,22 +152,34 @@
             <h3 class="section-title">Prijs & hoeveelheid</h3>
           </div>
           <div class="form-grid cols-2">
+            <!-- Vraagprijs per ton met ± toggle -->
             <div class="field">
-              <label for="inkoopprijs" class="label">Inkoopprijs per ton (€)<span aria-hidden="true">*</span></label>
-              <div class="control addon-wrap">
-                <span class="addon">€</span>
-                <input id="inkoopprijs" class="input" inputmode="decimal" placeholder="Bijv. 12.50" required/>
+              <label for="inkoopprijs" class="label">Vraagprijs per ton (€)<span aria-hidden="true">*</span></label>
+              <div class="control" style="display:flex; gap:.5rem; align-items:center;">
+                <!-- segmented sign control -->
+                <div class="segmented" data-role="price-sign" aria-label="Teken van de vraagprijs">
+                  <button type="button" aria-pressed="true"  data-sign="pos" title="Ik ontvang geld (positief)">+</button>
+                  <button type="button" aria-pressed="false" data-sign="neg" title="Ik betaal bij (negatief)">−</button>
+                </div>
+                <!-- hidden field dat upload.js leest -->
+                <input type="hidden" id="priceSign" value="pos" />
+                <!-- bedrag -->
+                <div class="addon-wrap" style="flex:1;">
+                  <span class="addon">€</span>
+                  <input id="inkoopprijs" class="input" inputmode="decimal" placeholder="Bijv. 12.50" autocomplete="off" required/>
+                </div>
               </div>
-              <div class="hint">> 0 en maximaal 2 decimalen.</div>
+              <div class="hint">Positief = je ontvangt; negatief = je legt bij. Maximaal 2 decimalen.</div>
             </div>
 
+            <!-- Aantal ton (altijd hele getallen) -->
             <div class="field">
               <label for="aantalTon" class="label">Aantal ton<span aria-hidden="true">*</span></label>
               <div class="control addon-wrap">
-                <input id="aantalTon" class="input addon-right-pad" inputmode="decimal" placeholder="Bijv. 80" required/>
+                <input id="aantalTon" class="input addon-right-pad" inputmode="numeric" placeholder="Bijv. 80" autocomplete="off" required/>
                 <span class="addon addon-right">ton</span>
               </div>
-              <div class="hint">> 0 en maximaal 2 decimalen.</div>
+              <div class="hint">Alleen hele aantallen &gt; 0 (geen decimalen).</div>
             </div>
           </div>
         </div>
@@ -173,9 +198,9 @@
             <div id="postcodeWrap" class="field" style="display:none;">
               <label for="postcode" class="label">Postcode (NL)</label>
               <div class="control">
-                <input id="postcode" class="input" placeholder="1234 AB"/>
+                <input id="postcode" class="input" placeholder="1234 AB" inputmode="text" autocomplete="postal-code"/>
               </div>
-              <div class="hint">Formaat: 1234 AB. Wordt automatisch netjes geformatteerd.</div>
+              <div class="hint">We forceren automatisch het formaat <strong>1234 AB</strong>.</div>
             </div>
           </div>
         </div>
@@ -248,9 +273,69 @@
   <script type="module" src="utils.js"></script>
   <script type="module" src="upload.js"></script>
   <script type="module" src="nav.js"></script>
+
+  <!-- Nav init -->
   <script type="module">
     import { initNavMenu } from './nav-menu.js';
     initNavMenu({ menuId: 'site-menu', toggleId: 'nav-toggle' });
+  </script>
+
+  <!-- Kleine UX-masks (prijs ±, 2 decimals; ton integer; postcode 1234 AB) -->
+  <script type="module">
+    import { normalizePostcodeLive, formatPostcode } from './utils.js';
+
+    // Sign segmented control -> hidden #priceSign
+    const signWrap = document.querySelector('[data-role="price-sign"]');
+    const signPos  = signWrap?.querySelector('button[data-sign="pos"]');
+    const signNeg  = signWrap?.querySelector('button[data-sign="neg"]');
+    const signHidden = document.getElementById('priceSign');
+
+    function setSign(mode){
+      if (!signHidden) return;
+      signHidden.value = mode;
+      if (signPos && signNeg) {
+        signPos.setAttribute('aria-pressed', String(mode === 'pos'));
+        signNeg.setAttribute('aria-pressed', String(mode === 'neg'));
+      }
+    }
+    signPos?.addEventListener('click', () => setSign('pos'));
+    signNeg?.addEventListener('click', () => setSign('neg'));
+    // default
+    setSign('pos');
+
+    // Prijs: sta alleen 0..2 decimalen toe (geen minteken; minteken via toggle)
+    const elPrijs = document.getElementById('inkoopprijs');
+    if (elPrijs) {
+      elPrijs.addEventListener('input', () => {
+        let s = elPrijs.value.replace(',', '.').replace(/[^\d.]/g,'');
+        const parts = s.split('.');
+        if (parts.length > 2) {
+          s = parts[0] + '.' + parts.slice(1).join(''); // haal extra puntjes weg
+        }
+        const [int = '', dec = ''] = s.split('.');
+        const capped = int + (dec !== '' ? '.' + dec.slice(0,2) : '');
+        elPrijs.value = capped;
+      });
+    }
+
+    // Ton: alleen hele getallen
+    const elTon = document.getElementById('aantalTon');
+    if (elTon) {
+      elTon.addEventListener('input', () => {
+        elTon.value = (elTon.value || '').replace(/\D/g,'');
+      });
+    }
+
+    // Postcode live mask: 1234 AB
+    const elPC = document.getElementById('postcode');
+    if (elPC) {
+      elPC.addEventListener('input', () => {
+        elPC.value = normalizePostcodeLive(elPC.value);
+      });
+      elPC.addEventListener('blur', () => {
+        elPC.value = formatPostcode(elPC.value);
+      });
+    }
   </script>
 </body>
 </html>
