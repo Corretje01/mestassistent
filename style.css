@@ -642,3 +642,24 @@ body.is-auth  .guest-only { display: none !important; }
     align-items: center;
   }
 }
+
+/* === Mestselectie: single-select (radio) variant === */
+.category input[type="radio"] {
+  /* non-visual maar toegankelijk */
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+  width: 0; height: 0;
+}
+
+.category input[type="radio"]:focus + label {
+  outline: 3px solid rgba(241,196,15,.6);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Zelfde highlight als checkbox-variant */
+.category input[type="radio"]:checked + label {
+  background: var(--color-yellow);
+  border-color: var(--color-yellow);
+}
