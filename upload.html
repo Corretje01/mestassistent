@@ -282,7 +282,7 @@
 
   <!-- Kleine UX-masks (prijs ±, 2 decimals; ton integer; postcode 1234 AB) -->
   <script type="module">
-    import { normalizePostcodeLive, formatPostcode } from './utils.js';
+    import { formatPostcode } from './utils.js';
 
     // Sign segmented control -> hidden #priceSign
     const signWrap = document.querySelector('[data-role="price-sign"]');
@@ -359,14 +359,42 @@
       });
     }
 
-    // Postcode live mask: 1234 AB
+    // Postcode live mask: "1234 AB" — spatie pas tonen als er 1+ letters zijn
     const elPC = document.getElementById('postcode');
     if (elPC) {
-      elPC.addEventListener('input', () => {
-        elPC.value = normalizePostcodeLive(elPC.value);
+      // Backspace over de spatie: verwijder de spatie en zet caret goed
+      elPC.addEventListener('keydown', (e) => {
+        if (e.key !== 'Backspace') return;
+        const start = elPC.selectionStart;
+        const end   = elPC.selectionEnd;
+        const val   = elPC.value;
+    
+        // Alleen bij caret zonder selectie, direct ná de spatie ("1234⎵AB" => index 5)
+        if (start === end && start > 0 && val[start - 1] === ' ' && /^\d{4} $/.test(val.slice(0, start))) {
+          e.preventDefault();
+          // Verwijder de spatie en zet caret één naar links
+          elPC.value = val.slice(0, start - 1) + val.slice(start);
+          elPC.setSelectionRange(start - 1, start - 1);
+        }
       });
+    
+      // Live normalisatie: 4 cijfers + optioneel spatie + max 2 hoofdletters
+      elPC.addEventListener('input', () => {
+        const raw = elPC.value;
+        const digits  = raw.replace(/\D/g, '').slice(0, 4);
+        const letters = raw.replace(/[^a-zA-Z]/g, '').toUpperCase().slice(0, 2);
+    
+        let out = digits;
+        if (letters.length) out += ' ' + letters; // spatie alleen als er letters zijn
+        elPC.value = out;
+      });
+    
+      // Bij verlaten veld: laatste nette format
       elPC.addEventListener('blur', () => {
-        elPC.value = formatPostcode(elPC.value);
+        const raw = elPC.value;
+        const digits  = raw.replace(/\D/g, '').slice(0, 4);
+        const letters = raw.replace(/[^a-zA-Z]/g, '').toUpperCase().slice(0, 2);
+        elPC.value = digits + (letters ? ' ' + letters : '');
       });
     }
   </script>
