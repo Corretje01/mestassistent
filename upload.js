@@ -14,16 +14,18 @@ import {
 
 const form = document.getElementById('uploadForm');
 const elNaam = document.getElementById('naam');
-const elCat  = document.getElementById('categorie');
-const elType = document.getElementById('type');
 const elFile = document.getElementById('file');
 const elPrijs= document.getElementById('inkoopprijs');
 const elTon  = document.getElementById('aantalTon');
+
+const grpCat   = document.getElementById('catChoices');
+const grpType  = document.getElementById('typeChoices');
+
 const cbUseProfile = document.getElementById('useProfilePostcode');
 const wrapPostcode = document.getElementById('postcodeWrap');
-const elPostcode = document.getElementById('postcode');
-const btnSubmit = document.getElementById('btnSubmit');
-const myUploads = document.getElementById('myUploads');
+const elPostcode   = document.getElementById('postcode');
+const btnSubmit    = document.getElementById('btnSubmit');
+const myUploads    = document.getElementById('myUploads');
 
 // Analyse fields (read-only)
 const elDS  = document.getElementById('DS_percent');
@@ -34,6 +36,9 @@ const elOS  = document.getElementById('OS_percent');
 const elBio = document.getElementById('Biogas');
 
 let session, profile, userId;
+let mestsoortenCache = [];
+let selectedCat = null;
+let selectedType = null;
 
 // init
 (async function init(){
@@ -45,22 +50,21 @@ let session, profile, userId;
   }
   userId = session.user.id;
 
-  // fetch profile (voor evt. postcode)
+  // haal profiel (voor evt. postcode uit metadata/profiles)
   const { data: prof } = await supabase.from('profiles').select('*').eq('id', userId).single();
   profile = prof || {};
 
-  // Slimme default voor checkbox o.b.v. profiel of user_metadata
+  // Postcode default (profiel of metadata)
   const profilePostcode = getProfilePostcode();
   cbUseProfile.checked = !!profilePostcode;
   wrapPostcode.style.display = cbUseProfile.checked ? 'none' : 'block';
-
   cbUseProfile.addEventListener('change', () => {
     wrapPostcode.style.display = cbUseProfile.checked ? 'none' : 'block';
     if (!cbUseProfile.checked) elPostcode.focus();
   });
 
-  // Categorie/Type dropdowns vanuit mestsoorten.json
-  await loadMestSoortenOptions();
+  // Laad mestsoorten + render knoppen
+  await loadMestSoortenChoices();
 
   // Bestands-analyse auto-start na selectie
   elFile.addEventListener('change', handleFileChange);
@@ -68,50 +72,83 @@ let session, profile, userId;
   // Form submit
   form.addEventListener('submit', onSubmit);
 
-  // Load my uploads
+  // Mijn uploads
   await loadMyUploads();
 })();
 
 function getProfilePostcode() {
-  // leest eerst user_metadata.postcode, dan profiles.postcode (indien aanwezig)
   return session?.user?.user_metadata?.postcode || profile?.postcode || null;
 }
 
-async function loadMestSoortenOptions(){
+/* ========= Mestsoorten UI (single-select) ========= */
+async function loadMestSoortenChoices(){
   try {
     const resp = await fetch('data/mestsoorten.json');
-    const mestsoorten = await resp.json();
-    // Build categorieën
-    const cats = [...new Set(mestsoorten.map(m => m.categorie))];
-    for (const c of cats) {
-      const opt = document.createElement('option');
-      opt.value = c; opt.textContent = labelCategorie(c);
-      elCat.appendChild(opt);
-    }
-    elCat.addEventListener('change', () => {
-      elType.innerHTML = '<option value="">Kies type…</option>';
-      elType.disabled = true;
-      const sel = elCat.value;
-      if (!sel) return;
-      const types = [...new Set(mestsoorten.filter(m => m.categorie===sel).map(m=>m.type))];
-      for (const t of types) {
-        const opt = document.createElement('option');
-        opt.value = t; opt.textContent = labelType(t);
-        elType.appendChild(opt);
-      }
-      elType.disabled = false;
-    });
+    mestsoortenCache = await resp.json();
+    renderCatChoices();
+    renderTypeChoices(); // init leeg/disabled
   } catch (e) {
     console.error(e);
     toast('Kon mestsoorten niet laden.', 'error');
   }
 }
+
 function labelCategorie(c){
   const map = { vaste_mest:'Vaste mest', dikke_fractie:'Dikke fractie', drijfmest:'Drijfmest', overig:'Overig' };
   return map[c] || c;
 }
 function labelType(t){ return t.charAt(0).toUpperCase()+t.slice(1); }
 
+function renderCatChoices(){
+  const cats = [...new Set(mestsoortenCache.map(m => m.categorie))];
+  grpCat.innerHTML = cats.map(c => {
+    const id = `cat_${c}`;
+    return `
+      <input type="radio" id="${id}" name="cat" value="${c}">
+      <label for="${id}" class="btn mest-btn">${labelCategorie(c)}</label>
+    `;
+  }).join('');
+
+  grpCat.querySelectorAll('input[name="cat"]').forEach(r => {
+    r.addEventListener('change', () => {
+      selectedCat = r.value;
+      selectedType = null; // reset type
+      renderTypeChoices();
+      clearInlineError(grpCat);
+      clearInlineError(grpType);
+    });
+  });
+}
+
+function renderTypeChoices(){
+  const root = grpType;
+  if (!selectedCat) {
+    root.innerHTML = `<div class="muted">Kies eerst een categorie.</div>`;
+    root.dataset.disabled = 'true';
+    return;
+  }
+  const types = [...new Set(
+    mestsoortenCache.filter(m => m.categorie === selectedCat).map(m => m.type)
+  )];
+
+  root.innerHTML = types.map(t => {
+    const id = `type_${selectedCat}_${t}`;
+    return `
+      <input type="radio" id="${id}" name="type" value="${t}">
+      <label for="${id}" class="btn mest-btn">${labelType(t)}</label>
+    `;
+  }).join('');
+  root.dataset.disabled = 'false';
+
+  root.querySelectorAll('input[name="type"]').forEach(r => {
+    r.addEventListener('change', () => {
+      selectedType = r.value;
+      clearInlineError(grpType);
+    });
+  });
+}
+
+/* ========= Bestandsanalyse ========= */
 async function handleFileChange() {
   clearInlineError(elFile);
   const file = elFile.files?.[0];
@@ -122,9 +159,7 @@ async function handleFileChange() {
   }
   disable(btnSubmit, true);
   try {
-    // Extractie
     const parsed = await extractAnalysis(file);
-    // Zet read-only velden
     elDS.value = toFixedOrEmpty(parsed.DS_percent);
     elN.value  = toFixedOrEmpty(parsed.N_kg_per_ton);
     elP.value  = toFixedOrEmpty(parsed.P_kg_per_ton);
@@ -142,18 +177,22 @@ function toFixedOrEmpty(v){
   return (v===null || v===undefined || v==='') ? '' : Number(v).toFixed(2).replace(/\.00$/,'');
 }
 
+/* ========= Submit ========= */
 async function onSubmit(e){
   e.preventDefault();
+
   // Client validatie
   let ok = true;
-  for (const el of [elNaam, elCat, elType, elFile, elPrijs, elTon, elPostcode]) clearInlineError(el);
+  [elNaam, elFile, elPrijs, elTon, elPostcode, grpCat, grpType].forEach(clearInlineError);
 
   if (!elNaam.value || elNaam.value.trim().length < 2 || elNaam.value.trim().length > 60) {
     showInlineError(elNaam, '2–60 tekens.');
     ok = false;
   }
-  if (!elCat.value) { showInlineError(elCat, 'Kies een categorie.'); ok = false; }
-  if (!elType.value) { showInlineError(elType, 'Kies een type.'); ok = false; }
+
+  // categorie/type vereist
+  if (!selectedCat) { showInlineError(grpCat, 'Kies een categorie.'); ok = false; }
+  if (!selectedType) { showInlineError(grpType, 'Kies een type.'); ok = false; }
 
   const file = elFile.files?.[0];
   if (!file || !isFileAllowed(file)) { showInlineError(elFile, 'Kies een geldig bestand.'); ok = false; }
@@ -169,7 +208,6 @@ async function onSubmit(e){
     if (profilePostcodeNow) {
       postcodeVal = formatPostcode(profilePostcodeNow);
     } else {
-      // Geen postcode bekend in profiel/metadata → switch naar handmatig
       wrapPostcode.style.display = 'block';
       cbUseProfile.checked = false;
       showInlineError(elPostcode, 'Geen postcode in profiel. Vul handmatig in.');
@@ -189,7 +227,7 @@ async function onSubmit(e){
   disable(btnSubmit, true);
 
   try {
-    // 1) Upload bestand -> Storage private bucket
+    // 1) Storage upload
     const now = new Date();
     const fileExt = (file.name?.split('.').pop() || 'bin').toLowerCase();
     const uuid = makeUUID();
@@ -200,12 +238,12 @@ async function onSubmit(e){
       .upload(path, file, { contentType: file.type || 'application/octet-stream', upsert: false });
     if (upErr) throw upErr;
 
-    // 2) Insert mest_uploads (status in_behandeling)
+    // 2) Insert mest_uploads
     const payload = {
       user_id: userId,
       naam: elNaam.value.trim(),
-      mest_categorie: elCat.value,
-      mest_type: elType.value,
+      mest_categorie: selectedCat,
+      mest_type: selectedType,
       file_path: path,
       file_mime: file.type || 'application/octet-stream',
       postcode: postcodeVal,
@@ -225,9 +263,12 @@ async function onSubmit(e){
 
     toast('Upload opgeslagen. Status: In behandeling.', 'success');
 
-    // Form reset + postcode-checkbox weer slim instellen
+    // Reset form
     form.reset();
     [elDS, elN, elP, elK, elOS, elBio].forEach(i => i.value = '');
+    selectedCat = null; selectedType = null;
+    renderCatChoices(); renderTypeChoices();
+
     cbUseProfile.checked = !!profilePostcodeNow;
     wrapPostcode.style.display = cbUseProfile.checked ? 'none' : 'block';
 
@@ -247,21 +288,18 @@ function toNumOrNull(v){
 }
 
 function makeUUID(){
-  // crypto.randomUUID (moderne browsers) + fallback
   if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
   if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
     const bytes = crypto.getRandomValues(new Uint8Array(16));
-    // RFC4122 variant 4
     bytes[6] = (bytes[6] & 0x0f) | 0x40;
     bytes[8] = (bytes[8] & 0x3f) | 0x80;
     const hex = [...bytes].map(b => b.toString(16).padStart(2,'')).join('');
     return `${hex.substr(0,8)}-${hex.substr(8,4)}-${hex.substr(12,4)}-${hex.substr(16,4)}-${hex.substr(20)}`;
   }
-  // worst-case fallback
   return String(Date.now()) + '-' + Math.random().toString(16).slice(2);
 }
 
-// --- Overview "Mijn uploads" ---
+/* --- Overzicht "Mijn uploads" (ongewijzigd) --- */
 async function loadMyUploads(){
   myUploads.innerHTML = 'Laden…';
   const { data, error } = await supabase
@@ -278,9 +316,9 @@ async function loadMyUploads(){
     return;
   }
   myUploads.innerHTML = renderUploadsTable(data);
-  // bind actions
   bindUploadActions(data);
 }
+
 function renderBadge(status){
   const map = { in_behandeling:'gray', gepubliceerd:'green', afgewezen:'red' };
   const cls = map[status] || 'gray';
@@ -330,7 +368,6 @@ function fmtEdit(v){
 function escapeHtml(s){
   return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 }
-
 function bindUploadActions(rows){
   rows.forEach(r => {
     const tr = myUploads.querySelector(`tr[data-id="${r.id}"]`);
@@ -342,7 +379,6 @@ function bindUploadActions(rows){
     const elPC    = tr.querySelector('.e-postcode');
 
     btnSave.addEventListener('click', async () => {
-      // Validatie
       let ok = true;
       [elN, elP, elT, elPC].forEach(clearInlineError);
       if (!elN.value || elN.value.trim().length < 2 || elN.value.trim().length > 60) { showInlineError(elN,'2–60 tekens'); ok=false; }
@@ -352,19 +388,14 @@ function bindUploadActions(rows){
       const pcFmt = formatPostcode(elPC.value);
       if (!ok) return;
 
-      // Beperkte UPDATE (policies + trigger bewaken immutable kolommen)
       const { error } = await supabase.from('mest_uploads').update({
         naam: elN.value.trim(),
         inkoopprijs_per_ton: Number(elP.value),
         aantal_ton: Number(elT.value),
         postcode: pcFmt
       }).eq('id', r.id);
-      if (error) {
-        toast('Opslaan mislukt: ' + error.message, 'error');
-      } else {
-        toast('Bewaard', 'success');
-        await loadMyUploads();
-      }
+      if (error) toast('Opslaan mislukt: ' + error.message, 'error');
+      else { toast('Bewaard', 'success'); await loadMyUploads(); }
     });
 
     btnDel.addEventListener('click', async () => {
