@@ -1,4 +1,4 @@
-// beheer.js (verbeterd)
+// beheer.js
 import { supabase } from './supabaseClient.js';
 import { toast } from './utils.js';
 
@@ -11,7 +11,6 @@ const fType   = document.getElementById('fType');
 const ALLOWED_STATUS = ['in_behandeling', 'gepubliceerd', 'afgewezen'];
 
 let session, userId, isAdmin = false;
-let mestsoortenCache = [];
 
 (async function init() {
   ({ data: { session } } = await supabase.auth.getSession());
@@ -38,21 +37,46 @@ let mestsoortenCache = [];
 })();
 
 function bindFilters() {
-  [fStatus, fCat, fType].forEach(el => el.addEventListener('change', loadList));
-  fQuery.addEventListener('input', debounce(loadList, 300));
+  [fStatus, fCat, fType].forEach(el => el?.addEventListener('change', loadList));
+  fQuery?.addEventListener('input', debounce(loadList, 300));
 }
 
 function debounce(fn, ms) { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; }
 
+// Gebruik nette NL labels voor categorie
+function labelCategorie(c) {
+  const map = { drijfmest: 'Drijfmest', vaste_mest: 'Vaste mest', dikke_fractie: 'Dikke fractie', overig: 'Overig' };
+  return map[c] || String(c).replace(/_/g, ' ');
+}
+
+// Laad mestsoorten.json -> vul filter dropdowns (werkt met array- én object-vorm)
 async function loadMestSoorten() {
   try {
-    const resp = await fetch('data/mestsoorten.json');
-    mestsoortenCache = await resp.json();
-    const cats = [...new Set(mestsoortenCache.map(m => m.categorie))];
-    cats.forEach(c => fCat.appendChild(new Option(c, c)));
-    const types = [...new Set(mestsoortenCache.map(m => m.type))];
-    types.forEach(t => fType.appendChild(new Option(t, t)));
+    const resp = await fetch('data/mestsoorten.json', { cache: 'no-store' });
+    const data = await resp.json();
+
+    let cats = [];
+    let types = [];
+
+    if (Array.isArray(data)) {
+      // oude array-vorm: [{ categorie, type, ... }]
+      cats  = [...new Set(data.map(m => m.categorie).filter(Boolean))];
+      types = [...new Set(data.map(m => m.type).filter(Boolean))];
+    } else if (data && typeof data === 'object') {
+      // object-vorm: { drijfmest: { koe: {...}, varken: {...} }, vaste_mest: {...}, ... }
+      cats = Object.keys(data || {});
+      types = [
+        ...new Set(
+          cats.flatMap(c => Object.keys(data[c] || {}))
+        )
+      ];
+    }
+
+    // vul selects (laat bestaande "Alle ..." optie staan)
+    cats.forEach(c => fCat?.appendChild(new Option(labelCategorie(c), c)));
+    types.forEach(t => fType?.appendChild(new Option(t, t)));
   } catch (e) {
+    console.error(e);
     toast('Kon mestsoorten niet laden.', 'error');
   }
 }
@@ -64,15 +88,15 @@ async function loadList() {
     .select('*')
     .order('created_at', { ascending: false });
 
-  if (fStatus.value) q = q.eq('status', fStatus.value);
-  if (fCat.value)    q = q.eq('mest_categorie', fCat.value);
-  if (fType.value)   q = q.eq('mest_type', fType.value);
+  if (fStatus?.value) q = q.eq('status', fStatus.value);
+  if (fCat?.value)    q = q.eq('mest_categorie', fCat.value);
+  if (fType?.value)   q = q.eq('mest_type', fType.value);
 
   const { data, error } = await q;
   if (error) { listEl.textContent = 'Fout bij laden'; return; }
 
   let rows = data || [];
-  const query = fQuery.value?.toLowerCase().trim();
+  const query = fQuery?.value?.toLowerCase().trim();
   if (query) {
     rows = rows.filter(r =>
       (r.naam || '').toLowerCase().includes(query) ||
@@ -94,12 +118,12 @@ function renderItem(r) {
       <div style="margin:.5rem 0;">
         <div><strong>Bestand:</strong> <button class="a-open">Bekijk analyse</button></div>
         <div class="row" style="display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;margin-top:.5rem;">
-          ${input('DS_percent','DS %', r.DS_percent)}
-          ${input('N_kg_per_ton','N kg/ton', r.N_kg_per_ton)}
-          ${input('P_kg_per_ton','P kg/ton', r.P_kg_per_ton)}
-          ${input('K_kg_per_ton','K kg/ton', r.K_kg_per_ton)}
-          ${input('OS_percent','OS % (opt)', r.OS_percent)}
-          ${input('Biogaspotentieel_m3_per_ton','Biogas m³/ton (opt)', r.Biogaspotentieel_m3_per_ton)}
+          ${input('ds_percent','DS %', r.ds_percent)}
+          ${input('n_kg_per_ton','N kg/ton', r.n_kg_per_ton)}
+          ${input('p_kg_per_ton','P kg/ton', r.p_kg_per_ton)}
+          ${input('k_kg_per_ton','K kg/ton', r.k_kg_per_ton)}
+          ${input('os_percent','OS % (opt)', r.os_percent)}
+          ${input('biogaspotentieel_m3_per_ton','Biogas m³/ton (opt)', r.biogaspotentieel_m3_per_ton)}
         </div>
         <div style="margin-top:.5rem;">
           <label>Status
@@ -189,7 +213,7 @@ function bindItemActions(rows) {
         last_moderated_by: userId
       };
       inputs.forEach(i => {
-        const key = i.getAttribute('data-k');
+        const key = i.getAttribute('data-k');  // <-- lowercase keys
         patch[key] = asNumberOrNull(i.value);
       });
 
@@ -210,7 +234,6 @@ function bindItemActions(rows) {
         toast(`Opslaan mislukt: ${error.message}`, 'error');
       } else {
         toast('Opgeslagen', 'success');
-        // Optioneel: herladen om badges en waarden te verversen
         await loadList();
       }
     });
