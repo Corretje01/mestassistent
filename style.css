@@ -643,22 +643,23 @@ body.is-auth  .guest-only { display: none !important; }
   }
 }
 
-/* === Mestselectie: single-select (radio) variant === */
+/* === Mestselectie: single-select in upload (zelfde look als mestplan) === */
+.category__choices { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+
+/* Radio onzichtbaar maar focusbaar via label */
 .category input[type="radio"] {
-  /* non-visual maar toegankelijk */
   position: absolute;
   opacity: 0;
   pointer-events: none;
   width: 0; height: 0;
 }
-
 .category input[type="radio"]:focus + label {
   outline: 3px solid rgba(241,196,15,.6);
   outline-offset: 2px;
   border-radius: 4px;
 }
 
-/* Zelfde highlight als checkbox-variant */
+/* Zelfde highlight als checkbox-variant in mestplan */
 .category input[type="radio"]:checked + label {
   background: var(--color-yellow);
   border-color: var(--color-yellow);
