@@ -337,12 +337,12 @@ async function onSubmit(e){
       postcode: postcodeVal,
       inkoopprijs_per_ton: signedPrice,
       aantal_ton: tonInt,
-      DS_percent: toNumOrNull(elDS.value),
-      N_kg_per_ton: toNumOrNull(elN.value),
-      P_kg_per_ton: toNumOrNull(elP.value),
-      K_kg_per_ton: toNumOrNull(elK.value),
-      OS_percent: toNumOrNull(elOS.value),
-      Biogaspotentieel_m3_per_ton: toNumOrNull(elBio.value),
+      ds_percent: toNumOrNull(elDS.value),
+      n_kg_per_ton: toNumOrNull(elN.value),
+      p_kg_per_ton: toNumOrNull(elP.value),
+      k_kg_per_ton: toNumOrNull(elK.value),
+      os_percent: toNumOrNull(elOS.value),
+      biogaspotentieel_m3_per_ton: toNumOrNull(elBio.value),
       status: 'in_behandeling'
     };
 
@@ -430,7 +430,7 @@ function renderUploadsTable(rows){
           <tr data-id="${r.id}">
             <td><input class="e-naam" value="${escapeHtml(r.naam)}"/></td>
             <td>${escapeHtml(r.mest_categorie)} / ${escapeHtml(r.mest_type)}</td>
-            <td class="muted">${fmt(r.DS_percent,'%')} • N ${fmt(r.N_kg_per_ton,' kg/t')} • P ${fmt(r.P_kg_per_ton,' kg/t')} • K ${fmt(r.K_kg_per_ton,' kg/t')}</td>
+            <td class="muted">${fmt(r.ds_percent,'%')} • N ${fmt(r.n_kg_per_ton,' kg/t')} • P ${fmt(r.p_kg_per_ton,' kg/t')} • K ${fmt(r.k_kg_per_ton,' kg/t')}</td>
             <td class="right"><input class="e-prijs" value="${fmtEdit(r.inkoopprijs_per_ton)}" inputmode="decimal"/></td>
             <td class="right"><input class="e-ton"  value="${fmtEdit(r.aantal_ton)}"         inputmode="numeric"/></td>
             <td><input class="e-postcode" value="${escapeHtml(r.postcode)}"/></td>
