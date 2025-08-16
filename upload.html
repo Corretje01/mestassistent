@@ -169,7 +169,7 @@
                   <input id="inkoopprijs" class="input" inputmode="decimal" placeholder="Bijv. 12.50" autocomplete="off" required/>
                 </div>
               </div>
-              <div class="hint">Positief = je ontvangt; negatief = je legt bij. Maximaal 2 decimalen.</div>
+              <div class="hint">+ = je ontvangt; - = je legt bij. Maximaal 2 decimalen.</div>
             </div>
 
             <!-- Aantal ton (altijd hele getallen) -->
@@ -303,18 +303,23 @@
     // default
     setSign('pos');
 
-    // Prijs: sta alleen 0..2 decimalen toe (geen minteken; minteken via toggle)
+    // Prijs: 0..2 decimalen, UI toont altijd een komma (teken gaat via de ±-toggle)
     const elPrijs = document.getElementById('inkoopprijs');
     if (elPrijs) {
       elPrijs.addEventListener('input', () => {
-        let s = elPrijs.value.replace(',', '.').replace(/[^\d.]/g,'');
+        // normaliseer invoer: sta digits + . , toe; converteer intern naar '.'
+        let s = elPrijs.value.replace(',', '.').replace(/[^\d.]/g, '');
+    
+        // verwijder extra punten (alleen 1 decimaal-scheider)
         const parts = s.split('.');
-        if (parts.length > 2) {
-          s = parts[0] + '.' + parts.slice(1).join(''); // haal extra puntjes weg
-        }
-        const [int = '', dec = ''] = s.split('.');
-        const capped = int + (dec !== '' ? '.' + dec.slice(0,2) : '');
-        elPrijs.value = capped;
+        if (parts.length > 2) s = parts[0] + '.' + parts.slice(1).join('');
+    
+        let [intPart = '', decPart = ''] = s.split('.');
+        // max 2 decimalen
+        decPart = (decPart || '').slice(0, 2);
+    
+        // render in interface met komma als scheider
+        elPrijs.value = decPart ? `${intPart},${decPart}` : intPart;
       });
     }
 
