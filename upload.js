@@ -1,5 +1,4 @@
-// upload.js — mestsoort + defaults + optioneel bestand
-// compacte kaarten UI met autosave + X-knop linksboven + ruimere analyse-weergave
+// upload.js — mestsoort + defaults + optioneel bestand + cards UI (luchtig) + inline saves
 import { supabase } from './supabaseClient.js';
 import {
   isValidPostcode, formatPostcode,
@@ -31,19 +30,23 @@ const elOS  = document.getElementById('OS_percent');
 const elBio = document.getElementById('Biogas');
 
 let session, profile, userId;
-let mestsoortenObj = {};
+let mestsoortenObj = {};    // { drijfmest:{ koe:{...} }, vaste_mest:{...}, ... }
 let selectedCat = null;
 let selectedType = null;
 
-/* ============== helpers ============== */
-const debounce = (fn, ms=700) => { let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),ms); }; };
-
-/* ============== INIT ============== */
+/* ========================
+   INIT
+======================== */
 (async function init(){
   ({ data: { session } } = await supabase.auth.getSession());
-  if (!session) { toast('Log eerst in om te kunnen uploaden.', 'info'); window.location.href = 'account.html'; return; }
+  if (!session) {
+    toast('Log eerst in om te kunnen uploaden.', 'info');
+    window.location.href = 'account.html';
+    return;
+  }
   userId = session.user.id;
 
+  // profiel (voor postcode)
   const { data: prof } = await supabase.from('profiles').select('*').eq('id', userId).single();
   profile = prof || {};
 
@@ -56,14 +59,17 @@ const debounce = (fn, ms=700) => { let t; return (...a)=>{ clearTimeout(t); t=se
     if (!cbUseProfile.checked) elPostcode?.focus();
   });
 
-  // vraagprijs-teken standaard NEGATIEF
+  // vraagprijs-teken STANDAARD NEGATIEF
   initPriceSignToggle('neg');
 
+  // mestsoorten laden + UI bouwen
   await renderMestChoices();
 
+  // events
   elFile.addEventListener('change', handleFileChange);
   form.addEventListener('submit', onSubmit);
 
+  // overzicht
   await loadMyUploads();
 })();
 
@@ -71,7 +77,9 @@ function getProfilePostcode() {
   return session?.user?.user_metadata?.postcode || profile?.postcode || null;
 }
 
-/* ============== PRICE SIGN TOGGLE ============== */
+/* ========================
+   PRICE SIGN TOGGLE
+======================== */
 function initPriceSignToggle(defaultMode='neg'){
   if (elPriceSign) elPriceSign.value = defaultMode;
   const wrap = document.querySelector('[data-role="price-sign"]');
@@ -87,10 +95,13 @@ function initPriceSignToggle(defaultMode='neg'){
 
   bPos?.addEventListener('click', () => setSign('pos'));
   bNeg?.addEventListener('click', () => setSign('neg'));
+
   setSign(defaultMode);
 }
 
-/* ============== MEST KEUZE UI ============== */
+/* ========================
+   MEST KEUZE (single-select)
+======================== */
 function labelCategorie(c){
   const map = { drijfmest:'Drijfmest', vaste_mest:'Vaste mest', dikke_fractie:'Dikke fractie', overig:'Overig' };
   return map[c] || (c?.replace(/_/g,' ') || '');
@@ -102,6 +113,7 @@ async function renderMestChoices(){
     const resp = await fetch('data/mestsoorten.json', { cache: 'no-store' });
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const raw = await resp.json();
+
     mestsoortenObj = toObjectShapedMest(raw);
 
     const order = ['drijfmest', 'vaste_mest', 'dikke_fractie', 'overig'];
@@ -126,6 +138,7 @@ async function renderMestChoices(){
       `;
     }).join('') || `<div class="muted">Geen mestsoorten gevonden.</div>`;
 
+    // selectie → defaults (alleen analysevelden)
     listContainer.querySelectorAll('input[name="mest_one"]').forEach(r => {
       r.addEventListener('change', () => {
         selectedCat  = r.dataset.cat;
@@ -134,6 +147,7 @@ async function renderMestChoices(){
         applyDefaultsFromSelection(selectedCat, selectedType);
       });
     });
+
   } catch (e) {
     console.error(e);
     listContainer.innerHTML = `<div class="message error">Kon mestsoorten niet laden.</div>`;
@@ -154,7 +168,9 @@ function toObjectShapedMest(raw){
   return {};
 }
 
-/* ============== DEFAULTS (alleen ANALYSE) ============== */
+/* ========================
+   DEFAULTS op basis van keuze (analyse)
+======================== */
 function applyDefaultsFromSelection(cat, type){
   if (!cat || !type) return;
   const node = mestsoortenObj?.[cat]?.[type];
@@ -173,7 +189,8 @@ function applyDefaultsFromSelection(cat, type){
   elK.value   = numToRO(k);
   elOS.value  = numToRO(os);
   elBio.value = numToRO(bio);
-  // GEEN prijs/ton of aantal ton invullen!
+
+  // bewust GEEN prijs/ton en aantal ton invullen
 }
 
 function pickNum(obj, keys){
@@ -191,11 +208,13 @@ function numToRO(v){
   return Number.isFinite(n) ? String(n).replace(/\.00$/,'') : '';
 }
 
-/* ============== BESTANDSANALYSE (optioneel) ============== */
+/* ========================
+   BESTANDSANALYSE (optioneel)
+======================== */
 async function handleFileChange() {
   clearInlineError(elFile);
   const file = elFile.files?.[0];
-  if (!file) return; // optioneel
+  if (!file) return;
   if (!isFileAllowed(file)) { showInlineError(elFile, 'Alleen PDF/JPG/PNG en max 10MB.'); return; }
   disable(btnSubmit, true);
   try {
@@ -217,10 +236,12 @@ function toFixedOrEmpty(v){
   return (v===null || v===undefined || v==='') ? '' : Number(v).toFixed(2).replace(/\.00$/,'');
 }
 
-/* ============== PRIJS & TON helpers ============== */
+/* ========================
+   PRIJS & TON helpers
+======================== */
 function getSignedPriceFromUI() {
   if (elPriceSign) {
-    const raw = parsePrice2dec(elPrijs.value); // "12,50" → 12.5
+    const raw = parsePrice2dec(elPrijs.value);
     if (raw === null) return null;
     return (elPriceSign.value === 'neg') ? -raw : raw;
   }
@@ -228,20 +249,26 @@ function getSignedPriceFromUI() {
   return signed === null ? null : signed;
 }
 
-/* ============== SUBMIT (nieuwe upload) ============== */
+/* ========================
+   SUBMIT (bestand optioneel)
+======================== */
 async function onSubmit(e){
   e.preventDefault();
   let ok = true;
   [elNaam, elFile, elPrijs, elTon, elPostcode, listContainer].forEach(clearInlineError);
 
-  if (!elNaam.value || elNaam.value.trim().length < 2 || elNaam.value.trim().length > 60) { showInlineError(elNaam, '2–60 tekens.'); ok = false; }
+  if (!elNaam.value || elNaam.value.trim().length < 2 || elNaam.value.trim().length > 60) {
+    showInlineError(elNaam, '2–60 tekens.'); ok = false;
+  }
   if (!selectedCat || !selectedType) { showInlineError(listContainer, 'Kies een mestsoort.'); ok = false; }
 
   const file = elFile.files?.[0];
-  if (file && !isFileAllowed(file)) { showInlineError(elFile, 'Ongeldig bestand (PDF/JPG/PNG, max 10MB).'); ok = false; }
+  if (file && !isFileAllowed(file)) { showInlineError(elFile, 'Ongeldig bestand.'); ok = false; }
 
   const signedPrice = getSignedPriceFromUI();
-  if (signedPrice === null || !Number.isFinite(signedPrice)) { showInlineError(elPrijs, 'Ongeldig bedrag (max 2 decimalen).'); ok = false; }
+  if (signedPrice === null || !Number.isFinite(signedPrice)) {
+    showInlineError(elPrijs, 'Bedrag (max 2 dec).'); ok = false;
+  }
 
   const tonInt = parseIntStrict(elTon.value);
   if (tonInt === null || tonInt <= 24) { showInlineError(elTon, 'Alleen hele aantallen > 24.'); ok = false; }
@@ -250,7 +277,7 @@ async function onSubmit(e){
   const profilePostcodeNow = getProfilePostcode();
   if (cbUseProfile.checked) {
     if (profilePostcodeNow) postcodeVal = formatPostcode(profilePostcodeNow);
-    else { wrapPostcode.style.display = 'block'; cbUseProfile.checked = false; showInlineError(elPostcode, 'Geen postcode in profiel. Vul handmatig in.'); ok = false; }
+    else { wrapPostcode.style.display = 'block'; cbUseProfile.checked = false; showInlineError(elPostcode, 'Geen postcode in profiel.'); ok = false; }
   } else {
     if (!isValidPostcode(elPostcode.value)) { showInlineError(elPostcode,'Ongeldige NL postcode.'); ok=false; }
     else postcodeVal = formatPostcode(elPostcode.value);
@@ -260,7 +287,7 @@ async function onSubmit(e){
   disable(btnSubmit, true);
 
   try {
-    // optioneel bestand uploaden
+    // 1) Optioneel bestand uploaden
     let path = null, mime = null;
     if (file) {
       const now = new Date();
@@ -272,6 +299,7 @@ async function onSubmit(e){
       if (upErr) throw upErr;
     }
 
+    // 2) Insert
     const payload = {
       user_id: userId,
       naam: elNaam.value.trim(),
@@ -295,6 +323,7 @@ async function onSubmit(e){
     if (insErr) throw insErr;
 
     toast('Upload opgeslagen. Status: In behandeling.', 'success');
+
     form.reset();
     [elDS, elN, elP, elK, elOS, elBio].forEach(i => i.value = '');
     selectedCat = null; selectedType = null;
@@ -329,7 +358,9 @@ function makeUUID(){
   return String(Date.now()) + '-' + Math.random().toString(16).slice(2);
 }
 
-/* ============== Overzicht "Mijn uploads" — kaarten + autosave ============== */
+/* ========================
+   Overzicht "Mijn uploads" — LUCHTIGE KAARTEN + inline save
+======================== */
 async function loadMyUploads(){
   myUploads.innerHTML = 'Laden…';
   try {
@@ -356,7 +387,7 @@ async function loadMyUploads(){
 
 function renderUploadsGrid(rows){
   return `
-    <div class="uploads-grid">
+    <div class="uploads-grid uploads-grid--airy">
       ${rows.map(r => renderUploadCard(r)).join('')}
     </div>
   `;
@@ -365,31 +396,32 @@ function renderUploadsGrid(rows){
 function renderUploadCard(r){
   const hasFile = !!r.file_path;
   return `
-    <article class="upload-card" data-id="${r.id}">
-      <!-- X linksboven -->
-      <button class="card-x a-del" aria-label="Verwijderen" title="Verwijderen">×</button>
+    <article class="upload-card upload-card--airy" data-id="${r.id}">
+      <button class="card-close a-del" aria-label="Verwijderen" title="Verwijderen">×</button>
 
       <header class="upload-card__head">
-        <div class="title" title="${escapeHtml(r.naam)}">${escapeHtml(r.naam)}</div>
+        <div class="title" title="${escapeHtml(r.naam || 'mest')}">${escapeHtml(r.naam || 'mest')}</div>
         <div class="status">${renderBadge(r.status)}</div>
       </header>
 
       <div class="upload-card__meta">
         <div class="meta-row">
-          <span class="meta-label">Mestsoort</span>
-          <span class="meta-value">${prettyKind(r.mest_categorie, r.mest_type)}</span>
+          <div class="meta-label">Mestsoort</div>
+          <div class="meta-value">${prettyKind(r.mest_categorie, r.mest_type)}</div>
         </div>
 
         <div class="meta-row meta-row--analysis">
-          <span class="meta-label">Analyse</span>
-          <span class="meta-value">
-            ${renderAnalysisChips(r)}
-          </span>
+          <div class="meta-label">Analyse</div>
+          <div class="meta-value">
+            <div class="analysis-pills">
+              ${renderAnalysisChips(r)}
+            </div>
+          </div>
         </div>
 
         <div class="meta-row">
-          <span class="meta-label">Bestand</span>
-          <span class="meta-value">${renderFileChip(hasFile)}</span>
+          <div class="meta-label">Bestand</div>
+          <div class="meta-value">${renderFileChip(hasFile)}</div>
         </div>
       </div>
 
@@ -414,124 +446,116 @@ function renderUploadCard(r){
                  value="${escapeHtml(r.postcode || '')}">
         </label>
       </div>
-
-      <footer class="upload-card__actions">
-        <div class="save-indicator" aria-live="polite"></div>
-      </footer>
     </article>
   `;
 }
 
-/* --- helpers voor weergave --- */
-function prettyKind(cat, type) {
-  const catNice  = labelCategorie(cat) || String(cat || '').replace(/_/g, ' ');
-  const typeNice = type ? type.charAt(0).toUpperCase() + String(type).slice(1) : '';
-  return `${escapeHtml(catNice)} / ${escapeHtml(typeNice)}`;
-}
-
+/* --- helpers --- */
 function renderAnalysisChips(r){
-  const parts = [];
-  if (isFiniteNum(r.ds_percent))     parts.push(`<span class="chip metric"><b>DS</b> ${escapeHtml(String(r.ds_percent))}%</span>`);
-  if (isFiniteNum(r.n_kg_per_ton))   parts.push(`<span class="chip metric"><b>N</b> ${escapeHtml(String(r.n_kg_per_ton))} kg/t</span>`);
-  if (isFiniteNum(r.p_kg_per_ton))   parts.push(`<span class="chip metric"><b>P</b> ${escapeHtml(String(r.p_kg_per_ton))} kg/t</span>`);
-  if (isFiniteNum(r.k_kg_per_ton))   parts.push(`<span class="chip metric"><b>K</b> ${escapeHtml(String(r.k_kg_per_ton))} kg/t</span>`);
-  return parts.length ? parts.join(' ') : '—';
+  const chips = [];
+  if (isNum(r.ds_percent)) chips.push(pill('DS', r.ds_percent, '%'));
+  if (isNum(r.n_kg_per_ton)) chips.push(pill('N', r.n_kg_per_ton, ' kg/t'));
+  if (isNum(r.p_kg_per_ton)) chips.push(pill('P', r.p_kg_per_ton, ' kg/t'));
+  if (isNum(r.k_kg_per_ton)) chips.push(pill('K', r.k_kg_per_ton, ' kg/t'));
+  if (isNum(r.os_percent))   chips.push(pill('OS', r.os_percent, '%'));
+  if (isNum(r.biogaspotentieel_m3_per_ton)) chips.push(pill('Biogas', r.biogaspotentieel_m3_per_ton, ' m³/t'));
+  return chips.join('') || '<span class="muted">—</span>';
 }
-function isFiniteNum(v){ const n = Number(v); return Number.isFinite(n); }
+function pill(label, val, suf){
+  const v = Number(val);
+  const t = Number.isInteger(v) ? String(v) : String(v).replace('.', ',');
+  return `<span class="pill"><span class="pill-k">${label}</span><span class="pill-v">${t}${suf||''}</span></span>`;
+}
+function isNum(x){ const n = Number(x); return Number.isFinite(n); }
+
+function prettyKind(cat, type){
+  const nice = String(cat || '').replace(/_/g,' ');
+  return `${escapeHtml(cap(nice))} / ${escapeHtml(cap(type || ''))}`;
+}
+function cap(s){ return s ? s.charAt(0).toUpperCase()+s.slice(1) : ''; }
 
 function fmtEditSigned(v){
   if (v === null || v === undefined || v === '') return '';
-  const n = Number(v); if (!Number.isFinite(n)) return '';
-  const abs = Math.abs(n).toFixed(2).replace('.', ','); return (n < 0 ? '-' : '') + abs;
+  const n = Number(v);
+  if (!Number.isFinite(n)) return '';
+  const abs = Math.abs(n).toFixed(2).replace('.', ',');
+  return (n < 0 ? '-' : '') + abs;
 }
-function fmtInt(v){ const n = Number(v); if (!Number.isFinite(n)) return ''; return Number.isInteger(n) ? String(n) : String(Math.round(n)); }
-function escapeHtml(s){ return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
-function renderBadge(status){ const map = { in_behandeling:'gray', gepubliceerd:'green', afgewezen:'red' }; const cls = map[status] || 'gray'; const label = String(status || '').replace(/_/g, ' '); return `<span class="badge ${cls}">${escapeHtml(label)}</span>`; }
-function renderFileChip(hasFile){ return hasFile ? `<span class="chip ok"><span class="dot"></span> aanwezig</span>` : `<span class="chip none"><span class="dot"></span> geen bestand</span>`; }
+function fmtInt(v){
+  const n = Number(v);
+  if (!Number.isFinite(n)) return '';
+  return Number.isInteger(n) ? String(n) : String(Math.round(n));
+}
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+function renderBadge(status){
+  const map = { in_behandeling:'gray', gepubliceerd:'green', afgewezen:'red' };
+  const cls = map[status] || 'gray';
+  const label = String(status || '').replace(/_/g, ' ');
+  return `<span class="badge ${cls}">${escapeHtml(label)}</span>`;
+}
+function renderFileChip(hasFile){
+  return hasFile
+    ? `<span class="chip ok"><span class="dot"></span> aanwezig</span>`
+    : `<span class="chip none"><span class="dot"></span> geen bestand</span>`;
+}
 
-/* --- acties + INLINE AUTOSAVE --- */
+/* --- inline acties (autosave op blur + delete-linksboven) --- */
 function bindUploadActions(rows){
   rows.forEach(r => {
     const card  = myUploads.querySelector(`.upload-card[data-id="${r.id}"]`);
     if (!card) return;
 
-    const btnDel  = card.querySelector('.a-del');
     const elP     = card.querySelector('.e-prijs');
     const elT     = card.querySelector('.e-ton');
     const elPC    = card.querySelector('.e-postcode');
-    const noteEl  = card.querySelector('.save-indicator');
+    const btnDel  = card.querySelector('.a-del');
 
-    // snapshots
-    card.dataset.lastPrice = elP.value;
-    card.dataset.lastTon   = elT.value;
-    card.dataset.lastPC    = elPC.value;
-
-    elP?.addEventListener('blur', () => {
+    // PRIJ S— format & save
+    elP?.addEventListener('blur', async () => {
       const n = parseSignedPrice2dec(elP.value);
-      if (n !== null) {
-        const abs = Math.abs(n).toFixed(2).replace('.', ',');
-        elP.value = (n < 0 ? '-' : '') + abs;
-      }
-      scheduleSave();
+      if (n === null) { showInlineError(elP,'Bedrag (±) met max 2 dec.'); return; }
+      clearInlineError(elP);
+      const abs = Math.abs(n).toFixed(2).replace('.', ',');
+      elP.value = (n < 0 ? '-' : '') + abs;
+      await patchRow(r.id, { inkoopprijs_per_ton: n });
     });
 
-    elT?.addEventListener('input', () => { elT.value = (elT.value || '').replace(/\D/g,''); scheduleSave(); });
-    elPC?.addEventListener('blur',  () => { if (isValidPostcode(elPC.value)) elPC.value = formatPostcode(elPC.value); scheduleSave(); });
-    [elP, elT, elPC].forEach(i => i?.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); doSave(); }}));
+    // TON — integer > 24
+    elT?.addEventListener('blur', async () => {
+      const tonInt = parseIntStrict(elT.value);
+      if (tonInt === null || tonInt <= 24) { showInlineError(elT,'Hele aantallen > 24.'); return; }
+      clearInlineError(elT);
+      elT.value = String(tonInt);
+      await patchRow(r.id, { aantal_ton: tonInt });
+    });
 
+    // POSTCODE — mask + save
+    elPC?.addEventListener('blur', async () => {
+      if (!isValidPostcode(elPC.value)) { showInlineError(elPC,'Postcode ongeldig'); return; }
+      clearInlineError(elPC);
+      const pcFmt = formatPostcode(elPC.value);
+      elPC.value = pcFmt;
+      await patchRow(r.id, { postcode: pcFmt });
+    });
+
+    // DELETE (X linksboven)
     btnDel?.addEventListener('click', async () => {
-      if (!confirm('Weet je zeker dat je dit item wilt verwijderen?')) return;
+      if (!confirm('Dit item verwijderen?')) return;
       const { error } = await supabase.from('mest_uploads').delete().eq('id', r.id);
       if (error) toast('Verwijderen mislukt: ' + error.message, 'error');
       else { toast('Verwijderd', 'success'); await loadMyUploads(); }
     });
-
-    const scheduleSave = debounce(doSave, 700);
-
-    async function doSave(){
-      [elP, elT, elPC].forEach(clearInlineError);
-      let ok = true;
-
-      const priceSigned = parseSignedPrice2dec(elP.value);
-      if (priceSigned === null) { showInlineError(elP,'Bedrag (±) met max 2 decimalen.'); ok = false; }
-
-      const tonInt = parseIntStrict(elT.value);
-      if (tonInt === null || tonInt <= 24) { showInlineError(elT,'Hele aantallen > 24.'); ok = false; }
-
-      if (!isValidPostcode(elPC.value)) { showInlineError(elPC,'Postcode ongeldig'); ok = false; }
-      const pcFmt = ok ? formatPostcode(elPC.value) : null;
-
-      if (elP.value === card.dataset.lastPrice &&
-          elT.value === card.dataset.lastTon &&
-          elPC.value === card.dataset.lastPC) return;
-
-      if (!ok) { setNote('Fout in invoer', 'error'); return; }
-
-      setNote('Opslaan…', 'saving');
-
-      const { error } = await supabase.from('mest_uploads').update({
-        inkoopprijs_per_ton: priceSigned,
-        aantal_ton: tonInt,
-        postcode: pcFmt
-      }).eq('id', r.id);
-
-      if (error) { setNote('Opslaan mislukt', 'error'); return; }
-
-      card.dataset.lastPrice = elP.value;
-      card.dataset.lastTon   = elT.value;
-      card.dataset.lastPC    = elPC.value;
-
-      setNote('Opgeslagen ✓', 'ok');
-      setTimeout(() => setNote('', ''), 1200);
-    }
-
-    function setNote(text, kind){
-      if (!noteEl) return;
-      noteEl.textContent = text || '';
-      noteEl.classList.remove('is-saving','is-ok','is-error');
-      if (kind === 'saving') noteEl.classList.add('is-saving');
-      if (kind === 'ok')     noteEl.classList.add('is-ok');
-      if (kind === 'error')  noteEl.classList.add('is-error');
-    }
   });
+}
+
+async function patchRow(id, patch){
+  const { error } = await supabase.from('mest_uploads').update(patch).eq('id', id);
+  if (error) {
+    toast('Opslaan mislukt: ' + error.message, 'error');
+    return false;
+  }
+  toast('Opgeslagen', 'success');
+  return true;
 }
