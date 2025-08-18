@@ -604,35 +604,95 @@ async function deleteRow(id) {
 }
 
 // === BINDER ===
-// Roept masks aan, bindt blur/change events en debounced opslaan
+/* --- inline acties (autosave op blur + delete-linksboven) --- */
 function bindUploadActions(rows){
   rows.forEach(r => {
     const card  = myUploads.querySelector(`.upload-card[data-id="${r.id}"]`);
     if (!card) return;
 
-    const elPrice = card.querySelector('.e-prijs');
-    const elTon   = card.querySelector('.e-ton');
+    const elP     = card.querySelector('.e-prijs');
+    const elT     = card.querySelector('.e-ton');
     const elPC    = card.querySelector('.e-postcode');
     const btnDel  = card.querySelector('.a-del');
 
-    // prettige invoer
-    attachMasks(elPrice, elTon, elPC);
+    // PRIJ S — ± toegestaan, 2 dec verplicht
+    elP?.addEventListener('blur', async () => {
+      const n = parseSignedPrice2dec(elP.value);  // "12,50" -> 12.5; "-8,00" -> -8
+      if (n === null || !Number.isFinite(n)) {
+        showInlineError(elP,'Bedrag (±) met max 2 dec.');
+        return;
+      }
+      clearInlineError(elP);
+      // netjes formatteren met komma + 2 dec
+      const abs = Math.abs(n).toFixed(2).replace('.', ',');
+      elP.value = (n < 0 ? '-' : '') + abs;
 
-    // autosave op blur/change
-    ['blur','change'].forEach(evt => {
-      elPrice?.addEventListener(evt, () => scheduleSave(r.id, elPrice, elTon, elPC, btnDel));
-      elTon  ?.addEventListener(evt, () => scheduleSave(r.id, elPrice, elTon, elPC, btnDel));
-      elPC   ?.addEventListener(evt, () => scheduleSave(r.id, elPrice, elTon, elPC, btnDel));
+      const ok = await patchRow(r.id, { inkoopprijs_per_ton: n });
+      if (!ok) return; // DB gaf fout (bijv. policy/constraint)
+
+      // optioneel: visueel "saved"
+      elP.classList.add('is-saved');
+      setTimeout(() => elP.classList.remove('is-saved'), 500);
     });
 
-    // Enter = blur (opslaan)
-    [elPrice, elTon, elPC].forEach(el => {
-      el?.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') e.currentTarget.blur();
-      });
+    // TON — integer > 24 (zelfde regel als in upload-form)
+    elT?.addEventListener('blur', async () => {
+      const tonInt = parseIntStrict(elT.value);
+      if (tonInt === null || tonInt <= 24) {
+        showInlineError(elT,'Alleen hele aantallen > 24.');
+        return;
+      }
+      clearInlineError(elT);
+      elT.value = String(tonInt);
+
+      const ok = await patchRow(r.id, { aantal_ton: tonInt });
+      if (!ok) return;
+
+      elT.classList.add('is-saved');
+      setTimeout(() => elT.classList.remove('is-saved'), 500);
     });
 
-    // verwijderen
-    btnDel?.addEventListener('click', () => deleteRow(r.id));
+    // POSTCODE — NL & formatteren
+    elPC?.addEventListener('blur', async () => {
+      if (!isValidPostcode(elPC.value)) {
+        showInlineError(elPC,'Postcode ongeldig');
+        return;
+      }
+      clearInlineError(elPC);
+      const pcFmt = formatPostcode(elPC.value);
+      elPC.value = pcFmt;
+
+      const ok = await patchRow(r.id, { postcode: pcFmt });
+      if (!ok) return;
+
+      elPC.classList.add('is-saved');
+      setTimeout(() => elPC.classList.remove('is-saved'), 500);
+    });
+
+    // DELETE (X linksboven)
+    btnDel?.addEventListener('click', async () => {
+      if (!confirm('Dit item verwijderen?')) return;
+      const { error } = await supabase.from('mest_uploads').delete().eq('id', r.id);
+      if (error) toast('Verwijderen mislukt: ' + error.message, 'error');
+      else { toast('Verwijderd', 'success'); await loadMyUploads(); }
+    });
   });
+}
+
+/** Patch helper: laat Supabase de update teruggeven zodat je zeker weet wat er staat */
+async function patchRow(id, patch){
+  const { data, error } = await supabase
+    .from('mest_uploads')
+    .update(patch)
+    .eq('id', id)
+    .select('*')      // <- belangrijk: krijg de actuele rij terug
+    .single();
+
+  if (error) {
+    toast('Opslaan mislukt: ' + error.message, 'error');
+    return false;
+  }
+  // (optioneel) hier kun je data gebruiken om UI te syncen als DB nog wat normaliseert
+  toast('Opgeslagen', 'success');
+  return true;
 }
