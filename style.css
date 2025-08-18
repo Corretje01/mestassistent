@@ -240,25 +240,37 @@ body.is-auth .guest-only{display:none!important}
 }
 
 /* Meta: labels en waarden even groot, links uitgelijnd met head */
+/* Gelijke verticale spacing tussen Mestsoort ↔ Analyse ↔ Bestand */
 .upload-card__meta{
-  margin:.5rem 0 .6rem;padding-left:var(--card-left-pad);row-gap:12px
+  margin: .5rem 0 .6rem;
+  padding-left: var(--card-left-pad);
+  row-gap: 16px;              /* één bron van verticale ruimte */
 }
+
+/* Geen extra marge op individuele rijen → overal exact dezelfde afstand */
 .meta-row{
-  display:grid;grid-template-columns:var(--meta-label-w) 1fr;gap:.5rem .8rem;
-  align-items:start;margin:.35rem 0
+  display: grid;
+  grid-template-columns: var(--meta-label-w) 1fr;
+  gap: .5rem .8rem;
+  align-items: start;
+  margin: 0;                  /* <-- vervangt .35rem 0 */
 }
-.meta-label{color:#374151;font-size:var(--fs-card);font-weight:600;white-space:nowrap}
-.meta-value{color:#1f2937;font-size:var(--fs-card)}
+
+/* (zekerheidje) analyse-rij ook zonder extra marge */
+.meta-row--analysis{ margin: 0; }
+
+.meta-label{ color:#374151; font-size:var(--fs-card); font-weight:600; white-space:nowrap; }
+.meta-value{ color:#1f2937; font-size:var(--fs-card); }
 
 /* Analyse chips (wrapt netjes) */
-.analysis-pills{display:flex;align-items:center;flex-wrap:wrap;gap:.55rem .6rem}
+.analysis-pills{ display:flex; align-items:center; flex-wrap:wrap; gap:.55rem .6rem; margin:0; }
 .pill{
-  display:inline-flex;align-items:center;gap:.4rem;
-  padding:.3rem .7rem;border-radius:999px;background:#f7f8fb;border:1px solid #eef1f6;
-  color:#1f2937;font-size:var(--fs-card)
+  display:inline-flex; align-items:center; gap:.4rem;
+  padding:.3rem .7rem; border-radius:999px; background:#f7f8fb; border:1px solid #eef1f6;
+  color:#1f2937; font-size:var(--fs-card);
 }
-.pill-k{font-weight:700;color:#111827}
-.pill-v{color:#374151}
+.pill-k{ font-weight:700; color:#111827; }
+.pill-v{ color:#374151; }
 
 /* Inline formulier (velden onder elkaar op mobiel) */
 .upload-card__form{
