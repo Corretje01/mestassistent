@@ -1,4 +1,4 @@
-// upload.js — single-select mestsoort + defaults (alleen analyse) + optioneel bestand
+// upload.js — compact "Mijn uploads" als kaarten + single-select mestsoort + defaults (alleen analyse) + optioneel bestand
 import { supabase } from './supabaseClient.js';
 import {
   isValidPostcode, formatPostcode,
@@ -34,6 +34,11 @@ let mestsoortenObj = {};    // { drijfmest:{koe:{...},...}, vaste_mest:{...}, ..
 let selectedCat = null;
 let selectedType = null;
 
+// Client-side paginering voor "Mijn uploads"
+let uploadsAll = [];
+let uploadsPage = 1;
+const PAGE_SIZE = 8;
+
 (async function init(){
   // auth
   ({ data: { session } } = await supabase.auth.getSession());
@@ -43,6 +48,9 @@ let selectedType = null;
     return;
   }
   userId = session.user.id;
+
+  // kleine, scoped styles voor de kaartenweergave
+  ensureUploadsStyles();
 
   // profiel (voor postcode)
   const { data: prof } = await supabase.from('profiles').select('*').eq('id', userId).single();
@@ -60,11 +68,11 @@ let selectedType = null;
   // mestsoorten laden + UI bouwen
   await renderMestChoices();
 
-  // events
+  // events (bestand optioneel)
   elFile.addEventListener('change', handleFileChange);
   form.addEventListener('submit', onSubmit);
 
-  // Prijs netjes formatteren op blur (2 dec + komma)
+  // nette prijs bij blur (2 dec + komma)
   elPrijs?.addEventListener('blur', () => {
     const v = parsePrice2dec(elPrijs.value);
     if (v !== null) elPrijs.value = formatPriceDisplay(v);
@@ -199,7 +207,7 @@ function applyDefaultsFromSelection(cat, type){
   elOS.value  = numToRO(os);
   elBio.value = numToRO(bio);
 
-  // Geen voorinvulling van prijs of ton!
+  // geen voorinvulling van prijs of ton!
 }
 
 function pickNum(obj, keys){
@@ -217,8 +225,7 @@ function numToRO(v){
   return Number.isFinite(n) ? String(n).replace(/\.00$/,'') : '';
 }
 function formatPriceDisplay(n){
-  // forceer altijd 2 decimalen + komma
-  return Number(n).toFixed(2).replace('.', ',');
+  return Number(n).toFixed(2).replace('.', ','); // altijd komma
 }
 
 /* ========================
@@ -256,13 +263,11 @@ function toFixedOrEmpty(v){
    PRIJS & TON helpers
 ======================== */
 function getSignedPriceFromUI() {
-  // 1) ±-toggle aanwezig?
   if (elPriceSign) {
     const raw = parsePrice2dec(elPrijs.value);    // "12,50" → 12.5
     if (raw === null) return null;
     return (elPriceSign.value === 'neg') ? -raw : raw;
   }
-  // 2) fallback: teken in veld (bv. "-12,50")
   const signed = parseSignedPrice2dec(elPrijs.value);
   return signed === null ? null : signed;
 }
@@ -301,10 +306,10 @@ async function onSubmit(e){
     ok = false;
   }
 
-  // Ton (integer > 0)
+  // Ton (integer > 24)
   const tonInt = parseIntStrict(elTon.value);
-  if (tonInt === null || tonInt <= 25) {
-    showInlineError(elTon, 'Alleen hele aantallen > 0.');
+  if (tonInt === null || tonInt <= 24) {
+    showInlineError(elTon, 'Alleen hele aantallen > 24.');
     ok = false;
   }
 
@@ -381,7 +386,7 @@ async function onSubmit(e){
     cbUseProfile.checked = !!profilePostcodeNow;
     wrapPostcode.style.display = cbUseProfile.checked ? 'none' : 'block';
 
-    // **Na opslaan: teken terug naar NEGATIEF**
+    // na opslaan: teken terug naar NEGATIEF
     setPriceSignUI('neg');
 
     await loadMyUploads();
@@ -411,7 +416,7 @@ function makeUUID(){
 }
 
 /* ========================
-   Overzicht "Mijn uploads"
+   Overzicht "Mijn uploads" — KAARTEN + PAGINERING
 ======================== */
 async function loadMyUploads(){
   myUploads.innerHTML = 'Laden…';
@@ -420,112 +425,108 @@ async function loadMyUploads(){
     .select('*')
     .eq('user_id', userId)
     .order('created_at', { ascending: false });
+
   if (error) {
     myUploads.textContent = 'Kon jouw uploads niet ophalen.';
     return;
   }
-  if (!data.length){
+
+  uploadsAll = data || [];
+  uploadsPage = 1;
+  renderUploadsGrid();
+}
+
+function renderUploadsGrid(){
+  const start = 0;
+  const end = uploadsPage * PAGE_SIZE;
+  const slice = uploadsAll.slice(start, end);
+
+  if (!slice.length) {
     myUploads.innerHTML = `<div class="muted">Nog geen uploads. Voeg hierboven je eerste upload toe.</div>`;
     return;
   }
-  myUploads.innerHTML = renderUploadsTable(data);
-  bindUploadActions(data);
-}
 
-function renderBadge(status){
-  const map = { in_behandeling:'gray', gepubliceerd:'green', afgewezen:'red' };
-  const cls = map[status] || 'gray';
-  const label = String(status).replace(/_/g, ' ');
-  return `<span class="badge ${cls}">${label}</span>`;
-}
-
-function renderUploadsTable(rows){
-  return `
-    <div class="table-wrap">
-      <table class="uploads-table" aria-label="Mijn uploads">
-        <thead>
-          <tr>
-            <th class="col-name">Naam</th>
-            <th class="col-kind">Mestsoort</th>
-            <th class="col-analysis">DS/N/P/K</th>
-            <th class="col-price">€ / ton</th>
-            <th class="col-ton">Ton</th>
-            <th class="col-postcode">Postcode</th>
-            <th class="col-status">Status</th>
-            <th class="col-actions">Acties</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${rows.map(r => `
-            <tr data-id="${r.id}">
-              <td class="col-name">
-                <div class="cell-input">
-                  <input class="input e-naam" value="${escapeHtml(r.naam)}" maxlength="60"/>
-                </div>
-              </td>
-
-              <td class="col-kind">
-                <div class="truncate">${prettyKind(r.mest_categorie, r.mest_type)}</div>
-              </td>
-
-              <td class="col-analysis">
-                <div class="muted truncate">${formatAnalysis(r)}</div>
-              </td>
-
-              <td class="col-price">
-                <div class="cell-input cell-input--right input--sm">
-                  <input class="input e-prijs" value="${fmtEditSigned(r.inkoopprijs_per_ton)}" inputmode="decimal" placeholder="0,00"/>
-                </div>
-              </td>
-
-              <td class="col-ton">
-                <div class="cell-input cell-input--right input--sm">
-                  <input class="input e-ton" value="${fmtInt(r.aantal_ton)}" inputmode="numeric" placeholder="0"/>
-                </div>
-              </td>
-
-              <td class="col-postcode">
-                <div class="cell-input input--sm">
-                  <input class="input e-postcode" value="${escapeHtml(r.postcode || '')}" placeholder="1234 AB" maxlength="7"/>
-                </div>
-              </td>
-
-              <td class="col-status">
-                ${renderBadge(r.status)}
-              </td>
-
-              <td class="col-actions">
-                <div class="row-actions">
-                  <button class="btn-primary a-save">Opslaan</button>
-                  <button class="btn-danger a-del">Verwijderen</button>
-                </div>
-              </td>
-            </tr>
-          `).join('')}
-        </tbody>
-      </table>
+  myUploads.innerHTML = `
+    <div class="uploads-grid">
+      ${slice.map(renderUploadCard).join('')}
     </div>
+    ${end < uploadsAll.length ? `<div class="uc-more-wrap"><button class="btn btn-primary uc-more">Toon meer</button></div>` : ''}
+  `;
+
+  bindUploadCardActions(slice);
+
+  const moreBtn = myUploads.querySelector('.uc-more');
+  if (moreBtn) {
+    moreBtn.addEventListener('click', () => {
+      uploadsPage += 1;
+      renderUploadsGrid();
+    });
+  }
+}
+
+function renderUploadCard(r){
+  return `
+    <article class="uc-card" data-id="${r.id}">
+      <header class="uc-header">
+        <div class="uc-name">
+          <input class="input uc-input e-naam" value="${escapeHtml(r.naam)}" maxlength="60" />
+        </div>
+        ${renderBadge(r.status)}
+      </header>
+
+      <div class="uc-row uc-meta">
+        <div class="uc-kind truncate">${prettyKind(r.mest_categorie, r.mest_type)}</div>
+        <div class="uc-postcode">
+          <input class="input uc-input e-postcode" value="${escapeHtml(r.postcode || '')}" placeholder="1234 AB" maxlength="7"/>
+        </div>
+      </div>
+
+      <div class="uc-chips">
+        ${chip('DS', r.ds_percent, '%')}
+        ${chip('N',  r.n_kg_per_ton, ' kg/t')}
+        ${chip('P',  r.p_kg_per_ton, ' kg/t')}
+        ${chip('K',  r.k_kg_per_ton, ' kg/t')}
+      </div>
+
+      <div class="uc-row uc-nums">
+        <label class="uc-field">
+          <span class="uc-label">€ / ton (±)</span>
+          <input class="input uc-input uc-right e-prijs" value="${fmtEditSigned(r.inkoopprijs_per_ton)}" inputmode="decimal" placeholder="0,00"/>
+        </label>
+        <label class="uc-field">
+          <span class="uc-label">Aantal ton</span>
+          <input class="input uc-input uc-right e-ton" value="${fmtInt(r.aantal_ton)}" inputmode="numeric" placeholder="0"/>
+        </label>
+      </div>
+
+      <footer class="uc-actions">
+        <div class="uc-actions-left">
+          ${r.file_path ? `<button class="btn uc-open">Bekijk analyse</button>` : `<span class="muted">Geen analysebestand</span>`}
+        </div>
+        <div class="uc-actions-right">
+          <button class="btn-primary a-save">Opslaan</button>
+          <button class="btn-danger a-del">Verwijderen</button>
+        </div>
+      </footer>
+    </article>
   `;
 }
 
-/* ---- helpers voor weergave in tabel ---- */
+function chip(label, v, suf=''){
+  const t = (v===null || v===undefined) ? '—' : `${Number(v)}${suf}`;
+  return `<span class="uc-chip"><strong>${label}</strong> ${t}</span>`;
+}
+
+/* ---- helpers voor weergave ---- */
 function prettyKind(cat, type){
   const nice = String(cat || '').replace(/_/g,' ');
   return `${escapeHtml(nice)} / ${escapeHtml(type || '')}`;
-}
-function formatAnalysis(r){
-  return `${fmt(r.ds_percent,'%')} • N ${fmt(r.n_kg_per_ton,' kg/t')} • P ${fmt(r.p_kg_per_ton,' kg/t')} • K ${fmt(r.k_kg_per_ton,' kg/t')}`;
-}
-function fmt(v,suf=''){
-  if (v===null || v===undefined) return '—';
-  const n = Number(v);
-  return Number.isFinite(n) ? `${n}${suf}` : '—';
 }
 function fmtEditSigned(v){
   if (v === null || v === undefined || v === '') return '';
   const n = Number(v);
   if (!Number.isFinite(n)) return '';
-  const abs = Math.abs(n).toFixed(2).replace('.', ',');
+  const abs = Math.abs(n).toFixed(2).replace('.', ','); // altijd komma
   return (n < 0 ? '-' : '') + abs;
 }
 function fmtInt(v){
@@ -537,16 +538,17 @@ function escapeHtml(s){
   return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 }
 
-/* ---- acties in tabel ---- */
-function bindUploadActions(rows){
+/* ---- acties op kaarten ---- */
+function bindUploadCardActions(rows){
   rows.forEach(r => {
-    const tr = myUploads.querySelector(`tr[data-id="${r.id}"]`);
-    const btnSave = tr.querySelector('.a-save');
-    const btnDel  = tr.querySelector('.a-del');
-    const elN     = tr.querySelector('.e-naam');
-    const elP     = tr.querySelector('.e-prijs');
-    const elT     = tr.querySelector('.e-ton');
-    const elPC    = tr.querySelector('.e-postcode');
+    const card   = myUploads.querySelector(`.uc-card[data-id="${r.id}"]`);
+    const btnSave= card.querySelector('.a-save');
+    const btnDel = card.querySelector('.a-del');
+    const btnOpen= card.querySelector('.uc-open');
+    const elN    = card.querySelector('.e-naam');
+    const elP    = card.querySelector('.e-prijs');
+    const elT    = card.querySelector('.e-ton');
+    const elPC   = card.querySelector('.e-postcode');
 
     // nette prijs bij blur: ± met komma en 2 dec
     elP?.addEventListener('blur', () => {
@@ -555,6 +557,18 @@ function bindUploadActions(rows){
       const abs = Math.abs(n).toFixed(2).replace('.', ',');
       elP.value = (n < 0 ? '-' : '') + abs;
     });
+
+    // open analyse (signed URL)
+    if (btnOpen) {
+      btnOpen.addEventListener('click', async () => {
+        if (!r.file_path) { toast('Geen bestandspad beschikbaar.', 'error'); return; }
+        const { data, error } = await supabase.storage
+          .from('mest-analyses')
+          .createSignedUrl(r.file_path, 60);
+        if (error) { toast(`Kon bestand niet openen: ${error.message}`, 'error'); return; }
+        window.open(data.signedUrl, '_blank', 'noopener');
+      });
+    }
 
     btnSave.addEventListener('click', async () => {
       let ok = true;
@@ -567,7 +581,6 @@ function bindUploadActions(rows){
       if (tonInt === null || tonInt <= 0) { showInlineError(elT,'Alleen hele aantallen > 0.'); ok=false; }
       if (!isValidPostcode(elPC.value)) { showInlineError(elPC,'Postcode ongeldig'); ok=false; }
       const pcFmt = formatPostcode(elPC.value);
-
       if (!ok) return;
 
       const { error } = await supabase.from('mest_uploads').update({
@@ -592,4 +605,37 @@ function bindUploadActions(rows){
       else { toast('Verwijderd', 'success'); await loadMyUploads(); }
     });
   });
+}
+
+/* ========================
+   Scoped styles voor kaarten (je kunt dit later naar style.css verplaatsen)
+======================== */
+function ensureUploadsStyles(){
+  if (document.getElementById('uploads-cards-css')) return;
+  const css = `
+  .uploads-grid{display:grid;gap:.75rem}
+  @media(min-width:700px){.uploads-grid{grid-template-columns:1fr 1fr}}
+  @media(min-width:1100px){.uploads-grid{grid-template-columns:1fr 1fr 1fr}}
+  .uc-card{border:1px solid #eee;background:#fff;border-radius:12px;padding:.85rem;box-shadow:0 2px 8px rgba(0,0,0,.04)}
+  .uc-header{display:flex;align-items:center;justify-content:space-between;gap:.75rem;margin-bottom:.4rem}
+  .uc-name{flex:1}
+  .uc-input{width:100%;padding:.55rem .65rem;border:1px solid #e5e7eb;border-radius:10px}
+  .uc-input:focus{outline:none;border-color:var(--color-yellow);box-shadow:0 0 0 3px rgba(241,196,15,.25)}
+  .uc-row{display:flex;gap:.6rem;flex-wrap:wrap;margin:.4rem 0}
+  .uc-meta{align-items:center;justify-content:space-between}
+  .uc-kind{font-weight:600}
+  .uc-chips{display:flex;flex-wrap:wrap;gap:.35rem;margin:.2rem 0 .5rem}
+  .uc-chip{display:inline-flex;align-items:center;gap:.25rem;padding:.2rem .45rem;border-radius:999px;background:#f5f5f5;font-size:.85rem}
+  .uc-field{flex:1;display:flex;flex-direction:column;gap:.25rem;min-width:140px}
+  .uc-label{font-size:.85rem;color:#6b7280}
+  .uc-right{text-align:right}
+  .uc-actions{display:flex;align-items:center;justify-content:space-between;gap:.5rem;margin-top:.35rem}
+  .uc-actions-right{display:flex;gap:.5rem}
+  .truncate{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+  .uc-more-wrap{display:flex;justify-content:center;margin-top:.75rem}
+  `;
+  const tag = document.createElement('style');
+  tag.id = 'uploads-cards-css';
+  tag.textContent = css;
+  document.head.appendChild(tag);
 }
