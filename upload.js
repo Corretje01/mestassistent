@@ -1,4 +1,4 @@
-// upload.js — mestsoort + defaults + optioneel bestand + cards UI + inline saves
+// upload.js — autosave kaartvelden + analyse kunnen vervangen/ toevoegen
 import { supabase } from './supabaseClient.js';
 import {
   isValidPostcode, formatPostcode,
@@ -30,7 +30,7 @@ const elOS  = document.getElementById('OS_percent');
 const elBio = document.getElementById('Biogas');
 
 let session, profile, userId;
-let mestsoortenObj = {};    // { drijfmest:{ koe:{...} }, vaste_mest:{...}, ... }
+let mestsoortenObj = {};
 let selectedCat = null;
 let selectedType = null;
 
@@ -46,7 +46,6 @@ let selectedType = null;
   }
   userId = session.user.id;
 
-  // profiel (voor postcode)
   const { data: prof } = await supabase.from('profiles').select('*').eq('id', userId).single();
   profile = prof || {};
 
@@ -65,7 +64,7 @@ let selectedType = null;
   // mestsoorten laden + UI bouwen
   await renderMestChoices();
 
-  // events
+  // events formulier
   elFile.addEventListener('change', handleFileChange);
   form.addEventListener('submit', onSubmit);
 
@@ -354,7 +353,7 @@ async function onSubmit(e){
 
     cbUseProfile.checked = !!profilePostcodeNow;
     wrapPostcode.style.display = cbUseProfile.checked ? 'none' : 'block';
-    initPriceSignToggle('neg'); // zet ook de segmented UI terug
+    initPriceSignToggle('neg');
 
     await loadMyUploads();
   } catch (e) {
@@ -383,7 +382,7 @@ function makeUUID(){
 }
 
 /* ========================
-   Overzicht "Mijn uploads" — kaartjes + inline save
+   Overzicht "Mijn uploads" — kaartjes + AUTOSAVE
 ======================== */
 async function loadMyUploads(){
   myUploads.innerHTML = 'Laden…';
@@ -429,7 +428,7 @@ function renderUploadCard(r){
   titleEl.textContent = safeName;
   titleEl.title = 'Klik om naam te wijzigen';
   titleEl.setAttribute('data-original', safeName);
-  titleEl.setAttribute('contenteditable', 'false'); // pas aan bij edit
+  titleEl.setAttribute('contenteditable', 'false'); // aan bij edit
   frag.querySelector('.status').innerHTML = renderBadge(r.status);
 
   // Meta
@@ -438,24 +437,23 @@ function renderUploadCard(r){
   const fileCell = frag.querySelector('.js-filechip');
   fileCell.innerHTML = renderFileChip(!!r.file_path);
 
-  // Als er nog GEEN bestand is, toon een subtiel linkje + verborgen file-input
-  if (!r.file_path) {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'a-addfile';
-    btn.textContent = 'Voeg analyse toe';
-    btn.style.cssText = 'margin-left:.5rem;font-size:.9rem;text-decoration:underline;background:none;border:0;padding:0;cursor:pointer;';
-    fileCell.appendChild(btn);
+  // Altijd: “Voeg analyse toe” of “Wijzig analyse”
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'a-fileedit';
+  btn.textContent = r.file_path ? 'Wijzig analyse' : 'Voeg analyse toe';
+  btn.style.cssText = 'margin-left:.5rem;font-size:.9rem;text-decoration:underline;background:none;border:0;padding:0;cursor:pointer;';
+  fileCell.appendChild(btn);
 
-    const hidden = document.createElement('input');
-    hidden.type = 'file';
-    hidden.accept = '.pdf,.png,.jpg,.jpeg';
-    hidden.className = 'e-file';
-    hidden.style.display = 'none';
-    article.appendChild(hidden);
-  }
+  const hidden = document.createElement('input');
+  hidden.type = 'file';
+  hidden.accept = '.pdf,.png,.jpg,.jpeg';
+  hidden.className = 'e-file';
+  hidden.style.display = 'none';
+  hidden.dataset.prevPath = r.file_path || '';
+  article.appendChild(hidden);
 
-  // Velden (bestaande inputs)
+  // Velden
   const prijs = frag.querySelector('.e-prijs');
   const ton   = frag.querySelector('.e-ton');
   const pc    = frag.querySelector('.e-postcode');
@@ -522,45 +520,21 @@ function renderFileChip(hasFile){
     : `<span class="chip none"><span class="dot"></span> geen bestand</span>`;
 }
 
-/* === INLINE EDITS (cards) — ✓-save, strikte validatie === */
+/* === AUTOSAVE infra === */
 
-function attachMasks(elPrice, elTon, elPC) {
-  // prijs
-  elPrice?.addEventListener('input', () => {
-    let s = (elPrice.value || '')
-      .replace(/\./g, ',')
-      .replace(/[^0-9,\-]/g, '');
-    s = s.replace(/(?!^)-/g, '');
-    const i = s.indexOf(',');
-    if (i !== -1) s = s.slice(0, i + 1) + s.slice(i + 1).replace(/,/g, '');
-    elPrice.value = s;
-  });
-  elPrice?.addEventListener('blur', () => {
-    const n = parseSignedPrice2dec(elPrice.value);
-    if (n !== null) {
-      const abs = Math.abs(n).toFixed(2).replace('.', ',');
-      elPrice.value = (n < 0 ? '-' : '') + abs;
-    }
-  });
+const SAVE_DEBOUNCE_MS = 500;
+const saveTimers = new Map(); // key: card-id -> timeout id
 
-  // ton
-  elTon?.addEventListener('input', () => {
-    elTon.value = (elTon.value || '').replace(/\D/g, '');
-  });
-
-  // postcode
-  elPC?.addEventListener('input', () => {
-    const raw = elPC.value || '';
-    const digits  = raw.replace(/\D/g, '').slice(0, 4);
-    const letters = raw.replace(/[^a-zA-Z]/g, '').toUpperCase().slice(0, 2);
-    elPC.value = digits + (letters ? ' ' + letters : '');
-  });
-  elPC?.addEventListener('blur', () => {
-    if (isValidPostcode(elPC.value)) elPC.value = formatPostcode(elPC.value);
-  });
+function debouncedSave(cardId, fn){
+  if (saveTimers.has(cardId)) clearTimeout(saveTimers.get(cardId));
+  const t = setTimeout(fn, SAVE_DEBOUNCE_MS);
+  saveTimers.set(cardId, t);
 }
 
-// === BINDER ===
+function beginCardSave(card){ card?.classList.add('is-saving'); }
+function endCardSave(card){ card?.classList.remove('is-saving'); card?.classList.add('is-saved'); setTimeout(()=>card?.classList.remove('is-saved'), 900); }
+
+/* === BINDER === */
 function bindUploadActions(rows){
   rows.forEach(r => {
     const card  = myUploads.querySelector(`.upload-card[data-id="${r.id}"]`);
@@ -570,47 +544,11 @@ function bindUploadActions(rows){
     const elP     = card.querySelector('.e-prijs');
     const elT     = card.querySelector('.e-ton');
     const elPC    = card.querySelector('.e-postcode');
-    const addBtn  = card.querySelector('.a-addfile');  // kan bestaan
-    const hidFile = card.querySelector('.e-file');     // kan bestaan
-    const btnDel  = card.querySelector('.a-del');
-    const btnSave = card.querySelector('.a-save');
+    const btnEdit = card.querySelector('.a-fileedit');
+    const hidFile = card.querySelector('.e-file');
+    const chipBox = card.querySelector('.js-filechip');
 
-    attachMasks(elP, elT, elPC);
-
-    // helpers voor dirty/save state
-    const markDirty = () => {
-      card.classList.add('is-dirty');
-      card.classList.remove('is-saved');
-      [elP, elT, elPC].forEach(el => el && clearInlineError(el));
-    };
-    const beginSave = () => { card.classList.add('is-saving'); btnSave?.setAttribute('disabled',''); };
-    const endSave   = () => { card.classList.remove('is-saving'); btnSave?.removeAttribute('disabled'); };
-
-    // prijs/ton/postcode → dirty tonen
-    ['input','change'].forEach(ev => {
-      elP?.addEventListener(ev, markDirty);
-      elT?.addEventListener(ev, markDirty);
-      elPC?.addEventListener(ev, markDirty);
-    });
-
-    // nette formatting op blur (geen save)
-    elP?.addEventListener('blur', () => {
-      const n = parseSignedPrice2dec(elP.value);
-      if (n == null) return;
-      const abs = Math.abs(n).toFixed(2).replace('.', ',');
-      elP.value = (n < 0 ? '-' : '') + abs;
-    });
-    elT?.addEventListener('blur', () => {
-      const t = parseIntStrict(elT.value);
-      if (t == null) return;
-      elT.value = String(t);
-    });
-    elPC?.addEventListener('blur', () => {
-      if (!isValidPostcode(elPC.value)) return;
-      elPC.value = formatPostcode(elPC.value);
-    });
-
-    // === Inline edit NAAM via titel (opslaan via ✓) =========================
+    // ---------- Titel/Naam: inline edit + autosave ----------
     (function initInlineTitleEdit(){
       if (!titleEl) return;
       const maxLen = 25, minLen = 2;
@@ -619,19 +557,28 @@ function bindUploadActions(rows){
         titleEl.classList.add('is-editing');
         titleEl.setAttribute('contenteditable','true');
         placeCaretAtEnd(titleEl);
-        markDirty();
       };
       const cancelEdit = () => {
         titleEl.textContent = titleEl.getAttribute('data-original') || 'mest';
         titleEl.classList.remove('is-editing');
         titleEl.setAttribute('contenteditable','false');
-        // Als verder niets aangepast is, haal dirty weg
-        if (!elP?.closest('.upload-card')?.classList.contains('is-dirty') ||
-            (elP?.value === elP?.getAttribute('value') &&
-             elT?.value === elT?.getAttribute('value') &&
-             elPC?.value === elPC?.getAttribute('value'))) {
-          card.classList.remove('is-dirty');
+      };
+      const commitEdit = async () => {
+        const raw = (titleEl.textContent || '').trim();
+        const prev = titleEl.getAttribute('data-original') || '';
+        titleEl.classList.remove('is-editing');
+        titleEl.setAttribute('contenteditable','false');
+        if (raw === prev) return; // niets gewijzigd
+        if (raw.length < minLen || raw.length > maxLen) {
+          toast(`Naam moet ${minLen}–${maxLen} tekens zijn.`, 'error');
+          titleEl.textContent = prev || 'mest';
+          return;
         }
+        beginCardSave(card);
+        const ok = await patchRow(r.id, { naam: raw }, { silent:true });
+        endCardSave(card);
+        if (ok) titleEl.setAttribute('data-original', raw);
+        else titleEl.textContent = prev || 'mest';
       };
 
       titleEl.addEventListener('click', () => {
@@ -639,15 +586,10 @@ function bindUploadActions(rows){
         startEdit();
       });
       titleEl.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') { e.preventDefault(); titleEl.blur(); } // we saven nog niet; ✓ doet de echte save
+        if (e.key === 'Enter') { e.preventDefault(); titleEl.blur(); }  // commit op blur
         if (e.key === 'Escape') { e.preventDefault(); cancelEdit(); }
       });
-      titleEl.addEventListener('input', () => markDirty());
-      titleEl.addEventListener('blur', () => {
-        // sluit alleen edit-modus af; opslag gaat via ✓
-        titleEl.classList.remove('is-editing');
-        titleEl.setAttribute('contenteditable','false');
-      });
+      titleEl.addEventListener('blur', commitEdit);
 
       function placeCaretAtEnd(el){
         const range = document.createRange();
@@ -658,116 +600,120 @@ function bindUploadActions(rows){
       }
     })();
 
-    // SAVE via ✓ — valideer alles incl. titel
-    btnSave?.addEventListener('click', async () => {
-      let ok = true;
-      [elP, elT, elPC].forEach(el => el && clearInlineError(el));
+    // ---------- Prijs/Ton/Postcode: input mask + autosave ----------
+    attachMasks(elP, elT, elPC);
 
-      // titel (naam) uit DOM
-      const nameRaw  = (titleEl?.textContent || '').trim();
-      const namePrev = titleEl?.getAttribute('data-original') || '';
-      if (nameRaw.length < 2 || nameRaw.length > 25) {
-        toast('Naam moet 2–25 tekens zijn.', 'error');
-        ok = false;
-      }
+    const planSave = () => {
+      card.classList.add('is-dirty');
+      debouncedSave(r.id, async () => {
+        // Validatie + patch alleen gewijzigde waarden
+        let ok = true;
+        [elP, elT, elPC].forEach(clearInlineError);
 
-      // prijs
-      const priceSigned = parseSignedPrice2dec(elP.value);
-      if (priceSigned === null || !Number.isFinite(priceSigned)) {
-        showInlineError(elP,'Bedrag (±) met max 2 decimalen.');
-        ok = false;
-      } else {
-        const abs = Math.abs(priceSigned).toFixed(2).replace('.', ',');
-        elP.value = (priceSigned < 0 ? '-' : '') + abs;
-      }
-
-      // ton
-      const tonInt = parseIntStrict(elT.value);
-      if (tonInt === null || tonInt <= 24) {
-        showInlineError(elT,'Alleen hele aantallen > 24.');
-        ok = false;
-      } else {
-        elT.value = String(tonInt);
-      }
-
-      // postcode
-      if (!isValidPostcode(elPC.value)) {
-        showInlineError(elPC,'Ongeldige NL postcode.');
-        ok = false;
-      } else {
-        elPC.value = formatPostcode(elPC.value);
-      }
-
-      if (!ok) {
-        card.classList.add('shake');
-        setTimeout(() => card.classList.remove('shake'), 300);
-        return;
-      }
-
-      // Bouw patch; neem naam alleen mee als gewijzigd
-      const patch = {
-        inkoopprijs_per_ton: parseSignedPrice2dec(elP.value),
-        aantal_ton: tonInt,
-        postcode: elPC.value,
-        ...(nameRaw !== namePrev ? { naam: nameRaw } : {})
-      };
-
-      beginSave();
-      const okSave = await patchRow(r.id, patch, { silent:true });
-      endSave();
-
-      if (okSave) {
-        // sync "original" states + titel tooltip
-        if (titleEl && nameRaw !== namePrev) {
-          titleEl.setAttribute('data-original', nameRaw);
-          titleEl.title = 'Klik om naam te wijzigen';
+        const priceSigned = parseSignedPrice2dec(elP.value);
+        if (priceSigned === null || !Number.isFinite(priceSigned)) {
+          showInlineError(elP,'Bedrag (±) met max 2 decimalen.');
+          ok = false;
+        } else {
+          const abs = Math.abs(priceSigned).toFixed(2).replace('.', ',');
+          elP.value = (priceSigned < 0 ? '-' : '') + abs;
         }
-        elP?.setAttribute('value', elP.value);
-        elT?.setAttribute('value', elT.value);
-        elPC?.setAttribute('value', elPC.value);
 
-        card.classList.remove('is-dirty');
-        card.classList.add('is-saved');
-        setTimeout(() => card.classList.remove('is-saved'), 1200);
-      }
+        const tonInt = parseIntStrict(elT.value);
+        if (tonInt === null || tonInt <= 24) {
+          showInlineError(elT,'Alleen hele aantallen > 24.');
+          ok = false;
+        } else {
+          elT.value = String(tonInt);
+        }
+
+        if (!isValidPostcode(elPC.value)) {
+          showInlineError(elPC,'Ongeldige NL postcode.');
+          ok = false;
+        } else {
+          elPC.value = formatPostcode(elPC.value);
+        }
+
+        if (!ok) { card.classList.add('shake'); setTimeout(()=>card.classList.remove('shake'), 300); return; }
+
+        // Bepaal wat echt gewijzigd is t.o.v. attribute 'value'
+        const patch = {};
+        if (elP.value !== elP.getAttribute('value')) patch.inkoopprijs_per_ton = parseSignedPrice2dec(elP.value);
+        if (elT.value !== elT.getAttribute('value')) patch.aantal_ton = tonInt;
+        if (elPC.value !== elPC.getAttribute('value')) patch.postcode = elPC.value;
+
+        if (Object.keys(patch).length === 0) { card.classList.remove('is-dirty'); return; }
+
+        beginCardSave(card);
+        const okSave = await patchRow(r.id, patch, { silent:true });
+        endCardSave(card);
+
+        if (okSave) {
+          // sync "value" attributes
+          elP.setAttribute('value', elP.value);
+          elT.setAttribute('value', elT.value);
+          elPC.setAttribute('value', elPC.value);
+          card.classList.remove('is-dirty');
+        }
+      });
+    };
+
+    // Debounced autosave tijdens typen + directe save op blur
+    ['input','change'].forEach(ev => {
+      elP?.addEventListener(ev, planSave);
+      elT?.addEventListener(ev, planSave);
+      elPC?.addEventListener(ev, planSave);
+    });
+    ['blur'].forEach(ev => {
+      elP?.addEventListener(ev, planSave);
+      elT?.addEventListener(ev, planSave);
+      elPC?.addEventListener(ev, planSave);
     });
 
-    // (ALLEEN ALS GEEN BESTAND): "Voeg analyse toe"
-    if (addBtn && hidFile) {
-      addBtn.addEventListener('click', () => hidFile.click());
+    // ---------- Analyse: altijd “Voeg/Wijzig analyse” ----------
+    if (btnEdit && hidFile) {
+      btnEdit.addEventListener('click', () => hidFile.click());
       hidFile.addEventListener('change', async () => {
         const file = hidFile.files?.[0];
         if (!file) return;
         if (!isFileAllowed(file)) { toast('Alleen PDF/JPG/PNG en max 10MB.', 'error'); hidFile.value=''; return; }
 
-        addBtn.disabled = true;
-        const prevText = addBtn.textContent;
-        addBtn.textContent = 'Uploaden…';
+        btnEdit.disabled = true;
+        const prevText = btnEdit.textContent;
+        btnEdit.textContent = 'Uploaden…';
 
         try {
           const now = new Date();
           const ext  = (file.name?.split('.').pop() || 'bin').toLowerCase();
           const uuid = makeUUID();
-          const path = `${userId}/${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,'0')}/${String(now.getDate()).padStart(2,'0')}/${uuid}.${ext}`;
+          const newPath = `${userId}/${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,'0')}/${String(now.getDate()).padStart(2,'0')}/${uuid}.${ext}`;
           const mime = file.type || 'application/octet-stream';
 
-          const { error: upErr } = await supabase.storage.from('mest-analyses').upload(path, file, { contentType: mime, upsert: false });
+          const { error: upErr } = await supabase.storage.from('mest-analyses').upload(newPath, file, { contentType: mime, upsert: false });
           if (upErr) throw upErr;
 
-          const ok = await patchRow(r.id, { file_path: path, file_mime: mime }, { silent:true });
+          // oude bestand verwijderen (best-effort)
+          const oldPath = hidFile.dataset.prevPath;
+          if (oldPath) {
+            try { await supabase.storage.from('mest-analyses').remove([oldPath]); } catch(_) {}
+          }
+
+          beginCardSave(card);
+          const ok = await patchRow(r.id, { file_path: newPath, file_mime: mime }, { silent:true });
+          endCardSave(card);
           if (!ok) throw new Error('Opslaan in database mislukt');
 
           // UI bijwerken
-          const chip = card.querySelector('.js-filechip');
-          if (chip) chip.innerHTML = renderFileChip(true);
-          addBtn.remove();
-          hidFile.remove();
-          toast('Analyse toegevoegd.', 'success');
+          hidFile.dataset.prevPath = newPath;
+          if (chipBox) chipBox.innerHTML = renderFileChip(true);
+          btnEdit.textContent = 'Wijzig analyse';
+          toast('Analyse geüpdatet.', 'success');
         } catch (e) {
           console.error(e);
           toast('Upload mislukt: ' + (e?.message || e), 'error');
-          addBtn.disabled = false;
-          addBtn.textContent = prevText;
+          btnEdit.textContent = prevText;
+        } finally {
+          btnEdit.disabled = false;
         }
       });
     }
@@ -791,4 +737,38 @@ async function patchRow(id, patch, { silent=false } = {}){
   }
   if (!silent) { /* optioneel */ }
   return true;
+}
+
+/* Masks voor kaartvelden */
+function attachMasks(elPrice, elTon, elPC) {
+  elPrice?.addEventListener('input', () => {
+    let s = (elPrice.value || '')
+      .replace(/\./g, ',')
+      .replace(/[^0-9,\-]/g, '');
+    s = s.replace(/(?!^)-/g, '');
+    const i = s.indexOf(',');
+    if (i !== -1) s = s.slice(0, i + 1) + s.slice(i + 1).replace(/,/g, '');
+    elPrice.value = s;
+  });
+  elPrice?.addEventListener('blur', () => {
+    const n = parseSignedPrice2dec(elPrice.value);
+    if (n !== null) {
+      const abs = Math.abs(n).toFixed(2).replace('.', ',');
+      elPrice.value = (n < 0 ? '-' : '') + abs;
+    }
+  });
+
+  elTon?.addEventListener('input', () => {
+    elTon.value = (elTon.value || '').replace(/\D/g, '');
+  });
+
+  elPC?.addEventListener('input', () => {
+    const raw = elPC.value || '';
+    const digits  = raw.replace(/\D/g, '').slice(0, 4);
+    const letters = raw.replace(/[^a-zA-Z]/g, '').toUpperCase().slice(0, 2);
+    elPC.value = digits + (letters ? ' ' + letters : '');
+  });
+  elPC?.addEventListener('blur', () => {
+    if (isValidPostcode(elPC.value)) elPC.value = formatPostcode(elPC.value);
+  });
 }
