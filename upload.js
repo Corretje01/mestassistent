@@ -64,6 +64,15 @@ let selectedType = null;    // 'koe' | 'varken' | 'compost' | ...
   elFile.addEventListener('change', handleFileChange);
   form.addEventListener('submit', onSubmit);
 
+  // Form: prijs altijd netjes bij verlaten veld
+  elPrijs?.addEventListener('blur', () => {
+    const v = parsePrice2dec(elPrijs.value); // "12,3" / "12.3" -> 12.3
+    if (v !== null) elPrijs.value = formatPriceDisplay(v); // "12,30"
+  });
+
+  // Zorg dat ±-toggle visueel in de juiste beginstand staat
+  setPriceSignUI(elPriceSign?.value || 'pos');
+
   // overzicht
   await loadMyUploads();
 })();
@@ -152,6 +161,21 @@ function toObjectShapedMest(raw){
 }
 
 /* ========================
+   UI helper: ±-toggle sync
+======================== */
+function setPriceSignUI(mode = 'pos') {
+  if (elPriceSign) elPriceSign.value = mode; // 'pos' | 'neg'
+  const wrap = document.querySelector('[data-role="price-sign"]');
+  if (!wrap) return;
+  const pos = wrap.querySelector('button[data-sign="pos"]');
+  const neg = wrap.querySelector('button[data-sign="neg"]');
+  if (pos && neg) {
+    pos.setAttribute('aria-pressed', String(mode === 'pos'));
+    neg.setAttribute('aria-pressed', String(mode === 'neg'));
+  }
+}
+
+/* ========================
    DEFAULTS op basis van keuze
 ======================== */
 function applyDefaultsFromSelection(cat, type){
@@ -159,7 +183,7 @@ function applyDefaultsFromSelection(cat, type){
   const node = mestsoortenObj?.[cat]?.[type];
   if (!node || typeof node !== 'object') return;
 
-  // haal tolerant (case-insensitive) de velden op
+  // tolerant (case-insensitive) keys
   const ds   = pickNum(node, ['ds_percent','DS_percent']);
   const n    = pickNum(node, ['n_kg_per_ton','N_kg_per_ton']);
   const p    = pickNum(node, ['p_kg_per_ton','P_kg_per_ton']);
@@ -167,7 +191,7 @@ function applyDefaultsFromSelection(cat, type){
   const os   = pickNum(node, ['os_percent','OS_percent']);
   const bio  = pickNum(node, ['biogaspotentieel_m3_per_ton','Biogaspotentieel_m3_per_ton']);
 
-  // zet read-only velden (lege string als null)
+  // read-only velden
   elDS.value  = numToRO(ds);
   elN.value   = numToRO(n);
   elP.value   = numToRO(p);
@@ -175,15 +199,14 @@ function applyDefaultsFromSelection(cat, type){
   elOS.value  = numToRO(os);
   elBio.value = numToRO(bio);
 
-  // optioneel: default prijs/ton (alleen invullen als veld leeg is)
+  // default prijs/ton (alleen als veld leeg is)
   const defPrice = pickNum(node, ['inkoopprijs_per_ton','Inkoopprijs_per_ton','vraagprijs_per_ton']);
   if ((elPrijs?.value ?? '') === '' && defPrice != null) {
-    // zet sign toggle en toon absolute waarde met komma
-    const sign = defPrice < 0 ? 'neg' : 'pos';
-    if (elPriceSign) elPriceSign.value = sign;
-    const abs = Math.abs(defPrice);
-    elPrijs.value = formatPriceDisplay(abs);
+    setPriceSignUI(defPrice < 0 ? 'neg' : 'pos');                // zet ±
+    elPrijs.value = formatPriceDisplay(Math.abs(defPrice));      // toon altijd komma + 2 dec
   }
+
+  // default ton (alleen als leeg)
   const defTon = pickNum(node, ['aantal_ton','Aantal_ton']);
   if ((elTon?.value ?? '') === '' && defTon != null) {
     elTon.value = String(Math.max(0, Math.round(defTon)));
@@ -368,7 +391,10 @@ async function onSubmit(e){
 
     cbUseProfile.checked = !!profilePostcodeNow;
     wrapPostcode.style.display = cbUseProfile.checked ? 'none' : 'block';
-    if (elPriceSign) elPriceSign.value = 'pos';
+
+    // reset ± toggle netjes naar positief
+    setPriceSignUI('pos');
+
     await loadMyUploads();
   } catch (e) {
     console.error(e);
@@ -499,7 +525,7 @@ function prettyKind(cat, type){
   return `${escapeHtml(nice)} / ${escapeHtml(type || '')}`;
 }
 function formatAnalysis(r){
-  // LET OP: gebruik lowercase kolommen
+  // LET OP: gebruik lowercase kolommen zoals in DB
   return `${fmt(r.ds_percent,'%')} • N ${fmt(r.n_kg_per_ton,' kg/t')} • P ${fmt(r.p_kg_per_ton,' kg/t')} • K ${fmt(r.k_kg_per_ton,' kg/t')}`;
 }
 function fmt(v,suf=''){
@@ -534,7 +560,7 @@ function bindUploadActions(rows){
     const elT     = tr.querySelector('.e-ton');
     const elPC    = tr.querySelector('.e-postcode');
 
-    // optionele nette format op blur: ± en komma met 2 dec
+    // nette prijs bij blur: ± met komma en 2 dec
     elP?.addEventListener('blur', () => {
       const n = parseSignedPrice2dec(elP.value);
       if (n === null) return;
