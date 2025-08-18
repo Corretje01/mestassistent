@@ -80,6 +80,24 @@
     /* fout-styles (worden vanuit utils gezet) */
     .input-error { border-color: #c62828; }
     [data-error]::after { content: attr(data-error); color: #c62828; font-size: .85rem; display:block; margin-top:.25rem; }
+
+    /* MOBIEL: alle mestknoppen (incl. Drijfmest/Koe/Varken) full-width en identiek */
+    @media (max-width:768px){
+      #mestChoiceList .category{ align-items:stretch; flex-direction:column; }
+      #mestChoiceList .category__label{ width:100%; min-width:0; margin-bottom:.25rem; }
+      #mestChoiceList .category__choices{
+        display:flex; flex-wrap:wrap; gap:.5rem;
+      }
+      #mestChoiceList .category__choices .btn.mest-btn{
+        flex: 1 1 100% !important;
+        max-width:100% !important;
+        width:100% !important;
+        height:44px;
+        text-align:center;
+        margin:0;
+        box-sizing:border-box;
+      }
+    }
   </style>
 </head>
 <body>
