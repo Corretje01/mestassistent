@@ -500,6 +500,37 @@ function renderUploadCard(r){
   `;
 }
 
+// --- Helpers voor analyse-/waardeweergave in de kaarten ---
+function formatAnalysis(r){
+  // LET OP: gebruikt de lowercase kolommen uit je DB
+  return `${fmt(r.ds_percent,'%')} • N ${fmt(r.n_kg_per_ton,' kg/t')} • P ${fmt(r.p_kg_per_ton,' kg/t')} • K ${fmt(r.k_kg_per_ton,' kg/t')}`;
+}
+
+function fmt(v, suf=''){
+  if (v === null || v === undefined || v === '') return '—';
+  const n = Number(v);
+  return Number.isFinite(n) ? `${n}${suf}` : '—';
+}
+
+function fmtEditSigned(v){
+  if (v === null || v === undefined || v === '') return '';
+  const n = Number(v);
+  if (!Number.isFinite(n)) return '';
+  const abs = Math.abs(n).toFixed(2).replace('.', ','); // UI altijd met komma
+  return (n < 0 ? '-' : '') + abs;
+}
+
+function fmtInt(v){
+  const n = Number(v);
+  if (!Number.isFinite(n)) return '';
+  return Number.isInteger(n) ? String(n) : String(Math.round(n));
+}
+
+// Alleen toevoegen als je deze NIET al ergens in je file hebt:
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+
 function renderBadge(status){
   const map = { in_behandeling:'gray', gepubliceerd:'green', afgewezen:'red' };
   const cls = map[status] || 'gray';
