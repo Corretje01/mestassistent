@@ -239,21 +239,25 @@ body.is-auth .guest-only{display:none!important}
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap
 }
 
-/* Meta: labels en waarden even groot, links uitgelijnd met head */
-/* Gelijke verticale spacing tussen Mestsoort ↔ Analyse ↔ Bestand */
+/* --- META: gelijke basisgap + extra ruimte rond Analyse --- */
 .upload-card__meta{
   margin: .5rem 0 .6rem;
   padding-left: var(--card-left-pad);
-  row-gap: 16px;              /* één bron van verticale ruimte */
+  row-gap: 10px;     /* basis afstand tussen alle rijen */
 }
 
-/* Geen extra marge op individuele rijen → overal exact dezelfde afstand */
 .meta-row{
   display: grid;
   grid-template-columns: var(--meta-label-w) 1fr;
   gap: .5rem .8rem;
   align-items: start;
-  margin: 0;                  /* <-- vervangt .35rem 0 */
+  margin: 0;         /* geen extra marge per rij */
+}
+
+/* extra witruimte tussen 'Mestsoort' ↔ 'Analyse' en 'Analyse' ↔ 'Bestand' */
+.meta-row--analysis{
+  margin-top: 14px;
+  margin-bottom: 14px;
 }
 
 /* (zekerheidje) analyse-rij ook zonder extra marge */
