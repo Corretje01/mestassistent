@@ -472,61 +472,167 @@ function renderFileChip(hasFile){
     : `<span class="chip none"><span class="dot"></span> geen bestand</span>`;
 }
 
-/* --- inline acties (autosave op blur + delete-linksboven) --- */
+/* === INLINE EDITS (cards) — autosave + strikte validatie === */
+
+const SAVE_DEBOUNCE_MS = 450;
+const saveTimers = new Map(); // per card-id
+
+// UI-format voor prijs: ± en altijd 2 dec, komma
+function formatPriceDisplay(val) {
+  const n = (typeof val === 'number') ? val : parseSignedPrice2dec(String(val));
+  if (n === null) return '';
+  const abs = Math.abs(n).toFixed(2).replace('.', ',');
+  return (n < 0 ? '-' : '') + abs;
+}
+
+// Live input-masks (geen punt, max 1 komma; ton alleen cijfers; postcode 1234 AB)
+function attachMasks(elPrice, elTon, elPC) {
+  // prijs
+  elPrice?.addEventListener('input', () => {
+    let s = (elPrice.value || '')
+      .replace(/\./g, ',')          // punt -> komma
+      .replace(/[^0-9,\-]/g, '');   // alleen -, cijfers, komma
+    s = s.replace(/(?!^)-/g, '');   // '-' alleen vooraan
+    const i = s.indexOf(',');
+    if (i !== -1) s = s.slice(0, i + 1) + s.slice(i + 1).replace(/,/g, ''); // max 1 komma
+    elPrice.value = s;
+  });
+  elPrice?.addEventListener('blur', () => {
+    const n = parseSignedPrice2dec(elPrice.value);
+    if (n !== null) elPrice.value = formatPriceDisplay(n);
+  });
+
+  // ton
+  elTon?.addEventListener('input', () => {
+    elTon.value = (elTon.value || '').replace(/\D/g, '');
+  });
+
+  // postcode
+  elPC?.addEventListener('input', () => {
+    const raw = elPC.value || '';
+    const digits  = raw.replace(/\D/g, '').slice(0, 4);
+    const letters = raw.replace(/[^a-zA-Z]/g, '').toUpperCase().slice(0, 2);
+    elPC.value = digits + (letters ? ' ' + letters : '');
+  });
+  elPC?.addEventListener('blur', () => {
+    if (isValidPostcode(elPC.value)) elPC.value = formatPostcode(elPC.value);
+  });
+}
+
+// Validatie exact als upload-form:
+// - prijs: getal (±) met max 2 dec
+// - ton: integer > 24
+// - postcode: NL-formaat
+function validateCardFields(elPrice, elTon, elPC) {
+  let ok = true;
+  [elPrice, elTon, elPC].forEach(clearInlineError);
+
+  const priceSigned = parseSignedPrice2dec(elPrice.value);
+  if (priceSigned === null || !Number.isFinite(priceSigned)) {
+    showInlineError(elPrice, 'Bedrag ongeldig. Gebruik een komma en max. 2 decimalen.');
+    ok = false;
+  } else {
+    elPrice.value = formatPriceDisplay(priceSigned);
+  }
+
+  const tonInt = parseIntStrict(elTon.value);
+  if (tonInt === null || tonInt <= 24) {
+    showInlineError(elTon, 'Alleen hele aantallen > 24.');
+    ok = false;
+  } else {
+    elTon.value = String(tonInt);
+  }
+
+  let pcFmt = null;
+  if (!isValidPostcode(elPC.value)) {
+    showInlineError(elPC, 'Ongeldige NL postcode.');
+    ok = false;
+  } else {
+    pcFmt = formatPostcode(elPC.value);
+    elPC.value = pcFmt;
+  }
+
+  return { ok, priceSigned, tonInt, pcFmt };
+}
+
+// Debounced autosave om DB-spam te voorkomen
+function scheduleSave(id, elPrice, elTon, elPC, btnDel) {
+  if (saveTimers.has(id)) clearTimeout(saveTimers.get(id));
+  const t = setTimeout(async () => {
+    const { ok, priceSigned, tonInt, pcFmt } = validateCardFields(elPrice, elTon, elPC);
+    if (!ok) return;
+
+    // tijdelijk delete-knop uitschakelen tijdens save
+    if (btnDel) btnDel.disabled = true;
+
+    const { error } = await supabase
+      .from('mest_uploads')
+      .update({
+        inkoopprijs_per_ton: priceSigned,
+        aantal_ton: tonInt,
+        postcode: pcFmt
+      })
+      .eq('id', id);
+
+    if (btnDel) btnDel.disabled = false;
+
+    if (error) {
+      toast('Opslaan mislukt: ' + error.message, 'error');
+    } else {
+      // subtiel visueel feedbackje
+      const card = myUploads.querySelector(`.upload-card[data-id="${id}"]`);
+      if (card) {
+        const prev = card.style.boxShadow;
+        card.style.boxShadow = '0 0 0 2px rgba(5,122,85,.25)';
+        setTimeout(() => { card.style.boxShadow = prev || '0 2px 8px rgba(0,0,0,.03)'; }, 600);
+      }
+    }
+  }, SAVE_DEBOUNCE_MS);
+  saveTimers.set(id, t);
+}
+
+// Verwijderen via X linksboven
+async function deleteRow(id) {
+  if (!confirm('Weet je zeker dat je dit item wilt verwijderen?')) return;
+  const { error } = await supabase.from('mest_uploads').delete().eq('id', id);
+  if (error) toast('Verwijderen mislukt: ' + error.message, 'error');
+  else {
+    const card = myUploads.querySelector(`.upload-card[data-id="${id}"]`);
+    if (card) card.remove();
+    toast('Verwijderd', 'success');
+  }
+}
+
+// === BINDER ===
+// Roept masks aan, bindt blur/change events en debounced opslaan
 function bindUploadActions(rows){
   rows.forEach(r => {
     const card  = myUploads.querySelector(`.upload-card[data-id="${r.id}"]`);
     if (!card) return;
 
-    const elP     = card.querySelector('.e-prijs');
-    const elT     = card.querySelector('.e-ton');
+    const elPrice = card.querySelector('.e-prijs');
+    const elTon   = card.querySelector('.e-ton');
     const elPC    = card.querySelector('.e-postcode');
     const btnDel  = card.querySelector('.a-del');
 
-    // PRIJ S— format & save
-    elP?.addEventListener('blur', async () => {
-      const n = parseSignedPrice2dec(elP.value);
-      if (n === null) { showInlineError(elP,'Bedrag (±) met max 2 dec.'); return; }
-      clearInlineError(elP);
-      const abs = Math.abs(n).toFixed(2).replace('.', ',');
-      elP.value = (n < 0 ? '-' : '') + abs;
-      await patchRow(r.id, { inkoopprijs_per_ton: n });
+    // prettige invoer
+    attachMasks(elPrice, elTon, elPC);
+
+    // autosave op blur/change
+    ['blur','change'].forEach(evt => {
+      elPrice?.addEventListener(evt, () => scheduleSave(r.id, elPrice, elTon, elPC, btnDel));
+      elTon  ?.addEventListener(evt, () => scheduleSave(r.id, elPrice, elTon, elPC, btnDel));
+      elPC   ?.addEventListener(evt, () => scheduleSave(r.id, elPrice, elTon, elPC, btnDel));
     });
 
-    // TON — integer > 0
-    elT?.addEventListener('blur', async () => {
-      const tonInt = parseIntStrict(elT.value);
-      if (tonInt === null || tonInt <= 0) { showInlineError(elT,'Hele aantallen > 0.'); return; }
-      clearInlineError(elT);
-      elT.value = String(tonInt);
-      await patchRow(r.id, { aantal_ton: tonInt });
+    // Enter = blur (opslaan)
+    [elPrice, elTon, elPC].forEach(el => {
+      el?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') e.currentTarget.blur();
+      });
     });
 
-    // POSTCODE — mask + save
-    elPC?.addEventListener('blur', async () => {
-      if (!isValidPostcode(elPC.value)) { showInlineError(elPC,'Postcode ongeldig'); return; }
-      clearInlineError(elPC);
-      const pcFmt = formatPostcode(elPC.value);
-      elPC.value = pcFmt;
-      await patchRow(r.id, { postcode: pcFmt });
-    });
-
-    // DELETE (X linksboven)
-    btnDel?.addEventListener('click', async () => {
-      if (!confirm('Dit item verwijderen?')) return;
-      const { error } = await supabase.from('mest_uploads').delete().eq('id', r.id);
-      if (error) toast('Verwijderen mislukt: ' + error.message, 'error');
-      else { toast('Verwijderd', 'success'); await loadMyUploads(); }
-    });
+    // verwijderen
+    btnDel?.addEventListener('click', () => deleteRow(r.id));
   });
-}
-
-async function patchRow(id, patch){
-  const { error } = await supabase.from('mest_uploads').update(patch).eq('id', id);
-  if (error) {
-    toast('Opslaan mislukt: ' + error.message, 'error');
-    return false;
-  }
-  toast('Opgeslagen', 'success');
-  return true;
 }
