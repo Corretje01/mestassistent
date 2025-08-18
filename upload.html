@@ -260,6 +260,60 @@
       <div class="muted" style="margin-bottom:.5rem;">Wijzig hier alleen prijs/ton, aantal ton en postcode. Nutrient-waarden zijn read-only.</div>
       <div id="myUploads"></div>
     </section>
+
+    <!-- Template voor upload-kaarten (render-only; wordt niet zichtbaar totdat JS 'm gebruikt) -->
+    <template id="tpl-upload-card">
+      <article class="upload-card upload-card--airy" data-id="">
+        <button class="card-close a-del" aria-label="Verwijderen" title="Verwijderen">×</button>
+    
+        <header class="upload-card__head">
+          <div class="title"></div>
+          <div class="status"></div>
+        </header>
+    
+        <div class="upload-card__meta">
+          <div class="meta-row">
+            <div class="meta-label">Mestsoort</div>
+            <div class="meta-value js-kind"></div>
+          </div>
+    
+          <div class="meta-row meta-row--analysis">
+            <div class="meta-label">Analyse</div>
+            <div class="meta-value">
+              <div class="analysis-pills js-analysis"></div>
+            </div>
+          </div>
+    
+          <div class="meta-row">
+            <div class="meta-label">Bestand</div>
+            <div class="meta-value js-filechip"></div>
+          </div>
+        </div>
+    
+        <div class="upload-card__form">
+          <label class="field-sm">
+            <span class="label-sm">Vraagprijs per ton</span>
+            <div class="input-shell">
+              <span class="addon left" aria-hidden="true">€</span>
+              <input class="input input--sm addon-left-pad e-prijs" inputmode="decimal" placeholder="0,00"/>
+            </div>
+          </label>
+    
+          <label class="field-sm">
+            <span class="label-sm">Aantal ton</span>
+            <div class="input-shell">
+              <input class="input input--sm addon-right-pad e-ton" inputmode="numeric" placeholder="0"/>
+              <span class="addon right" aria-hidden="true">t</span>
+            </div>
+          </label>
+    
+          <label class="field-sm">
+            <span class="label-sm">Postcode</span>
+            <input class="input input--sm e-postcode" maxlength="7" placeholder="1234 AB"/>
+          </label>
+        </div>
+      </article>
+    </template>
   </main>
 
   <footer id="footer"></footer>
