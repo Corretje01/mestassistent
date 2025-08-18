@@ -426,24 +426,43 @@ function renderUploadCard(r){
       </div>
 
       <div class="upload-card__form">
-        <label class="field-sm addon-wrap">
+        <!-- Vraagprijs per ton -->
+        <label class="field-sm">
           <span class="label-sm">Vraagprijs per ton</span>
-          <span class="addon left">€</span>
-          <input class="input input--sm addon-left-pad e-prijs" inputmode="decimal" placeholder="0,00"
-                 value="${fmtEditSigned(r.inkoopprijs_per_ton)}">
+          <div class="input-shell">
+            <span class="addon left" aria-hidden="true">€</span>
+            <input
+              class="input input--sm addon-left-pad e-prijs"
+              inputmode="decimal"
+              placeholder="0,00"
+              value="${fmtEditSigned(r.inkoopprijs_per_ton)}"
+            />
+          </div>
         </label>
 
-        <label class="field-sm addon-wrap">
+        <!-- Aantal ton -->
+        <label class="field-sm">
           <span class="label-sm">Aantal ton</span>
-          <input class="input input--sm addon-right-pad e-ton" inputmode="numeric" placeholder="0"
-                 value="${fmtInt(r.aantal_ton)}">
-          <span class="addon right">t</span>
+          <div class="input-shell">
+            <input
+              class="input input--sm addon-right-pad e-ton"
+              inputmode="numeric"
+              placeholder="0"
+              value="${fmtInt(r.aantal_ton)}"
+            />
+            <span class="addon right" aria-hidden="true">t</span>
+          </div>
         </label>
 
+        <!-- Postcode -->
         <label class="field-sm">
           <span class="label-sm">Postcode</span>
-          <input class="input input--sm e-postcode" maxlength="7" placeholder="1234 AB"
-                 value="${escapeHtml(r.postcode || '')}">
+          <input
+            class="input input--sm e-postcode"
+            maxlength="7"
+            placeholder="1234 AB"
+            value="${escapeHtml(r.postcode || '')}"
+          />
         </label>
       </div>
     </article>
