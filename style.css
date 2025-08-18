@@ -215,29 +215,46 @@ body.is-auth .guest-only{display:none!important}
 .upload-card--airy{padding:1.1rem 1.25rem}
 
 /* Iconen: X links, ✓ rechts */
-.card-close,.card-save{
-  position:absolute;top:.4rem;width:26px;height:26px;z-index:2;
-  display:inline-flex;align-items:center;justify-content:center;
-  border:1px solid #eaecef;border-radius:8px;background:#fff;color:#6b7280;cursor:pointer
-}
-.card-close{left:.45rem}
-.card-close:hover{color:#b91c1c;border-color:#e5e7eb}
-
+.card-close,
 .card-save{
-  right:.45rem;display:none;font-weight:700;font-size:16px;line-height:1;
-  transition:background .15s ease,border-color .15s ease,color .15s ease,transform .05s ease
+  position:absolute; top:.4rem; width:26px; height:26px; z-index:2;
+  display:inline-flex; align-items:center; justify-content:center;
+  border:1px solid #eaecef; border-radius:8px; background:#fff; color:#6b7280; cursor:pointer;
 }
-.upload-card.is-dirty .card-save{display:inline-flex}
-.upload-card.is-saving .card-save{pointer-events:none;opacity:.65}
-.upload-card.is-saved  .card-save{display:inline-flex;background:#e6f6ec;color:#0b7a3e;border-color:#bbebd2}
-.card-save:hover:not([disabled]){background:var(--color-yellow);border-color:var(--color-yellow);color:var(--color-black)}
-.card-save:active:not([disabled]){transform:scale(.98)}
-.card-save[disabled]{opacity:.45;cursor:not-allowed}
+
+/* X-knop linksboven */
+.card-close{
+  left:.45rem;
+  font-weight:700; font-size:16px; line-height:1;
+  transition: background .15s ease, border-color .15s ease, color .15s ease, transform .05s ease;
+}
+.card-close:hover:not([disabled]),
+.card-close:focus-visible{
+  background: var(--color-yellow);
+  border-color: var(--color-yellow);
+  color: var(--color-black);
+  outline: none;
+}
+.card-close:active:not([disabled]){ transform: scale(.98); }
+
+/* ✓-knop rechtsboven */
+.card-save{
+  right:.45rem; display:none; font-weight:700; font-size:16px; line-height:1;
+  transition: background .15s ease, border-color .15s ease, color .15s ease, transform .05s ease;
+}
+.upload-card.is-dirty .card-save{ display:inline-flex; }
+.upload-card.is-saving .card-save{ pointer-events:none; opacity:.65; }
+.upload-card.is-saved  .card-save{ display:inline-flex; background:#e6f6ec; color:#0b7a3e; border-color:#bbebd2; }
+.card-save:hover:not([disabled]){ background: var(--color-yellow); border-color: var(--color-yellow); color: var(--color-black); }
+.card-save:active:not([disabled]){ transform: scale(.98); }
+.card-save[disabled]{ opacity:.45; cursor:not-allowed; }
 
 /* Head */
 .upload-card__head{
-  display:flex;align-items:center;justify-content:space-between;
-  gap:.75rem;margin-bottom:.8rem;padding-left:1.8rem /* ruimte voor X */
+  display:flex; align-items:center; justify-content:space-between;
+  gap:.75rem; margin-bottom:.8rem;
+  padding-left:1.8rem;   /* ruimte voor X links  */
+  padding-right:2.6rem;  /* ruimte voor ✓ rechts */
 }
 .upload-card .title{
   font-size:var(--fs-card);font-weight:700;letter-spacing:.01em;
