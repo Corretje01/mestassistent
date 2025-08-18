@@ -303,7 +303,7 @@ async function onSubmit(e){
 
   // Ton (integer > 0)
   const tonInt = parseIntStrict(elTon.value);
-  if (tonInt === null || tonInt <= 0) {
+  if (tonInt === null || tonInt <= 25) {
     showInlineError(elTon, 'Alleen hele aantallen > 0.');
     ok = false;
   }
