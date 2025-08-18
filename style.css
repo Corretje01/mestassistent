@@ -21,8 +21,8 @@
   --fs-h3:clamp(1.125rem,1rem + .8vw,1.375rem);
   --fs-body:clamp(1rem,.95rem + .3vw,1.0625rem);
 
-  /* Type voor upload-kaarten */
-  --fs-card:.9rem;            /* 1 plek om titels + waardes + inputs te sturen */
+  /* Type voor upload-kaarten (titels, waarden, inputs) */
+  --fs-card:.9rem;
 
   /* Upload-card layout paddings en kolombreedtes */
   --card-icon-w:26px;
@@ -59,6 +59,15 @@ body, p, li{font-size:var(--fs-body)}
 .nav__item:hover{opacity:.9}
 .btn-login{background:var(--color-yellow);color:var(--color-black)}
 .btn-login:hover{background:var(--color-yellow-dark)}
+
+/* kleinere nav-items op desktop voor meer rust */
+@media (min-width:1024px){
+  .site-menu .nav-links a,
+  .nav-links a.nav__item{
+    font-size:.95rem;
+    padding:.5rem .9rem;
+  }
+}
 
 .nav-toggle{
   display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border:0;background:transparent;color:#fff;cursor:pointer
@@ -227,41 +236,34 @@ body.is-auth .guest-only{display:none!important}
 .card-save:active:not([disabled]){transform:scale(.98)}
 .card-save[disabled]{opacity:.45;cursor:not-allowed}
 
-/* Head: genoeg ruimte naast iconen + status iets naar links */
+/* Head: ruimte naast iconen + status iets naar links */
 .upload-card__head{
   display:flex;align-items:center;justify-content:space-between;gap:.75rem;margin-bottom:.8rem;
   padding-left:var(--card-left-pad);   /* i.p.v. vaste 1.8rem */
   padding-right:var(--card-right-pad)  /* zodat ✓ de status niet overlapt */
 }
-.upload-card__head .status{margin-right:.2rem}
+.upload-card__head .status{margin-right:.6rem}
 .upload-card .title{
   font-size:var(--fs-card);font-weight:700;letter-spacing:.01em;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap
 }
 
-/* --- META: gelijke basisgap + extra ruimte rond Analyse --- */
+/* --- META: consistente basisgap + extra ruimte rond Analyse --- */
 .upload-card__meta{
-  margin: .5rem 0 .6rem;
-  padding-left: var(--card-left-pad);
-  row-gap: 10px;     /* basis afstand tussen alle rijen */
+  display:grid;                 /* zodat row-gap werkt */
+  row-gap:10px;                 /* basisafstand tussen rijen */
+  margin:.5rem 0 .6rem;
+  padding-left:var(--card-left-pad);
 }
-
 .meta-row{
-  display: grid;
-  grid-template-columns: var(--meta-label-w) 1fr;
-  gap: .5rem .8rem;
-  align-items: start;
-  margin: 0;         /* geen extra marge per rij */
+  display:grid;
+  grid-template-columns:var(--meta-label-w) 1fr;
+  gap:.5rem .8rem;
+  align-items:start;
+  margin:0;                     /* geen extra marge per rij */
 }
-
-/* extra witruimte tussen 'Mestsoort' ↔ 'Analyse' en 'Analyse' ↔ 'Bestand' */
-.meta-row--analysis{
-  margin-top: 14px;
-  margin-bottom: 14px;
-}
-
-/* (zekerheidje) analyse-rij ook zonder extra marge */
-.meta-row--analysis{ margin: 0; }
+/* extra witruimte vóór en ná de Analyse-rij */
+.meta-row--analysis{ margin-top:14px; margin-bottom:14px; }
 
 .meta-label{ color:#374151; font-size:var(--fs-card); font-weight:600; white-space:nowrap; }
 .meta-value{ color:#1f2937; font-size:var(--fs-card); }
@@ -276,7 +278,7 @@ body.is-auth .guest-only{display:none!important}
 .pill-k{ font-weight:700; color:#111827; }
 .pill-v{ color:#374151; }
 
-/* Inline formulier (velden onder elkaar op mobiel) */
+/* Inline formulier */
 .upload-card__form{
   display:grid;grid-template-columns:repeat(3,1fr);gap:14px;
   padding-left:var(--card-left-pad);align-items:end
@@ -309,6 +311,18 @@ body.is-auth .guest-only{display:none!important}
 .chip .dot{width:6px;height:6px;border-radius:50%;background:#9ca3af}
 .chip.ok .dot{background:#0ea5a0}
 .chip.none .dot{background:#9ca3af}
+
+/* --- Mobiel: labels boven waarden in meta --- */
+@media (max-width:640px){
+  .upload-card__meta{row-gap:14px}
+  .upload-card__meta .meta-row{
+    grid-template-columns:1fr !important;
+    gap:.25rem 0;
+  }
+  .upload-card__meta .meta-label{
+    margin-bottom:.25rem;
+  }
+}
 
 /* Overig */
 #optimaliseer-btn{margin-top:1rem;display:none!important}
