@@ -377,7 +377,8 @@ async function loadMyUploads(){
       return;
     }
 
-    myUploads.innerHTML = renderUploadsGrid(data);
+    myUploads.innerHTML = '';
+    myUploads.appendChild(renderUploadsGrid(data));
     bindUploadActions(data);
   } catch (e) {
     console.error(e);
@@ -386,39 +387,43 @@ async function loadMyUploads(){
 }
 
 function renderUploadsGrid(rows){
-  return `
-    <div class="uploads-grid uploads-grid--airy">
-      ${rows.map(r => renderUploadCard(r)).join('')}
-    </div>
-  `;
+  const wrap = document.createElement('div');
+  wrap.className = 'uploads-grid uploads-grid--airy';
+  rows.forEach(r => wrap.appendChild(renderUploadCard(r))); // let op: functie geeft nu een Node terug
+  return wrap;
 }
 
 function renderUploadCard(r){
   const tpl = document.getElementById('tpl-upload-card');
-  const node = tpl.content.cloneNode(true);
-  const article = node.querySelector('article');
+  const frag = tpl.content.cloneNode(true);
+  const article = frag.querySelector('article');
   article.dataset.id = r.id;
 
   // Titel + status
-  const titleEl = node.querySelector('.title');
+  const titleEl = frag.querySelector('.title');
   titleEl.textContent = r.naam || 'mest';
   titleEl.title = r.naam || 'mest';
-  node.querySelector('.status').innerHTML = renderBadge(r.status);
+  frag.querySelector('.status').innerHTML = renderBadge(r.status);
 
   // Meta
-  node.querySelector('.js-kind').innerHTML = prettyKind(r.mest_categorie, r.mest_type);
-  node.querySelector('.js-analysis').innerHTML = renderAnalysisChips(r);
-  node.querySelector('.js-filechip').innerHTML = renderFileChip(!!r.file_path);
+  frag.querySelector('.js-kind').innerHTML = prettyKind(r.mest_categorie, r.mest_type);
+  frag.querySelector('.js-analysis').innerHTML = renderAnalysisChips(r);
+  frag.querySelector('.js-filechip').innerHTML = renderFileChip(!!r.file_path);
 
-  // Velden
-  const prijs = node.querySelector('.e-prijs');
-  const ton   = node.querySelector('.e-ton');
-  const pc    = node.querySelector('.e-postcode');
-  prijs.value = fmtEditSigned(r.inkoopprijs_per_ton);
-  ton.value   = fmtInt(r.aantal_ton);
-  pc.value    = r.postcode || '';
+  // Velden (zet zowel property .value als het attribute 'value' voor maximale robuustheid)
+  const prijs = frag.querySelector('.e-prijs');
+  const ton   = frag.querySelector('.e-ton');
+  const pc    = frag.querySelector('.e-postcode');
 
-  return article.outerHTML; // kaart als HTML-string teruggeven (past in je huidige flow)
+  const prijsVal = fmtEditSigned(r.inkoopprijs_per_ton);
+  const tonVal   = fmtInt(r.aantal_ton);
+  const pcVal    = r.postcode || '';
+
+  if (prijs){ prijs.value = prijsVal; prijs.setAttribute('value', prijsVal); }
+  if (ton){   ton.value   = tonVal;   ton.setAttribute('value', tonVal); }
+  if (pc){    pc.value    = pcVal;    pc.setAttribute('value', pcVal); }
+
+  return article; // << BELANGRIJK: geef de echte node terug, géén outerHTML string
 }
 
 /* --- helpers --- */
