@@ -1,5 +1,5 @@
-// upload.js — single-select mestsoort + defaults uit mestsoorten.json + optioneel bestand
-// + compacte kaarten UI met INLINE AUTOSAVE
+// upload.js — mestsoort + defaults + optioneel bestand
+// compacte kaarten UI met autosave + X-knop linksboven + ruimere analyse-weergave
 import { supabase } from './supabaseClient.js';
 import {
   isValidPostcode, formatPostcode,
@@ -12,7 +12,7 @@ const elNaam = document.getElementById('naam');
 const elFile = document.getElementById('file');
 const elPrijs= document.getElementById('inkoopprijs');
 const elTon  = document.getElementById('aantalTon');
-const elPriceSign = document.getElementById('priceSign'); // 'pos' | 'neg' (via ±-toggle)
+const elPriceSign = document.getElementById('priceSign'); // 'pos' | 'neg'
 
 const listContainer = document.getElementById('mestChoiceList');
 
@@ -31,14 +31,12 @@ const elOS  = document.getElementById('OS_percent');
 const elBio = document.getElementById('Biogas');
 
 let session, profile, userId;
-let mestsoortenObj = {};    // verwacht: { drijfmest: { koe:{...}, varken:{...} }, vaste_mest: {...}, ... }
-let selectedCat = null;     // 'drijfmest' | 'vaste_mest' | 'dikke_fractie' | 'overig'
-let selectedType = null;    // 'koe' | 'varken' | 'compost' | ...
+let mestsoortenObj = {};
+let selectedCat = null;
+let selectedType = null;
 
 /* ============== helpers ============== */
-const debounce = (fn, ms=600) => {
-  let t; return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
-};
+const debounce = (fn, ms=700) => { let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),ms); }; };
 
 /* ============== INIT ============== */
 (async function init(){
@@ -49,6 +47,7 @@ const debounce = (fn, ms=600) => {
   const { data: prof } = await supabase.from('profiles').select('*').eq('id', userId).single();
   profile = prof || {};
 
+  // postcode toggle
   const profilePostcode = getProfilePostcode();
   cbUseProfile.checked = !!profilePostcode;
   wrapPostcode.style.display = cbUseProfile.checked ? 'none' : 'block';
@@ -235,20 +234,14 @@ async function onSubmit(e){
   let ok = true;
   [elNaam, elFile, elPrijs, elTon, elPostcode, listContainer].forEach(clearInlineError);
 
-  if (!elNaam.value || elNaam.value.trim().length < 2 || elNaam.value.trim().length > 60) {
-    showInlineError(elNaam, '2–60 tekens.'); ok = false;
-  }
-  if (!selectedCat || !selectedType) {
-    showInlineError(listContainer, 'Kies een mestsoort.'); ok = false;
-  }
+  if (!elNaam.value || elNaam.value.trim().length < 2 || elNaam.value.trim().length > 60) { showInlineError(elNaam, '2–60 tekens.'); ok = false; }
+  if (!selectedCat || !selectedType) { showInlineError(listContainer, 'Kies een mestsoort.'); ok = false; }
 
   const file = elFile.files?.[0];
   if (file && !isFileAllowed(file)) { showInlineError(elFile, 'Ongeldig bestand (PDF/JPG/PNG, max 10MB).'); ok = false; }
 
   const signedPrice = getSignedPriceFromUI();
-  if (signedPrice === null || !Number.isFinite(signedPrice)) {
-    showInlineError(elPrijs, 'Ongeldig bedrag (max 2 decimalen).'); ok = false;
-  }
+  if (signedPrice === null || !Number.isFinite(signedPrice)) { showInlineError(elPrijs, 'Ongeldig bedrag (max 2 decimalen).'); ok = false; }
 
   const tonInt = parseIntStrict(elTon.value);
   if (tonInt === null || tonInt <= 24) { showInlineError(elTon, 'Alleen hele aantallen > 24.'); ok = false; }
@@ -336,7 +329,7 @@ function makeUUID(){
   return String(Date.now()) + '-' + Math.random().toString(16).slice(2);
 }
 
-/* ============== Overzicht "Mijn uploads" — COMPACTE KAARTEN + AUTOSAVE ============== */
+/* ============== Overzicht "Mijn uploads" — kaarten + autosave ============== */
 async function loadMyUploads(){
   myUploads.innerHTML = 'Laden…';
   try {
@@ -371,9 +364,11 @@ function renderUploadsGrid(rows){
 
 function renderUploadCard(r){
   const hasFile = !!r.file_path;
-  const analysis = formatAnalysis(r);
   return `
     <article class="upload-card" data-id="${r.id}">
+      <!-- X linksboven -->
+      <button class="card-x a-del" aria-label="Verwijderen" title="Verwijderen">×</button>
+
       <header class="upload-card__head">
         <div class="title" title="${escapeHtml(r.naam)}">${escapeHtml(r.naam)}</div>
         <div class="status">${renderBadge(r.status)}</div>
@@ -382,14 +377,16 @@ function renderUploadCard(r){
       <div class="upload-card__meta">
         <div class="meta-row">
           <span class="meta-label">Mestsoort</span>
-          <span class="meta-value" title="${escapeHtml(prettyKind(r.mest_categorie, r.mest_type))}">
-            ${prettyKind(r.mest_categorie, r.mest_type)}
+          <span class="meta-value">${prettyKind(r.mest_categorie, r.mest_type)}</span>
+        </div>
+
+        <div class="meta-row meta-row--analysis">
+          <span class="meta-label">Analyse</span>
+          <span class="meta-value">
+            ${renderAnalysisChips(r)}
           </span>
         </div>
-        <div class="meta-row">
-          <span class="meta-label">Analyse</span>
-          <span class="meta-value" title="${escapeHtml(analysis)}">${analysis}</span>
-        </div>
+
         <div class="meta-row">
           <span class="meta-label">Bestand</span>
           <span class="meta-value">${renderFileChip(hasFile)}</span>
@@ -398,14 +395,14 @@ function renderUploadCard(r){
 
       <div class="upload-card__form">
         <label class="field-sm addon-wrap">
-          <span class="label-sm">€ / ton</span>
+          <span class="label-sm">Vraagprijs per ton</span>
           <span class="addon left">€</span>
           <input class="input input--sm addon-left-pad e-prijs" inputmode="decimal" placeholder="0,00"
                  value="${fmtEditSigned(r.inkoopprijs_per_ton)}">
         </label>
 
         <label class="field-sm addon-wrap">
-          <span class="label-sm">Ton</span>
+          <span class="label-sm">Aantal ton</span>
           <input class="input input--sm addon-right-pad e-ton" inputmode="numeric" placeholder="0"
                  value="${fmtInt(r.aantal_ton)}">
           <span class="addon right">t</span>
@@ -420,17 +417,28 @@ function renderUploadCard(r){
 
       <footer class="upload-card__actions">
         <div class="save-indicator" aria-live="polite"></div>
-        <button class="btn-ghost a-del" title="Verwijderen">Verwijderen</button>
       </footer>
     </article>
   `;
 }
 
-/* --- helpers voor kaartweergave --- */
-function formatAnalysis(r){
-  return `${fmt(r.ds_percent,'%')} • N ${fmt(r.n_kg_per_ton,' kg/t')} • P ${fmt(r.p_kg_per_ton,' kg/t')} • K ${fmt(r.k_kg_per_ton,' kg/t')}`;
+/* --- helpers voor weergave --- */
+function prettyKind(cat, type) {
+  const catNice  = labelCategorie(cat) || String(cat || '').replace(/_/g, ' ');
+  const typeNice = type ? type.charAt(0).toUpperCase() + String(type).slice(1) : '';
+  return `${escapeHtml(catNice)} / ${escapeHtml(typeNice)}`;
 }
-function fmt(v, suf=''){ if (v===null || v===undefined || v==='') return '—'; const n = Number(v); return Number.isFinite(n) ? `${n}${suf}` : '—'; }
+
+function renderAnalysisChips(r){
+  const parts = [];
+  if (isFiniteNum(r.ds_percent))     parts.push(`<span class="chip metric"><b>DS</b> ${escapeHtml(String(r.ds_percent))}%</span>`);
+  if (isFiniteNum(r.n_kg_per_ton))   parts.push(`<span class="chip metric"><b>N</b> ${escapeHtml(String(r.n_kg_per_ton))} kg/t</span>`);
+  if (isFiniteNum(r.p_kg_per_ton))   parts.push(`<span class="chip metric"><b>P</b> ${escapeHtml(String(r.p_kg_per_ton))} kg/t</span>`);
+  if (isFiniteNum(r.k_kg_per_ton))   parts.push(`<span class="chip metric"><b>K</b> ${escapeHtml(String(r.k_kg_per_ton))} kg/t</span>`);
+  return parts.length ? parts.join(' ') : '—';
+}
+function isFiniteNum(v){ const n = Number(v); return Number.isFinite(n); }
+
 function fmtEditSigned(v){
   if (v === null || v === undefined || v === '') return '';
   const n = Number(v); if (!Number.isFinite(n)) return '';
@@ -440,11 +448,6 @@ function fmtInt(v){ const n = Number(v); if (!Number.isFinite(n)) return ''; ret
 function escapeHtml(s){ return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
 function renderBadge(status){ const map = { in_behandeling:'gray', gepubliceerd:'green', afgewezen:'red' }; const cls = map[status] || 'gray'; const label = String(status || '').replace(/_/g, ' '); return `<span class="badge ${cls}">${escapeHtml(label)}</span>`; }
 function renderFileChip(hasFile){ return hasFile ? `<span class="chip ok"><span class="dot"></span> aanwezig</span>` : `<span class="chip none"><span class="dot"></span> geen bestand</span>`; }
-function prettyKind(cat, type) {
-  const catNice  = labelCategorie(cat) || String(cat || '').replace(/_/g, ' ');
-  const typeNice = type ? type.charAt(0).toUpperCase() + String(type).slice(1) : '';
-  return `${catNice} / ${typeNice}`;
-}
 
 /* --- acties + INLINE AUTOSAVE --- */
 function bindUploadActions(rows){
@@ -458,36 +461,24 @@ function bindUploadActions(rows){
     const elPC    = card.querySelector('.e-postcode');
     const noteEl  = card.querySelector('.save-indicator');
 
-    // init last-saved snapshot (strings zoals in inputs)
+    // snapshots
     card.dataset.lastPrice = elP.value;
     card.dataset.lastTon   = elT.value;
     card.dataset.lastPC    = elPC.value;
 
-    // nette format op blur: ± en komma met 2 dec (laat teken van user)
     elP?.addEventListener('blur', () => {
       const n = parseSignedPrice2dec(elP.value);
-      if (n === null) return;
-      const abs = Math.abs(n).toFixed(2).replace('.', ',');
-      elP.value = (n < 0 ? '-' : '') + abs;
-      scheduleSave(); // ook saven op blur
-    });
-
-    // ton: alleen digits, autosave
-    elT?.addEventListener('input', () => {
-      elT.value = (elT.value || '').replace(/\D/g,'');
+      if (n !== null) {
+        const abs = Math.abs(n).toFixed(2).replace('.', ',');
+        elP.value = (n < 0 ? '-' : '') + abs;
+      }
       scheduleSave();
     });
 
-    // postcode: save op blur (voorkomt half-ingevoerde waarden)
-    elPC?.addEventListener('blur', () => {
-      if (isValidPostcode(elPC.value)) elPC.value = formatPostcode(elPC.value);
-      scheduleSave();
-    });
-
-    // Enter in velden => directe save
+    elT?.addEventListener('input', () => { elT.value = (elT.value || '').replace(/\D/g,''); scheduleSave(); });
+    elPC?.addEventListener('blur',  () => { if (isValidPostcode(elPC.value)) elPC.value = formatPostcode(elPC.value); scheduleSave(); });
     [elP, elT, elPC].forEach(i => i?.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); doSave(); }}));
 
-    // verwijder
     btnDel?.addEventListener('click', async () => {
       if (!confirm('Weet je zeker dat je dit item wilt verwijderen?')) return;
       const { error } = await supabase.from('mest_uploads').delete().eq('id', r.id);
@@ -495,27 +486,21 @@ function bindUploadActions(rows){
       else { toast('Verwijderd', 'success'); await loadMyUploads(); }
     });
 
-    // debounced autosave
     const scheduleSave = debounce(doSave, 700);
 
     async function doSave(){
-      // velden opschonen en validatie
       [elP, elT, elPC].forEach(clearInlineError);
       let ok = true;
 
-      // prijs (±, max 2 dec, 0 toegestaan)
       const priceSigned = parseSignedPrice2dec(elP.value);
       if (priceSigned === null) { showInlineError(elP,'Bedrag (±) met max 2 decimalen.'); ok = false; }
 
-      // ton (integer > 24)
       const tonInt = parseIntStrict(elT.value);
       if (tonInt === null || tonInt <= 24) { showInlineError(elT,'Hele aantallen > 24.'); ok = false; }
 
-      // postcode
       if (!isValidPostcode(elPC.value)) { showInlineError(elPC,'Postcode ongeldig'); ok = false; }
       const pcFmt = ok ? formatPostcode(elPC.value) : null;
 
-      // niets veranderd? skip
       if (elP.value === card.dataset.lastPrice &&
           elT.value === card.dataset.lastTon &&
           elPC.value === card.dataset.lastPC) return;
@@ -532,13 +517,11 @@ function bindUploadActions(rows){
 
       if (error) { setNote('Opslaan mislukt', 'error'); return; }
 
-      // snapshot bijwerken
       card.dataset.lastPrice = elP.value;
       card.dataset.lastTon   = elT.value;
       card.dataset.lastPC    = elPC.value;
 
       setNote('Opgeslagen ✓', 'ok');
-      // na korte tijd de melding subtiel verbergen
       setTimeout(() => setNote('', ''), 1200);
     }
 
