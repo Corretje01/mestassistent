@@ -271,7 +271,7 @@ function getSignedPriceFromUI() {
 }
 
 /* ========================
-   SUBMIT (bestand optioneel)
+   SUBMIT (formulier – bestand optioneel)
 ======================== */
 async function onSubmit(e){
   e.preventDefault();
@@ -425,8 +425,11 @@ function renderUploadCard(r){
 
   // Titel + status
   const titleEl = frag.querySelector('.title');
-  titleEl.textContent = r.naam || 'mest';
-  titleEl.title = r.naam || 'mest';
+  const safeName = r.naam || 'mest';
+  titleEl.textContent = safeName;
+  titleEl.title = 'Klik om naam te wijzigen';
+  titleEl.setAttribute('data-original', safeName);
+  titleEl.setAttribute('contenteditable', 'false'); // pas aan bij edit
   frag.querySelector('.status').innerHTML = renderBadge(r.status);
 
   // Meta
@@ -435,7 +438,7 @@ function renderUploadCard(r){
   const fileCell = frag.querySelector('.js-filechip');
   fileCell.innerHTML = renderFileChip(!!r.file_path);
 
-  // Als er nog GEEN bestand is, toon een klein linkje + maak verborgen file-input
+  // Als er nog GEEN bestand is, toon een subtiel linkje + verborgen file-input
   if (!r.file_path) {
     const btn = document.createElement('button');
     btn.type = 'button';
@@ -452,21 +455,18 @@ function renderUploadCard(r){
     article.appendChild(hidden);
   }
 
-  // Velden
+  // Velden (bestaande inputs)
   const prijs = frag.querySelector('.e-prijs');
   const ton   = frag.querySelector('.e-ton');
   const pc    = frag.querySelector('.e-postcode');
-  const naamI = frag.querySelector('.e-naam'); // NIEUW (bewerkbare naam in kaart)
 
   const prijsVal = fmtEditSigned(r.inkoopprijs_per_ton);
   const tonVal   = fmtInt(r.aantal_ton);
   const pcVal    = r.postcode || '';
-  const naamVal  = r.naam || '';
 
   if (prijs){ prijs.value = prijsVal; prijs.setAttribute('value', prijsVal); }
   if (ton){   ton.value   = tonVal;   ton.setAttribute('value', tonVal); }
   if (pc){    pc.value    = pcVal;    pc.setAttribute('value', pcVal); }
-  if (naamI){ naamI.value = naamVal;  naamI.setAttribute('value',  naamVal); }
 
   return article;
 }
@@ -522,20 +522,8 @@ function renderFileChip(hasFile){
     : `<span class="chip none"><span class="dot"></span> geen bestand</span>`;
 }
 
-/* === INLINE EDITS (cards) — autosave + strikte validatie === */
+/* === INLINE EDITS (cards) — ✓-save, strikte validatie === */
 
-const SAVE_DEBOUNCE_MS = 450;
-const saveTimers = new Map(); // per card-id
-
-// UI-format voor prijs: ± en altijd 2 dec, komma
-function formatPriceDisplay(val) {
-  const n = (typeof val === 'number') ? val : parseSignedPrice2dec(String(val));
-  if (n === null) return '';
-  const abs = Math.abs(n).toFixed(2).replace('.', ',');
-  return (n < 0 ? '-' : '') + abs;
-}
-
-// Live input-masks (prijs/ton/postcode)
 function attachMasks(elPrice, elTon, elPC) {
   // prijs
   elPrice?.addEventListener('input', () => {
@@ -549,7 +537,10 @@ function attachMasks(elPrice, elTon, elPC) {
   });
   elPrice?.addEventListener('blur', () => {
     const n = parseSignedPrice2dec(elPrice.value);
-    if (n !== null) elPrice.value = formatPriceDisplay(n);
+    if (n !== null) {
+      const abs = Math.abs(n).toFixed(2).replace('.', ',');
+      elPrice.value = (n < 0 ? '-' : '') + abs;
+    }
   });
 
   // ton
@@ -569,73 +560,40 @@ function attachMasks(elPrice, elTon, elPC) {
   });
 }
 
-function validateCardFields(elPrice, elTon, elPC) {
-  let ok = true;
-  [elPrice, elTon, elPC].forEach(clearInlineError);
-
-  const priceSigned = parseSignedPrice2dec(elPrice.value);
-  if (priceSigned === null || !Number.isFinite(priceSigned)) {
-    showInlineError(elPrice, 'Bedrag ongeldig. Gebruik een komma en max. 2 decimalen.');
-    ok = false;
-  } else {
-    elPrice.value = formatPriceDisplay(priceSigned);
-  }
-
-  const tonInt = parseIntStrict(elTon.value);
-  if (tonInt === null || tonInt <= 24) {
-    showInlineError(elTon, 'Alleen hele aantallen > 24.');
-    ok = false;
-  } else {
-    elTon.value = String(tonInt);
-  }
-
-  let pcFmt = null;
-  if (!isValidPostcode(elPC.value)) {
-    showInlineError(elPC, 'Ongeldige NL postcode.');
-    ok = false;
-  } else {
-    pcFmt = formatPostcode(elPC.value);
-    elPC.value = pcFmt;
-  }
-
-  return { ok, priceSigned, tonInt, pcFmt };
-}
-
 // === BINDER ===
 function bindUploadActions(rows){
   rows.forEach(r => {
     const card  = myUploads.querySelector(`.upload-card[data-id="${r.id}"]`);
     if (!card) return;
 
+    const titleEl = card.querySelector('.title');
     const elP     = card.querySelector('.e-prijs');
     const elT     = card.querySelector('.e-ton');
     const elPC    = card.querySelector('.e-postcode');
-    const elName  = card.querySelector('.e-naam');      // NIEUW (optioneel)
-    const addBtn  = card.querySelector('.a-addfile');   // alleen aanwezig als er nog geen bestand is
-    const hidFile = card.querySelector('.e-file');      // verborgen input per kaart (als addBtn bestaat)
+    const addBtn  = card.querySelector('.a-addfile');  // kan bestaan
+    const hidFile = card.querySelector('.e-file');     // kan bestaan
     const btnDel  = card.querySelector('.a-del');
     const btnSave = card.querySelector('.a-save');
 
     attachMasks(elP, elT, elPC);
 
-    // helpers
+    // helpers voor dirty/save state
     const markDirty = () => {
       card.classList.add('is-dirty');
       card.classList.remove('is-saved');
-      [elP, elT, elPC, elName].forEach(el => el && clearInlineError(el));
+      [elP, elT, elPC].forEach(el => el && clearInlineError(el));
     };
     const beginSave = () => { card.classList.add('is-saving'); btnSave?.setAttribute('disabled',''); };
     const endSave   = () => { card.classList.remove('is-saving'); btnSave?.removeAttribute('disabled'); };
 
-    // elke wijziging -> toon ✓
+    // prijs/ton/postcode → dirty tonen
     ['input','change'].forEach(ev => {
       elP?.addEventListener(ev, markDirty);
       elT?.addEventListener(ev, markDirty);
       elPC?.addEventListener(ev, markDirty);
-      elName?.addEventListener(ev, markDirty);
     });
 
-    // nette formatting op blur (geen save!)
+    // nette formatting op blur (geen save)
     elP?.addEventListener('blur', () => {
       const n = parseSignedPrice2dec(elP.value);
       if (n == null) return;
@@ -651,12 +609,67 @@ function bindUploadActions(rows){
       if (!isValidPostcode(elPC.value)) return;
       elPC.value = formatPostcode(elPC.value);
     });
-    elName?.addEventListener('blur', () => { elName.value = (elName.value || '').trim(); });
 
-    // SAVE via ✓
+    // === Inline edit NAAM via titel (opslaan via ✓) =========================
+    (function initInlineTitleEdit(){
+      if (!titleEl) return;
+      const maxLen = 25, minLen = 2;
+
+      const startEdit = () => {
+        titleEl.classList.add('is-editing');
+        titleEl.setAttribute('contenteditable','true');
+        placeCaretAtEnd(titleEl);
+        markDirty();
+      };
+      const cancelEdit = () => {
+        titleEl.textContent = titleEl.getAttribute('data-original') || 'mest';
+        titleEl.classList.remove('is-editing');
+        titleEl.setAttribute('contenteditable','false');
+        // Als verder niets aangepast is, haal dirty weg
+        if (!elP?.closest('.upload-card')?.classList.contains('is-dirty') ||
+            (elP?.value === elP?.getAttribute('value') &&
+             elT?.value === elT?.getAttribute('value') &&
+             elPC?.value === elPC?.getAttribute('value'))) {
+          card.classList.remove('is-dirty');
+        }
+      };
+
+      titleEl.addEventListener('click', () => {
+        if (titleEl.getAttribute('contenteditable') === 'true') return;
+        startEdit();
+      });
+      titleEl.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); titleEl.blur(); } // we saven nog niet; ✓ doet de echte save
+        if (e.key === 'Escape') { e.preventDefault(); cancelEdit(); }
+      });
+      titleEl.addEventListener('input', () => markDirty());
+      titleEl.addEventListener('blur', () => {
+        // sluit alleen edit-modus af; opslag gaat via ✓
+        titleEl.classList.remove('is-editing');
+        titleEl.setAttribute('contenteditable','false');
+      });
+
+      function placeCaretAtEnd(el){
+        const range = document.createRange();
+        range.selectNodeContents(el);
+        range.collapse(false);
+        const sel = window.getSelection();
+        sel.removeAllRanges(); sel.addRange(range);
+      }
+    })();
+
+    // SAVE via ✓ — valideer alles incl. titel
     btnSave?.addEventListener('click', async () => {
       let ok = true;
-      [elP, elT, elPC, elName].forEach(el => el && clearInlineError(el));
+      [elP, elT, elPC].forEach(el => el && clearInlineError(el));
+
+      // titel (naam) uit DOM
+      const nameRaw  = (titleEl?.textContent || '').trim();
+      const namePrev = titleEl?.getAttribute('data-original') || '';
+      if (nameRaw.length < 2 || nameRaw.length > 25) {
+        toast('Naam moet 2–25 tekens zijn.', 'error');
+        ok = false;
+      }
 
       // prijs
       const priceSigned = parseSignedPrice2dec(elP.value);
@@ -685,47 +698,41 @@ function bindUploadActions(rows){
         elPC.value = formatPostcode(elPC.value);
       }
 
-      // (optioneel) naam
-      let nameTrim = null;
-      if (elName) {
-        nameTrim = (elName.value || '').trim();
-        if (nameTrim.length < 2 || nameTrim.length > 25) {
-          showInlineError(elName,'2–25 tekens.');
-          ok = false;
-        } else {
-          elName.value = nameTrim;
-        }
-      }
-
       if (!ok) {
         card.classList.add('shake');
         setTimeout(() => card.classList.remove('shake'), 300);
         return;
       }
 
-      beginSave();
+      // Bouw patch; neem naam alleen mee als gewijzigd
       const patch = {
-        inkoopprijs_per_ton: priceSigned,
+        inkoopprijs_per_ton: parseSignedPrice2dec(elP.value),
         aantal_ton: tonInt,
         postcode: elPC.value,
-        ...(elName ? { naam: nameTrim } : {})
+        ...(nameRaw !== namePrev ? { naam: nameRaw } : {})
       };
+
+      beginSave();
       const okSave = await patchRow(r.id, patch, { silent:true });
       endSave();
 
       if (okSave) {
-        // titel live bijwerken als naam gewijzigd is
-        if (elName) {
-          const tEl = card.querySelector('.title');
-          if (tEl) { tEl.textContent = elName.value || 'mest'; tEl.title = tEl.textContent; }
+        // sync "original" states + titel tooltip
+        if (titleEl && nameRaw !== namePrev) {
+          titleEl.setAttribute('data-original', nameRaw);
+          titleEl.title = 'Klik om naam te wijzigen';
         }
+        elP?.setAttribute('value', elP.value);
+        elT?.setAttribute('value', elT.value);
+        elPC?.setAttribute('value', elPC.value);
+
         card.classList.remove('is-dirty');
         card.classList.add('is-saved');
         setTimeout(() => card.classList.remove('is-saved'), 1200);
       }
     });
 
-    // (ALLEEN ALS GEEN BESTAND): klik op "Voeg analyse toe" -> filepicker -> upload -> patch
+    // (ALLEEN ALS GEEN BESTAND): "Voeg analyse toe"
     if (addBtn && hidFile) {
       addBtn.addEventListener('click', () => hidFile.click());
       hidFile.addEventListener('change', async () => {
@@ -750,7 +757,7 @@ function bindUploadActions(rows){
           const ok = await patchRow(r.id, { file_path: path, file_mime: mime }, { silent:true });
           if (!ok) throw new Error('Opslaan in database mislukt');
 
-          // UI bijwerken: chip -> "aanwezig", knop weg
+          // UI bijwerken
           const chip = card.querySelector('.js-filechip');
           if (chip) chip.innerHTML = renderFileChip(true);
           addBtn.remove();
@@ -766,8 +773,7 @@ function bindUploadActions(rows){
     }
 
     // VERWIJDER (X)
-    const btnX = card.querySelector('.a-del');
-    btnX?.addEventListener('click', async () => {
+    card.querySelector('.a-del')?.addEventListener('click', async () => {
       if (!confirm('Dit item verwijderen?')) return;
       const { error } = await supabase.from('mest_uploads').delete().eq('id', r.id);
       if (error) toast('Verwijderen mislukt: ' + error.message, 'error');
