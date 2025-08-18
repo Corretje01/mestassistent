@@ -544,6 +544,15 @@ function renderFileChip(hasFile){
     : `<span class="chip none"><span class="dot"></span> geen bestand</span>`;
 }
 
+// Netjes labelen van categorie/type voor in de kaart
+function prettyKind(cat, type) {
+  // hergebruik je mapping (Drijfmest, Vaste mest, Dikke fractie, Overig)
+  const catNice  = labelCategorie(cat) || String(cat || '').replace(/_/g, ' ');
+  const typeNice = type ? type.charAt(0).toUpperCase() + String(type).slice(1) : '';
+  // let op: hier NIET escapen; je escapt al bij gebruik waar nodig
+  return `${catNice} / ${typeNice}`;
+}
+
 /* --- acties in kaarten --- */
 function bindUploadActions(rows){
   rows.forEach(r => {
