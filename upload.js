@@ -522,10 +522,10 @@ function bindUploadActions(rows){
       await patchRow(r.id, { inkoopprijs_per_ton: n });
     });
 
-    // TON — integer > 24
+    // TON — integer > 0
     elT?.addEventListener('blur', async () => {
       const tonInt = parseIntStrict(elT.value);
-      if (tonInt === null || tonInt <= 24) { showInlineError(elT,'Hele aantallen > 24.'); return; }
+      if (tonInt === null || tonInt <= 0) { showInlineError(elT,'Hele aantallen > 0.'); return; }
       clearInlineError(elT);
       elT.value = String(tonInt);
       await patchRow(r.id, { aantal_ton: tonInt });
