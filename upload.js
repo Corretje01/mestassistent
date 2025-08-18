@@ -1,4 +1,4 @@
-// upload.js — compact "Mijn uploads" als kaarten + single-select mestsoort + defaults (alleen analyse) + optioneel bestand
+// upload.js — single-select mestsoort + defaults uit mestsoorten.json + optioneel bestand + compacte kaarten UI
 import { supabase } from './supabaseClient.js';
 import {
   isValidPostcode, formatPostcode,
@@ -11,7 +11,7 @@ const elNaam = document.getElementById('naam');
 const elFile = document.getElementById('file');
 const elPrijs= document.getElementById('inkoopprijs');
 const elTon  = document.getElementById('aantalTon');
-const elPriceSign = document.getElementById('priceSign'); // 'pos' | 'neg' (±-toggle)
+const elPriceSign = document.getElementById('priceSign'); // 'pos' | 'neg' (optioneel; via ±-toggle in HTML)
 
 const listContainer = document.getElementById('mestChoiceList');
 
@@ -30,15 +30,13 @@ const elOS  = document.getElementById('OS_percent');
 const elBio = document.getElementById('Biogas');
 
 let session, profile, userId;
-let mestsoortenObj = {};    // { drijfmest:{koe:{...},...}, vaste_mest:{...}, ... }
-let selectedCat = null;
-let selectedType = null;
+let mestsoortenObj = {};    // verwacht: { drijfmest: { koe:{...}, varken:{...} }, vaste_mest: {...}, ... }
+let selectedCat = null;     // 'drijfmest' | 'vaste_mest' | 'dikke_fractie' | 'overig'
+let selectedType = null;    // 'koe' | 'varken' | 'compost' | ...
 
-// Client-side paginering voor "Mijn uploads"
-let uploadsAll = [];
-let uploadsPage = 1;
-const PAGE_SIZE = 8;
-
+/* ========================
+   INIT
+======================== */
 (async function init(){
   // auth
   ({ data: { session } } = await supabase.auth.getSession());
@@ -48,9 +46,6 @@ const PAGE_SIZE = 8;
     return;
   }
   userId = session.user.id;
-
-  // kleine, scoped styles voor de kaartenweergave
-  ensureUploadsStyles();
 
   // profiel (voor postcode)
   const { data: prof } = await supabase.from('profiles').select('*').eq('id', userId).single();
@@ -65,21 +60,15 @@ const PAGE_SIZE = 8;
     if (!cbUseProfile.checked) elPostcode?.focus();
   });
 
+  // vraagprijs-teken standaard NEGATIEF
+  initPriceSignToggle('neg');
+
   // mestsoorten laden + UI bouwen
   await renderMestChoices();
 
-  // events (bestand optioneel)
+  // events
   elFile.addEventListener('change', handleFileChange);
   form.addEventListener('submit', onSubmit);
-
-  // nette prijs bij blur (2 dec + komma)
-  elPrijs?.addEventListener('blur', () => {
-    const v = parsePrice2dec(elPrijs.value);
-    if (v !== null) elPrijs.value = formatPriceDisplay(v);
-  });
-
-  // **Standaard teken prijs = NEGATIEF**
-  setPriceSignUI('neg');
 
   // overzicht
   await loadMyUploads();
@@ -87,6 +76,29 @@ const PAGE_SIZE = 8;
 
 function getProfilePostcode() {
   return session?.user?.user_metadata?.postcode || profile?.postcode || null;
+}
+
+/* ========================
+   PRICE SIGN TOGGLE (optioneel)
+======================== */
+function initPriceSignToggle(defaultMode='neg'){
+  if (elPriceSign) elPriceSign.value = defaultMode;
+  const wrap = document.querySelector('[data-role="price-sign"]');
+  if (!wrap) return; // UI niet aanwezig, alleen hidden value gezet
+  const bPos = wrap.querySelector('button[data-sign="pos"]');
+  const bNeg = wrap.querySelector('button[data-sign="neg"]');
+
+  const setSign = (mode) => {
+    if (elPriceSign) elPriceSign.value = mode;
+    bPos?.setAttribute('aria-pressed', String(mode === 'pos'));
+    bNeg?.setAttribute('aria-pressed', String(mode === 'neg'));
+  };
+
+  bPos?.addEventListener('click', () => setSign('pos'));
+  bNeg?.addEventListener('click', () => setSign('neg'));
+
+  // start op default
+  setSign(defaultMode);
 }
 
 /* ========================
@@ -105,11 +117,11 @@ function labelType(t){ return t ? t.charAt(0).toUpperCase()+t.slice(1) : ''; }
 
 async function renderMestChoices(){
   try {
-    const resp = await fetch('data/mestsoorten.json', { cache: 'no-store' });
+    const resp = await fetch('data/mestsoorten.json', { cache: 'no-store' }); // <— relative path
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const raw = await resp.json();
 
-    // verwacht objectvorm; array → versimpelde objectvorm
+    // verwacht objectvorm; array wordt omgezet naar { cat: { type: true } }
     mestsoortenObj = toObjectShapedMest(raw);
 
     // volgorde
@@ -135,7 +147,7 @@ async function renderMestChoices(){
       `;
     }).join('') || `<div class="muted">Geen mestsoorten gevonden.</div>`;
 
-    // change → selecteren + defaults invullen (alleen analysevelden)
+    // change → selecteren + defaults invullen (alleen analyse-velden)
     listContainer.querySelectorAll('input[name="mest_one"]').forEach(r => {
       r.addEventListener('change', () => {
         selectedCat  = r.dataset.cat;
@@ -169,29 +181,14 @@ function toObjectShapedMest(raw){
 }
 
 /* ========================
-   UI helper: ±-toggle sync
-======================== */
-function setPriceSignUI(mode = 'pos') {
-  if (elPriceSign) elPriceSign.value = mode; // 'pos' | 'neg'
-  const wrap = document.querySelector('[data-role="price-sign"]');
-  if (!wrap) return;
-  const pos = wrap.querySelector('button[data-sign="pos"]');
-  const neg = wrap.querySelector('button[data-sign="neg"]');
-  if (pos && neg) {
-    pos.setAttribute('aria-pressed', String(mode === 'pos'));
-    neg.setAttribute('aria-pressed', String(mode === 'neg'));
-  }
-}
-
-/* ========================
-   DEFAULTS (alleen analysevelden)
+   DEFAULTS op basis van keuze (alleen analyse)
 ======================== */
 function applyDefaultsFromSelection(cat, type){
   if (!cat || !type) return;
   const node = mestsoortenObj?.[cat]?.[type];
   if (!node || typeof node !== 'object') return;
 
-  // tolerant (case-insensitive) keys
+  // haal tolerant (case-insensitive) de velden op
   const ds   = pickNum(node, ['ds_percent','DS_percent']);
   const n    = pickNum(node, ['n_kg_per_ton','N_kg_per_ton']);
   const p    = pickNum(node, ['p_kg_per_ton','P_kg_per_ton']);
@@ -199,7 +196,7 @@ function applyDefaultsFromSelection(cat, type){
   const os   = pickNum(node, ['os_percent','OS_percent']);
   const bio  = pickNum(node, ['biogaspotentieel_m3_per_ton','Biogaspotentieel_m3_per_ton']);
 
-  // **Alleen** read-only analysevelden invullen
+  // zet read-only velden (lege string als null)
   elDS.value  = numToRO(ds);
   elN.value   = numToRO(n);
   elP.value   = numToRO(p);
@@ -207,7 +204,7 @@ function applyDefaultsFromSelection(cat, type){
   elOS.value  = numToRO(os);
   elBio.value = numToRO(bio);
 
-  // geen voorinvulling van prijs of ton!
+  // GEEN prijs/ton of aantal ton invullen!
 }
 
 function pickNum(obj, keys){
@@ -223,9 +220,6 @@ function numToRO(v){
   if (v === null || v === undefined || v === '') return '';
   const n = Number(v);
   return Number.isFinite(n) ? String(n).replace(/\.00$/,'') : '';
-}
-function formatPriceDisplay(n){
-  return Number(n).toFixed(2).replace('.', ','); // altijd komma
 }
 
 /* ========================
@@ -263,11 +257,13 @@ function toFixedOrEmpty(v){
    PRIJS & TON helpers
 ======================== */
 function getSignedPriceFromUI() {
+  // 1) ±-toggle aanwezig?
   if (elPriceSign) {
-    const raw = parsePrice2dec(elPrijs.value);    // "12,50" → 12.5
+    const raw = parsePrice2dec(elPrijs.value);    // leest "12,50" → 12.5
     if (raw === null) return null;
     return (elPriceSign.value === 'neg') ? -raw : raw;
   }
+  // 2) fallback: teken in veld (bv. "-12,50")
   const signed = parseSignedPrice2dec(elPrijs.value);
   return signed === null ? null : signed;
 }
@@ -352,17 +348,17 @@ async function onSubmit(e){
       if (upErr) throw upErr;
     }
 
-    // 2) Insert mest_uploads (lowercase kolommen)
+    // 2) Insert mest_uploads (let op lowercase kolommen)
     const payload = {
       user_id: userId,
       naam: elNaam.value.trim(),
-      mest_categorie: selectedCat,
-      mest_type: selectedType,
-      file_path: path,
-      file_mime: mime,
+      mest_categorie: selectedCat,     // bv. 'vaste_mest'
+      mest_type: selectedType,         // bv. 'koe'
+      file_path: path,                 // kan null zijn
+      file_mime: mime,                 // kan null zijn
       postcode: postcodeVal,
-      inkoopprijs_per_ton: signedPrice,
-      aantal_ton: tonInt,
+      inkoopprijs_per_ton: signedPrice,   // ± prijs
+      aantal_ton: tonInt,                 // integer
       ds_percent: toNumOrNull(elDS.value),
       n_kg_per_ton: toNumOrNull(elN.value),
       p_kg_per_ton: toNumOrNull(elP.value),
@@ -385,10 +381,7 @@ async function onSubmit(e){
 
     cbUseProfile.checked = !!profilePostcodeNow;
     wrapPostcode.style.display = cbUseProfile.checked ? 'none' : 'block';
-
-    // na opslaan: teken terug naar NEGATIEF
-    setPriceSignUI('neg');
-
+    if (elPriceSign) elPriceSign.value = 'neg';  // default teken blijft negatief
     await loadMyUploads();
   } catch (e) {
     console.error(e);
@@ -416,117 +409,101 @@ function makeUUID(){
 }
 
 /* ========================
-   Overzicht "Mijn uploads" — KAARTEN + PAGINERING
+   Overzicht "Mijn uploads" — COMPACTE KAARTEN
 ======================== */
 async function loadMyUploads(){
   myUploads.innerHTML = 'Laden…';
-  const { data, error } = await supabase
-    .from('mest_uploads')
-    .select('*')
-    .eq('user_id', userId)
-    .order('created_at', { ascending: false });
+  try {
+    const { data, error } = await supabase
+      .from('mest_uploads')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
 
-  if (error) {
+    if (error) throw error;
+
+    if (!data || !data.length){
+      myUploads.innerHTML = `<div class="muted">Nog geen uploads. Voeg hierboven je eerste upload toe.</div>`;
+      return;
+    }
+
+    myUploads.innerHTML = renderUploadsGrid(data);
+    bindUploadActions(data);
+  } catch (e) {
+    console.error(e);
     myUploads.textContent = 'Kon jouw uploads niet ophalen.';
-    return;
   }
-
-  uploadsAll = data || [];
-  uploadsPage = 1;
-  renderUploadsGrid();
 }
 
-function renderUploadsGrid(){
-  const start = 0;
-  const end = uploadsPage * PAGE_SIZE;
-  const slice = uploadsAll.slice(start, end);
-
-  if (!slice.length) {
-    myUploads.innerHTML = `<div class="muted">Nog geen uploads. Voeg hierboven je eerste upload toe.</div>`;
-    return;
-  }
-
-  myUploads.innerHTML = `
+/* --- helpers voor weergave in kaarten --- */
+function renderUploadsGrid(rows){
+  return `
     <div class="uploads-grid">
-      ${slice.map(renderUploadCard).join('')}
+      ${rows.map(r => renderUploadCard(r)).join('')}
     </div>
-    ${end < uploadsAll.length ? `<div class="uc-more-wrap"><button class="btn btn-primary uc-more">Toon meer</button></div>` : ''}
   `;
-
-  bindUploadCardActions(slice);
-
-  const moreBtn = myUploads.querySelector('.uc-more');
-  if (moreBtn) {
-    moreBtn.addEventListener('click', () => {
-      uploadsPage += 1;
-      renderUploadsGrid();
-    });
-  }
 }
 
 function renderUploadCard(r){
   return `
-    <article class="uc-card" data-id="${r.id}">
-      <header class="uc-header">
-        <div class="uc-name">
-          <input class="input uc-input e-naam" value="${escapeHtml(r.naam)}" maxlength="60" />
-        </div>
-        ${renderBadge(r.status)}
+    <article class="upload-card" data-id="${r.id}">
+      <header class="upload-card__head">
+        <div class="title">${escapeHtml(r.naam)}</div>
+        <div class="status">${renderBadge(r.status)}</div>
       </header>
 
-      <div class="uc-row uc-meta">
-        <div class="uc-kind truncate">${prettyKind(r.mest_categorie, r.mest_type)}</div>
-        <div class="uc-postcode">
-          <input class="input uc-input e-postcode" value="${escapeHtml(r.postcode || '')}" placeholder="1234 AB" maxlength="7"/>
-        </div>
+      <div class="upload-card__meta">
+        <div class="meta-row"><span class="meta-label">Mestsoort</span><span class="meta-value">${prettyKind(r.mest_categorie, r.mest_type)}</span></div>
+        <div class="meta-row"><span class="meta-label">Analyse</span><span class="meta-value">${formatAnalysis(r)}</span></div>
       </div>
 
-      <div class="uc-chips">
-        ${chip('DS', r.ds_percent, '%')}
-        ${chip('N',  r.n_kg_per_ton, ' kg/t')}
-        ${chip('P',  r.p_kg_per_ton, ' kg/t')}
-        ${chip('K',  r.k_kg_per_ton, ' kg/t')}
-      </div>
-
-      <div class="uc-row uc-nums">
-        <label class="uc-field">
-          <span class="uc-label">€ / ton (±)</span>
-          <input class="input uc-input uc-right e-prijs" value="${fmtEditSigned(r.inkoopprijs_per_ton)}" inputmode="decimal" placeholder="0,00"/>
+      <div class="upload-card__form">
+        <label class="field-sm">
+          <span class="label-sm">€ / ton</span>
+          <input class="input e-prijs" inputmode="decimal" placeholder="0,00" value="${fmtEditSigned(r.inkoopprijs_per_ton)}">
         </label>
-        <label class="uc-field">
-          <span class="uc-label">Aantal ton</span>
-          <input class="input uc-input uc-right e-ton" value="${fmtInt(r.aantal_ton)}" inputmode="numeric" placeholder="0"/>
+        <label class="field-sm">
+          <span class="label-sm">Ton</span>
+          <input class="input e-ton" inputmode="numeric" placeholder="0" value="${fmtInt(r.aantal_ton)}">
+        </label>
+        <label class="field-sm">
+          <span class="label-sm">Postcode</span>
+          <input class="input e-postcode" maxlength="7" placeholder="1234 AB" value="${escapeHtml(r.postcode || '')}">
         </label>
       </div>
 
-      <footer class="uc-actions">
-        <div class="uc-actions-left">
-          ${r.file_path ? `<button class="btn uc-open">Bekijk analyse</button>` : `<span class="muted">Geen analysebestand</span>`}
-        </div>
-        <div class="uc-actions-right">
-          <button class="btn-primary a-save">Opslaan</button>
-          <button class="btn-danger a-del">Verwijderen</button>
-        </div>
+      <footer class="upload-card__actions">
+        <button class="btn-primary a-save">Opslaan</button>
+        <button class="btn-danger a-del">Verwijderen</button>
       </footer>
     </article>
   `;
 }
 
-function chip(label, v, suf=''){
-  const t = (v===null || v===undefined) ? '—' : `${Number(v)}${suf}`;
-  return `<span class="uc-chip"><strong>${label}</strong> ${t}</span>`;
-}
-
-/* ---- helpers voor weergave ---- */
 function prettyKind(cat, type){
   const nice = String(cat || '').replace(/_/g,' ');
   return `${escapeHtml(nice)} / ${escapeHtml(type || '')}`;
+}
+function formatAnalysis(r){
+  // LET OP: gebruik lowercase kolommen
+  const parts = [
+    fmt(r.ds_percent, '%'),
+    `N ${fmt(r.n_kg_per_ton, ' kg/t')}`,
+    `P ${fmt(r.p_kg_per_ton, ' kg/t')}`,
+    `K ${fmt(r.k_kg_per_ton, ' kg/t')}`
+  ];
+  return parts.join(' • ');
+}
+function fmt(v,suf=''){
+  if (v===null || v===undefined) return '—';
+  const n = Number(v);
+  return Number.isFinite(n) ? `${n}${suf}` : '—';
 }
 function fmtEditSigned(v){
   if (v === null || v === undefined || v === '') return '';
   const n = Number(v);
   if (!Number.isFinite(n)) return '';
-  const abs = Math.abs(n).toFixed(2).replace('.', ','); // altijd komma
+  const abs = Math.abs(n).toFixed(2).replace('.', ','); // altijd komma tonen
   return (n < 0 ? '-' : '') + abs;
 }
 function fmtInt(v){
@@ -544,19 +521,19 @@ function renderBadge(status){
   return `<span class="badge ${cls}">${escapeHtml(label)}</span>`;
 }
 
-/* ---- acties op kaarten ---- */
-function bindUploadCardActions(rows){
+/* --- acties in kaarten --- */
+function bindUploadActions(rows){
   rows.forEach(r => {
-    const card   = myUploads.querySelector(`.uc-card[data-id="${r.id}"]`);
-    const btnSave= card.querySelector('.a-save');
-    const btnDel = card.querySelector('.a-del');
-    const btnOpen= card.querySelector('.uc-open');
-    const elN    = card.querySelector('.e-naam');
-    const elP    = card.querySelector('.e-prijs');
-    const elT    = card.querySelector('.e-ton');
-    const elPC   = card.querySelector('.e-postcode');
+    const card  = myUploads.querySelector(`.upload-card[data-id="${r.id}"]`);
+    if (!card) return;
 
-    // nette prijs bij blur: ± met komma en 2 dec
+    const btnSave = card.querySelector('.a-save');
+    const btnDel  = card.querySelector('.a-del');
+    const elP     = card.querySelector('.e-prijs');
+    const elT     = card.querySelector('.e-ton');
+    const elPC    = card.querySelector('.e-postcode');
+
+    // nette format op blur: ± en komma met 2 dec (laat teken zoals gebruiker het intikt)
     elP?.addEventListener('blur', () => {
       const n = parseSignedPrice2dec(elP.value);
       if (n === null) return;
@@ -564,37 +541,36 @@ function bindUploadCardActions(rows){
       elP.value = (n < 0 ? '-' : '') + abs;
     });
 
-    // open analyse (signed URL)
-    if (btnOpen) {
-      btnOpen.addEventListener('click', async () => {
-        if (!r.file_path) { toast('Geen bestandspad beschikbaar.', 'error'); return; }
-        const { data, error } = await supabase.storage
-          .from('mest-analyses')
-          .createSignedUrl(r.file_path, 60);
-        if (error) { toast(`Kon bestand niet openen: ${error.message}`, 'error'); return; }
-        window.open(data.signedUrl, '_blank', 'noopener');
-      });
-    }
-
     btnSave.addEventListener('click', async () => {
       let ok = true;
-      [elN, elP, elT, elPC].forEach(clearInlineError);
+      [elP, elT, elPC].forEach(clearInlineError);
 
-      if (!elN.value || elN.value.trim().length < 2 || elN.value.trim().length > 60) { showInlineError(elN,'2–60 tekens'); ok=false; }
+      // prijs (±, max 2 dec, 0 toegestaan)
       const priceSigned = parseSignedPrice2dec(elP.value);
       if (priceSigned === null) { showInlineError(elP,'Bedrag (±) met max 2 decimalen.'); ok=false; }
+
+      // ton (integer > 0)
       const tonInt = parseIntStrict(elT.value);
       if (tonInt === null || tonInt <= 0) { showInlineError(elT,'Alleen hele aantallen > 0.'); ok=false; }
+
+      // postcode
       if (!isValidPostcode(elPC.value)) { showInlineError(elPC,'Postcode ongeldig'); ok=false; }
       const pcFmt = formatPostcode(elPC.value);
+
       if (!ok) return;
 
+      const prev = btnSave.textContent;
+      btnSave.disabled = true;
+      btnSave.textContent = 'Opslaan…';
+
       const { error } = await supabase.from('mest_uploads').update({
-        naam: elN.value.trim(),
         inkoopprijs_per_ton: priceSigned,
         aantal_ton: tonInt,
         postcode: pcFmt
       }).eq('id', r.id);
+
+      btnSave.disabled = false;
+      btnSave.textContent = prev;
 
       if (error) {
         toast('Opslaan mislukt: ' + error.message, 'error');
@@ -611,37 +587,4 @@ function bindUploadCardActions(rows){
       else { toast('Verwijderd', 'success'); await loadMyUploads(); }
     });
   });
-}
-
-/* ========================
-   Scoped styles voor kaarten (je kunt dit later naar style.css verplaatsen)
-======================== */
-function ensureUploadsStyles(){
-  if (document.getElementById('uploads-cards-css')) return;
-  const css = `
-  .uploads-grid{display:grid;gap:.75rem}
-  @media(min-width:700px){.uploads-grid{grid-template-columns:1fr 1fr}}
-  @media(min-width:1100px){.uploads-grid{grid-template-columns:1fr 1fr 1fr}}
-  .uc-card{border:1px solid #eee;background:#fff;border-radius:12px;padding:.85rem;box-shadow:0 2px 8px rgba(0,0,0,.04)}
-  .uc-header{display:flex;align-items:center;justify-content:space-between;gap:.75rem;margin-bottom:.4rem}
-  .uc-name{flex:1}
-  .uc-input{width:100%;padding:.55rem .65rem;border:1px solid #e5e7eb;border-radius:10px}
-  .uc-input:focus{outline:none;border-color:var(--color-yellow);box-shadow:0 0 0 3px rgba(241,196,15,.25)}
-  .uc-row{display:flex;gap:.6rem;flex-wrap:wrap;margin:.4rem 0}
-  .uc-meta{align-items:center;justify-content:space-between}
-  .uc-kind{font-weight:600}
-  .uc-chips{display:flex;flex-wrap:wrap;gap:.35rem;margin:.2rem 0 .5rem}
-  .uc-chip{display:inline-flex;align-items:center;gap:.25rem;padding:.2rem .45rem;border-radius:999px;background:#f5f5f5;font-size:.85rem}
-  .uc-field{flex:1;display:flex;flex-direction:column;gap:.25rem;min-width:140px}
-  .uc-label{font-size:.85rem;color:#6b7280}
-  .uc-right{text-align:right}
-  .uc-actions{display:flex;align-items:center;justify-content:space-between;gap:.5rem;margin-top:.35rem}
-  .uc-actions-right{display:flex;gap:.5rem}
-  .truncate{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
-  .uc-more-wrap{display:flex;justify-content:center;margin-top:.75rem}
-  `;
-  const tag = document.createElement('style');
-  tag.id = 'uploads-cards-css';
-  tag.textContent = css;
-  document.head.appendChild(tag);
 }
