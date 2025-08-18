@@ -394,79 +394,31 @@ function renderUploadsGrid(rows){
 }
 
 function renderUploadCard(r){
-  const hasFile = !!r.file_path;
-  return `
-    <article class="upload-card upload-card--airy" data-id="${r.id}">
-      <button class="card-close a-del" aria-label="Verwijderen" title="Verwijderen">×</button>
+  const tpl = document.getElementById('tpl-upload-card');
+  const node = tpl.content.cloneNode(true);
+  const article = node.querySelector('article');
+  article.dataset.id = r.id;
 
-      <header class="upload-card__head">
-        <div class="title" title="${escapeHtml(r.naam || 'mest')}">${escapeHtml(r.naam || 'mest')}</div>
-        <div class="status">${renderBadge(r.status)}</div>
-      </header>
+  // Titel + status
+  const titleEl = node.querySelector('.title');
+  titleEl.textContent = r.naam || 'mest';
+  titleEl.title = r.naam || 'mest';
+  node.querySelector('.status').innerHTML = renderBadge(r.status);
 
-      <div class="upload-card__meta">
-        <div class="meta-row">
-          <div class="meta-label">Mestsoort</div>
-          <div class="meta-value">${prettyKind(r.mest_categorie, r.mest_type)}</div>
-        </div>
+  // Meta
+  node.querySelector('.js-kind').innerHTML = prettyKind(r.mest_categorie, r.mest_type);
+  node.querySelector('.js-analysis').innerHTML = renderAnalysisChips(r);
+  node.querySelector('.js-filechip').innerHTML = renderFileChip(!!r.file_path);
 
-        <div class="meta-row meta-row--analysis">
-          <div class="meta-label">Analyse</div>
-          <div class="meta-value">
-            <div class="analysis-pills">
-              ${renderAnalysisChips(r)}
-            </div>
-          </div>
-        </div>
+  // Velden
+  const prijs = node.querySelector('.e-prijs');
+  const ton   = node.querySelector('.e-ton');
+  const pc    = node.querySelector('.e-postcode');
+  prijs.value = fmtEditSigned(r.inkoopprijs_per_ton);
+  ton.value   = fmtInt(r.aantal_ton);
+  pc.value    = r.postcode || '';
 
-        <div class="meta-row">
-          <div class="meta-label">Bestand</div>
-          <div class="meta-value">${renderFileChip(hasFile)}</div>
-        </div>
-      </div>
-
-      <div class="upload-card__form">
-        <!-- Vraagprijs per ton -->
-        <label class="field-sm">
-          <span class="label-sm">Vraagprijs per ton</span>
-          <div class="input-shell">
-            <span class="addon left" aria-hidden="true">€</span>
-            <input
-              class="input input--sm addon-left-pad e-prijs"
-              inputmode="decimal"
-              placeholder="0,00"
-              value="${fmtEditSigned(r.inkoopprijs_per_ton)}"
-            />
-          </div>
-        </label>
-
-        <!-- Aantal ton -->
-        <label class="field-sm">
-          <span class="label-sm">Aantal ton</span>
-          <div class="input-shell">
-            <input
-              class="input input--sm addon-right-pad e-ton"
-              inputmode="numeric"
-              placeholder="0"
-              value="${fmtInt(r.aantal_ton)}"
-            />
-            <span class="addon right" aria-hidden="true">t</span>
-          </div>
-        </label>
-
-        <!-- Postcode -->
-        <label class="field-sm">
-          <span class="label-sm">Postcode</span>
-          <input
-            class="input input--sm e-postcode"
-            maxlength="7"
-            placeholder="1234 AB"
-            value="${escapeHtml(r.postcode || '')}"
-          />
-        </label>
-      </div>
-    </article>
-  `;
+  return article.outerHTML; // kaart als HTML-string teruggeven (past in je huidige flow)
 }
 
 /* --- helpers --- */
