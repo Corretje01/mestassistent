@@ -615,89 +615,122 @@ function bindUploadActions(rows){
     const card  = myUploads.querySelector(`.upload-card[data-id="${r.id}"]`);
     if (!card) return;
 
-    const elP     = card.querySelector('.e-prijs');
-    const elT     = card.querySelector('.e-ton');
-    const elPC    = card.querySelector('.e-postcode');
-    const btnDel  = card.querySelector('.a-del');
+    const elP    = card.querySelector('.e-prijs');
+    const elT    = card.querySelector('.e-ton');
+    const elPC   = card.querySelector('.e-postcode');
+    const btnDel = card.querySelector('.a-del');
+    const btnSave= card.querySelector('.a-save');
 
-    // PRIJ S — ± toegestaan, 2 dec verplicht
-    elP?.addEventListener('blur', async () => {
-      const n = parseSignedPrice2dec(elP.value);  // "12,50" -> 12.5; "-8,00" -> -8
-      if (n === null || !Number.isFinite(n)) {
-        showInlineError(elP,'Bedrag (±) met max 2 dec.');
-        return;
-      }
-      clearInlineError(elP);
-      // netjes formatteren met komma + 2 dec
-      const abs = Math.abs(n).toFixed(2).replace('.', ',');
-      elP.value = (n < 0 ? '-' : '') + abs;
+    // helpers
+    const markDirty = () => {
+      card.classList.add('is-dirty');
+      card.classList.remove('is-saved');
+      clearInlineError(elP); clearInlineError(elT); clearInlineError(elPC);
+    };
+    const beginSave = () => { card.classList.add('is-saving'); btnSave.setAttribute('disabled',''); };
+    const endSave   = () => { card.classList.remove('is-saving'); btnSave.removeAttribute('disabled'); };
 
-      const ok = await patchRow(r.id, { inkoopprijs_per_ton: n });
-      if (!ok) return; // DB gaf fout (bijv. policy/constraint)
-
-      // optioneel: visueel "saved"
-      elP.classList.add('is-saved');
-      setTimeout(() => elP.classList.remove('is-saved'), 500);
+    // elke wijziging -> toon ✓
+    ['input','change'].forEach(ev => {
+      elP?.addEventListener(ev, markDirty);
+      elT?.addEventListener(ev, markDirty);
+      elPC?.addEventListener(ev, markDirty);
     });
 
-    // TON — integer > 24 (zelfde regel als in upload-form)
-    elT?.addEventListener('blur', async () => {
+    // nette formatting op blur (geen save!)
+    elP?.addEventListener('blur', () => {
+      const n = parseSignedPrice2dec(elP.value);
+      if (n === null) return; // laat foutmelding pas bij save zien
+      const abs = Math.abs(n).toFixed(2).replace('.', ',');
+      elP.value = (n < 0 ? '-' : '') + abs;
+    });
+    elT?.addEventListener('blur', () => {
+      const t = parseIntStrict(elT.value);
+      if (t == null) return;
+      elT.value = String(t);
+    });
+    elPC?.addEventListener('blur', () => {
+      if (!isValidPostcode(elPC.value)) return;
+      elPC.value = formatPostcode(elPC.value);
+    });
+
+    // SAVE via ✓
+    btnSave?.addEventListener('click', async () => {
+      // Validatie (zelfde regels als upload):
+      let ok = true;
+      clearInlineError(elP); clearInlineError(elT); clearInlineError(elPC);
+
+      // prijs: ± met max 2 decimaal
+      const priceSigned = parseSignedPrice2dec(elP.value);
+      if (priceSigned === null || !Number.isFinite(priceSigned)) {
+        showInlineError(elP,'Bedrag (±) met max 2 decimalen.');
+        ok = false;
+      } else {
+        // forceer 2 decimaal + komma
+        const abs = Math.abs(priceSigned).toFixed(2).replace('.', ',');
+        elP.value = (priceSigned < 0 ? '-' : '') + abs;
+      }
+
+      // ton: hele aantallen > 24
       const tonInt = parseIntStrict(elT.value);
       if (tonInt === null || tonInt <= 24) {
         showInlineError(elT,'Alleen hele aantallen > 24.');
-        return;
+        ok = false;
+      } else {
+        elT.value = String(tonInt);
       }
-      clearInlineError(elT);
-      elT.value = String(tonInt);
 
-      const ok = await patchRow(r.id, { aantal_ton: tonInt });
-      if (!ok) return;
-
-      elT.classList.add('is-saved');
-      setTimeout(() => elT.classList.remove('is-saved'), 500);
-    });
-
-    // POSTCODE — NL & formatteren
-    elPC?.addEventListener('blur', async () => {
+      // postcode: NL
       if (!isValidPostcode(elPC.value)) {
-        showInlineError(elPC,'Postcode ongeldig');
+        showInlineError(elPC,'Ongeldige NL postcode.');
+        ok = false;
+      } else {
+        elPC.value = formatPostcode(elPC.value);
+      }
+
+      if (!ok) {
+        card.classList.add('shake');
+        setTimeout(() => card.classList.remove('shake'), 300);
         return;
       }
-      clearInlineError(elPC);
-      const pcFmt = formatPostcode(elPC.value);
-      elPC.value = pcFmt;
 
-      const ok = await patchRow(r.id, { postcode: pcFmt });
-      if (!ok) return;
+      beginSave();
+      const patch = {
+        inkoopprijs_per_ton: priceSigned,
+        aantal_ton: tonInt,
+        postcode: elPC.value
+      };
+      const okSave = await patchRow(r.id, patch, { silent:true });  // geen success-toast
+      endSave();
 
-      elPC.classList.add('is-saved');
-      setTimeout(() => elPC.classList.remove('is-saved'), 500);
+      if (okSave) {
+        card.classList.remove('is-dirty');
+        card.classList.add('is-saved');   // ✓ krijgt groene state via CSS
+        setTimeout(() => card.classList.remove('is-saved'), 1200);
+      }
     });
 
-    // DELETE (X linksboven)
+    // VERWIJDER (X)
     btnDel?.addEventListener('click', async () => {
       if (!confirm('Dit item verwijderen?')) return;
       const { error } = await supabase.from('mest_uploads').delete().eq('id', r.id);
       if (error) toast('Verwijderen mislukt: ' + error.message, 'error');
-      else { toast('Verwijderd', 'success'); await loadMyUploads(); }
+      else { /* geen success-popup */ await loadMyUploads(); }
     });
   });
 }
 
 /** Patch helper: laat Supabase de update teruggeven zodat je zeker weet wat er staat */
-async function patchRow(id, patch){
-  const { data, error } = await supabase
-    .from('mest_uploads')
-    .update(patch)
-    .eq('id', id)
-    .select('*')      // <- belangrijk: krijg de actuele rij terug
-    .single();
-
+async function patchRow(id, patch, { silent=false } = {}){
+  const { error } = await supabase.from('mest_uploads').update(patch).eq('id', id);
   if (error) {
     toast('Opslaan mislukt: ' + error.message, 'error');
     return false;
   }
-  // (optioneel) hier kun je data gebruiken om UI te syncen als DB nog wat normaliseert
-  toast('Opgeslagen', 'success');
+  // geen success toast meer
+  if (!silent) {
+    // als je ooit conditioneel iets wil laten zien, kan dat hier
+  }
   return true;
 }
+
