@@ -850,3 +850,36 @@ body.is-auth  .guest-only { display: none !important; }
 .chip.ok .dot { background:#0ea5a0; }
 .chip.none .dot { background:#9ca3af; }
 
+/* === Upload cards – fine-tuning (spacing + vertical centering) === */
+
+/* iets meer lucht in meta en formulier */
+.upload-card--airy{ padding: 1.1rem 1.25rem 1.1rem; }
+.upload-card__head{ margin-bottom: .8rem; }
+.upload-card__meta{ row-gap: 12px; margin: .5rem 0 .6rem; }
+.meta-row{ margin: .35rem 0; }
+.analysis-pills{ gap: .55rem .6rem; }
+.pill{ padding: .3rem .7rem; font-size: .95rem; }
+
+/* velden hoger + grotere tussenruimte */
+.upload-card__form{ gap: 14px; }
+.field-sm{ gap: 8px; }
+.input--sm{ padding: .75rem .9rem; line-height: 1.2; border-radius: 10px; }
+
+/* € en 't' exact verticaal gecentreerd in het veld */
+.upload-card .field-sm.addon-wrap{ position: relative; }
+.upload-card .field-sm.addon-wrap .addon{
+  position: absolute;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  color: #6b7280;
+  font-weight: 600;
+  font-size: .95rem;
+  line-height: 1;             /* voorkomt optische verschuiving */
+  pointer-events: none;       /* geen cursor/focus in het icoon */
+}
+.upload-card .field-sm.addon-wrap .left{  left: .65rem; }
+.upload-card .field-sm.addon-wrap .right{ right: .65rem; }
+.upload-card .input--sm.addon-left-pad{  padding-left: 2.1rem !important; }
+.upload-card .input--sm.addon-right-pad{ padding-right: 2.1rem !important; }
+
+
