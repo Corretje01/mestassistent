@@ -147,26 +147,24 @@ async function renderMestChoices(){
 }
 
 function toObjectShapedMest(raw){
-  // Ondersteunt zowel object-structuur als array-structuur
   if (raw && typeof raw === 'object' && !Array.isArray(raw)) return raw;
   if (Array.isArray(raw)) {
     const obj = {};
     for (const m of raw) {
       const cat = m?.categorie; const typ = m?.type;
       if (!cat || !typ) continue;
-      (obj[cat] ||= {})[typ] = m; // sla hele object op (met waardes)
+      (obj[cat] ||= {})[typ] = m;
     }
     return obj;
   }
   return {};
 }
 
-// === Toggle helper: radio opnieuw klikken => deselect ===
+// Toggle helper: radio opnieuw klikken => deselect
 function attachMestToggleHandlers(containerSel = '#mestChoiceList'){
   const root = document.querySelector(containerSel);
   if (!root) return;
 
-  // change → set/unset selectie
   root.querySelectorAll('input[type="radio"][name="mest_one"]').forEach(r => {
     r.addEventListener('change', () => {
       if (r.checked) {
@@ -181,14 +179,13 @@ function attachMestToggleHandlers(containerSel = '#mestChoiceList'){
     });
   });
 
-  // klik op label van al-geselecteerde radio ⇒ deselect (terug naar geen keuze)
   root.querySelectorAll('input[type="radio"][name="mest_one"]').forEach(r => {
     const lbl = root.querySelector(`label[for="${r.id}"]`);
     if (!lbl) return;
     lbl.addEventListener('click', (ev) => {
       if (r.checked) {
-        ev.preventDefault();                 // voorkom directe her-selectie
-        r.checked = false;                   // echt uitzetten
+        ev.preventDefault();
+        r.checked = false;
         r.dispatchEvent(new Event('change', { bubbles:true }));
       }
     });
@@ -216,10 +213,7 @@ function applyDefaultsFromSelection(cat, type){
   elK.value   = numToRO(k);
   elOS.value  = numToRO(os);
   elBio.value = numToRO(bio);
-
-  // bewust GEEN prijs/ton en aantal ton invullen
 }
-
 function pickNum(obj, keys){
   for (const k of keys) {
     if (obj[k] === 0 || (obj[k] != null && typeof obj[k] !== 'undefined')) {
@@ -236,7 +230,7 @@ function numToRO(v){
 }
 
 /* ========================
-   BESTANDSANALYSE (optioneel)
+   BESTANDSANALYSE (optioneel bij formulier)
 ======================== */
 async function handleFileChange() {
   clearInlineError(elFile);
@@ -438,13 +432,31 @@ function renderUploadCard(r){
   // Meta
   frag.querySelector('.js-kind').innerHTML = prettyKind(r.mest_categorie, r.mest_type);
   frag.querySelector('.js-analysis').innerHTML = renderAnalysisChips(r);
-  frag.querySelector('.js-filechip').innerHTML = renderFileChip(!!r.file_path);
+  const fileCell = frag.querySelector('.js-filechip');
+  fileCell.innerHTML = renderFileChip(!!r.file_path);
+
+  // Als er nog GEEN bestand is, toon een klein linkje + maak verborgen file-input
+  if (!r.file_path) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'a-addfile';
+    btn.textContent = 'Voeg analyse toe';
+    btn.style.cssText = 'margin-left:.5rem;font-size:.9rem;text-decoration:underline;background:none;border:0;padding:0;cursor:pointer;';
+    fileCell.appendChild(btn);
+
+    const hidden = document.createElement('input');
+    hidden.type = 'file';
+    hidden.accept = '.pdf,.png,.jpg,.jpeg';
+    hidden.className = 'e-file';
+    hidden.style.display = 'none';
+    article.appendChild(hidden);
+  }
 
   // Velden
   const prijs = frag.querySelector('.e-prijs');
   const ton   = frag.querySelector('.e-ton');
   const pc    = frag.querySelector('.e-postcode');
-  const naamI = frag.querySelector('.e-naam'); // optioneel (alleen als je 'Naam' in kaart-template hebt gezet)
+  const naamI = frag.querySelector('.e-naam'); // NIEUW (bewerkbare naam in kaart)
 
   const prijsVal = fmtEditSigned(r.inkoopprijs_per_ton);
   const tonVal   = fmtInt(r.aantal_ton);
@@ -456,7 +468,7 @@ function renderUploadCard(r){
   if (pc){    pc.value    = pcVal;    pc.setAttribute('value', pcVal); }
   if (naamI){ naamI.value = naamVal;  naamI.setAttribute('value',  naamVal); }
 
-  return article; // geef de echte node terug
+  return article;
 }
 
 /* --- helpers voor kaartjes --- */
@@ -528,11 +540,11 @@ function attachMasks(elPrice, elTon, elPC) {
   // prijs
   elPrice?.addEventListener('input', () => {
     let s = (elPrice.value || '')
-      .replace(/\./g, ',')          // punt -> komma
-      .replace(/[^0-9,\-]/g, '');   // alleen -, cijfers, komma
-    s = s.replace(/(?!^)-/g, '');   // '-' alleen vooraan
+      .replace(/\./g, ',')
+      .replace(/[^0-9,\-]/g, '');
+    s = s.replace(/(?!^)-/g, '');
     const i = s.indexOf(',');
-    if (i !== -1) s = s.slice(0, i + 1) + s.slice(i + 1).replace(/,/g, ''); // max 1 komma
+    if (i !== -1) s = s.slice(0, i + 1) + s.slice(i + 1).replace(/,/g, '');
     elPrice.value = s;
   });
   elPrice?.addEventListener('blur', () => {
@@ -555,23 +567,6 @@ function attachMasks(elPrice, elTon, elPC) {
   elPC?.addEventListener('blur', () => {
     if (isValidPostcode(elPC.value)) elPC.value = formatPostcode(elPC.value);
   });
-}
-
-// Debounced autosave om DB-spam te voorkomen (niet gebruikt door ✓-save, maar beschikbaar)
-function scheduleSave(id, elPrice, elTon, elPC, btnDel) {
-  if (saveTimers.has(id)) clearTimeout(saveTimers.get(id));
-  const t = setTimeout(async () => {
-    const { ok, priceSigned, tonInt, pcFmt } = validateCardFields(elPrice, elTon, elPC);
-    if (!ok) return;
-    if (btnDel) btnDel.disabled = true;
-    const { error } = await supabase
-      .from('mest_uploads')
-      .update({ inkoopprijs_per_ton: priceSigned, aantal_ton: tonInt, postcode: pcFmt })
-      .eq('id', id);
-    if (btnDel) btnDel.disabled = false;
-    if (error) toast('Opslaan mislukt: ' + error.message, 'error');
-  }, SAVE_DEBOUNCE_MS);
-  saveTimers.set(id, t);
 }
 
 function validateCardFields(elPrice, elTon, elPC) {
@@ -606,31 +601,20 @@ function validateCardFields(elPrice, elTon, elPC) {
   return { ok, priceSigned, tonInt, pcFmt };
 }
 
-// Verwijderen via X linksboven
-async function deleteRow(id) {
-  if (!confirm('Weet je zeker dat je dit item wilt verwijderen?')) return;
-  const { error } = await supabase.from('mest_uploads').delete().eq('id', id);
-  if (error) toast('Verwijderen mislukt: ' + error.message, 'error');
-  else {
-    const card = myUploads.querySelector(`.upload-card[data-id="${id}"]`);
-    if (card) card.remove();
-    toast('Verwijderd', 'success');
-  }
-}
-
 // === BINDER ===
-/* --- inline acties (autosave op blur + delete-linksboven) --- */
 function bindUploadActions(rows){
   rows.forEach(r => {
     const card  = myUploads.querySelector(`.upload-card[data-id="${r.id}"]`);
     if (!card) return;
 
-    const elP    = card.querySelector('.e-prijs');
-    const elT    = card.querySelector('.e-ton');
-    const elPC   = card.querySelector('.e-postcode');
-    const elName = card.querySelector('.e-naam');  // optioneel
-    const btnDel = card.querySelector('.a-del');
-    const btnSave= card.querySelector('.a-save');
+    const elP     = card.querySelector('.e-prijs');
+    const elT     = card.querySelector('.e-ton');
+    const elPC    = card.querySelector('.e-postcode');
+    const elName  = card.querySelector('.e-naam');      // NIEUW (optioneel)
+    const addBtn  = card.querySelector('.a-addfile');   // alleen aanwezig als er nog geen bestand is
+    const hidFile = card.querySelector('.e-file');      // verborgen input per kaart (als addBtn bestaat)
+    const btnDel  = card.querySelector('.a-del');
+    const btnSave = card.querySelector('.a-save');
 
     attachMasks(elP, elT, elPC);
 
@@ -638,8 +622,7 @@ function bindUploadActions(rows){
     const markDirty = () => {
       card.classList.add('is-dirty');
       card.classList.remove('is-saved');
-      clearInlineError(elP); clearInlineError(elT); clearInlineError(elPC);
-      if (elName) clearInlineError(elName);
+      [elP, elT, elPC, elName].forEach(el => el && clearInlineError(el));
     };
     const beginSave = () => { card.classList.add('is-saving'); btnSave?.setAttribute('disabled',''); };
     const endSave   = () => { card.classList.remove('is-saving'); btnSave?.removeAttribute('disabled'); };
@@ -655,7 +638,7 @@ function bindUploadActions(rows){
     // nette formatting op blur (geen save!)
     elP?.addEventListener('blur', () => {
       const n = parseSignedPrice2dec(elP.value);
-      if (n == null) return; // foutmelding pas bij save
+      if (n == null) return;
       const abs = Math.abs(n).toFixed(2).replace('.', ',');
       elP.value = (n < 0 ? '-' : '') + abs;
     });
@@ -673,8 +656,7 @@ function bindUploadActions(rows){
     // SAVE via ✓
     btnSave?.addEventListener('click', async () => {
       let ok = true;
-      clearInlineError(elP); clearInlineError(elT); clearInlineError(elPC);
-      if (elName) clearInlineError(elName);
+      [elP, elT, elPC, elName].forEach(el => el && clearInlineError(el));
 
       // prijs
       const priceSigned = parseSignedPrice2dec(elP.value);
@@ -743,8 +725,49 @@ function bindUploadActions(rows){
       }
     });
 
+    // (ALLEEN ALS GEEN BESTAND): klik op "Voeg analyse toe" -> filepicker -> upload -> patch
+    if (addBtn && hidFile) {
+      addBtn.addEventListener('click', () => hidFile.click());
+      hidFile.addEventListener('change', async () => {
+        const file = hidFile.files?.[0];
+        if (!file) return;
+        if (!isFileAllowed(file)) { toast('Alleen PDF/JPG/PNG en max 10MB.', 'error'); hidFile.value=''; return; }
+
+        addBtn.disabled = true;
+        const prevText = addBtn.textContent;
+        addBtn.textContent = 'Uploaden…';
+
+        try {
+          const now = new Date();
+          const ext  = (file.name?.split('.').pop() || 'bin').toLowerCase();
+          const uuid = makeUUID();
+          const path = `${userId}/${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,'0')}/${String(now.getDate()).padStart(2,'0')}/${uuid}.${ext}`;
+          const mime = file.type || 'application/octet-stream';
+
+          const { error: upErr } = await supabase.storage.from('mest-analyses').upload(path, file, { contentType: mime, upsert: false });
+          if (upErr) throw upErr;
+
+          const ok = await patchRow(r.id, { file_path: path, file_mime: mime }, { silent:true });
+          if (!ok) throw new Error('Opslaan in database mislukt');
+
+          // UI bijwerken: chip -> "aanwezig", knop weg
+          const chip = card.querySelector('.js-filechip');
+          if (chip) chip.innerHTML = renderFileChip(true);
+          addBtn.remove();
+          hidFile.remove();
+          toast('Analyse toegevoegd.', 'success');
+        } catch (e) {
+          console.error(e);
+          toast('Upload mislukt: ' + (e?.message || e), 'error');
+          addBtn.disabled = false;
+          addBtn.textContent = prevText;
+        }
+      });
+    }
+
     // VERWIJDER (X)
-    btnDel?.addEventListener('click', async () => {
+    const btnX = card.querySelector('.a-del');
+    btnX?.addEventListener('click', async () => {
       if (!confirm('Dit item verwijderen?')) return;
       const { error } = await supabase.from('mest_uploads').delete().eq('id', r.id);
       if (error) toast('Verwijderen mislukt: ' + error.message, 'error');
@@ -760,6 +783,6 @@ async function patchRow(id, patch, { silent=false } = {}){
     toast('Opslaan mislukt: ' + error.message, 'error');
     return false;
   }
-  if (!silent) { /* optionele feedback */ }
+  if (!silent) { /* optioneel */ }
   return true;
 }
