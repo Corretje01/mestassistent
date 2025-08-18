@@ -753,3 +753,125 @@ body.is-auth  .guest-only { display: none !important; }
   background: var(--color-yellow);
   border-color: var(--color-yellow);
 }
+
+/* --- Mijn uploads: compacte kaarten --- */
+.uploads-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: .75rem;
+}
+@media (min-width: 800px) {
+  .uploads-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+}
+
+.upload-card {
+  border: 1px solid #eceff3;
+  border-radius: 12px;
+  padding: .85rem 1rem;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0,0,0,.03);
+}
+
+.upload-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+  margin-bottom: .25rem;
+}
+.upload-card__head .title {
+  font-weight: 600;
+  font-size: 1rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* kleine status-badge */
+.badge {
+  display: inline-block;
+  font-size: .75rem;
+  padding: .15rem .5rem;
+  border-radius: 999px;
+  background: #eef2f7; color: #475569;
+}
+.badge.green { background:#e6f6ec; color:#0b7a3e; }
+.badge.red   { background:#fdecea; color:#b91c1c; }
+.badge.gray  { background:#eef2f7; color:#475569; }
+
+.upload-card__meta { margin-bottom: .25rem; }
+.upload-card__meta .meta-row {
+  display: flex;
+  gap: .5rem;
+  font-size: .85rem;
+  line-height: 1.35;
+  color: #6b7280;
+}
+.upload-card__meta .meta-label {
+  flex: 0 0 90px;
+  color: #374151;
+}
+.upload-card__meta .meta-value {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* kleine velden in 3 kolommen (stapelt op mobiel) */
+.upload-card__form {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: .5rem;
+  margin-top: .35rem;
+}
+@media (max-width: 640px) {
+  .upload-card__form { grid-template-columns: 1fr; }
+}
+
+.field-sm { display: flex; flex-direction: column; gap: .25rem; }
+.label-sm { font-size: .8rem; color:#374151; }
+
+.input--sm { padding: .5rem .6rem; font-size: .95rem; border-radius: 8px; }
+
+/* mini add-ons (€, t) binnen de kleine inputs */
+.field-sm.addon-wrap { position: relative; }
+.field-sm.addon-wrap .addon {
+  position: absolute; top: 50%; transform: translateY(-50%);
+  color:#6b7280; font-weight:600; font-size:.9rem;
+}
+.field-sm.addon-wrap .addon.left  { left: .5rem; }
+.field-sm.addon-wrap .addon.right { right: .5rem; }
+.field-sm.addon-wrap .addon-left-pad  { padding-left: 1.6rem; }
+.field-sm.addon-wrap .addon-right-pad { padding-right: 1.6rem; }
+
+.upload-card__actions {
+  display: flex; gap: .5rem; justify-content: flex-end; margin-top: .5rem;
+}
+
+/* compacte knoppen */
+.btn-primary {
+  background: var(--color-yellow);
+  border: 1px solid var(--color-yellow);
+  color: var(--color-black);
+  padding: .45rem .7rem;
+  border-radius: 8px;
+  font-weight: 600;
+}
+.btn-ghost {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  color: #374151;
+  padding: .45rem .6rem;
+  border-radius: 8px;
+}
+
+/* kleine chip: “Bestand • aanwezig / geen” */
+.chip {
+  display:inline-flex; align-items:center; gap:.35rem;
+  font-size:.75rem; padding:.15rem .5rem; border-radius:999px;
+  background:#f3f4f6; color:#4b5563;
+}
+.chip .dot { width:6px; height:6px; border-radius:50%; background:#9ca3af; }
+.chip.ok .dot { background:#0ea5a0; }
+.chip.none .dot { background:#9ca3af; }
