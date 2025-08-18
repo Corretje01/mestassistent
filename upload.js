@@ -435,7 +435,6 @@ async function loadMyUploads(){
   }
 }
 
-/* --- helpers voor weergave in kaarten --- */
 function renderUploadsGrid(rows){
   return `
     <div class="uploads-grid">
@@ -445,80 +444,73 @@ function renderUploadsGrid(rows){
 }
 
 function renderUploadCard(r){
+  const hasFile = !!r.file_path;
+  const analysis = formatAnalysis(r); // korte weergave
   return `
     <article class="upload-card" data-id="${r.id}">
       <header class="upload-card__head">
-        <div class="title">${escapeHtml(r.naam)}</div>
+        <div class="title" title="${escapeHtml(r.naam)}">${escapeHtml(r.naam)}</div>
         <div class="status">${renderBadge(r.status)}</div>
       </header>
 
       <div class="upload-card__meta">
-        <div class="meta-row"><span class="meta-label">Mestsoort</span><span class="meta-value">${prettyKind(r.mest_categorie, r.mest_type)}</span></div>
-        <div class="meta-row"><span class="meta-label">Analyse</span><span class="meta-value">${formatAnalysis(r)}</span></div>
+        <div class="meta-row">
+          <span class="meta-label">Mestsoort</span>
+          <span class="meta-value" title="${escapeHtml(prettyKind(r.mest_categorie, r.mest_type))}">
+            ${prettyKind(r.mest_categorie, r.mest_type)}
+          </span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">Analyse</span>
+          <span class="meta-value" title="${escapeHtml(analysis)}">${analysis}</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">Bestand</span>
+          <span class="meta-value">${renderFileChip(hasFile)}</span>
+        </div>
       </div>
 
       <div class="upload-card__form">
-        <label class="field-sm">
+        <label class="field-sm addon-wrap">
           <span class="label-sm">€ / ton</span>
-          <input class="input e-prijs" inputmode="decimal" placeholder="0,00" value="${fmtEditSigned(r.inkoopprijs_per_ton)}">
+          <span class="addon left">€</span>
+          <input class="input input--sm addon-left-pad e-prijs" inputmode="decimal" placeholder="0,00"
+                 value="${fmtEditSigned(r.inkoopprijs_per_ton)}">
         </label>
-        <label class="field-sm">
+
+        <label class="field-sm addon-wrap">
           <span class="label-sm">Ton</span>
-          <input class="input e-ton" inputmode="numeric" placeholder="0" value="${fmtInt(r.aantal_ton)}">
+          <input class="input input--sm addon-right-pad e-ton" inputmode="numeric" placeholder="0"
+                 value="${fmtInt(r.aantal_ton)}">
+          <span class="addon right">t</span>
         </label>
+
         <label class="field-sm">
           <span class="label-sm">Postcode</span>
-          <input class="input e-postcode" maxlength="7" placeholder="1234 AB" value="${escapeHtml(r.postcode || '')}">
+          <input class="input input--sm e-postcode" maxlength="7" placeholder="1234 AB"
+                 value="${escapeHtml(r.postcode || '')}">
         </label>
       </div>
 
       <footer class="upload-card__actions">
+        <button class="btn-ghost a-del" title="Verwijderen">Verwijderen</button>
         <button class="btn-primary a-save">Opslaan</button>
-        <button class="btn-danger a-del">Verwijderen</button>
       </footer>
     </article>
   `;
 }
 
-function prettyKind(cat, type){
-  const nice = String(cat || '').replace(/_/g,' ');
-  return `${escapeHtml(nice)} / ${escapeHtml(type || '')}`;
-}
-function formatAnalysis(r){
-  // LET OP: gebruik lowercase kolommen
-  const parts = [
-    fmt(r.ds_percent, '%'),
-    `N ${fmt(r.n_kg_per_ton, ' kg/t')}`,
-    `P ${fmt(r.p_kg_per_ton, ' kg/t')}`,
-    `K ${fmt(r.k_kg_per_ton, ' kg/t')}`
-  ];
-  return parts.join(' • ');
-}
-function fmt(v,suf=''){
-  if (v===null || v===undefined) return '—';
-  const n = Number(v);
-  return Number.isFinite(n) ? `${n}${suf}` : '—';
-}
-function fmtEditSigned(v){
-  if (v === null || v === undefined || v === '') return '';
-  const n = Number(v);
-  if (!Number.isFinite(n)) return '';
-  const abs = Math.abs(n).toFixed(2).replace('.', ','); // altijd komma tonen
-  return (n < 0 ? '-' : '') + abs;
-}
-function fmtInt(v){
-  const n = Number(v);
-  if (!Number.isFinite(n)) return '';
-  return Number.isInteger(n) ? String(n) : String(Math.round(n));
-}
-function escapeHtml(s){
-  return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-}
 function renderBadge(status){
   const map = { in_behandeling:'gray', gepubliceerd:'green', afgewezen:'red' };
   const cls = map[status] || 'gray';
   const label = String(status || '').replace(/_/g, ' ');
   return `<span class="badge ${cls}">${escapeHtml(label)}</span>`;
+}
+
+function renderFileChip(hasFile){
+  return hasFile
+    ? `<span class="chip ok"><span class="dot"></span> aanwezig</span>`
+    : `<span class="chip none"><span class="dot"></span> geen bestand</span>`;
 }
 
 /* --- acties in kaarten --- */
