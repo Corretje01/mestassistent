@@ -1,4 +1,4 @@
-// upload.js — single-select mestsoort + defaults uit mestsoorten.json + optioneel bestand
+// upload.js — single-select mestsoort + defaults (alleen analyse) + optioneel bestand
 import { supabase } from './supabaseClient.js';
 import {
   isValidPostcode, formatPostcode,
@@ -11,7 +11,7 @@ const elNaam = document.getElementById('naam');
 const elFile = document.getElementById('file');
 const elPrijs= document.getElementById('inkoopprijs');
 const elTon  = document.getElementById('aantalTon');
-const elPriceSign = document.getElementById('priceSign'); // 'pos' | 'neg' (optioneel, via ±-toggle in HTML)
+const elPriceSign = document.getElementById('priceSign'); // 'pos' | 'neg' (±-toggle)
 
 const listContainer = document.getElementById('mestChoiceList');
 
@@ -30,9 +30,9 @@ const elOS  = document.getElementById('OS_percent');
 const elBio = document.getElementById('Biogas');
 
 let session, profile, userId;
-let mestsoortenObj = {};    // verwacht: { drijfmest: { koe:{...}, varken:{...} }, vaste_mest: {...}, ... }
-let selectedCat = null;     // 'drijfmest' | 'vaste_mest' | 'dikke_fractie' | 'overig'
-let selectedType = null;    // 'koe' | 'varken' | 'compost' | ...
+let mestsoortenObj = {};    // { drijfmest:{koe:{...},...}, vaste_mest:{...}, ... }
+let selectedCat = null;
+let selectedType = null;
 
 (async function init(){
   // auth
@@ -64,14 +64,14 @@ let selectedType = null;    // 'koe' | 'varken' | 'compost' | ...
   elFile.addEventListener('change', handleFileChange);
   form.addEventListener('submit', onSubmit);
 
-  // Form: prijs altijd netjes bij verlaten veld
+  // Prijs netjes formatteren op blur (2 dec + komma)
   elPrijs?.addEventListener('blur', () => {
-    const v = parsePrice2dec(elPrijs.value); // "12,3" / "12.3" -> 12.3
-    if (v !== null) elPrijs.value = formatPriceDisplay(v); // "12,30"
+    const v = parsePrice2dec(elPrijs.value);
+    if (v !== null) elPrijs.value = formatPriceDisplay(v);
   });
 
-  // Zorg dat ±-toggle visueel in de juiste beginstand staat
-  setPriceSignUI(elPriceSign?.value || 'pos');
+  // **Standaard teken prijs = NEGATIEF**
+  setPriceSignUI('neg');
 
   // overzicht
   await loadMyUploads();
@@ -97,11 +97,11 @@ function labelType(t){ return t ? t.charAt(0).toUpperCase()+t.slice(1) : ''; }
 
 async function renderMestChoices(){
   try {
-    const resp = await fetch('data/mestsoorten.json', { cache: 'no-store' }); // <— relative path
+    const resp = await fetch('data/mestsoorten.json', { cache: 'no-store' });
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const raw = await resp.json();
 
-    // verwacht objectvorm; array wordt omgezet naar { cat: { type: true } }
+    // verwacht objectvorm; array → versimpelde objectvorm
     mestsoortenObj = toObjectShapedMest(raw);
 
     // volgorde
@@ -127,7 +127,7 @@ async function renderMestChoices(){
       `;
     }).join('') || `<div class="muted">Geen mestsoorten gevonden.</div>`;
 
-    // change → selecteren + defaults invullen
+    // change → selecteren + defaults invullen (alleen analysevelden)
     listContainer.querySelectorAll('input[name="mest_one"]').forEach(r => {
       r.addEventListener('change', () => {
         selectedCat  = r.dataset.cat;
@@ -176,7 +176,7 @@ function setPriceSignUI(mode = 'pos') {
 }
 
 /* ========================
-   DEFAULTS op basis van keuze
+   DEFAULTS (alleen analysevelden)
 ======================== */
 function applyDefaultsFromSelection(cat, type){
   if (!cat || !type) return;
@@ -191,7 +191,7 @@ function applyDefaultsFromSelection(cat, type){
   const os   = pickNum(node, ['os_percent','OS_percent']);
   const bio  = pickNum(node, ['biogaspotentieel_m3_per_ton','Biogaspotentieel_m3_per_ton']);
 
-  // read-only velden
+  // **Alleen** read-only analysevelden invullen
   elDS.value  = numToRO(ds);
   elN.value   = numToRO(n);
   elP.value   = numToRO(p);
@@ -199,18 +199,7 @@ function applyDefaultsFromSelection(cat, type){
   elOS.value  = numToRO(os);
   elBio.value = numToRO(bio);
 
-  // default prijs/ton (alleen als veld leeg is)
-  const defPrice = pickNum(node, ['inkoopprijs_per_ton','Inkoopprijs_per_ton','vraagprijs_per_ton']);
-  if ((elPrijs?.value ?? '') === '' && defPrice != null) {
-    setPriceSignUI(defPrice < 0 ? 'neg' : 'pos');                // zet ±
-    elPrijs.value = formatPriceDisplay(Math.abs(defPrice));      // toon altijd komma + 2 dec
-  }
-
-  // default ton (alleen als leeg)
-  const defTon = pickNum(node, ['aantal_ton','Aantal_ton']);
-  if ((elTon?.value ?? '') === '' && defTon != null) {
-    elTon.value = String(Math.max(0, Math.round(defTon)));
-  }
+  // Geen voorinvulling van prijs of ton!
 }
 
 function pickNum(obj, keys){
@@ -269,7 +258,7 @@ function toFixedOrEmpty(v){
 function getSignedPriceFromUI() {
   // 1) ±-toggle aanwezig?
   if (elPriceSign) {
-    const raw = parsePrice2dec(elPrijs.value);    // leest "12,50" → 12.5
+    const raw = parsePrice2dec(elPrijs.value);    // "12,50" → 12.5
     if (raw === null) return null;
     return (elPriceSign.value === 'neg') ? -raw : raw;
   }
@@ -358,17 +347,17 @@ async function onSubmit(e){
       if (upErr) throw upErr;
     }
 
-    // 2) Insert mest_uploads (let op lowercase kolommen)
+    // 2) Insert mest_uploads (lowercase kolommen)
     const payload = {
       user_id: userId,
       naam: elNaam.value.trim(),
-      mest_categorie: selectedCat,     // bv. 'vaste_mest'
-      mest_type: selectedType,         // bv. 'koe'
+      mest_categorie: selectedCat,
+      mest_type: selectedType,
       file_path: path,
       file_mime: mime,
       postcode: postcodeVal,
-      inkoopprijs_per_ton: signedPrice,   // ± prijs
-      aantal_ton: tonInt,                 // integer
+      inkoopprijs_per_ton: signedPrice,
+      aantal_ton: tonInt,
       ds_percent: toNumOrNull(elDS.value),
       n_kg_per_ton: toNumOrNull(elN.value),
       p_kg_per_ton: toNumOrNull(elP.value),
@@ -392,8 +381,8 @@ async function onSubmit(e){
     cbUseProfile.checked = !!profilePostcodeNow;
     wrapPostcode.style.display = cbUseProfile.checked ? 'none' : 'block';
 
-    // reset ± toggle netjes naar positief
-    setPriceSignUI('pos');
+    // **Na opslaan: teken terug naar NEGATIEF**
+    setPriceSignUI('neg');
 
     await loadMyUploads();
   } catch (e) {
@@ -525,7 +514,6 @@ function prettyKind(cat, type){
   return `${escapeHtml(nice)} / ${escapeHtml(type || '')}`;
 }
 function formatAnalysis(r){
-  // LET OP: gebruik lowercase kolommen zoals in DB
   return `${fmt(r.ds_percent,'%')} • N ${fmt(r.n_kg_per_ton,' kg/t')} • P ${fmt(r.p_kg_per_ton,' kg/t')} • K ${fmt(r.k_kg_per_ton,' kg/t')}`;
 }
 function fmt(v,suf=''){
@@ -537,7 +525,7 @@ function fmtEditSigned(v){
   if (v === null || v === undefined || v === '') return '';
   const n = Number(v);
   if (!Number.isFinite(n)) return '';
-  const abs = Math.abs(n).toFixed(2).replace('.', ','); // altijd komma tonen
+  const abs = Math.abs(n).toFixed(2).replace('.', ',');
   return (n < 0 ? '-' : '') + abs;
 }
 function fmtInt(v){
@@ -572,18 +560,11 @@ function bindUploadActions(rows){
       let ok = true;
       [elN, elP, elT, elPC].forEach(clearInlineError);
 
-      // naam
       if (!elN.value || elN.value.trim().length < 2 || elN.value.trim().length > 60) { showInlineError(elN,'2–60 tekens'); ok=false; }
-
-      // prijs (±, max 2 dec, 0 toegestaan)
       const priceSigned = parseSignedPrice2dec(elP.value);
       if (priceSigned === null) { showInlineError(elP,'Bedrag (±) met max 2 decimalen.'); ok=false; }
-
-      // ton (integer > 0)
       const tonInt = parseIntStrict(elT.value);
       if (tonInt === null || tonInt <= 0) { showInlineError(elT,'Alleen hele aantallen > 0.'); ok=false; }
-
-      // postcode
       if (!isValidPostcode(elPC.value)) { showInlineError(elPC,'Postcode ongeldig'); ok=false; }
       const pcFmt = formatPostcode(elPC.value);
 
