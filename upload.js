@@ -257,8 +257,9 @@ async function onSubmit(e){
   let ok = true;
   [elNaam, elFile, elPrijs, elTon, elPostcode, listContainer].forEach(clearInlineError);
 
-  if (!elNaam.value || elNaam.value.trim().length < 2 || elNaam.value.trim().length > 60) {
-    showInlineError(elNaam, '2–60 tekens.'); ok = false;
+  const naam = (elNaam.value || '').trim();
+  if (naam.length < 2 || naam.length > 25) {
+    showInlineError(elNaam, '2–25 tekens.'); ok = false;
   }
   if (!selectedCat || !selectedType) { showInlineError(listContainer, 'Kies een mestsoort.'); ok = false; }
 
