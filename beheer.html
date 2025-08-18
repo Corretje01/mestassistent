@@ -5,69 +5,96 @@
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>Beheer – MestAssistent</title>
+
+  <!-- Basis styles -->
   <link rel="stylesheet" href="style.css"/>
-  <!-- supabaseClient kan in head blijven als je dat elders ook zo doet -->
+
+  <!-- Supabase client (zoals op je andere pagina's) -->
   <script type="module" src="supabaseClient.js"></script>
-  <!-- nav-menu.js NIET meer hier inladen; we importeren en initialiseren onderaan -->
+
+  <!-- Pagina-specifieke styles (beheer) -->
   <style>
     .container { max-width: 1100px; margin: 0 auto; padding: 1rem; }
-    .filters { display:grid; grid-template-columns: repeat(4,1fr); gap:.5rem; }
-    @media (max-width: 800px){ .filters { grid-template-columns: 1fr 1fr; } }
     textarea { width:100%; min-height: 70px; }
+
+    /* ============ Beheer UX upgrades ============ */
+    .admin-filters{
+      display:grid; grid-template-columns: repeat(4, minmax(0,1fr));
+      gap:.75rem; align-items:end; position:sticky; top:.5rem; z-index:1;
+    }
+    .admin-filters .filter { display:flex; flex-direction:column; gap:.25rem; }
+    .admin-filters .label-sm { font-size:.85rem; font-weight:600; color:var(--color-black); }
+    .admin-filters .filter-actions{
+      grid-column: 1 / -1; display:flex; align-items:center; gap:.5rem; margin-top:.25rem;
+    }
+    .admin-filters .filter-actions .spacer{ flex:1; }
+
+    @media (max-width: 800px){
+      .admin-filters{ grid-template-columns: 1fr 1fr; }
+    }
+
+    .list-head{
+      display:flex; align-items:center; justify-content:space-between; margin-bottom:.25rem;
+    }
+
+    /* Details-kaarten netter */
+    details.details-card{
+      border:1px solid #eee; border-radius:12px; padding:.5rem .75rem;
+      margin:.5rem 0; background:#fff; transition:box-shadow .15s ease;
+    }
+    details.details-card[open]{ box-shadow: 0 10px 30px rgba(0,0,0,.06); }
+    .item-summary{
+      display:flex; flex-wrap:wrap; gap:.5rem 1rem; align-items:center; cursor:pointer; list-style:none;
+    }
+    .item-title{ font-weight:700; }
+    .item-meta{ color:#6b7280; font-size:.9rem; }
+
+    /* Status chips */
+    .status-chip{
+      display:inline-flex; align-items:center; line-height:1;
+      border-radius:999px; padding:.3rem .6rem; font-size:.85rem; font-weight:600;
+    }
+    .status-chip.gray{ background:#f3f4f6; color:#111827; }
+    .status-chip.green{ background:#e6f7ed; color:#065f46; }
+    .status-chip.red{ background:#fde8e8; color:#991b1b; }
+
+    /* Buttons */
+    button[disabled]{ opacity:.6; cursor:not-allowed; }
   </style>
 </head>
 <body>
+  <!-- HEADER -->
   <header class="site-header">
     <nav class="navbar">
-      <!-- Home: altijd relatief naar index.html -->
       <a href="index.html" class="nav-logo">KoeHandelaar</a>
-  
-      <!-- Hamburger toggle (mobiel) -->
+
       <button id="nav-toggle" class="nav-toggle" aria-label="Menu" aria-controls="site-menu" aria-expanded="false">
         <span class="bars" aria-hidden="true"></span>
       </button>
-  
-      <!-- Menu (overlay op mobiel, inline op desktop) -->
+
       <div id="site-menu" class="site-menu" hidden>
-        <!-- Close-button (X) voor mobiel menu -->
         <button id="nav-close" class="nav-close" aria-label="Menu sluiten">
           <span aria-hidden="true">&times;</span>
         </button>
-  
+
         <ul class="nav-links">
-          <!-- Alleen na inloggen zichtbaar -->
-          <li class="auth-only">
-            <a href="stap1.html" class="nav__item" id="nav-bereken">Bereken plaatsingsruimte</a>
-          </li>
-          <li class="auth-only">
-            <a href="mestplan.html" class="nav__item" id="nav-mestplan">Maak mestplan</a>
-          </li>
-          <li class="auth-only">
-            <a href="upload.html" class="nav__item" id="nav-upload">Mest uploaden</a>
-          </li>
-          <li class="auth-only">
-            <a href="account.html" class="nav__item" id="nav-account">Mijn account</a>
-          </li>
-  
-          <!-- Alleen admin -->
-          <li class="auth-only admin-only">
-            <a href="beheer.html" class="nav__item" id="nav-beheer">Beheer</a>
-          </li>
-  
-          <!-- Altijd aanwezig; tekst/actie wisselt: Inloggen ↔ Uitloggen -->
-          <li class="nav-auth-item">
-            <button class="btn-login" id="nav-auth">Inloggen</button>
-          </li>
+          <li class="auth-only"><a href="stap1.html" class="nav__item" id="nav-bereken">Bereken plaatsingsruimte</a></li>
+          <li class="auth-only"><a href="mestplan.html" class="nav__item" id="nav-mestplan">Maak mestplan</a></li>
+          <li class="auth-only"><a href="upload.html" class="nav__item" id="nav-upload">Mest uploaden</a></li>
+          <li class="auth-only"><a href="account.html" class="nav__item" id="nav-account">Mijn account</a></li>
+          <li class="auth-only admin-only"><a href="beheer.html" class="nav__item" id="nav-beheer">Beheer</a></li>
+          <li class="nav-auth-item"><button class="btn-login" id="nav-auth">Inloggen</button></li>
         </ul>
       </div>
     </nav>
   </header>
 
-  <!-- hoofdcontent moet id="main" hebben voor inert/focus-trap -->
+  <!-- MAIN -->
   <main id="main" class="container">
     <h1>Beheer</h1>
     <div class="muted">Alleen zichtbaar voor admins.</div>
 
+    <!-- Filters -->
     <section class="card">
       <div class="admin-filters" role="region" aria-label="Filters">
         <div class="filter">
@@ -79,22 +106,22 @@
             <option value="afgewezen">Afgewezen</option>
           </select>
         </div>
-    
+
         <div class="filter">
           <label for="fQuery" class="label-sm">Zoek</label>
           <input id="fQuery" placeholder="Naam of postcode"/>
         </div>
-    
+
         <div class="filter">
           <label for="fCategorie" class="label-sm">Categorie</label>
           <select id="fCategorie"><option value="">Alle categorieën</option></select>
         </div>
-    
+
         <div class="filter">
           <label for="fType" class="label-sm">Type</label>
           <select id="fType"><option value="">Alle types</option></select>
         </div>
-    
+
         <div class="filter-actions">
           <button id="btnResetFilters" class="btn-danger" type="button">Reset</button>
           <div class="spacer"></div>
@@ -104,6 +131,7 @@
       </div>
     </section>
 
+    <!-- Lijst -->
     <section class="card">
       <div class="list-head">
         <div class="muted"><span id="resultCount">0</span> resultaten</div>
@@ -112,14 +140,13 @@
     </section>
   </main>
 
-  <!-- optioneel: footer voor inert -->
   <footer id="footer"></footer>
 
-  <!-- Pagina-scripts -->
+  <!-- Scripts -->
   <script type="module" src="utils.js"></script>
   <script type="module" src="beheer.js"></script>
 
-  <!-- NAV init: als LAATSTE, net boven </body> -->
+  <!-- Nav init -->
   <script type="module">
     import { initNavMenu } from './nav-menu.js';
     initNavMenu({ menuId: 'site-menu', toggleId: 'nav-toggle' });
