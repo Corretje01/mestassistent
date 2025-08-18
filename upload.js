@@ -34,6 +34,45 @@ let mestsoortenObj = {};    // { drijfmest:{ koe:{...} }, vaste_mest:{...}, ... 
 let selectedCat = null;
 let selectedType = null;
 
+// === Toggle helper: radio opnieuw klikken => deselect ===
+function attachMestToggleHandlers(containerSel = '#mestChoiceList'){
+  const root = document.querySelector(containerSel);
+  if (!root) return;
+  // voorkom dubbele listeners
+  if (root.dataset.toggleInit === '1') return;
+  root.dataset.toggleInit = '1';
+
+  // 1) change → set/unset selectie
+  root.querySelectorAll('input[type="radio"][name="mest_one"]').forEach(r => {
+    r.addEventListener('change', () => {
+      if (r.checked) {
+        // pas variabelen/flow aan als jouw code anders heet
+        window.selectedCat  = r.dataset.cat;
+        window.selectedType = r.dataset.type;
+        if (typeof applyDefaultsFromSelection === 'function') {
+          applyDefaultsFromSelection(window.selectedCat, window.selectedType);
+        }
+      } else {
+        window.selectedCat  = null;
+        window.selectedType = null;
+      }
+    });
+  });
+
+  // 2) klik op label van al-geselecteerde radio => deselect
+  root.querySelectorAll('input[type="radio"][name="mest_one"]').forEach(r => {
+    const lbl = root.querySelector(`label[for="${r.id}"]`);
+    if (!lbl) return;
+    lbl.addEventListener('click', (ev) => {
+      if (r.checked) {
+        ev.preventDefault();           // voorkom her-selectie
+        r.checked = false;             // écht uit
+        r.dispatchEvent(new Event('change', { bubbles:true }));
+      }
+    });
+  });
+}
+
 /* ========================
    INIT
 ======================== */
