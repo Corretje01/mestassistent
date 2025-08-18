@@ -537,6 +537,12 @@ function fmtInt(v){
 function escapeHtml(s){
   return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 }
+function renderBadge(status){
+  const map = { in_behandeling:'gray', gepubliceerd:'green', afgewezen:'red' };
+  const cls = map[status] || 'gray';
+  const label = String(status || '').replace(/_/g, ' ');
+  return `<span class="badge ${cls}">${escapeHtml(label)}</span>`;
+}
 
 /* ---- acties op kaarten ---- */
 function bindUploadCardActions(rows){
