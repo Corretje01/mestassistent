@@ -69,20 +69,45 @@
     <div class="muted">Alleen zichtbaar voor admins.</div>
 
     <section class="card">
-      <div class="filters">
-        <select id="fStatus">
-          <option value="">Alle statussen</option>
-          <option value="in_behandeling">In behandeling</option>
-          <option value="gepubliceerd">Gepubliceerd</option>
-          <option value="afgewezen">Afgewezen</option>
-        </select>
-        <input id="fQuery" placeholder="Zoek naam/postcode"/>
-        <select id="fCategorie"><option value="">Alle categorieën</option></select>
-        <select id="fType"><option value="">Alle types</option></select>
+      <div class="admin-filters" role="region" aria-label="Filters">
+        <div class="filter">
+          <label for="fStatus" class="label-sm">Status</label>
+          <select id="fStatus">
+            <option value="">Alle statussen</option>
+            <option value="in_behandeling">In behandeling</option>
+            <option value="gepubliceerd">Gepubliceerd</option>
+            <option value="afgewezen">Afgewezen</option>
+          </select>
+        </div>
+    
+        <div class="filter">
+          <label for="fQuery" class="label-sm">Zoek</label>
+          <input id="fQuery" placeholder="Naam of postcode"/>
+        </div>
+    
+        <div class="filter">
+          <label for="fCategorie" class="label-sm">Categorie</label>
+          <select id="fCategorie"><option value="">Alle categorieën</option></select>
+        </div>
+    
+        <div class="filter">
+          <label for="fType" class="label-sm">Type</label>
+          <select id="fType"><option value="">Alle types</option></select>
+        </div>
+    
+        <div class="filter-actions">
+          <button id="btnResetFilters" class="btn-danger" type="button">Reset</button>
+          <div class="spacer"></div>
+          <button id="btnExpandAll" class="btn-primary" type="button">Alles uitklappen</button>
+          <button id="btnCollapseAll" type="button">Alles inklappen</button>
+        </div>
       </div>
     </section>
 
     <section class="card">
+      <div class="list-head">
+        <div class="muted"><span id="resultCount">0</span> resultaten</div>
+      </div>
       <div id="adminList">Laden…</div>
     </section>
   </main>
