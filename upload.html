@@ -98,6 +98,13 @@
         box-sizing:border-box;
       }
     }
+    
+    /* Inline-edit naam in kaarttitel (subtiel) */
+    .upload-card__head .title{cursor:text}
+    .upload-card__head .title.is-editing{
+      box-shadow: inset 0 0 0 2px rgba(241,196,15,.35);
+      border-radius:6px; padding:0 .25rem; background:#fffbe6;
+    }
   </style>
 </head>
 <body>
@@ -310,11 +317,6 @@
         </div>
       
         <div class="upload-card__form">
-          <label class="field-sm" style="grid-column:1 / -1">
-            <span class="label-sm">Naam</span>
-            <input class="input input--sm e-naam" maxlength="25" placeholder="Naam van deze upload">
-          </label>
-
           <label class="field-sm">
             <span class="label-sm">Vraagprijs per ton</span>
             <div class="control">
