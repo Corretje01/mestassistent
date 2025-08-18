@@ -1,4 +1,4 @@
-// upload.js — mestsoort + defaults + optioneel bestand + cards UI (luchtig) + inline saves
+// upload.js — mestsoort + defaults + optioneel bestand + cards UI + inline saves
 import { supabase } from './supabaseClient.js';
 import {
   isValidPostcode, formatPostcode,
@@ -33,45 +33,6 @@ let session, profile, userId;
 let mestsoortenObj = {};    // { drijfmest:{ koe:{...} }, vaste_mest:{...}, ... }
 let selectedCat = null;
 let selectedType = null;
-
-// === Toggle helper: radio opnieuw klikken => deselect ===
-function attachMestToggleHandlers(containerSel = '#mestChoiceList'){
-  const root = document.querySelector(containerSel);
-  if (!root) return;
-  // voorkom dubbele listeners
-  if (root.dataset.toggleInit === '1') return;
-  root.dataset.toggleInit = '1';
-
-  // 1) change → set/unset selectie
-  root.querySelectorAll('input[type="radio"][name="mest_one"]').forEach(r => {
-    r.addEventListener('change', () => {
-      if (r.checked) {
-        // pas variabelen/flow aan als jouw code anders heet
-        window.selectedCat  = r.dataset.cat;
-        window.selectedType = r.dataset.type;
-        if (typeof applyDefaultsFromSelection === 'function') {
-          applyDefaultsFromSelection(window.selectedCat, window.selectedType);
-        }
-      } else {
-        window.selectedCat  = null;
-        window.selectedType = null;
-      }
-    });
-  });
-
-  // 2) klik op label van al-geselecteerde radio => deselect
-  root.querySelectorAll('input[type="radio"][name="mest_one"]').forEach(r => {
-    const lbl = root.querySelector(`label[for="${r.id}"]`);
-    if (!lbl) return;
-    lbl.addEventListener('click', (ev) => {
-      if (r.checked) {
-        ev.preventDefault();           // voorkom her-selectie
-        r.checked = false;             // écht uit
-        r.dispatchEvent(new Event('change', { bubbles:true }));
-      }
-    });
-  });
-}
 
 /* ========================
    INIT
@@ -139,7 +100,7 @@ function initPriceSignToggle(defaultMode='neg'){
 }
 
 /* ========================
-   MEST KEUZE (single-select)
+   MEST KEUZE (single-select + toggle-deselect)
 ======================== */
 function labelCategorie(c){
   const map = { drijfmest:'Drijfmest', vaste_mest:'Vaste mest', dikke_fractie:'Dikke fractie', overig:'Overig' };
@@ -177,16 +138,8 @@ async function renderMestChoices(){
       `;
     }).join('') || `<div class="muted">Geen mestsoorten gevonden.</div>`;
 
-    // selectie → defaults (alleen analysevelden)
-    listContainer.querySelectorAll('input[name="mest_one"]').forEach(r => {
-      r.addEventListener('change', () => {
-        selectedCat  = r.dataset.cat;
-        selectedType = r.dataset.type;
-        clearInlineError(listContainer);
-        applyDefaultsFromSelection(selectedCat, selectedType);
-      });
-    });
-
+    // Handlers na render: change + label-click voor deselect
+    attachMestToggleHandlers('#mestChoiceList');
   } catch (e) {
     console.error(e);
     listContainer.innerHTML = `<div class="message error">Kon mestsoorten niet laden.</div>`;
@@ -194,17 +147,52 @@ async function renderMestChoices(){
 }
 
 function toObjectShapedMest(raw){
+  // Ondersteunt zowel object-structuur als array-structuur
   if (raw && typeof raw === 'object' && !Array.isArray(raw)) return raw;
   if (Array.isArray(raw)) {
     const obj = {};
     for (const m of raw) {
       const cat = m?.categorie; const typ = m?.type;
       if (!cat || !typ) continue;
-      (obj[cat] ||= {})[typ] = true;
+      (obj[cat] ||= {})[typ] = m; // sla hele object op (met waardes)
     }
     return obj;
   }
   return {};
+}
+
+// === Toggle helper: radio opnieuw klikken => deselect ===
+function attachMestToggleHandlers(containerSel = '#mestChoiceList'){
+  const root = document.querySelector(containerSel);
+  if (!root) return;
+
+  // change → set/unset selectie
+  root.querySelectorAll('input[type="radio"][name="mest_one"]').forEach(r => {
+    r.addEventListener('change', () => {
+      if (r.checked) {
+        selectedCat  = r.dataset.cat || null;
+        selectedType = r.dataset.type || null;
+        clearInlineError(listContainer);
+        if (selectedCat && selectedType) applyDefaultsFromSelection(selectedCat, selectedType);
+      } else {
+        selectedCat  = null;
+        selectedType = null;
+      }
+    });
+  });
+
+  // klik op label van al-geselecteerde radio ⇒ deselect (terug naar geen keuze)
+  root.querySelectorAll('input[type="radio"][name="mest_one"]').forEach(r => {
+    const lbl = root.querySelector(`label[for="${r.id}"]`);
+    if (!lbl) return;
+    lbl.addEventListener('click', (ev) => {
+      if (r.checked) {
+        ev.preventDefault();                 // voorkom directe her-selectie
+        r.checked = false;                   // echt uitzetten
+        r.dispatchEvent(new Event('change', { bubbles:true }));
+      }
+    });
+  });
 }
 
 /* ========================
@@ -342,7 +330,7 @@ async function onSubmit(e){
     // 2) Insert
     const payload = {
       user_id: userId,
-      naam: elNaam.value.trim(),
+      naam: naam,
       mest_categorie: selectedCat,
       mest_type: selectedType,
       file_path: path,
@@ -364,6 +352,7 @@ async function onSubmit(e){
 
     toast('Upload opgeslagen. Status: In behandeling.', 'success');
 
+    // Reset UI
     form.reset();
     [elDS, elN, elP, elK, elOS, elBio].forEach(i => i.value = '');
     selectedCat = null; selectedType = null;
@@ -371,7 +360,8 @@ async function onSubmit(e){
 
     cbUseProfile.checked = !!profilePostcodeNow;
     wrapPostcode.style.display = cbUseProfile.checked ? 'none' : 'block';
-    if (elPriceSign) elPriceSign.value = 'neg';
+    initPriceSignToggle('neg'); // zet ook de segmented UI terug
+
     await loadMyUploads();
   } catch (e) {
     console.error(e);
@@ -399,7 +389,7 @@ function makeUUID(){
 }
 
 /* ========================
-   Overzicht "Mijn uploads" — LUCHTIGE KAARTEN + inline save
+   Overzicht "Mijn uploads" — kaartjes + inline save
 ======================== */
 async function loadMyUploads(){
   myUploads.innerHTML = 'Laden…';
@@ -429,7 +419,7 @@ async function loadMyUploads(){
 function renderUploadsGrid(rows){
   const wrap = document.createElement('div');
   wrap.className = 'uploads-grid uploads-grid--airy';
-  rows.forEach(r => wrap.appendChild(renderUploadCard(r))); // let op: functie geeft nu een Node terug
+  rows.forEach(r => wrap.appendChild(renderUploadCard(r)));
   return wrap;
 }
 
@@ -450,23 +440,26 @@ function renderUploadCard(r){
   frag.querySelector('.js-analysis').innerHTML = renderAnalysisChips(r);
   frag.querySelector('.js-filechip').innerHTML = renderFileChip(!!r.file_path);
 
-  // Velden (zet zowel property .value als het attribute 'value' voor maximale robuustheid)
+  // Velden
   const prijs = frag.querySelector('.e-prijs');
   const ton   = frag.querySelector('.e-ton');
   const pc    = frag.querySelector('.e-postcode');
+  const naamI = frag.querySelector('.e-naam'); // optioneel (alleen als je 'Naam' in kaart-template hebt gezet)
 
   const prijsVal = fmtEditSigned(r.inkoopprijs_per_ton);
   const tonVal   = fmtInt(r.aantal_ton);
   const pcVal    = r.postcode || '';
+  const naamVal  = r.naam || '';
 
   if (prijs){ prijs.value = prijsVal; prijs.setAttribute('value', prijsVal); }
   if (ton){   ton.value   = tonVal;   ton.setAttribute('value', tonVal); }
   if (pc){    pc.value    = pcVal;    pc.setAttribute('value', pcVal); }
+  if (naamI){ naamI.value = naamVal;  naamI.setAttribute('value',  naamVal); }
 
-  return article; // << BELANGRIJK: geef de echte node terug, géén outerHTML string
+  return article; // geef de echte node terug
 }
 
-/* --- helpers --- */
+/* --- helpers voor kaartjes --- */
 function renderAnalysisChips(r){
   const chips = [];
   if (isNum(r.ds_percent)) chips.push(pill('DS', r.ds_percent, '%'));
@@ -485,7 +478,7 @@ function pill(label, val, suf){
 function isNum(x){ const n = Number(x); return Number.isFinite(n); }
 
 function prettyKind(cat, type){
-  const nice = String(cat || '').replace(/_/g,' ');
+  const nice = String(cat || '').replace(/_/g, ' ');
   return `${escapeHtml(cap(nice))} / ${escapeHtml(cap(type || ''))}`;
 }
 function cap(s){ return s ? s.charAt(0).toUpperCase()+s.slice(1) : ''; }
@@ -530,7 +523,7 @@ function formatPriceDisplay(val) {
   return (n < 0 ? '-' : '') + abs;
 }
 
-// Live input-masks (geen punt, max 1 komma; ton alleen cijfers; postcode 1234 AB)
+// Live input-masks (prijs/ton/postcode)
 function attachMasks(elPrice, elTon, elPC) {
   // prijs
   elPrice?.addEventListener('input', () => {
@@ -564,10 +557,23 @@ function attachMasks(elPrice, elTon, elPC) {
   });
 }
 
-// Validatie exact als upload-form:
-// - prijs: getal (±) met max 2 dec
-// - ton: integer > 24
-// - postcode: NL-formaat
+// Debounced autosave om DB-spam te voorkomen (niet gebruikt door ✓-save, maar beschikbaar)
+function scheduleSave(id, elPrice, elTon, elPC, btnDel) {
+  if (saveTimers.has(id)) clearTimeout(saveTimers.get(id));
+  const t = setTimeout(async () => {
+    const { ok, priceSigned, tonInt, pcFmt } = validateCardFields(elPrice, elTon, elPC);
+    if (!ok) return;
+    if (btnDel) btnDel.disabled = true;
+    const { error } = await supabase
+      .from('mest_uploads')
+      .update({ inkoopprijs_per_ton: priceSigned, aantal_ton: tonInt, postcode: pcFmt })
+      .eq('id', id);
+    if (btnDel) btnDel.disabled = false;
+    if (error) toast('Opslaan mislukt: ' + error.message, 'error');
+  }, SAVE_DEBOUNCE_MS);
+  saveTimers.set(id, t);
+}
+
 function validateCardFields(elPrice, elTon, elPC) {
   let ok = true;
   [elPrice, elTon, elPC].forEach(clearInlineError);
@@ -600,42 +606,6 @@ function validateCardFields(elPrice, elTon, elPC) {
   return { ok, priceSigned, tonInt, pcFmt };
 }
 
-// Debounced autosave om DB-spam te voorkomen
-function scheduleSave(id, elPrice, elTon, elPC, btnDel) {
-  if (saveTimers.has(id)) clearTimeout(saveTimers.get(id));
-  const t = setTimeout(async () => {
-    const { ok, priceSigned, tonInt, pcFmt } = validateCardFields(elPrice, elTon, elPC);
-    if (!ok) return;
-
-    // tijdelijk delete-knop uitschakelen tijdens save
-    if (btnDel) btnDel.disabled = true;
-
-    const { error } = await supabase
-      .from('mest_uploads')
-      .update({
-        inkoopprijs_per_ton: priceSigned,
-        aantal_ton: tonInt,
-        postcode: pcFmt
-      })
-      .eq('id', id);
-
-    if (btnDel) btnDel.disabled = false;
-
-    if (error) {
-      toast('Opslaan mislukt: ' + error.message, 'error');
-    } else {
-      // subtiel visueel feedbackje
-      const card = myUploads.querySelector(`.upload-card[data-id="${id}"]`);
-      if (card) {
-        const prev = card.style.boxShadow;
-        card.style.boxShadow = '0 0 0 2px rgba(5,122,85,.25)';
-        setTimeout(() => { card.style.boxShadow = prev || '0 2px 8px rgba(0,0,0,.03)'; }, 600);
-      }
-    }
-  }, SAVE_DEBOUNCE_MS);
-  saveTimers.set(id, t);
-}
-
 // Verwijderen via X linksboven
 async function deleteRow(id) {
   if (!confirm('Weet je zeker dat je dit item wilt verwijderen?')) return;
@@ -658,29 +628,34 @@ function bindUploadActions(rows){
     const elP    = card.querySelector('.e-prijs');
     const elT    = card.querySelector('.e-ton');
     const elPC   = card.querySelector('.e-postcode');
+    const elName = card.querySelector('.e-naam');  // optioneel
     const btnDel = card.querySelector('.a-del');
     const btnSave= card.querySelector('.a-save');
+
+    attachMasks(elP, elT, elPC);
 
     // helpers
     const markDirty = () => {
       card.classList.add('is-dirty');
       card.classList.remove('is-saved');
       clearInlineError(elP); clearInlineError(elT); clearInlineError(elPC);
+      if (elName) clearInlineError(elName);
     };
-    const beginSave = () => { card.classList.add('is-saving'); btnSave.setAttribute('disabled',''); };
-    const endSave   = () => { card.classList.remove('is-saving'); btnSave.removeAttribute('disabled'); };
+    const beginSave = () => { card.classList.add('is-saving'); btnSave?.setAttribute('disabled',''); };
+    const endSave   = () => { card.classList.remove('is-saving'); btnSave?.removeAttribute('disabled'); };
 
     // elke wijziging -> toon ✓
     ['input','change'].forEach(ev => {
       elP?.addEventListener(ev, markDirty);
       elT?.addEventListener(ev, markDirty);
       elPC?.addEventListener(ev, markDirty);
+      elName?.addEventListener(ev, markDirty);
     });
 
     // nette formatting op blur (geen save!)
     elP?.addEventListener('blur', () => {
       const n = parseSignedPrice2dec(elP.value);
-      if (n === null) return; // laat foutmelding pas bij save zien
+      if (n == null) return; // foutmelding pas bij save
       const abs = Math.abs(n).toFixed(2).replace('.', ',');
       elP.value = (n < 0 ? '-' : '') + abs;
     });
@@ -693,25 +668,25 @@ function bindUploadActions(rows){
       if (!isValidPostcode(elPC.value)) return;
       elPC.value = formatPostcode(elPC.value);
     });
+    elName?.addEventListener('blur', () => { elName.value = (elName.value || '').trim(); });
 
     // SAVE via ✓
     btnSave?.addEventListener('click', async () => {
-      // Validatie (zelfde regels als upload):
       let ok = true;
       clearInlineError(elP); clearInlineError(elT); clearInlineError(elPC);
+      if (elName) clearInlineError(elName);
 
-      // prijs: ± met max 2 decimaal
+      // prijs
       const priceSigned = parseSignedPrice2dec(elP.value);
       if (priceSigned === null || !Number.isFinite(priceSigned)) {
         showInlineError(elP,'Bedrag (±) met max 2 decimalen.');
         ok = false;
       } else {
-        // forceer 2 decimaal + komma
         const abs = Math.abs(priceSigned).toFixed(2).replace('.', ',');
         elP.value = (priceSigned < 0 ? '-' : '') + abs;
       }
 
-      // ton: hele aantallen > 24
+      // ton
       const tonInt = parseIntStrict(elT.value);
       if (tonInt === null || tonInt <= 24) {
         showInlineError(elT,'Alleen hele aantallen > 24.');
@@ -720,12 +695,24 @@ function bindUploadActions(rows){
         elT.value = String(tonInt);
       }
 
-      // postcode: NL
+      // postcode
       if (!isValidPostcode(elPC.value)) {
         showInlineError(elPC,'Ongeldige NL postcode.');
         ok = false;
       } else {
         elPC.value = formatPostcode(elPC.value);
+      }
+
+      // (optioneel) naam
+      let nameTrim = null;
+      if (elName) {
+        nameTrim = (elName.value || '').trim();
+        if (nameTrim.length < 2 || nameTrim.length > 25) {
+          showInlineError(elName,'2–25 tekens.');
+          ok = false;
+        } else {
+          elName.value = nameTrim;
+        }
       }
 
       if (!ok) {
@@ -738,14 +725,20 @@ function bindUploadActions(rows){
       const patch = {
         inkoopprijs_per_ton: priceSigned,
         aantal_ton: tonInt,
-        postcode: elPC.value
+        postcode: elPC.value,
+        ...(elName ? { naam: nameTrim } : {})
       };
-      const okSave = await patchRow(r.id, patch, { silent:true });  // geen success-toast
+      const okSave = await patchRow(r.id, patch, { silent:true });
       endSave();
 
       if (okSave) {
+        // titel live bijwerken als naam gewijzigd is
+        if (elName) {
+          const tEl = card.querySelector('.title');
+          if (tEl) { tEl.textContent = elName.value || 'mest'; tEl.title = tEl.textContent; }
+        }
         card.classList.remove('is-dirty');
-        card.classList.add('is-saved');   // ✓ krijgt groene state via CSS
+        card.classList.add('is-saved');
         setTimeout(() => card.classList.remove('is-saved'), 1200);
       }
     });
@@ -755,22 +748,18 @@ function bindUploadActions(rows){
       if (!confirm('Dit item verwijderen?')) return;
       const { error } = await supabase.from('mest_uploads').delete().eq('id', r.id);
       if (error) toast('Verwijderen mislukt: ' + error.message, 'error');
-      else { /* geen success-popup */ await loadMyUploads(); }
+      else { await loadMyUploads(); }
     });
   });
 }
 
-/** Patch helper: laat Supabase de update teruggeven zodat je zeker weet wat er staat */
+/** Patch helper */
 async function patchRow(id, patch, { silent=false } = {}){
   const { error } = await supabase.from('mest_uploads').update(patch).eq('id', id);
   if (error) {
     toast('Opslaan mislukt: ' + error.message, 'error');
     return false;
   }
-  // geen success toast meer
-  if (!silent) {
-    // als je ooit conditioneel iets wil laten zien, kan dat hier
-  }
+  if (!silent) { /* optionele feedback */ }
   return true;
 }
-
