@@ -1,5 +1,6 @@
 /* =========================================================
    style.css - MestAssistent (compact, consistent, cards-first)
+   Complete herschreven versie
 ========================================================= */
 
 /* ============ Variabelen ============ */
@@ -21,15 +22,15 @@
   --fs-h3:clamp(1.125rem,1rem + .8vw,1.375rem);
   --fs-body:clamp(1rem,.95rem + .3vw,1.0625rem);
 
-  /* Type voor upload-kaarten (titels, waarden, inputs) */
+  /* Type voor upload-kaarten (1 plek voor titels/waarden/inputs) */
   --fs-card:.9rem;
 
-  /* Upload-card layout paddings en kolombreedtes */
+  /* Upload-card layout */
   --card-icon-w:26px;
   --card-left-gap:.35rem;
   --card-left-pad:calc(var(--card-icon-w) + var(--card-left-gap));
   --card-right-pad:2.6rem;    /* ruimte voor ✓ rechts */
-  --meta-label-w:96px;        /* smallere labelkolom → meer ruimte voor waarden */
+  --meta-label-w:96px;        /* labelkolom in meta */
 }
 
 /* ============ Reset & basis ============ */
@@ -50,24 +51,20 @@ body, p, li{font-size:var(--fs-body)}
 .site-header{background:var(--color-black);border-bottom:4px solid var(--color-yellow)}
 .navbar{max-width:1200px;margin:0 auto;padding:1rem 1.5rem;display:flex;align-items:center;justify-content:space-between}
 .nav-logo{color:#fff;font-weight:700;font-size:1.5rem;text-decoration:none}
+
 .nav-links{list-style:none;display:flex;align-items:center}
 .nav-links li+li{margin-left:1rem}
 .nav-links a,.nav-links button{
-  padding:.75rem 1.5rem;border-radius:6px;font-weight:600;text-decoration:none;cursor:pointer;border:0;transition:background .2s ease
+  padding:.7rem 1.1rem;border-radius:6px;font-weight:600;text-decoration:none;cursor:pointer;border:0;transition:background .2s ease
+  /* desktop kleiner voor rust */
+}
+@media (min-width:1024px){
+  .nav-links a,.nav-links button{font-size:.95rem;padding:.5rem .75rem}
 }
 .nav__item{color:#fff;text-decoration:none}
 .nav__item:hover{opacity:.9}
 .btn-login{background:var(--color-yellow);color:var(--color-black)}
 .btn-login:hover{background:var(--color-yellow-dark)}
-
-/* kleinere nav-items op desktop voor meer rust */
-@media (min-width:1024px){
-  .site-menu .nav-links a,
-  .nav-links a.nav__item{
-    font-size:.95rem;
-    padding:.5rem .9rem;
-  }
-}
 
 .nav-toggle{
   display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border:0;background:transparent;color:#fff;cursor:pointer
@@ -200,11 +197,13 @@ body.is-auth .guest-only{display:none!important}
    UPLOADS – Kaarten (i.p.v. tabel)
 ========================================================= */
 
+/* Grid */
 .uploads-grid{display:grid;grid-template-columns:1fr;gap:1rem}
 @media (min-width:800px){.uploads-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (min-width:1180px){.uploads-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 .uploads-grid--airy{display:grid;grid-template-columns:inherit;gap:inherit}
 
+/* Card */
 .upload-card{
   position:relative;border:1px solid #eceff3;border-radius:12px;background:#fff;
   box-shadow:0 2px 8px rgba(0,0,0,.03)
@@ -236,47 +235,43 @@ body.is-auth .guest-only{display:none!important}
 .card-save:active:not([disabled]){transform:scale(.98)}
 .card-save[disabled]{opacity:.45;cursor:not-allowed}
 
-/* Head: ruimte naast iconen + status iets naar links */
+/* Head: status onder de titel */
 .upload-card__head{
-  display:flex;align-items:center;justify-content:space-between;gap:.75rem;margin-bottom:.8rem;
-  padding-left:var(--card-left-pad);   /* i.p.v. vaste 1.8rem */
-  padding-right:var(--card-right-pad)  /* zodat ✓ de status niet overlapt */
+  display:flex;flex-direction:column;align-items:flex-start;gap:.25rem;
+  margin-bottom:.8rem;
+  padding-left:var(--card-left-pad);
+  padding-right:var(--card-right-pad);
 }
-.upload-card__head .status{margin-right:.6rem}
 .upload-card .title{
   font-size:var(--fs-card);font-weight:700;letter-spacing:.01em;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap
 }
+.upload-card__head .status{margin:0}
+.upload-card__head .status .badge{font-size:calc(var(--fs-card) - .08rem);line-height:1.2}
 
-/* --- META: consistente basisgap + extra ruimte rond Analyse --- */
+/* Meta */
 .upload-card__meta{
-  display:grid;                 /* zodat row-gap werkt */
-  row-gap:10px;                 /* basisafstand tussen rijen */
+  display:grid;row-gap:10px;
   margin:.5rem 0 .6rem;
   padding-left:var(--card-left-pad);
 }
 .meta-row{
-  display:grid;
-  grid-template-columns:var(--meta-label-w) 1fr;
-  gap:.5rem .8rem;
-  align-items:start;
-  margin:0;                     /* geen extra marge per rij */
+  display:grid;grid-template-columns:var(--meta-label-w) 1fr;
+  gap:.5rem .8rem;align-items:start;margin:0
 }
-/* extra witruimte vóór en ná de Analyse-rij */
-.meta-row--analysis{ margin-top:14px; margin-bottom:14px; }
+.meta-row--analysis{margin-top:14px;margin-bottom:14px} /* extra witruimte rondom Analyse */
+.meta-label{color:#374151;font-size:var(--fs-card);font-weight:600;white-space:nowrap}
+.meta-value{color:#1f2937;font-size:var(--fs-card)}
 
-.meta-label{ color:#374151; font-size:var(--fs-card); font-weight:600; white-space:nowrap; }
-.meta-value{ color:#1f2937; font-size:var(--fs-card); }
-
-/* Analyse chips (wrapt netjes) */
-.analysis-pills{ display:flex; align-items:center; flex-wrap:wrap; gap:.55rem .6rem; margin:0; }
+/* Analyse chips */
+.analysis-pills{display:flex;align-items:center;flex-wrap:wrap;gap:.55rem .6rem;margin:0}
 .pill{
-  display:inline-flex; align-items:center; gap:.4rem;
-  padding:.3rem .7rem; border-radius:999px; background:#f7f8fb; border:1px solid #eef1f6;
-  color:#1f2937; font-size:var(--fs-card);
+  display:inline-flex;align-items:center;gap:.4rem;
+  padding:.3rem .7rem;border-radius:999px;background:#f7f8fb;border:1px solid #eef1f6;
+  color:#1f2937;font-size:var(--fs-card)
 }
-.pill-k{ font-weight:700; color:#111827; }
-.pill-v{ color:#374151; }
+.pill-k{font-weight:700;color:#111827}
+.pill-v{color:#374151}
 
 /* Inline formulier */
 .upload-card__form{
@@ -312,16 +307,11 @@ body.is-auth .guest-only{display:none!important}
 .chip.ok .dot{background:#0ea5a0}
 .chip.none .dot{background:#9ca3af}
 
-/* --- Mobiel: labels boven waarden in meta --- */
+/* Mobiel: labels boven waarden in meta */
 @media (max-width:640px){
   .upload-card__meta{row-gap:14px}
-  .upload-card__meta .meta-row{
-    grid-template-columns:1fr !important;
-    gap:.25rem 0;
-  }
-  .upload-card__meta .meta-label{
-    margin-bottom:.25rem;
-  }
+  .upload-card__meta .meta-row{grid-template-columns:1fr!important;gap:.25rem 0}
+  .upload-card__meta .meta-label{margin-bottom:.25rem}
 }
 
 /* Overig */
