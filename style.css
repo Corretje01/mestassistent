@@ -199,45 +199,71 @@ body.is-guest .auth-only{display:none!important}
 body.is-auth .guest-only{display:none!important}
 
 /* =========================================================
-   UPLOADS – kaarten (i.p.v. tabel)  ✅ vernieuwd & consistent
+   UPLOADS – kaarten (i.p.v. tabel)  ✅ final
 ========================================================== */
+
+/* (zorg dat in :root staat)  --fs-card: .95rem; */
+
 .uploads-grid{display:grid;grid-template-columns:1fr;gap:1rem}
 @media (min-width:800px){.uploads-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (min-width:1180px){.uploads-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 
 .upload-card{
-  position:relative;border:1px solid #eceff3;border-radius:12px;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.03)
+  position:relative;border:1px solid #eceff3;border-radius:12px;background:#fff;
+  box-shadow:0 2px 8px rgba(0,0,0,.03)
 }
 .upload-card--airy{padding:1.1rem 1.25rem}
 
-/* Verwijderknop linksboven */
-.card-close{
-  position:absolute;top:.4rem;left:.45rem;width:26px;height:26px;
+/* Iconen: X links, ✓ rechts */
+.card-close,.card-save{
+  position:absolute;top:.4rem;width:26px;height:26px;z-index:2;
   display:inline-flex;align-items:center;justify-content:center;
   border:1px solid #eaecef;border-radius:8px;background:#fff;color:#6b7280;cursor:pointer
 }
+.card-close{left:.45rem}
 .card-close:hover{color:#b91c1c;border-color:#e5e7eb}
 
-/* Head */
-.upload-card__head{display:flex;align-items:center;justify-content:space-between;gap:.75rem;margin-bottom:.8rem;padding-left:1.8rem}
-.upload-card .title{font-size:var(--fs-card);font-weight:700;letter-spacing:.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.card-save{
+  right:.45rem;display:none;font-weight:700;font-size:16px;line-height:1;
+  transition:background .15s ease,border-color .15s ease,color .15s ease,transform .05s ease
+}
+.upload-card.is-dirty .card-save{display:inline-flex}
+.upload-card.is-saving .card-save{pointer-events:none;opacity:.65}
+.upload-card.is-saved  .card-save{display:inline-flex;background:#e6f6ec;color:#0b7a3e;border-color:#bbebd2}
+.card-save:hover:not([disabled]){background:var(--color-yellow);border-color:var(--color-yellow);color:var(--color-black)}
+.card-save:active:not([disabled]){transform:scale(.98)}
+.card-save[disabled]{opacity:.45;cursor:not-allowed}
 
-/* Meta: labels en waardes gelijke grootte voor rust */
+/* Head */
+.upload-card__head{
+  display:flex;align-items:center;justify-content:space-between;
+  gap:.75rem;margin-bottom:.8rem;padding-left:1.8rem /* ruimte voor X */
+}
+.upload-card .title{
+  font-size:var(--fs-card);font-weight:700;letter-spacing:.01em;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap
+}
+
+/* Meta: labels en waardes even groot voor rust */
 .upload-card__meta{margin:.5rem 0 .6rem;padding-left:1.8rem;row-gap:12px}
-.meta-row{display:grid;grid-template-columns:110px 1fr;gap:.5rem .8rem;align-items:start;margin:.35rem 0}
+.meta-row{
+  display:grid;grid-template-columns:110px 1fr;gap:.5rem .8rem;
+  align-items:start;margin:.35rem 0
+}
 .meta-label{color:#374151;font-size:var(--fs-card);font-weight:600;white-space:nowrap}
 .meta-value{color:#1f2937;font-size:var(--fs-card)}
 
 /* Analyse chips */
 .analysis-pills{display:flex;align-items:center;flex-wrap:wrap;gap:.55rem .6rem}
 .pill{
-  display:inline-flex;align-items:center;gap:.4rem;padding:.3rem .7rem;border-radius:999px;
-  background:#f7f8fb;border:1px solid #eef1f6;color:#1f2937;font-size:var(--fs-card)
+  display:inline-flex;align-items:center;gap:.4rem;
+  padding:.3rem .7rem;border-radius:999px;background:#f7f8fb;border:1px solid #eef1f6;
+  color:#1f2937;font-size:var(--fs-card)
 }
 .pill-k{font-weight:700;color:#111827}
 .pill-v{color:#374151}
 
-/* Form-rij: velden eind-uitlijnen voor één strakke baseline */
+/* Form-rij */
 .upload-card__form{
   display:grid;grid-template-columns:repeat(3,1fr);gap:14px;padding-left:1.8rem;align-items:end
 }
@@ -251,11 +277,11 @@ body.is-auth .guest-only{display:none!important}
   line-height:1.25;font-size:var(--fs-card);background:#fff;color:#111827;width:100%
 }
 
-/* Add-ons (€ / t) perfect gecentreerd BINNEN het veld */
+/* Add-ons (€ / t) exact gecentreerd BINNEN het veld */
 .field-sm .control{position:relative}
 .field-sm .control .addon{
-  position:absolute;top:50%;transform:translateY(-50%);
-  line-height:1;color:#6b7280;font-weight:600;font-size:var(--fs-card);pointer-events:none
+  position:absolute;top:50%;transform:translateY(-50%);line-height:1;
+  color:#6b7280;font-weight:600;font-size:var(--fs-card);pointer-events:none
 }
 .field-sm .control .addon.left{left:.65rem}
 .field-sm .control .addon.right{right:.65rem}
