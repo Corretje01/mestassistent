@@ -55,9 +55,10 @@ body, p, li{font-size:var(--fs-body)}
 .nav-links{list-style:none;display:flex;align-items:center}
 .nav-links li+li{margin-left:1rem}
 .nav-links a,.nav-links button{
-  padding:.7rem 1.1rem;border-radius:6px;font-weight:600;text-decoration:none;cursor:pointer;border:0;transition:background .2s ease
+  padding:.7rem 1.1rem;border-radius:6px;font-weight:600;text-decoration:none;cursor:pointer;border:0;transition:background .2s ease;
   /* desktop kleiner voor rust */
 }
+
 @media (min-width:1024px){
   .nav-links a,.nav-links button{font-size:.95rem;padding:.5rem .75rem}
 }
@@ -180,7 +181,7 @@ a.btn:focus-visible,.btn:focus-visible,.nav-links a:focus-visible,.btn-login:foc
   .btn-primary,.btn-danger{width:100%}
   .category{gap:.5rem}
   .category__label{width:100%;margin-bottom:.25rem}
-  .category__choices{display:grid;grid-template-columns:1fr 1fr;gap:.5rem}
+  /* 2-koloms regel weggehaald; upload.html regelt full-width legacy */
   .btn.mest-btn{margin:0;width:100%;height:44px;text-align:center;box-sizing:border-box}
 }
 
@@ -202,7 +203,7 @@ body.is-auth .guest-only{display:none!important}
 .uploads-grid{display:grid;grid-template-columns:1fr;gap:1rem}
 @media (min-width:800px){.uploads-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (min-width:1180px){.uploads-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
-.uploads-grid--airy{display:grid;grid-template-columns:inherit;gap:.75rem}
+.uploads-grid--airy{display:grid;gap:.75rem}
 
 /* Card */
 .upload-card{
