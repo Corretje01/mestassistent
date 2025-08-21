@@ -98,31 +98,7 @@
         box-sizing:border-box;
       }
     }
-    
-     /* Kop van de upload-kaart: alles links, met wat ruimte */
-    .upload-card__head{
-      display:flex;
-      align-items:center;
-      justify-content:flex-start;   /* ← niet meer space-between */
-      gap:.5rem;
-      flex-wrap:wrap;
-    }
-    
-    /* Titel links; duwt status niet meer weg */
-    .upload-card__head .title{
-      flex:0 1 auto;                /* ← niet meer flex:1 */
-      margin:0;
-      text-align:left !important;   /* fail-safe tegen generieke centrering */
-    }
-
-    /* Status naast de titel, ook links */
-    .upload-card__head .status-wrap{
-      margin-left:0;                /* ← niet meer auto */
-      display:flex;
-      align-items:center;
-      gap:.35rem;
-    }
-    
+       
     /* Zorg dat de popover absoluut t.o.v. de kaart kan positioneren */
     .upload-card{ position: relative; }
     
