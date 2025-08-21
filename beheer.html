@@ -42,6 +42,21 @@
       outline:none;
       transition:border-color .15s ease, box-shadow .15s ease, background-color .15s ease;
       font:inherit;
+      -webkit-appearance:none;     /* Safari/iOS: consistente hoogte */
+      appearance:none;
+    }
+    .admin-ui select{
+      background-image:
+        linear-gradient(45deg, transparent 50%, #6b7280 50%),
+        linear-gradient(135deg, #6b7280 50%, transparent 50%),
+        linear-gradient(to right, transparent, transparent);
+      background-position:
+        calc(100% - 18px) calc(50% - 3px),
+        calc(100% - 12px) calc(50% - 3px),
+        100% 0;
+      background-size: 6px 6px, 6px 6px, 2.5rem 100%;
+      background-repeat: no-repeat;
+      padding-right:2.5rem;
     }
     .admin-ui .input:focus,
     .admin-ui .select:focus,
@@ -182,6 +197,44 @@
 
     /* Card sectie-spacing alleen op beheerpagina toepassen */
     .admin-ui .card{ padding:1.1rem 1rem; }
+
+    /* ======================================================
+       ANALYSEVELDEN (DS, N, P, K, OS, Biogas) — subtiele upgrade
+       Werkt op markup die beheer.js rendert: input[data-k="..."]
+       ====================================================== */
+    .admin-ui .row label{
+      display:flex;
+      flex-direction:column;
+      gap:.35rem;
+      font-weight:600;
+      font-size:.9rem;
+      color:#111827;
+    }
+    .admin-ui .row input[data-k]{
+      border:1px solid #e5e7eb;
+      border-radius:10px;
+      background:#fafafa;
+      padding:.6rem .8rem;
+      min-height:42px;
+      color:#111827;
+      font:inherit;
+      line-height:1.2;
+      box-sizing:border-box;
+      transition:border-color .15s ease, box-shadow .15s ease, background-color .15s ease;
+      text-align:right;                   /* nummers rechts uitlijnen */
+      font-variant-numeric: tabular-nums; /* gelijke cijferbreedte */
+      letter-spacing:.01em;
+    }
+    .admin-ui .row input[data-k]:hover{ background:#f7f7f7; }
+    .admin-ui .row input[data-k]:focus{
+      background:#fff;
+      border-color: var(--color-yellow);
+      box-shadow: 0 0 0 3px rgba(241,196,15,.25);
+      outline:none;
+    }
+    .admin-ui .row input[data-k]::placeholder{ color:#9ca3af; }
+    /* iets meer lucht tussen de 3 kolommen in de details-body */
+    .admin-ui .row{ gap:.75rem !important; }
   </style>
 </head>
 <body>
@@ -224,7 +277,6 @@
           <select id="fStatus" class="select">
             <option value="">Alle statussen</option>
             <option value="in_behandeling">In behandeling</option>
-            <option value="gepubliciseerd" disabled>—</option>
             <option value="gepubliceerd">Gepubliceerd</option>
             <option value="afgewezen">Afgewezen</option>
           </select>
