@@ -99,21 +99,28 @@
       }
     }
     
-    /* --- Uitlijning titel/status in upload-kaarten --- */
+     /* Kop van de upload-kaart: alles links, met wat ruimte */
     .upload-card__head{
       display:flex;
       align-items:center;
-      justify-content:space-between !important; /* forceer links + rechts */
+      justify-content:flex-start;   /* ← niet meer space-between */
       gap:.5rem;
+      flex-wrap:wrap;
     }
+    
+    /* Titel links; duwt status niet meer weg */
     .upload-card__head .title{
-      flex:1 1 auto;
+      flex:0 1 auto;                /* ← niet meer flex:1 */
       margin:0;
-      text-align:left !important;              /* voorkom eventueel centreren */
+      text-align:left !important;   /* fail-safe tegen generieke centrering */
     }
+
+    /* Status naast de titel, ook links */
     .upload-card__head .status-wrap{
-      margin-left:auto;                         /* duw status naar rechts */
-      display:flex; align-items:center; gap:.35rem;
+      margin-left:0;                /* ← niet meer auto */
+      display:flex;
+      align-items:center;
+      gap:.35rem;
     }
 
     /* Info-icoon: compacte fallback; JS zet uiteindelijk exacte maat */
@@ -162,6 +169,14 @@
     }
     @media (max-width: 640px){
       .reason-popover{ right:.75rem; top: 48px; }
+    }
+    
+    /* Lokale overrides tegen eventuele globale 'text-center' regels */
+    .upload-card__head,
+    .upload-card__head .title,
+    .upload-card__head .status,
+    .upload-card__head .status-wrap{
+      text-align:left !important;
     }
   </style>
 </head>
