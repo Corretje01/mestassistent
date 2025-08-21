@@ -99,21 +99,23 @@
       }
     }
     
-    /* Inline-edit naam in kaarttitel (subtiel) */
-    .upload-card__head .title{cursor:text}
-    .upload-card__head .title.is-editing{
-      box-shadow: inset 0 0 0 2px rgba(241,196,15,.35);
-      border-radius:6px; padding:0 .25rem; background:#fffbe6;
+    /* --- Uitlijning titel/status in upload-kaarten --- */
+    .upload-card__head{
+      display:flex;
+      align-items:center;
+      justify-content:space-between !important; /* forceer links + rechts */
+      gap:.5rem;
     }
-
-    /* ====== Reden-popover bij status ====== */
-    .upload-card__head {
-      display:flex; align-items:center; justify-content:space-between; gap:.5rem;
+    .upload-card__head .title{
+      flex:1 1 auto;
+      margin:0;
+      text-align:left !important;              /* voorkom eventueel centreren */
     }
-    .upload-card__head .status-wrap {
+    .upload-card__head .status-wrap{
+      margin-left:auto;                         /* duw status naar rechts */
       display:flex; align-items:center; gap:.35rem;
     }
-    
+
     /* Info-icoon: compacte fallback; JS zet uiteindelijk exacte maat */
     .status-info-btn{
       border:2px solid var(--color-black);
