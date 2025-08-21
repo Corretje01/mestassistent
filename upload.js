@@ -452,6 +452,10 @@ function renderUploadCard(r){
     btn.textContent = 'i';
     statusWrap.appendChild(btn);
 
+    // knop exact even groot als de chip
+    const chipEl = statusWrap.querySelector('.badge');
+    if (chipEl) syncInfoButtonSize(chipEl, btn);
+
     // popover container (hidden, appended to article)
     const pop = document.createElement('div');
     pop.className = 'reason-popover';
@@ -607,6 +611,33 @@ function clearAllReasonAcksFor(id){
     const keys = Object.keys(localStorage);
     keys.forEach(k => { if (k.startsWith(prefix)) localStorage.removeItem(k); });
   } catch {}
+}
+
+// Maakt het i-icoon exact even hoog als de status-chip; blijft up-to-date bij resizes.
+function syncInfoButtonSize(chipEl, btn){
+  if (!chipEl || !btn) return;
+
+  const apply = () => {
+    const rect = chipEl.getBoundingClientRect();
+    const h = Math.round(rect.height);
+    if (h && Number.isFinite(h)) {
+      btn.style.width  = h + 'px';
+      btn.style.height = h + 'px';
+    }
+  };
+
+  // Direct toepassen
+  apply();
+
+  // Realtime volgen
+  if (typeof ResizeObserver !== 'undefined') {
+    const ro = new ResizeObserver(apply);
+    ro.observe(chipEl);
+    const cleanup = () => { try { ro.disconnect(); } catch {} };
+    btn.addEventListener('remove', cleanup, { once:true });
+  } else {
+    window.addEventListener('resize', apply);
+  }
 }
 
 /* === BINDER === */
