@@ -251,6 +251,13 @@ body.is-auth .guest-only{display:none!important}
 .upload-card__head .status{margin:0}
 .upload-card__head .status .badge{font-size:calc(var(--fs-card) - .08rem);line-height:1.2}
 
+/* Badge + i-icoon op één regel */
+.upload-card__head .status-wrap{
+  display:flex;
+  align-items:center;
+  gap:.35rem;
+}
+
 /* Meta */
 .upload-card__meta{
   display:grid;row-gap:10px;
