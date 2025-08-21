@@ -150,15 +150,35 @@
     }
     .reason-popover__title{ font-weight:800; margin:0 0 .35rem; }
     .reason-popover__text{ margin:0 0 .6rem; color:#374151; }
-    .reason-popover__actions{ display:flex; gap:.5rem; justify-content:flex-end; }
-    .reason-popover .btn-ghost{
-      background:transparent; border:2px solid transparent; color:#111827;
-      display:inline-flex; align-items:center; height:36px; padding:.45rem .7rem; border-radius:10px;
+    .reason-popover__actions{
+      display:flex;
+      gap:.5rem;
+      justify-content:space-between; /* ruimte gelijk verdelen */
     }
-    .reason-popover .btn-ghost:hover{ background:#f5f5f5; }
-    .reason-popover .btn-primary{
+    /* Beide knoppen exact even groot en op één regel */
+    .reason-popover__actions .btn-ghost,
+    .reason-popover__actions .btn-primary{
+      flex:1 1 0;                  /* gelijke breedte verdeling */
+      display:flex;                /* centreren van label */
+      align-items:center;
+      justify-content:center;
+      min-height:44px;             /* iets hoger voor leesbaarheid */
+      height:auto;                 /* geen vaste 36px meer */
+      padding:.6rem .9rem;         /* iets ruimer zodat "Sluiten" past */
+      white-space:nowrap;          /* niet afbreken */
+      border-radius:10px;
+      box-sizing:border-box;
+    }
+    
+    /* Stijlverschil blijft behouden */
+    .reason-popover__actions .btn-ghost{
+      background:transparent; border:2px solid transparent; color:#111827;
+    }
+    .reason-popover__actions .btn-ghost:hover{ background:#f5f5f5; }
+    
+    .reason-popover__actions .btn-primary{
       background: var(--color-yellow); border:2px solid var(--color-yellow); color: var(--color-black);
-      display:inline-flex; align-items:center; height:36px; padding:.45rem .7rem; border-radius:10px; font-weight:700;
+      font-weight:700;
     }
     
     @media (max-width: 640px){
