@@ -113,14 +113,31 @@
     .upload-card__head .status-wrap {
       display:flex; align-items:center; gap:.35rem;
     }
+    
+    /* Info-icoon: compacte fallback; JS zet uiteindelijk exacte maat */
     .status-info-btn{
-      border:2px solid var(--color-black); background:#fff; color:var(--color-black);
-      width:26px; height:26px; border-radius:50%; font-weight:700; line-height:1;
-      display:inline-flex; align-items:center; justify-content:center; cursor:pointer;
+      border:2px solid var(--color-black);
+      background:#fff;
+      color:var(--color-black);
+      width:22px;                 /* fallback-maat */
+      height:22px;                /* fallback-maat */
+      border-radius:999px;
+      font-weight:700;
+      font-size:12px;             /* kleiner 'i' teken */
+      line-height:1;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      cursor:pointer;
       transition: background .15s ease, border-color .15s ease, transform .06s ease;
+      padding:0;
+      margin-left:.1rem;          /* subtiele ruimte naast de chip */
     }
     .status-info-btn:hover{ background: var(--color-yellow); border-color: var(--color-yellow); }
     .status-info-btn:active{ transform: translateY(1px); }
+    
+    /* Chip en knopje netjes uitgelijnd */
+    .status-wrap .badge{ align-self:center; }
     
     .reason-popover{
       position:absolute; right:12px; top:42px;
