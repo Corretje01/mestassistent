@@ -127,12 +127,26 @@
     /* Chip en knopje netjes uitgelijnd */
     .status-wrap .badge{ align-self:center; }
 
+    /* Mobielvriendelijke popup: desktop = absolute in kaart; mobiel = fixed bottom sheet */
     .reason-popover{
-      position:absolute; left:12px; top:42px;
-      background:#fff; border:1px solid #e5e7eb; border-radius:12px;
+      position:absolute;
+      left:12px;
+      top:42px;
+    
+      /* Belangrijk: houd hem BINNEN de kaart op desktop/tablet */
+      width: min(420px, calc(100% - 24px)); /* 12px marge links+rechts */
+      max-height: min(60vh, 420px);
+      overflow:auto;
+    
+      background:#fff;
+      border:1px solid #e5e7eb;
+      border-radius:12px;
       box-shadow: 0 10px 30px rgba(0,0,0,.08);
-      width:min(420px, calc(100vw - 2rem)); padding:.85rem;
-      z-index: 50;
+      padding:.85rem;
+      z-index: 1000;                  /* iets hoger voor zekerheid */
+      box-sizing: border-box;
+      word-break: break-word;         /* lange woorden breken */
+      -webkit-overflow-scrolling: touch;
     }
     .reason-popover__title{ font-weight:800; margin:0 0 .35rem; }
     .reason-popover__text{ margin:0 0 .6rem; color:#374151; }
