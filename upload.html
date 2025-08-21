@@ -122,7 +122,10 @@
       align-items:center;
       gap:.35rem;
     }
-
+    
+    /* Zorg dat de popover absoluut t.o.v. de kaart kan positioneren */
+    .upload-card{ position: relative; }
+    
     /* Info-icoon: compacte fallback; JS zet uiteindelijk exacte maat */
     .status-info-btn{
       border:2px solid var(--color-black);
@@ -149,7 +152,7 @@
     .status-wrap .badge{ align-self:center; }
     
     .reason-popover{
-      position:absolute; right:12px; top:42px;
+      position:absolute; left:12px; top:42px;
       background:#fff; border:1px solid #e5e7eb; border-radius:12px;
       box-shadow: 0 10px 30px rgba(0,0,0,.08);
       width:min(420px, calc(100vw - 2rem)); padding:.85rem;
@@ -168,7 +171,7 @@
       display:inline-flex; align-items:center; height:36px; padding:.45rem .7rem; border-radius:10px; font-weight:700;
     }
     @media (max-width: 640px){
-      .reason-popover{ right:.75rem; top: 48px; }
+      .reason-popover{ left:.75rem; top: 48px; }
     }
     
     /* Lokale overrides tegen eventuele globale 'text-center' regels */
