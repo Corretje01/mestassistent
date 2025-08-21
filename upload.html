@@ -160,21 +160,29 @@
       background: var(--color-yellow); border:2px solid var(--color-yellow); color: var(--color-black);
       display:inline-flex; align-items:center; height:36px; padding:.45rem .7rem; border-radius:10px; font-weight:700;
     }
+    
     @media (max-width: 640px){
       .reason-popover{
-        position: fixed;                 /* los van de kaart, aan viewport */
-        left: max(12px, env(safe-area-inset-left));
-        right: max(12px, env(safe-area-inset-right));
-        bottom: max(12px, env(safe-area-inset-bottom));
-        top: auto;
+        /* maak er een gecentreerde modal van */
+        position: fixed;
+        left: 50%;
+        top: 50%;
+        right: auto;          /* reset eventuele eerdere waarden */
+        bottom: auto;         /* reset eventuele eerdere waarden */
+        transform: translate(-50%, -50%);
     
-        width: auto;                     /* volle breedte minus randen */
-        max-width: none;
-        max-height: min(70vh, 560px);    /* nooit hoger dan 70% van viewport */
+        /* maatvoering: nooit buiten beeld, altijd leesbaar */
+        width: min(92vw, 420px);
+        max-height: min(70vh, 560px);
         overflow: auto;
+    
+        /* kleine cosmetiek voor modalgevoel */
         border-radius: 14px;
         padding: 1rem;
         z-index: 1000;
+        -webkit-overflow-scrolling: touch;
+        box-sizing: border-box;
+        word-break: break-word;
       }
     }
 
