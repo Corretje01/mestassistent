@@ -1,4 +1,4 @@
-// upload.js — autosave kaartvelden + analyse kunnen vervangen/ toevoegen
+// upload.js — autosave, inline titel-edit, analyse vervangen, reden-popover + status reset
 import { supabase } from './supabaseClient.js';
 import {
   isValidPostcode, formatPostcode,
@@ -11,7 +11,7 @@ const elNaam = document.getElementById('naam');
 const elFile = document.getElementById('file');
 const elPrijs= document.getElementById('inkoopprijs');
 const elTon  = document.getElementById('aantalTon');
-const elPriceSign = document.getElementById('priceSign'); // 'pos' | 'neg'
+const elPriceSign = document.getElementById('priceSign');
 
 const listContainer = document.getElementById('mestChoiceList');
 
@@ -58,13 +58,13 @@ let selectedType = null;
     if (!cbUseProfile.checked) elPostcode?.focus();
   });
 
-  // vraagprijs-teken STANDAARD NEGATIEF
+  // vraagprijs-teken standaard NEGATIEF
   initPriceSignToggle('neg');
 
-  // mestsoorten laden + UI bouwen
+  // mestsoorten + UI
   await renderMestChoices();
 
-  // events formulier
+  // formulier events
   elFile.addEventListener('change', handleFileChange);
   form.addEventListener('submit', onSubmit);
 
@@ -137,7 +137,6 @@ async function renderMestChoices(){
       `;
     }).join('') || `<div class="muted">Geen mestsoorten gevonden.</div>`;
 
-    // Handlers na render: change + label-click voor deselect
     attachMestToggleHandlers('#mestChoiceList');
   } catch (e) {
     console.error(e);
@@ -159,7 +158,6 @@ function toObjectShapedMest(raw){
   return {};
 }
 
-// Toggle helper: radio opnieuw klikken => deselect
 function attachMestToggleHandlers(containerSel = '#mestChoiceList'){
   const root = document.querySelector(containerSel);
   if (!root) return;
@@ -337,7 +335,8 @@ async function onSubmit(e){
       k_kg_per_ton: toNumOrNull(elK.value),
       os_percent: toNumOrNull(elOS.value),
       biogaspotentieel_m3_per_ton: toNumOrNull(elBio.value),
-      status: 'in_behandeling'
+      status: 'in_behandeling',
+      moderation_note: null
     };
 
     const { error: insErr } = await supabase.from('mest_uploads').insert(payload);
@@ -382,7 +381,7 @@ function makeUUID(){
 }
 
 /* ========================
-   Overzicht "Mijn uploads" — kaartjes + AUTOSAVE
+   Overzicht "Mijn uploads" — kaartjes + AUTOSAVE + reden-popover
 ======================== */
 async function loadMyUploads(){
   myUploads.innerHTML = 'Laden…';
@@ -416,20 +415,79 @@ function renderUploadsGrid(rows){
   return wrap;
 }
 
+function renderBadge(status){
+  const map = { in_behandeling:'gray', gepubliceerd:'green', afgewezen:'red' };
+  const cls = map[status] || 'gray';
+  const label = String(status || '').replace(/_/g, ' ');
+  return `<span class="badge ${cls}">${escapeHtml(label)}</span>`;
+}
+
 function renderUploadCard(r){
   const tpl = document.getElementById('tpl-upload-card');
   const frag = tpl.content.cloneNode(true);
   const article = frag.querySelector('article');
   article.dataset.id = r.id;
 
-  // Titel + status
+  // Header: Titel + status (+ info knop als reden bestaat en niet "geaccepteerd")
   const titleEl = frag.querySelector('.title');
   const safeName = r.naam || 'mest';
   titleEl.textContent = safeName;
   titleEl.title = 'Klik om naam te wijzigen';
   titleEl.setAttribute('data-original', safeName);
-  titleEl.setAttribute('contenteditable', 'false'); // aan bij edit
-  frag.querySelector('.status').innerHTML = renderBadge(r.status);
+  titleEl.setAttribute('contenteditable', 'false');
+
+  const statusWrap = document.createElement('div');
+  statusWrap.className = 'status-wrap';
+  statusWrap.innerHTML = `<div class="status">${renderBadge(r.status)}</div>`;
+
+  // reden tonen als aanwezig & niet "geaccepteerd" (localStorage)
+  const note = (r.moderation_note || '').trim();
+  const showNote = !!note && !isReasonAcknowledged(r.id, note);
+  if (showNote) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'status-info-btn';
+    btn.setAttribute('aria-label','Reden tonen');
+    btn.title = 'Reden tonen';
+    btn.textContent = 'i';
+    statusWrap.appendChild(btn);
+
+    // popover container (hidden, appended to article)
+    const pop = document.createElement('div');
+    pop.className = 'reason-popover';
+    pop.hidden = true;
+    pop.innerHTML = `
+      <h4 class="reason-popover__title">Toelichting ${escapeHtml(r.status.replace('_',' '))}</h4>
+      <p class="reason-popover__text">${escapeHtml(note)}</p>
+      <div class="reason-popover__actions">
+        <button type="button" class="btn-ghost js-close">Sluiten</button>
+        <button type="button" class="btn-primary js-ack">Accepteer</button>
+      </div>
+    `;
+    article.appendChild(pop);
+
+    const open = () => { pop.hidden = false; openPopover = pop; document.addEventListener('click', onDocClick, true); document.addEventListener('keydown', onEsc, true); };
+    const close= () => { pop.hidden = true; if (openPopover===pop) openPopover = null; document.removeEventListener('click', onDocClick, true); document.removeEventListener('keydown', onEsc, true); };
+    const onDocClick = (ev) => {
+      if (pop.hidden) return;
+      if (pop.contains(ev.target) || btn.contains(ev.target)) return;
+      close();
+    };
+    const onEsc = (ev) => { if (ev.key === 'Escape') close(); };
+
+    btn.addEventListener('click', (e)=>{ e.stopPropagation(); pop.hidden ? open() : close(); });
+    pop.querySelector('.js-close')?.addEventListener('click', close);
+    pop.querySelector('.js-ack')?.addEventListener('click', () => {
+      markReasonAcknowledged(r.id, note);
+      close();
+      // verwijder knop en popover visueel
+      btn.remove(); pop.remove();
+    });
+  }
+
+  // plaats statusWrap in header
+  const head = frag.querySelector('.upload-card__head');
+  head.querySelector('.status').replaceWith(statusWrap);
 
   // Meta
   frag.querySelector('.js-kind').innerHTML = prettyKind(r.mest_categorie, r.mest_type);
@@ -437,7 +495,7 @@ function renderUploadCard(r){
   const fileCell = frag.querySelector('.js-filechip');
   fileCell.innerHTML = renderFileChip(!!r.file_path);
 
-  // Altijd: “Voeg analyse toe” of “Wijzig analyse”
+  // “Voeg/Wijzig analyse”
   const btn = document.createElement('button');
   btn.type = 'button';
   btn.className = 'a-fileedit';
@@ -508,12 +566,6 @@ function fmtInt(v){
 function escapeHtml(s){
   return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 }
-function renderBadge(status){
-  const map = { in_behandeling:'gray', gepubliceerd:'green', afgewezen:'red' };
-  const cls = map[status] || 'gray';
-  const label = String(status || '').replace(/_/g, ' ');
-  return `<span class="badge ${cls}">${escapeHtml(label)}</span>`;
-}
 function renderFileChip(hasFile){
   return hasFile
     ? `<span class="chip ok"><span class="dot"></span> aanwezig</span>`
@@ -533,6 +585,29 @@ function debouncedSave(cardId, fn){
 
 function beginCardSave(card){ card?.classList.add('is-saving'); }
 function endCardSave(card){ card?.classList.remove('is-saving'); card?.classList.add('is-saved'); setTimeout(()=>card?.classList.remove('is-saved'), 900); }
+
+/* === Reden-acknowledge opslag (client) === */
+
+function reasonKey(id, note){
+  // note-hash (simpele djb2)
+  let h = 5381; const s = String(note);
+  for (let i=0;i<s.length;i++) h = ((h<<5)+h) + s.charCodeAt(i);
+  return `mest.reason.ack.${id}.${h>>>0}`;
+}
+function isReasonAcknowledged(id, note){
+  try { return localStorage.getItem(reasonKey(id, note)) === '1'; } catch { return false; }
+}
+function markReasonAcknowledged(id, note){
+  try { localStorage.setItem(reasonKey(id, note), '1'); } catch {}
+}
+function clearAllReasonAcksFor(id){
+  // bij nieuwe analyse oude acks ongeldig maken (ruw: verwijder keys die op dit id matchen)
+  try {
+    const prefix = `mest.reason.ack.${id}.`;
+    const keys = Object.keys(localStorage);
+    keys.forEach(k => { if (k.startsWith(prefix)) localStorage.removeItem(k); });
+  } catch {}
+}
 
 /* === BINDER === */
 function bindUploadActions(rows){
@@ -568,7 +643,7 @@ function bindUploadActions(rows){
         const prev = titleEl.getAttribute('data-original') || '';
         titleEl.classList.remove('is-editing');
         titleEl.setAttribute('contenteditable','false');
-        if (raw === prev) return; // niets gewijzigd
+        if (raw === prev) return;
         if (raw.length < minLen || raw.length > maxLen) {
           toast(`Naam moet ${minLen}–${maxLen} tekens zijn.`, 'error');
           titleEl.textContent = prev || 'mest';
@@ -586,7 +661,7 @@ function bindUploadActions(rows){
         startEdit();
       });
       titleEl.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') { e.preventDefault(); titleEl.blur(); }  // commit op blur
+        if (e.key === 'Enter') { e.preventDefault(); titleEl.blur(); }
         if (e.key === 'Escape') { e.preventDefault(); cancelEdit(); }
       });
       titleEl.addEventListener('blur', commitEdit);
@@ -606,7 +681,6 @@ function bindUploadActions(rows){
     const planSave = () => {
       card.classList.add('is-dirty');
       debouncedSave(r.id, async () => {
-        // Validatie + patch alleen gewijzigde waarden
         let ok = true;
         [elP, elT, elPC].forEach(clearInlineError);
 
@@ -636,10 +710,9 @@ function bindUploadActions(rows){
 
         if (!ok) { card.classList.add('shake'); setTimeout(()=>card.classList.remove('shake'), 300); return; }
 
-        // Bepaal wat echt gewijzigd is t.o.v. attribute 'value'
         const patch = {};
         if (elP.value !== elP.getAttribute('value')) patch.inkoopprijs_per_ton = parseSignedPrice2dec(elP.value);
-        if (elT.value !== elT.getAttribute('value')) patch.aantal_ton = tonInt;
+        if (elT.value !== elT.getAttribute('value')) patch.aantal_ton = Number(elT.value);
         if (elPC.value !== elPC.getAttribute('value')) patch.postcode = elPC.value;
 
         if (Object.keys(patch).length === 0) { card.classList.remove('is-dirty'); return; }
@@ -649,7 +722,6 @@ function bindUploadActions(rows){
         endCardSave(card);
 
         if (okSave) {
-          // sync "value" attributes
           elP.setAttribute('value', elP.value);
           elT.setAttribute('value', elT.value);
           elPC.setAttribute('value', elPC.value);
@@ -658,19 +730,13 @@ function bindUploadActions(rows){
       });
     };
 
-    // Debounced autosave tijdens typen + directe save op blur
-    ['input','change'].forEach(ev => {
-      elP?.addEventListener(ev, planSave);
-      elT?.addEventListener(ev, planSave);
-      elPC?.addEventListener(ev, planSave);
-    });
-    ['blur'].forEach(ev => {
+    ['input','change','blur'].forEach(ev => {
       elP?.addEventListener(ev, planSave);
       elT?.addEventListener(ev, planSave);
       elPC?.addEventListener(ev, planSave);
     });
 
-    // ---------- Analyse: altijd “Voeg/Wijzig analyse” ----------
+    // ---------- Analyse: toevoegen/wijzigen (status → in_behandeling) ----------
     if (btnEdit && hidFile) {
       btnEdit.addEventListener('click', () => hidFile.click());
       hidFile.addEventListener('change', async () => {
@@ -694,20 +760,29 @@ function bindUploadActions(rows){
 
           // oude bestand verwijderen (best-effort)
           const oldPath = hidFile.dataset.prevPath;
-          if (oldPath) {
-            try { await supabase.storage.from('mest-analyses').remove([oldPath]); } catch(_) {}
-          }
+          if (oldPath) { try { await supabase.storage.from('mest-analyses').remove([oldPath]); } catch(_) {} }
 
+          // Belangrijk: status resetten, reden wissen
           beginCardSave(card);
-          const ok = await patchRow(r.id, { file_path: newPath, file_mime: mime }, { silent:true });
+          const ok = await patchRow(r.id, {
+            file_path: newPath,
+            file_mime: mime,
+            status: 'in_behandeling',
+            moderation_note: null
+          }, { silent:true });
           endCardSave(card);
           if (!ok) throw new Error('Opslaan in database mislukt');
 
           // UI bijwerken
+          clearAllReasonAcksFor(r.id);
           hidFile.dataset.prevPath = newPath;
           if (chipBox) chipBox.innerHTML = renderFileChip(true);
+
+          // update statuschip-live
+          const statusWrap = card.querySelector('.status-wrap');
+          if (statusWrap) statusWrap.innerHTML = `<div class="status">${renderBadge('in_behandeling')}</div>`;
           btnEdit.textContent = 'Wijzig analyse';
-          toast('Analyse geüpdatet.', 'success');
+          toast('Analyse geüpdatet. Status: In behandeling.', 'success');
         } catch (e) {
           console.error(e);
           toast('Upload mislukt: ' + (e?.message || e), 'error');
@@ -735,7 +810,7 @@ async function patchRow(id, patch, { silent=false } = {}){
     toast('Opslaan mislukt: ' + error.message, 'error');
     return false;
   }
-  if (!silent) { /* optioneel */ }
+  if (!silent) { /* optioneel feedback */ }
   return true;
 }
 
@@ -772,3 +847,6 @@ function attachMasks(elPrice, elTon, elPC) {
     if (isValidPostcode(elPC.value)) elPC.value = formatPostcode(elPC.value);
   });
 }
+
+/* Open popovers management (max 1 open tegelijk) */
+let openPopover = null;
