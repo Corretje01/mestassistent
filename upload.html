@@ -161,9 +161,23 @@
       display:inline-flex; align-items:center; height:36px; padding:.45rem .7rem; border-radius:10px; font-weight:700;
     }
     @media (max-width: 640px){
-      .reason-popover{ left:.75rem; top: 48px; }
-    }
+      .reason-popover{
+        position: fixed;                 /* los van de kaart, aan viewport */
+        left: max(12px, env(safe-area-inset-left));
+        right: max(12px, env(safe-area-inset-right));
+        bottom: max(12px, env(safe-area-inset-bottom));
+        top: auto;
     
+        width: auto;                     /* volle breedte minus randen */
+        max-width: none;
+        max-height: min(70vh, 560px);    /* nooit hoger dan 70% van viewport */
+        overflow: auto;
+        border-radius: 14px;
+        padding: 1rem;
+        z-index: 1000;
+      }
+    }
+
     /* Lokale overrides tegen eventuele globale 'text-center' regels */
     .upload-card__head,
     .upload-card__head .title,
