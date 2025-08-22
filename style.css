@@ -324,3 +324,14 @@ body.is-auth .guest-only{display:none!important}
 
 /* Overig */
 #optimaliseer-btn{margin-top:1rem;display:none!important}
+
+/* === Stap 1 – kaartcontainer (Stap 1 pagina) === */
+#map{
+  height: clamp(340px, 52vh, 560px);
+  width: 100%;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 6px 18px rgba(0,0,0,.06);
+  margin: 0 0 1rem;
+}
+.leaflet-container{ font: inherit; }
