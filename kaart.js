@@ -4,6 +4,10 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   attribution: '© OSM contributors'
 }).addTo(map);
 
+// Zorg dat Leaflet de containermaat kent ná CSS layout
+setTimeout(() => map.invalidateSize(), 0);
+
+
 export let parcels = [];
 function uuid() {
   return 'p_' + Math.random().toString(36).slice(2);
