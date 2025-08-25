@@ -80,6 +80,16 @@ window.addEventListener('parcels:changed', () => {
 });
 
 /* -------------------------------
+   2b) Kleine patch: ook reageren op rvo:imported
+   (Excel-import kan parcels vullen vóór de eerste klik)
+-------------------------------- */
+window.addEventListener('rvo:imported', () => {
+  const hasParcels = Array.isArray(liveParcels) && liveParcels.length > 0;
+  if (hasParcels) setResultsVisible(true);
+  // Rekenen blijft gedreven door 'parcels:changed' om de kernlogica ongemoeid te laten.
+});
+
+/* -------------------------------
    3) Init: als er al percelen zijn, meteen rekenen
 -------------------------------- */
 if (Array.isArray(liveParcels) && liveParcels.length > 0) {
@@ -145,7 +155,7 @@ function findNormEntry(normDb, gewasNaam, gewasCode) {
   if (!normDb) return null;
 
   // 1) Directe key op gewasNaam (exacte match)
-  if (gewasNaam && normDb[gewasNaam]) return normDb[gewasNaam];
+  if (gewasNaam && normDb[geasNaam]) return normDb[geasNaam];
 
   // 2) Case-insensitive poging op gewasNaam
   if (gewasNaam) {
