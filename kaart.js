@@ -333,14 +333,13 @@ window.addEventListener('rvo:imported', async () => {
     const versies = [...new Set(rows.map(r => r.sectorVersie).filter(Boolean))];
     const jaar = new Date().getFullYear();
 
-    // BRP features chunked ophalen om te lange URL's te vermijden
+    // BRP features chunked ophalen om te lange URL's te vermijden (let jaar = new Date().getFullYear(); // niet gebruiken)
     const byId = {};
-    const chunkSize = 40; // houd URL kort; 40–50 is veilig
+    const chunkSize = 40;
     for (let i = 0; i < ids.length; i += chunkSize) {
       const slice = ids.slice(i, i + chunkSize);
       const url = `/.netlify/functions/brpByIds?ids=${encodeURIComponent(slice.join(','))}`
-                + (versies.length ? `&versies=${encodeURIComponent(versies.join(','))}` : '')
-                + `&jaar=${encodeURIComponent(String(jaar))}`;
+                + (versies.length ? `&versies=${encodeURIComponent(versies.join(','))}` : '');
     
       const resp = await fetch(url);
       if (!resp.ok) {
