@@ -155,7 +155,7 @@ function findNormEntry(normDb, gewasNaam, gewasCode) {
   if (!normDb) return null;
 
   // 1) Directe key op gewasNaam (exacte match)
-  if (gewasNaam && normDb[geasNaam]) return normDb[geasNaam];
+  if (gewasNaam && normDb[gewasnaam]) return normDb[gewasNaam];
 
   // 2) Case-insensitive poging op gewasNaam
   if (gewasNaam) {
