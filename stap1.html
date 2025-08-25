@@ -153,6 +153,13 @@
   <script type="module" src="kaart.js"></script>
   <script type="module" src="berekening.js"></script>
 
+  <!-- Excel-import init -->
+  <script type="module">
+    import { setupRVOImport } from './rvoImport.js';
+    // Optioneel: voeg ook een knop #rvo-add toe als je die UX wil
+    setupRVOImport('#rvo-file', { addButtonSelector: '#rvo-add' });
+  </script>
+
   <!-- 5) Excel-import init (na kaart/berekening, zodat listeners actief zijn) -->
   <script type="module">
     import { setupRVOImport } from './rvoImport.js';
