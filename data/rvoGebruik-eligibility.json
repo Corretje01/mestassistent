@@ -1,0 +1,15 @@
+[
+  { "omschrijving": "Eigendom", "eligible": true },
+  { "omschrijving": "Erfpacht", "eligible": true },
+  { "omschrijving": "Reguliere pacht, 6 jaar of langer", "eligible": true },
+  { "omschrijving": "Reguliere pacht, korter dan 6 jaar", "eligible": true },
+  { "omschrijving": "Geliberaliseerde pacht, 6 jaar of langer", "eligible": true },
+  { "omschrijving": "Geliberaliseerde pacht, 6 jaar of korter", "eligible": true },
+  { "omschrijving": "Teeltpacht", "eligible": true },
+  { "omschrijving": "Pacht geringe oppervlakten", "eligible": true },
+  { "omschrijving": "Natuurpacht", "eligible": true },
+
+  { "omschrijving": "In gebruik terreinbeheerder", "eligible": "unknown" },
+  { "omschrijving": "Tijdelijk gebruik in het kader van landinrichting", "eligible": "unknown" },
+  { "omschrijving": "Overige exploitatievormen", "eligible": "unknown" }
+]
