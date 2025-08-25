@@ -333,22 +333,28 @@ window.addEventListener('rvo:imported', async () => {
     const versies = [...new Set(rows.map(r => r.sectorVersie).filter(Boolean))];
     const jaar = new Date().getFullYear();
 
-    // Batch BRP features (serverless, zelfde PDOK-aanpak)
-    const url = `/.netlify/functions/brpByIds?ids=${encodeURIComponent(ids.join(','))}`
-              + (versies.length ? `&versies=${encodeURIComponent(versies.join(','))}` : '')
-              + `&jaar=${encodeURIComponent(String(jaar))}`;
-
-    const resp = await fetch(url);
-    if (!resp.ok) {
-      console.error('[kaart] brpByIds HTTP', resp.status);
-      alert('Kon BRP-gegevens niet ophalen (/.netlify/functions/brpByIds). Is de Netlify Function gedeployed?');
-      return;
+    // BRP features chunked ophalen om te lange URL's te vermijden
+    const byId = {};
+    const chunkSize = 40; // houd URL kort; 40–50 is veilig
+    for (let i = 0; i < ids.length; i += chunkSize) {
+      const slice = ids.slice(i, i + chunkSize);
+      const url = `/.netlify/functions/brpByIds?ids=${encodeURIComponent(slice.join(','))}`
+                + (versies.length ? `&versies=${encodeURIComponent(versies.join(','))}` : '')
+                + `&jaar=${encodeURIComponent(String(jaar))}`;
+    
+      const resp = await fetch(url);
+      if (!resp.ok) {
+        console.error('[kaart] brpByIds HTTP', resp.status, 'chunk', i/chunkSize + 1);
+        alert('Kon BRP-gegevens niet ophalen (/.netlify/functions/brpByIds).');
+        return;
+      }
+      const data = await resp.json();
+      Object.assign(byId, data?.byId || {});
     }
-    const brp = await resp.json();
-    const byId = brp?.byId || {};
+    
     if (!Object.keys(byId).length) {
-      console.warn('[kaart] brpByIds gaf geen matches terug voor IDs:', ids.slice(0, 5), '…');
-      alert('Geen BRP-percelen gevonden voor de aangeleverde Sector IDs.\nControleer of de kolom "Sector ID" correct is in je export.');
+      console.warn('[kaart] brpByIds geen matches terug voor IDs (na chunking). Voorbeeld:', ids.slice(0, 5), '…');
+      alert('Geen BRP-percelen gevonden voor de aangeleverde Sector IDs.');
       return;
     }
 
