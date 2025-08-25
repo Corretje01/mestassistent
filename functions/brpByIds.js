@@ -1,108 +1,95 @@
 // netlify/functions/brpByIds.js
+const BASE = 'https://service.pdok.nl/rvo/brpgewaspercelen/wfs/v1_0';
+const TYPENAME = 'brpgewaspercelen:BrpGewas';
+const SRS = 'EPSG:4326';
+
 export async function handler(event) {
   try {
-    const params = event.queryStringParameters || {};
-    const idsStr = params.ids || '';
-    const jaar = params.jaar ? String(params.jaar).trim() : null;
-    const versiesStr = params.versies ? String(params.versies).trim() : null;
+    const q = event.queryStringParameters || {};
+    const ids = (q.ids || '').split(',').map(s => s.trim()).filter(Boolean);
+    const versies = (q.versies || '').split(',').map(s => s.trim()).filter(Boolean);
+    const jaar = q.jaar ? String(q.jaar).trim() : null;
 
-    const ids = idsStr.split(',').map(s => s.trim()).filter(Boolean);
-    if (ids.length === 0) {
-      return ok({ features: [], byId: {} });
+    if (!ids.length) {
+      return reply(400, { error: 'ids param verplicht (comma-separated Sector IDs)' });
     }
 
-    const versies = versiesStr ? versiesStr.split(',').map(s => s.trim()).filter(Boolean) : null;
-    const chunks = chunk(ids, 50);
+    const chunkSize = 50;
     const features = [];
-
-    for (const group of chunks) {
-      const cqlParts = [];
-      // identificatie IN (...)
-      const quoted = group.map(s => `'${s.replace(/'/g, "''")}'`).join(',');
-      cqlParts.push(`identificatie IN (${quoted})`);
-      if (jaar) cqlParts.push(`jaar = ${encodeURIComponent(jaar)}`);
-      if (versies && versies.length) {
-        const qv = versies.map(v => `'${v.replace(/'/g, "''")}'`).join(',');
-        cqlParts.push(`versie IN (${qv})`);
-      }
-      const CQL_FILTER = cqlParts.join(' AND ');
-
-      const url = makeWfsUrl({
-        service: 'WFS',
-        version: '2.0.0',
-        request: 'GetFeature',
-        typeNames: 'brpgewaspercelen:BrpGewas',
-        outputFormat: 'application/json',
-        srsName: 'EPSG:4326',
-        CQL_FILTER
-      });
-
-      const gj = await fetchWithRetry(url, { timeoutMs: 10_000, retries: 3, backoffMs: 600 });
-      if (gj?.features?.length) features.push(...gj.features);
+    for (let i = 0; i < ids.length; i += chunkSize) {
+      const slice = ids.slice(i, i + chunkSize);
+      const cql = buildCql(slice, versies, jaar);
+      const url = buildUrl(cql);
+      const json = await fetchWithRetry(url);
+      const feats = json?.features || [];
+      features.push(...feats);
     }
 
+    // Als er niets gevonden is en er stond een jaar-filter, probeer dan nog 1x zonder jaar.
+    if (features.length === 0 && jaar) {
+      for (let i = 0; i < ids.length; i += chunkSize) {
+        const slice = ids.slice(i, i + chunkSize);
+        const cql = buildCql(slice, versies, null);
+        const url = buildUrl(cql);
+        const json = await fetchWithRetry(url);
+        const feats = json?.features || [];
+        features.push(...feats);
+      }
+    }
+
+    // Map op identificatie
     const byId = {};
     for (const f of features) {
       const id = f?.properties?.identificatie;
       if (id) byId[id] = f;
     }
-    return ok({ features, byId });
 
+    return reply(200, { features, byId });
   } catch (err) {
-    return fail(err.message || String(err));
+    console.error('[brpByIds] error:', err);
+    return reply(502, { error: String(err?.message || err) });
   }
 }
 
-function makeWfsUrl(params) {
-  const base = 'https://service.pdok.nl/rvo/brpgewaspercelen/wfs/v1_0';
-  const sp = new URLSearchParams(params);
-  return `${base}?${sp.toString()}`;
+function buildCql(ids, versies, jaar) {
+  const esc = (s) => `'${String(s).replace(/'/g, "''")}'`;
+  let cql = `identificatie IN (${ids.map(esc).join(',')})`;
+  if (versies && versies.length) cql += ` AND versie IN (${versies.map(esc).join(',')})`;
+  if (jaar) cql += ` AND jaar=${encodeURIComponent(jaar)}`;
+  return cql;
 }
 
-function chunk(arr, n) {
-  const out = [];
-  for (let i = 0; i < arr.length; i += n) out.push(arr.slice(i, i + n));
-  return out;
+function buildUrl(cql) {
+  const params = new URLSearchParams({
+    service: 'WFS',
+    version: '2.0.0',
+    request: 'GetFeature',
+    typeNames: TYPENAME,
+    outputFormat: 'application/json',
+    srsName: SRS,
+    CQL_FILTER: cql
+  });
+  return `${BASE}?${params.toString()}`;
 }
 
-async function fetchWithRetry(url, { timeoutMs = 10000, retries = 2, backoffMs = 500 } = {}) {
-  let lastErr;
-  for (let attempt = 0; attempt <= retries; attempt++) {
-    try {
-      const ctrl = new AbortController();
-      const t = setTimeout(() => ctrl.abort(), timeoutMs);
-      const res = await fetch(url, { signal: ctrl.signal });
-      clearTimeout(t);
-      if (!res.ok) {
-        if ([429, 502, 503, 504].includes(res.status)) throw new Error('HTTP ' + res.status);
-        // Niet-retrybare fout
-        throw new Error('HTTP ' + res.status);
-      }
-      return await res.json();
-    } catch (e) {
-      lastErr = e;
-      if (attempt < retries) {
-        await sleep(backoffMs * Math.pow(2, attempt));
-        continue;
-      }
+async function fetchWithRetry(url, tries = 4) {
+  let wait = 400;
+  for (let i = 0; i < tries; i++) {
+    const r = await fetch(url);
+    if (r.ok) return r.json();
+    if (![429, 500, 502, 503, 504].includes(r.status)) {
+      throw new Error(`HTTP ${r.status}`);
     }
+    await new Promise(res => setTimeout(res, wait));
+    wait *= 2;
   }
-  throw lastErr || new Error('Onbekende fetch-fout');
+  throw new Error('Max retries op PDOK WFS');
 }
 
-const sleep = (ms) => new Promise(r => setTimeout(r, ms));
-
-function ok(body) {
+function reply(statusCode, body) {
   return {
-    statusCode: 200,
-    headers: { 'Access-Control-Allow-Origin': '*' },
+    statusCode,
+    headers: { 'Access-Control-Allow-Origin': '*', 'Content-Type': 'application/json' },
     body: JSON.stringify(body)
-  };
-}
-function fail(msg) {
-  return {
-    statusCode: 502,
-    headers: { 'Access-Control-Allow-Origin': '*' },
-    body: JSON.stringify({ error: msg })
   };
 }
