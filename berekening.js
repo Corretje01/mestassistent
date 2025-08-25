@@ -155,11 +155,13 @@ function findNormEntry(normDb, gewasNaam, gewasCode) {
   if (!normDb) return null;
 
   // 1) Directe key op gewasNaam (exacte match)
-  if (gewasNaam && normDb[gewasnaam]) return normDb[gewasNaam];
+  if (gewasNaam && normDb[gewasNaam]) return normDb[gewasNaam];
 
   // 2) Case-insensitive poging op gewasNaam
   if (gewasNaam) {
-    const key = Object.keys(normDb).find(k => k.toLowerCase() === String(gewasNaam).toLowerCase());
+    const key = Object.keys(normDb).find(
+      k => k.toLowerCase() === String(gewasNaam).toLowerCase()
+    );
     if (key) return normDb[key];
   }
 
@@ -168,7 +170,9 @@ function findNormEntry(normDb, gewasNaam, gewasCode) {
     const codeStr = String(gewasCode);
     for (const obj of Object.values(normDb)) {
       const codes = obj?.Gewascodes;
-      if (Array.isArray(codes) && codes.map(String).includes(codeStr)) return obj;
+      if (Array.isArray(codes) && codes.map(String).includes(codeStr)) {
+        return obj;
+      }
     }
   }
 
