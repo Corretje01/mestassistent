@@ -112,30 +112,35 @@ async function handleFile(file, state) {
 }
 
 /* ===========================
-   Readers (XLSX/XLS/CSV)
+   Readers (XLSX/XLS/CSV) met AUTO-HEADER detectie
+   - We lezen als 2D-rows (arrays), zoeken de juiste header-rij (bv. rij 6),
+     en mappen daarna terug naar objecten met de echte kolomnamen.
 =========================== */
 async function readAny(file) {
   const ext = (file.name.split('.').pop() || '').toLowerCase();
 
   if (ext === 'csv') {
     const text = await file.text();
-    return csvToObjects(text);
+    const rows2D = csvToRows2D(text);
+    return rows2DToObjects(rows2D); // -> [{ "Oppervlakte (ha)": "...", "Gewas code": "...", ... }]
   }
 
   if (ext === 'xlsx' || ext === 'xls') {
-    // 1) Probeer modern pad (ArrayBuffer)
+    // Probeer modern pad (ArrayBuffer)
     try {
       const buf = await file.arrayBuffer();
       const wb  = XLSX.read(buf, { type: 'array' });
       const sh  = wb.Sheets[wb.SheetNames[0]];
-      return XLSX.utils.sheet_to_json(sh, { raw: false, defval: '' });
+      const rows2D = XLSX.utils.sheet_to_json(sh, { header: 1, raw: false, defval: '' });
+      return rows2DToObjects(rows2D);
     } catch (e1) {
-      console.warn('[rvoImport] XLSX array parse faalde, probeer binary fallback:', e1);
-      // 2) Fallback voor oude .xls (binary string)
+      console.warn('[rvoImport] XLSX-array parse faalde, probeer binary fallback:', e1);
+      // Fallback voor oude .xls (binary string)
       const binary = await readAsBinaryString(file);
       const wb  = XLSX.read(binary, { type: 'binary' });
       const sh  = wb.Sheets[wb.SheetNames[0]];
-      return XLSX.utils.sheet_to_json(sh, { raw: false, defval: '' });
+      const rows2D = XLSX.utils.sheet_to_json(sh, { header: 1, raw: false, defval: '' });
+      return rows2DToObjects(rows2D);
     }
   }
 
@@ -147,14 +152,99 @@ function readAsBinaryString(file) {
     const fr = new FileReader();
     fr.onload = () => resolve(fr.result);
     fr.onerror = reject;
-    // deprecated maar werkt nog in browsers; goed voor oude .xls
+    // deprecated, maar nog prima voor oude .xls
     fr.readAsBinaryString(file);
   });
 }
 
+/* ---- 2D -> Objects met header-autodetect ---- */
+function rows2DToObjects(rows2D) {
+  if (!Array.isArray(rows2D) || rows2D.length === 0) return [];
+
+  const headerRowIdx = detectHeaderRowIndex(rows2D);
+  const headers = (rows2D[headerRowIdx] || []).map(h => String(h ?? '').trim());
+
+  // Pak alle datarijen ná de header, en filter lege regels eruit
+  const dataRows = rows2D.slice(headerRowIdx + 1)
+    .filter(r => Array.isArray(r) && r.some(v => String(v ?? '').trim() !== ''));
+
+  const out = [];
+  for (const row of dataRows) {
+    const obj = {};
+    for (let j = 0; j < headers.length; j++) {
+      obj[headers[j]] = row[j] ?? '';
+    }
+    out.push(obj);
+  }
+  return out;
+}
+
+/* ---- Header-rij vinden
+   We scannen de eerste ~30 rijen en zoeken een rij die >=3 van deze
+   kolommen bevat: Sector ID, Gewas code, Gewas omschrijving, Oppervlakte (ha), Gebruik omschrijving, Ingangsdatum.
+---- */
+function detectHeaderRowIndex(rows2D) {
+  const mustHaveGroups = [
+    VARS.sectorId,     // bv. ["sectorid","identificatie","sector id",...]
+    VARS.gewasCode,    // bv. ["gewascode","gewas code",...]
+    VARS.gewasNaam,    // bv. ["gewasomschrijving","gewas omschrijving",...]
+    VARS.ha,           // bv. ["oppervlakte(ha)","oppervlakte (ha)",...]
+    VARS.gebruikOms,   // bv. ["gebruik omschrijving",...]
+    VARS.ingangsdatum  // bv. ["ingangsdatum","ingangs datum",...]
+  ];
+
+  const scanUntil = Math.min(30, rows2D.length);
+  for (let i = 0; i < scanUntil; i++) {
+    const cells = rows2D[i] || [];
+    const canonCells = cells.map(canon);
+    let hits = 0;
+
+    for (const variants of mustHaveGroups) {
+      if (!Array.isArray(variants)) continue;
+      const found = variants.some(v => canonCells.includes(canon(v)));
+      if (found) hits++;
+    }
+
+    // Genoeg signalen dat dit een header is (3+ kolommen matchen)
+    if (hits >= 3) return i;
+  }
+  // Fallback: eerste rij
+  return 0;
+}
+
 /* ===========================
-   CSV parser (robust)
+   CSV → 2D rows (met delimiter-detectie)
 =========================== */
+function csvToRows2D(text) {
+  const first = (text.split(/\r?\n/)[0] || '');
+  const semi  = (first.match(/;/g) || []).length;
+  const comma = (first.match(/,/g) || []).length;
+  const delim = semi > comma ? ';' : ',';
+
+  const lines = text.split(/\r?\n/).filter(l => l.trim().length);
+  const out = [];
+  for (const line of lines) out.push(splitCsvLine(line, delim));
+  return out;
+}
+
+function splitCsvLine(line, delim) {
+  const out = [];
+  let cur = '', inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') {
+      if (inQ && line[i + 1] === '"') { cur += '"'; i++; }
+      else inQ = !inQ;
+    } else if (ch === delim && !inQ) {
+      out.push(cur); cur = '';
+    } else {
+      cur += ch;
+    }
+  }
+  out.push(cur);
+  return out;
+}
+
 function csvToObjects(text) {
   // Kies delimiter: ; vaker dan , → gebruik ;
   const first = (text.split(/\r?\n/)[0] || '');
