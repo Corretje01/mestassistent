@@ -245,47 +245,6 @@ function splitCsvLine(line, delim) {
   return out;
 }
 
-function csvToObjects(text) {
-  // Kies delimiter: ; vaker dan , → gebruik ;
-  const first = (text.split(/\r?\n/)[0] || '');
-  const semi = (first.match(/;/g) || []).length;
-  const comma = (first.match(/,/g) || []).length;
-  const delim = semi > comma ? ';' : ',';
-
-  const lines = text.split(/\r?\n/).filter(l => l.trim().length);
-  if (lines.length < 2) return [];
-
-  const headers = splitCsvLine(lines[0], delim).map(h => h.trim());
-  const out = [];
-  for (let i = 1; i < lines.length; i++) {
-    const cells = splitCsvLine(lines[i], delim);
-    const row = {};
-    for (let j = 0; j < headers.length; j++) {
-      row[headers[j]] = cells[j] ?? '';
-    }
-    out.push(row);
-  }
-  return out;
-}
-
-function splitCsvLine(line, delim) {
-  const out = [];
-  let cur = '', inQ = false;
-  for (let i = 0; i < line.length; i++) {
-    const ch = line[i];
-    if (ch === '"') {
-      if (inQ && line[i + 1] === '"') { cur += '"'; i++; }
-      else inQ = !inQ;
-    } else if (ch === delim && !inQ) {
-      out.push(cur); cur = '';
-    } else {
-      cur += ch;
-    }
-  }
-  out.push(cur);
-  return out;
-}
-
 /* ===========================
    Normalisatie & filters
 =========================== */
