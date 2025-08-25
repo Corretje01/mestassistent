@@ -338,8 +338,19 @@ window.addEventListener('rvo:imported', async () => {
               + (versies.length ? `&versies=${encodeURIComponent(versies.join(','))}` : '')
               + `&jaar=${encodeURIComponent(String(jaar))}`;
 
-    const brp = await fetch(url).then(r => r.json());
+    const resp = await fetch(url);
+    if (!resp.ok) {
+      console.error('[kaart] brpByIds HTTP', resp.status);
+      alert('Kon BRP-gegevens niet ophalen (/.netlify/functions/brpByIds). Is de Netlify Function gedeployed?');
+      return;
+    }
+    const brp = await resp.json();
     const byId = brp?.byId || {};
+    if (!Object.keys(byId).length) {
+      console.warn('[kaart] brpByIds gaf geen matches terug voor IDs:', ids.slice(0, 5), '…');
+      alert('Geen BRP-percelen gevonden voor de aangeleverde Sector IDs.\nControleer of de kolom "Sector ID" correct is in je export.');
+      return;
+    }
 
     // Voor elke Excel-rij: feature + bodem via centroid → parcel push
     for (const row of rows) {
