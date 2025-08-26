@@ -16,10 +16,6 @@
     .badge-info { background:#d1ecf1; color:#0c5460; }
     .badge-muted { background:#eee; color:#666; }
     .btn-secondary { background:#e9ecef; color:#333; border:1px solid #ced4da; padding:.5rem .75rem; border-radius:8px; }
-
-    /* Spinner in de knop */
-    .spinner { width:14px; height:14px; border:2px solid #999; border-top-color: transparent; border-radius:50%; display:inline-block; margin-right:.5rem; animation:spin 0.8s linear infinite; }
-    @keyframes spin { to { transform: rotate(360deg);} }
     [hidden] { display:none!important; }
   </style>
 </head>
@@ -64,10 +60,8 @@
       <p>Upload je <strong>.kmz</strong> export uit “Mijn Percelen”. Oppervlakte en gewas uit de KMZ zijn leidend; je percelen worden op de kaart getekend en we bepalen automatisch de wettelijke grondsoort.</p>
       <div style="display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap;">
         <input type="file" id="kmz-file" accept=".kmz" />
-        <button id="kmz-add" type="button" class="btn btn-secondary">
-          <span class="spinner" id="kmz-spin" hidden></span>
-          <span class="label" id="kmz-label">Koppel percelen</span>
-        </button>
+        <!-- Kaart.js beheert spinner + label in deze knop -->
+        <button id="kmz-add" type="button" class="btn btn-primary">Koppel percelen</button>
       </div>
       <small id="kmz-status" style="display:block;opacity:.8;margin-top:.5rem;"></small>
       <small style="opacity:.8">Handmatige kaartselectie is uitgeschakeld in deze modus.</small>
@@ -120,8 +114,10 @@
     initNavMenu({ menuId: 'site-menu', toggleId: 'nav-toggle' });
   </script>
 
+  <!-- Leaflet -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
+  <!-- App modules -->
   <script type="module" src="kaart.js"></script>
   <script type="module" src="berekening.js"></script>
 
@@ -130,21 +126,11 @@
     import { setupKMZImport } from './kmzImport.js';
     setupKMZImport('#kmz-file', '#kmz-add', { eligibilityUrl: '/data/rvoGebruik-eligibility.json' });
 
-    const btn   = document.getElementById('kmz-add');
-    const spin  = document.getElementById('kmz-spin');
-    const label = document.getElementById('kmz-label');
-    const msg   = document.getElementById('kmz-status');
-
-    function setBusy(on, text) {
-      btn.disabled = !!on;
-      spin.hidden  = !on;
-      label.textContent = on ? 'Koppelen…' : 'Koppel percelen';
-      if (text) msg.textContent = text; else msg.textContent = '';
-    }
+    const msg = document.getElementById('kmz-status');
 
     window.addEventListener('kmz:linking:start', (e) => {
       const total = e.detail?.total ?? 0;
-      setBusy(true, `Bezig met koppelen van ${total} percelen… dit kan enkele seconden tot ~1 minuut duren.`);
+      msg.textContent = `Bezig met koppelen van ${total} percelen… dit kan enkele seconden tot ~1 minuut duren.`;
     });
     window.addEventListener('kmz:linking:progress', (e) => {
       const { done, total } = e.detail || {};
@@ -154,7 +140,7 @@
     });
     window.addEventListener('kmz:linking:end', (e) => {
       const { added } = e.detail || {};
-      setBusy(false, added != null ? `Koppelen voltooid (${added} percelen).` : 'Koppelen voltooid.');
+      msg.textContent = (added != null) ? `Koppelen voltooid (${added} percelen).` : 'Koppelen voltooid.';
       setTimeout(() => { msg.textContent = ''; }, 4000);
     });
   </script>
