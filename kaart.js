@@ -34,6 +34,7 @@ window.addEventListener('resize', () => {
 --------------------------------- */
 export let parcels = [];
 let currentFilter = 'all'; // 'all' | 'bemestbaar' | 'niet'
+let currentSort   = 'none'; // 'none' | 'gew_asc' | 'gew_desc'
 
 function uuid() { return 'p_' + Math.random().toString(36).slice(2); }
 
@@ -274,25 +275,66 @@ function setAddButtonLoading(isLoading, progressText) {
    5) UI-lijst + segmented filter
 --------------------------------- */
 function ensureFilterUI() {
-  if (document.getElementById('parcelFilter')) return;
-
+  // 1) Zoek bestaande balk of maak ‘m aan
   const section = document.querySelector('.parcel-list-section');
   if (!section) return;
 
-  const wrap = document.createElement('div');
-  wrap.className = 'parcel-filter';
-  wrap.innerHTML = `
-    <label for="parcelFilter" class="sr-only">Filter percelen</label>
-    <select id="parcelFilter" class="pf-select" aria-label="Filter percelen">
+  let wrap = document.getElementById('parcelFilterBar') || section.querySelector('.parcel-filter');
+  if (!wrap) {
+    wrap = document.createElement('div');
+    wrap.className = 'parcel-filter';
+    section.insertBefore(wrap, section.firstChild);
+  }
+
+  // 2) Zorg dat de filter-select er is
+  let filterSel = wrap.querySelector('#parcelFilter');
+  if (!filterSel) {
+    const label = document.createElement('label');
+    label.className = 'sr-only';
+    label.setAttribute('for', 'parcelFilter');
+    label.textContent = 'Toon percelen';
+
+    filterSel = document.createElement('select');
+    filterSel.id = 'parcelFilter';
+    filterSel.className = 'pf-select';
+    filterSel.setAttribute('aria-label', 'Toon percelen');
+    filterSel.innerHTML = `
       <option value="all">Alle percelen</option>
       <option value="bemestbaar">Bemestbaar</option>
       <option value="niet">Niet-bemestbaar</option>
-    </select>
-  `;
-  section.insertBefore(wrap, section.firstChild);
+    `;
+    wrap.appendChild(label);
+    wrap.appendChild(filterSel);
+  }
 
-  const sel = wrap.querySelector('#parcelFilter');
-  sel.addEventListener('change', () => applyParcelFilter(sel.value));
+  // Bind change maar 1x
+  if (!filterSel.dataset.bound) {
+    filterSel.addEventListener('change', () => applyParcelFilter(filterSel.value));
+    filterSel.dataset.bound = '1';
+  }
+  // Zet huidige waarde + toon de balk
+  filterSel.value = currentFilter || 'all';
+  wrap.hidden = false;
+
+  // 3) Sorteer-select (A–Z / Z–A op gewas)
+  let sortSel = wrap.querySelector('#parcelSort');
+  if (!sortSel) {
+    sortSel = document.createElement('select');
+    sortSel.id = 'parcelSort';
+    sortSel.className = 'pf-select';
+    sortSel.setAttribute('aria-label', 'Sorteer percelen');
+    sortSel.innerHTML = `
+      <option value="none">Originele volgorde</option>
+      <option value="gew_asc">A–Z (gewas)</option>
+      <option value="gew_desc">Z–A (gewas)</option>
+    `;
+    wrap.appendChild(sortSel);
+  }
+  if (!sortSel.dataset.bound) {
+    sortSel.addEventListener('change', () => applyParcelSort(sortSel.value));
+    sortSel.dataset.bound = '1';
+  }
+  sortSel.value = currentSort || 'none';
 }
 
 function segBtnStyle(active) {
@@ -311,7 +353,19 @@ function renderParcelList() {
   if (!container) return;
 
   container.innerHTML = '';
-  parcels.forEach(p => {
+  
+   // respecteer sortering o.b.v. gewas
+  const listParcels = [...parcels];
+  if (currentSort === 'gew_asc' || currentSort === 'gew_desc') {
+    listParcels.sort((a, b) => {
+      const an = String(a.gewasNaam || '');
+      const bn = String(b.gewasNaam || '');
+      const cmp = an.localeCompare(bn, 'nl', { sensitivity: 'base' });
+      return currentSort === 'gew_desc' ? -cmp : cmp;
+    });
+  }
+
+  listParcels.forEach(p => {
     const div = document.createElement('div');
     div.className = 'parcel-item';
     div.dataset.id = p.id;
@@ -402,6 +456,14 @@ function applyParcelFilter(filterKey = 'all') {
       if (show && p.layer.bringToFront) p.layer.bringToFront();
     } catch {}
   }
+}
+
+function applyParcelSort(sortKey = 'none') {
+  currentSort = sortKey;
+  // Render lijst opnieuw (kaartlagen blijven gelijk)
+  renderParcelList();
+  // Actieve filter opnieuw toepassen op de nieuwe lijstvolgorde
+  applyParcelFilter(currentFilter);
 }
 
 /* ---------------------------------
