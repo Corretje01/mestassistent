@@ -241,35 +241,32 @@ function setMapSpinner(visible, text) {
 function setAddButtonLoading(isLoading, progressText) {
   const btn = document.querySelector('#kmz-add, #rvo-add');
   if (!btn) return;
-  // label fix
-  if (!btn.dataset._labelSet) {
-    btn.textContent = 'Koppel percelen';
-    btn.dataset._labelSet = '1';
-    // stijl iets meer huisstijl
-    btn.style.padding = '.55rem .9rem';
-    btn.style.borderRadius = '10px';
-    btn.style.border = '1px solid #1e90ff';
-    btn.style.background = '#1e90ff';
-    btn.style.color = '#fff';
-    btn.style.boxShadow = '0 1px 2px rgba(30,144,255,.25)';
-  }
+
+  // Gebruik het bestaande label in de knop (teller blijft werken)
+  const labelEl =
+    btn.querySelector('#kmz-label') || document.getElementById('kmz-label');
+
+  // Ruim oude inline styles / spinner van eerdere versies op
+  btn.style.border = '';
+  btn.style.background = '';
+  btn.style.color = '';
+  btn.style.boxShadow = '';
+  btn.style.padding = '';
+  btn.style.borderRadius = '';
+  btn.style.opacity = '';
+  btn.removeAttribute('aria-busy');
+
+  const sp = btn.querySelector('.btnspin');
+  if (sp) sp.remove(); // spinner nooit tonen
+
   if (isLoading) {
     btn.disabled = true;
-    btn.style.opacity = '.85';
-    if (!btn.querySelector('.btnspin')) {
-      const sp = document.createElement('span');
-      sp.className = 'btnspin';
-      sp.style.cssText = 'display:inline-block;width:16px;height:16px;margin-left:.5rem;border:2px solid rgba(255,255,255,.7);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite;vertical-align:-3px;';
-      btn.appendChild(sp);
-    }
-    btn.dataset._origText = btn.dataset._origText || 'Koppel percelen';
-    btn.firstChild.nodeValue = progressText || 'Koppelen…';
+    btn.setAttribute('aria-busy', 'true');
+    if (labelEl) labelEl.textContent = progressText || 'Koppelen…';
   } else {
     btn.disabled = false;
-    btn.style.opacity = '1';
-    const sp = btn.querySelector('.btnspin');
-    if (sp) sp.remove();
-    btn.firstChild.nodeValue = 'Koppel percelen';
+    btn.removeAttribute('aria-busy');
+    if (labelEl) labelEl.textContent = 'Koppel percelen';
   }
 }
 
