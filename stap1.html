@@ -77,18 +77,18 @@
         <li><strong>C:</strong> Fosfaat (P) uit alle meststoffen</li>
       </ul>
       <p>De laagste uitkomst van A en B is je maximale N-ruimte. C bepaalt je P-ruimte.</p>
-      <p>Selecteer je percelen en bereken direct hoeveel N en P je in 2025 mag plaatsen.</p>
+      <p>Upload je KMZ en bereken direct hoeveel N en P je in 2025 mag plaatsen.</p>
     </section>
 
-    <!-- RVO upload (Excel-first) -->
+    <!-- KMZ upload (bedrijfsspecifiek, leidt berekening) -->
     <section class="card" style="margin-top:1rem;">
-      <h3>RVO “Mijn Percelen” upload</h3>
-      <p>Upload je export uit “Mijn Percelen” (.xlsx of .csv). Oppervlakte en gewas uit het bestand zijn leidend; we koppelen automatisch aan BRP-polygonen en bepalen grondsoort per perceel.</p>
+      <h3>Mijn Percelen upload (KMZ)</h3>
+      <p>Upload je <strong>.kmz</strong> export uit “Mijn Percelen”. Oppervlakte en gewas uit de KMZ zijn leidend; je percelen worden op de kaart getekend en we bepalen automatisch de wettelijke grondsoort.</p>
       <div style="display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap;">
-        <input type="file" id="rvo-file" accept=".xlsx,.xls,.csv" />
-        <button id="rvo-skip" type="button" class="btn btn-secondary">Upload overslaan</button>
-        <small style="opacity:.8">Zonder upload is het een schatting op basis van handmatige kaartselectie.</small>
+        <input type="file" id="kmz-file" accept=".kmz" />
+        <button id="kmz-add" type="button" class="btn btn-secondary">Bestand toevoegen</button>
       </div>
+      <small style="opacity:.8">Handmatige kaartselectie is uitgeschakeld in deze modus.</small>
     </section>
 
     <!-- Kaart -->
@@ -146,20 +146,19 @@
     initNavMenu({ menuId: 'site-menu', toggleId: 'nav-toggle' });
   </script>
 
-  <!-- 3) Leaflet inladen (UMD mag blijven) -->
+  <!-- 3) Leaflet inladen (UMD) -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
   <!-- 4) Kaart & bereken-scripts als modules -->
   <script type="module" src="kaart.js"></script>
   <script type="module" src="berekening.js"></script>
 
-  <!-- 5) Excel-import init (na kaart/berekening, zodat listeners actief zijn) -->
+  <!-- 5) KMZ-import init (na kaart/berekening, zodat listeners actief zijn) -->
   <script type="module">
-    import { setupRVOImport } from './rvoImport.js';
-    setupRVOImport('#rvo-file');
-
-    document.getElementById('rvo-skip')?.addEventListener('click', () => {
-      alert('Upload overgeslagen. Je kunt percelen handmatig selecteren op de kaart.');
+    import { setupKMZImport } from './kmzImport.js';
+    setupKMZImport('#kmz-file', '#kmz-add', {
+      // peildatum: '2025-05-15', // optioneel override
+      eligibilityUrl: '/data/rvoGebruik-eligibility.json'
     });
   </script>
 
@@ -167,7 +166,7 @@
   <script type="module">
     import { supabase } from './supabaseClient.js';
     document.addEventListener('DOMContentLoaded', async () => {
-      const { data: { session} } = await supabase.auth.getSession();
+      const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         window.location.replace('/account.html?signin=1');
         return;
