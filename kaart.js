@@ -283,7 +283,7 @@ map.on('click', async (e) => {
     }
 
     // 3) Bodemsoort ophalen (centroïde klikpunt)
-    const bodemResp = await fetch(`/.netlify/functions/bodemsoort?lon=${lng}&lat=${lat}`);
+    const bodemResp = await fetch(`/.netlify/functions/wettelijkeGrondsoort?lon=${lng}&lat=${lat}`);
     if (!bodemResp.ok) throw new Error('Bodemsoort-API ' + bodemResp.status);
     const bodem = await bodemResp.json();
 
@@ -365,7 +365,7 @@ window.addEventListener('rvo:imported', async () => {
       let bodem = {};
       if (c) {
         try {
-          const b = await fetch(`/.netlify/functions/bodemsoort?lon=${c.lon}&lat=${c.lat}`);
+          const b = await fetch(`/.netlify/functions/wettelijkeGrondsoort?lon=${c.lon}&lat=${c.lat}`);
           bodem = b.ok ? await b.json() : {};
         } catch {}
       }
