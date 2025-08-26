@@ -2,7 +2,7 @@
 // Haalt de wettelijke grondsoort (zand/klei/veen/löss) op via ArcGIS FeatureServer query.
 // Config: LEGAL_SOIL_URL = https://.../FeatureServer/0/query
 
-const SERVICE_URL = process.env.LEGAL_SOIL_URL || "";
+const SERVICE_URL = "https://services.arcgis.com/kE0BiyvJHb5SwQv7/arcgis/rest/services/Grondsoortenkaart/FeatureServer/0/query";
 
 export async function handler(event) {
   try {
