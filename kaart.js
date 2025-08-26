@@ -1,5 +1,7 @@
-// kaart.js — selectie togglen + events voor automatische berekening
-// (Verbeterd: Excel-first import via rvo:imported, BRP batch-join, bodem via centroid, 266-variant per perceel)
+// kaart.js — KMZ-only: percelen via upload plotten + automatische berekening
+// - Handmatige selectie is uitgezet
+// - Luistert op 'rvo:imported' (geleverd door kmzImport.js)
+// - Vult 'parcels' exact in de shape die berekening.js verwacht
 
 // --- Map init (met guards) ---
 const mapEl = document.getElementById('map');
@@ -44,7 +46,7 @@ function dispatchParcelsChanged() {
 }
 
 /* =========================================================
-   Nieuw: helpers tbv Excel-first flow (niet invasief)
+   Helpers
 ========================================================= */
 async function fetchJson(url) {
   const res = await fetch(url);
@@ -73,16 +75,15 @@ function polygonCentroid(geom) {
     if (a !== 0) {
       cx = cx / (6 * a);
       cy = cy / (6 * a);
-      areaSum += Math.abs(a);
-      xSum += Math.abs(a) * cx;
-      ySum += Math.abs(a) * cy;
+      const w = Math.abs(a);
+      areaSum += w; xSum += w * cx; ySum += w * cy;
     }
   }
   if (areaSum === 0) return null;
   return { lon: xSum / areaSum, lat: ySum / areaSum };
 }
 
-// Approx opp (alleen voor mismatch-badge; Excel-ha blijft leidend)
+// Approx opp (alleen voor mismatch-badge; KMZ-ha blijft leidend)
 function approxHa(geom) {
   const polys = (geom?.type === 'Polygon') ? [geom.coordinates]
               : (geom?.type === 'MultiPolygon') ? geom.coordinates
@@ -129,69 +130,13 @@ function renderBadges(b) {
   const out = [];
   if (b.reviewNeeded) out.push(pill('review nodig', 'badge-warn'));
   if (b.melding)      out.push(pill('melding', 'badge-info'));
-  if (b.areaMismatch) out.push(pill('opp ≠ BRP', 'badge-warn'));
+  if (b.areaMismatch) out.push(pill('opp ≠ KMZ', 'badge-warn'));
   if (b.versie)       out.push(pill('v' + String(b.versie), 'badge-muted'));
   return out.join('');
 }
 
 /* =========================================================
-   Nieuw: addParcelFromBRP (Excel → BRP feature → parcel)
-   Shape blijft identiek aan klik-flow/berekening.js
-========================================================= */
-async function addParcelFromBRP({ feature, excelRow, bodem }) {
-  const gp = feature?.properties || {};
-
-  // 1) Laag tekenen
-  const layer = L.geoJSON(feature.geometry, {
-    style: { color: '#1e90ff', weight: 2, fillOpacity: 0.2 }
-  }).addTo(map);
-
-  // 2) Naam
-  const name = gp.weergavenaam || gp.identificatie || ('BRP ' + (excelRow?.sectorId || 'onbekend'));
-
-  // 3) Gewas (Excel leidend), met 266-variant default
-  let gewasNaam = String(excelRow?.gewasNaam || gp.gewas || '');
-  const isTG = Number(excelRow?.gewasCode) === 266;
-  if (isTG) {
-    const tgLabels = await loadTijdelijkGrasLabels();
-    const fallback = tgLabels.find(k => /1 januari.*15 oktober/i.test(k)) || tgLabels[0] || gewasNaam;
-    gewasNaam = fallback || 'Tijdelijk grasland';
-  }
-
-  // 4) Grondsoort via centroid-call response (dek beide veldnamen af)
-  const grond = (bodem?.bodemsoortNaam || bodem?.grondsoort || '').trim();
-
-  // 5) Landgebruik uit BRP
-  const landgebruik = gp.category || 'Onbekend';
-
-  // 6) Badges
-  const polyHa = approxHa(feature.geometry);
-  const excelHa = Number(excelRow?.ha || 0);
-  const mismatchPct = (polyHa > 0 && excelHa > 0) ? Math.abs(polyHa - excelHa) / excelHa * 100 : 0;
-  const areaMismatch = mismatchPct > 1.0;
-  const reviewNeeded = !!excelRow?.reviewNeeded;
-  const melding      = (String(excelRow?.melding || '').toLowerCase() === 'ja');
-  const versie       = excelRow?.sectorVersie || gp.versie || '';
-
-  // 7) Push parcel (shape identiek aan klik-flow)
-  parcels.push({
-    id: uuid(),
-    layer,
-    name,
-    ha: excelHa.toFixed(2),                                         // Excel is waarheid
-    gewasCode:  excelRow?.gewasCode ?? (gp.gewascode?.toString() || ''),
-    gewasNaam,
-    provincie:  gp.provincie || '',                                 // niet aanwezig in BRP; desnoods leeg
-    grondsoort: grond,
-    landgebruik,
-    // optionele badges
-    badges: { reviewNeeded, melding, areaMismatch, versie, isTG },
-    _meta:  { sectorId: excelRow?.sectorId || gp.identificatie }
-  });
-}
-
-/* =========================================================
-   UI: lijst renderen (uitgebreid met badges + 266-select)
+   UI: lijst renderen (badges + 266-select)
 ========================================================= */
 function renderParcelList() {
   const container = document.getElementById('parcelList');
@@ -203,7 +148,6 @@ function renderParcelList() {
     div.className = 'parcel-item';
     div.dataset.id = p.id;
 
-    // 266 heeft select; anders readonly gewasnaam
     const isTG = Number(p.gewasCode) === 266;
     div.innerHTML = `
       <h3 style="display:flex;align-items:center;gap:.5rem;">
@@ -222,6 +166,8 @@ function renderParcelList() {
       ` : `
         <div class="field-group"><label>Gewasnaam</label><input readonly value="${escapeHtml(p.gewasNaam ?? '')}"></div>
       `}
+
+      <div class="field-group"><label>Grondsoort (wettelijk)</label><input readonly value="${escapeHtml(p.grondsoort ?? '')}"></div>
 
       <button class="remove-btn">Verwijder</button>
     `;
@@ -244,7 +190,7 @@ function renderParcelList() {
         }).join('');
       });
       sel.addEventListener('change', () => {
-        p.gewasNaam = sel.value;     // naam-override → berekening.js matcht via naam (zonder logicawijziging)
+        p.gewasNaam = sel.value; // naam-override → berekening.js matcht via naam (zonder logicawijziging)
         dispatchParcelsChanged();
       });
     }
@@ -254,137 +200,96 @@ function renderParcelList() {
 }
 
 /* =========================================================
-   Huidige klik-flow (ongewijzigd) — gebruikt perceel.js + bodemsoort.js
-   -> blijvende compat met berekening.js
+   Klik-flow uitschakelen (upload-only)
 ========================================================= */
-map.on('click', async (e) => {
-  const { lat, lng } = e.latlng;
-
-  try {
-    // 1) Perceel ophalen (kadaster + BRP + provincie in perceel.js)
-    const res = await fetch(`/.netlify/functions/perceel?lon=${lng}&lat=${lat}`);
-    if (!res.ok) throw new Error('Perceel-API ' + res.status);
-    const data = await res.json();
-    const feat = data?.features?.[0];
-    if (!feat) throw new Error('Geen perceel gevonden');
-
-    const props = feat.properties || {};
-    const name  = props.weergavenaam
-               || `${props.kadastraleGemeenteWaarde || ''} ${props.sectie || ''} ${props.perceelnummer || ''}`.trim();
-
-    // 2) Toggle: als al geselecteerd → deselecteer en klaar
-    const exist = parcels.find(p => p.name === name);
-    if (exist) {
-      if (exist.layer) map.removeLayer(exist.layer);
-      parcels = parcels.filter(p => p.name !== name);
-      renderParcelList();
-      dispatchParcelsChanged();
-      return;
-    }
-
-    // 3) Bodemsoort ophalen (centroïde klikpunt)
-    const bodemResp = await fetch(`/.netlify/functions/wettelijkeGrondsoort?lon=${lng}&lat=${lat}`);
-    if (!bodemResp.ok) throw new Error('Bodemsoort-API ' + bodemResp.status);
-    const bodem = await bodemResp.json();
-
-    // 4) Laag tekenen
-    const layer = L.geoJSON(feat.geometry, {
-      style: { color: '#1e90ff', weight: 2, fillOpacity: 0.2 }
-    }).addTo(map);
-
-    // 5) Data samenstellen (let op: props komen uit perceel.js)
-    const ha = (props.kadastraleGrootteWaarde != null)
-      ? (props.kadastraleGrootteWaarde / 10000).toFixed(2)
-      : '';
-
-    parcels.push({
-      id: uuid(),
-      layer,
-      name,
-      ha,
-      gewasCode:  props.gewasCode   || '',       // perceel.js: BRP→gewascode→gewasCode (string) :contentReference[oaicite:4]{index=4}
-      gewasNaam:  props.gewasNaam   || '',       // perceel.js: BRP→gewas→gewasNaam       :contentReference[oaicite:5]{index=5}
-      provincie:  props.provincie   || '',
-      grondsoort: (bodem?.bodemsoortNaam || bodem?.grondsoort || ''),
-      landgebruik: props.landgebruik || 'Onbekend' // perceel.js: category→landgebruik     :contentReference[oaicite:6]{index=6}
-    });
-
-    // 6) Lijst + event
-    renderParcelList();
-    dispatchParcelsChanged();
-
-  } catch (err) {
-    console.error('Perceel fout:', err);
-    alert('Fout bij ophalen perceel. Probeer opnieuw.');
-  }
+map.on('click', async () => {
+  // KMZ-only modus: handmatige selectie is uitgeschakeld
+  return;
 });
 
 /* =========================================================
-   Nieuw: Excel-first flow — reageert op rvo:imported
-   Verwacht window.__RVO_RAW gevuld door rvoImport.js
+   KMZ-only flow — reageert op rvo:imported (geleverd door kmzImport.js)
+   Verwacht:
+     window.__KMZ_RAW = [{ sectorId, gewasCode, gewasNaam, ha, ... }]
+     window.__KMZ_GEO.byId[sectorId] = Feature (Polygon/MultiPolygon)
 ========================================================= */
 window.addEventListener('rvo:imported', async () => {
   try {
-    const rows = Array.isArray(window.__RVO_RAW) ? window.__RVO_RAW : [];
-    if (rows.length === 0) return;
+    const rows = Array.isArray(window.__KMZ_RAW) ? window.__KMZ_RAW : [];
+    const geo  = window.__KMZ_GEO && window.__KMZ_GEO.byId ? window.__KMZ_GEO.byId : null;
+    if (!rows.length || !geo) return;
 
-    // Unieke IDs & versies
-    const ids = [...new Set(rows.map(r => r.sectorId).filter(Boolean))];
-    const versies = [...new Set(rows.map(r => r.sectorVersie).filter(Boolean))];
-    const jaar = new Date().getFullYear();
+    // leeg huidige selectie
+    try {
+      for (const p of parcels) { if (p.layer) map.removeLayer(p.layer); }
+      parcels.length = 0;
+    } catch {}
 
-    // BRP features chunked ophalen om te lange URL's te vermijden (let jaar = new Date().getFullYear(); // niet gebruiken)
-    const byId = {};
-    const chunkSize = 40;
-    for (let i = 0; i < ids.length; i += chunkSize) {
-      const slice = ids.slice(i, i + chunkSize);
-      const url = `/.netlify/functions/brpByIds?ids=${encodeURIComponent(slice.join(','))}`
-                + (versies.length ? `&versies=${encodeURIComponent(versies.join(','))}` : '');
-    
-      const resp = await fetch(url);
-      if (!resp.ok) {
-        console.error('[kaart] brpByIds HTTP', resp.status, 'chunk', i/chunkSize + 1);
-        alert('Kon BRP-gegevens niet ophalen (/.netlify/functions/brpByIds).');
-        return;
-      }
-      const data = await resp.json();
-      Object.assign(byId, data?.byId || {});
-    }
-    
-    if (!Object.keys(byId).length) {
-      console.warn('[kaart] brpByIds geen matches terug voor IDs (na chunking). Voorbeeld:', ids.slice(0, 5), '…');
-      alert('Geen BRP-percelen gevonden voor de aangeleverde Sector IDs.');
-      return;
-    }
+    const tgLabels = await loadTijdelijkGrasLabels();
 
-    // Voor elke Excel-rij: feature + bodem via centroid → parcel push
     for (const row of rows) {
-      const feat = byId[row.sectorId];
-      if (!feat) continue; // niet gevonden → overslaan (optioneel: rapporteren)
-      const c = polygonCentroid(feat.geometry);
+      const feat = geo[row.sectorId];
+      if (!feat) continue;
+
+      // grondsoort via centroid → wettelijkeGrondsoort
       let bodem = {};
+      const c = polygonCentroid(feat.geometry);
       if (c) {
         try {
           const b = await fetch(`/.netlify/functions/wettelijkeGrondsoort?lon=${c.lon}&lat=${c.lat}`);
           bodem = b.ok ? await b.json() : {};
         } catch {}
       }
-      await addParcelFromBRP({ feature: feat, excelRow: row, bodem });
+
+      // 266: zet default variant-naam voor findNormEntry (UI kan later per perceel aanpassen)
+      let gewasNaam = row.gewasNaam || '';
+      if (Number(row.gewasCode) === 266) {
+        const fallback = tgLabels.find(k => /1 januari.*15 oktober/i.test(k)) || tgLabels[0] || 'Tijdelijk grasland';
+        gewasNaam = fallback;
+      }
+
+      // Laag tekenen — behoud de oorspronkelijke blauwe stijl
+      const layer = L.geoJSON(feat.geometry, {
+        style: { color: '#1e90ff', weight: 2, fillOpacity: 0.2 }
+      }).addTo(map);
+
+      // badges
+      const polyHa = approxHa(feat.geometry);
+      const mismatchPct = (polyHa > 0 && row.ha > 0) ? Math.abs(polyHa - row.ha) / row.ha * 100 : 0;
+      const areaMismatch = mismatchPct > 1.0;
+      const reviewNeeded = !!row.reviewNeeded;
+      const melding      = (String(row.melding || '').toLowerCase() === 'ja');
+      const versie       = row.sectorVersie || feat.properties?.versie || '';
+
+      parcels.push({
+        id: uuid(),
+        layer,
+        name: feat.properties?.weergavenaam || feat.properties?.identificatie || row.sectorId,
+        ha: Number(row.ha).toFixed(2),           // KMZ (tabel) is leidend
+        gewasCode: row.gewasCode,
+        gewasNaam,
+        provincie: '',
+        grondsoort: (bodem?.bodemsoortNaam || bodem?.grondsoort || ''),
+        landgebruik: (String(gewasNaam).toLowerCase().includes('gras') ? 'Grasland' : 'Bouwland'),
+        badges: { reviewNeeded, melding, areaMismatch, versie, isTG: Number(row.gewasCode)===266 },
+        _meta:  { sectorId: row.sectorId },
+        _source:'upload-kmz'
+      });
     }
 
-    // Render + event
+    // Render + berekening
     renderParcelList();
     dispatchParcelsChanged();
 
-    // Optioneel: zoom naar alle lagen
+    // Zoom naar alles
     try {
       const group = L.featureGroup(parcels.map(p => p.layer).filter(Boolean));
       if (group.getLayers().length) map.fitBounds(group.getBounds().pad(0.1));
     } catch {}
 
   } catch (err) {
-    console.error('[kaart] rvo:imported flow fout:', err);
-    alert('Er ging iets mis bij het plotten van de RVO-percelen.');
+    console.error('[kaart] rvo:imported (KMZ) fout:', err);
+    alert('Er ging iets mis bij het plotten van de geüploade percelen.');
   }
 });
 
