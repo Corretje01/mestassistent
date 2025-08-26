@@ -1,6 +1,14 @@
-// kaart.js — KMZ-only: percelen via upload plotten + automatische berekening
+// kaart.js — KMZ-only: percelen via KMZ upload plotten + automatische berekening
+// - Handmatige klikselectie uitgeschakeld
+// - Wettelijke grondsoort via Netlify function 'wettelijkeGrondsoort'
+// - “Bemestbaar” afgeleid van “Geen norm” in stikstofnormen_tabel2.json
+// - “Review nodig” alleen als gewascode niet in normen voorkomt (badge toont code)
+// - Oppervlakte uit KMZ is leidend en wordt gedeeld door 1000 (jouw KMZ had factor 1000 te groot)
+// - Stuurt kmz:linking:start/progress/end events voor de spinner/status in stap1.html
 
-// --- Map init ---
+/* ---------------------------------
+   1) Map init
+--------------------------------- */
 const mapEl = document.getElementById('map');
 if (!window.L) console.error('Leaflet (L) niet geladen.');
 if (!mapEl) console.error('#map element niet gevonden in de DOM.');
@@ -13,13 +21,16 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   attribution: '© OSM contributors'
 }).addTo(map);
 
+// Zorg dat Leaflet de containermaat kent
 setTimeout(() => map.invalidateSize(), 0);
 window.addEventListener('resize', () => {
   clearTimeout(window.__leafletResizeTO);
   window.__leafletResizeTO = setTimeout(() => map.invalidateSize(), 120);
 });
 
-// --- State ---
+/* ---------------------------------
+   2) State + events
+--------------------------------- */
 export let parcels = [];
 
 function uuid() { return 'p_' + Math.random().toString(36).slice(2); }
@@ -32,9 +43,9 @@ function dispatchParcelsChanged() {
   }
 }
 
-/* =========================
-   Helpers
-========================= */
+/* ---------------------------------
+   3) Helpers
+--------------------------------- */
 async function fetchJson(url) {
   const res = await fetch(url);
   if (!res.ok) throw new Error(url + ' → HTTP ' + res.status);
@@ -70,7 +81,7 @@ function polygonCentroid(geom) {
   return { lon: xSum / areaSum, lat: ySum / areaSum };
 }
 
-// Labels voor tijdelijk grasland uit normen-bestand
+// Labels voor tijdelijk grasland (266) uit normen-bestand
 let __tgLabelsCache = null;
 async function loadTijdelijkGrasLabels() {
   if (__tgLabelsCache) return __tgLabelsCache;
@@ -86,7 +97,7 @@ async function loadTijdelijkGrasLabels() {
   }
 }
 
-// Bepaal (niet-)bemestbaar via "Geen norm" in stikstofnormen_tabel2.json
+// Set met gewascodes uit “Geen norm” (→ niet-bemestbaar)
 let __geenNormSet = null;
 async function loadGeenNormSet() {
   if (__geenNormSet) return __geenNormSet;
@@ -106,27 +117,53 @@ async function isBemestbaar(gewasCode) {
   return !set.has(codeStr);
 }
 
-// Kleine badge-render helper
+// Set met ALLE gewascodes uit normen (voor “review nodig”)
+let __allGewasCodesSet = null;
+async function loadAllGewasCodesSet() {
+  if (__allGewasCodesSet) return __allGewasCodesSet;
+  try {
+    const norms = await fetchJson('/data/stikstofnormen_tabel2.json');
+    const set = new Set();
+    for (const entry of Object.values(norms || {})) {
+      const codes = entry?.Gewascodes;
+      if (Array.isArray(codes)) for (const c of codes) set.add(String(c));
+    }
+    __allGewasCodesSet = set;
+  } catch {
+    __allGewasCodesSet = new Set();
+  }
+  return __allGewasCodesSet;
+}
+async function codeKnownInNormen(gewasCode) {
+  const set = await loadAllGewasCodesSet();
+  const codeStr = String(gewasCode ?? '');
+  if (!codeStr) return false;
+  return set.has(codeStr);
+}
+
+// Badge-render helper
 function renderBadges(b) {
   if (!b) return '';
-  const pill = (txt, cls, extraStyle='') =>
-    `<span class="badge ${cls}" style="padding:.1rem .4rem;border-radius:8px;font-size:.75rem;${extraStyle}">${txt}</span>`;
+  const pill = (txt, cls) =>
+    `<span class="badge ${cls}" style="padding:.1rem .4rem;border-radius:8px;font-size:.75rem;">${txt}</span>`;
   const out = [];
 
   if (typeof b.bemestbaar === 'boolean') {
-    out.push(b.bemestbaar
-      ? pill('bemestbaar', 'badge-info')
-      : pill('niet-bemestbaar', 'badge-warn'));
+    out.push(b.bemestbaar ? pill('bemestbaar', 'badge-info')
+                          : pill('niet-bemestbaar', 'badge-warn'));
   }
-  if (b.reviewNeeded) out.push(pill('review nodig', 'badge-warn'));
-  if (b.melding)      out.push(pill('melding', 'badge-info'));
-  // areaMismatch & versie zijn bewust verwijderd in KMZ-only modus
+
+  if (b.reviewNeeded) {
+    const extra = b.missingCode ? ` (code ${String(b.missingCode)})` : '';
+    out.push(pill(`review nodig${extra}`, 'badge-warn'));
+  }
+
   return out.join('');
 }
 
-/* =========================
-   UI lijst
-========================= */
+/* ---------------------------------
+   4) UI-lijst
+--------------------------------- */
 function renderParcelList() {
   const container = document.getElementById('parcelList');
   if (!container) return;
@@ -161,6 +198,7 @@ function renderParcelList() {
       <button class="remove-btn">Verwijder</button>
     `;
 
+    // Verwijder-knop
     div.querySelector('.remove-btn').onclick = () => {
       if (p.layer) map.removeLayer(p.layer);
       parcels = parcels.filter(x => x.id !== p.id);
@@ -168,6 +206,7 @@ function renderParcelList() {
       dispatchParcelsChanged();
     };
 
+    // 266: select met varianten
     if (isTG) {
       const sel = div.querySelector('.tg-variant');
       loadTijdelijkGrasLabels().then(labels => {
@@ -186,17 +225,17 @@ function renderParcelList() {
   });
 }
 
-/* =========================
-   Klik-flow uit (KMZ-only)
-========================= */
-map.on('click', () => { return; });
+/* ---------------------------------
+   5) Handmatige klikselectie uit (KMZ-only)
+--------------------------------- */
+map.on('click', () => { /* handmatige selectie uitgeschakeld */ });
 
-/* =========================
-   KMZ-only koppeling
+/* ---------------------------------
+   6) KMZ-only koppeling
    Verwacht:
-     window.__KMZ_RAW = [{ sectorId, gewasCode, gewasNaam, ha, ... }]
+     window.__KMZ_RAW = [{ sectorId, gewasCode, gewasNaam, ha, reviewNeeded? ... }]
      window.__KMZ_GEO.byId[sectorId] = Feature (Polygon/MultiPolygon)
-========================= */
+--------------------------------- */
 window.addEventListener('rvo:imported', async () => {
   try {
     const rows = Array.isArray(window.__KMZ_RAW) ? window.__KMZ_RAW : [];
@@ -206,7 +245,7 @@ window.addEventListener('rvo:imported', async () => {
     // Start progress UI
     window.dispatchEvent(new CustomEvent('kmz:linking:start', { detail: { total: rows.length } }));
 
-    // Leeg huidige selectie
+    // Huidige selectie leegmaken
     try {
       for (const p of parcels) { if (p.layer) map.removeLayer(p.layer); }
       parcels.length = 0;
@@ -217,9 +256,13 @@ window.addEventListener('rvo:imported', async () => {
 
     for (const row of rows) {
       const feat = geo[row.sectorId];
-      if (!feat) { done++; window.dispatchEvent(new CustomEvent('kmz:linking:progress', { detail: { done, total: rows.length } })); continue; }
+      if (!feat) {
+        done++;
+        window.dispatchEvent(new CustomEvent('kmz:linking:progress', { detail: { done, total: rows.length } }));
+        continue;
+      }
 
-      // Grondsoort (wettelijk) via centroid
+      // Wettelijke grondsoort via centroid
       let bodem = {};
       const c = polygonCentroid(feat.geometry);
       if (c) {
@@ -229,30 +272,40 @@ window.addEventListener('rvo:imported', async () => {
         } catch {}
       }
 
-      // 266 → default-variant label (UI kan later per perceel aanpassen)
+      // 266 → default-variantlabel
       let gewasNaam = row.gewasNaam || '';
       if (Number(row.gewasCode) === 266) {
         const fallback = tgLabels.find(k => /1 januari.*15 oktober/i.test(k)) || tgLabels[0] || 'Tijdelijk grasland';
         gewasNaam = fallback;
       }
 
-      // (Niet-)bemestbaar badge
+      // Bemestbaar / Review nodig
       const bem = await isBemestbaar(row.gewasCode);
+      const known = await codeKnownInNormen(row.gewasCode);
+      const reviewNeeded = !known;
 
-      // Teken laag in oorspronkelijke blauwe stijl
+      // Teken laag in blauwe stijl
       const layer = L.geoJSON(feat.geometry, { style: { color: '#1e90ff', weight: 2, fillOpacity: 0.2 } }).addTo(map);
+
+      // Oppervlakte: KMZ leidend, gedeeld door 1000
+      const haFixed = (Number(row.ha) / 1000).toFixed(2);
 
       parcels.push({
         id: uuid(),
         layer,
         name: feat.properties?.weergavenaam || feat.properties?.identificatie || row.sectorId,
-        ha: Number(row.ha).toFixed(2),   // KMZ is leidend
+        ha: haFixed,
         gewasCode: row.gewasCode,
         gewasNaam,
         provincie: '',
         grondsoort: (bodem?.bodemsoortNaam || bodem?.grondsoort || ''),
         landgebruik: (String(gewasNaam).toLowerCase().includes('gras') ? 'Grasland' : 'Bouwland'),
-        badges: { reviewNeeded: !!row.reviewNeeded, melding: String(row.melding||'').toLowerCase()==='ja', bemestbaar: bem, isTG: Number(row.gewasCode)===266 },
+        badges: {
+          bemestbaar: bem,
+          reviewNeeded,
+          missingCode: reviewNeeded ? String(row.gewasCode ?? '') : null,
+          isTG: Number(row.gewasCode) === 266
+        },
         _meta:  { sectorId: row.sectorId },
         _source:'upload-kmz'
       });
@@ -263,14 +316,17 @@ window.addEventListener('rvo:imported', async () => {
       }
     }
 
+    // Render + event
     renderParcelList();
     dispatchParcelsChanged();
 
+    // Zoom naar geselecteerde percelen
     try {
       const group = L.featureGroup(parcels.map(p => p.layer).filter(Boolean));
       if (group.getLayers().length) map.fitBounds(group.getBounds().pad(0.1));
     } catch {}
 
+    // Einde progress
     window.dispatchEvent(new CustomEvent('kmz:linking:end', { detail: { added } }));
 
   } catch (err) {
@@ -280,9 +336,9 @@ window.addEventListener('rvo:imported', async () => {
   }
 });
 
-/* =========================
-   Utils
-========================= */
+/* ---------------------------------
+   7) Utils
+--------------------------------- */
 function escapeHtml(s) {
   return String(s ?? '')
     .replace(/&/g,'&amp;')
