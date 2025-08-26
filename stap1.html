@@ -8,16 +8,6 @@
   <link rel="stylesheet" href="style.css" />
   <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-
-  <style>
-    #map { min-height: 420px; border-radius: 12px; overflow: hidden; margin: 1rem 0; }
-    .badge { background:#f1f1f1; color:#333; }
-    .badge-warn { background:#fff3cd; color:#856404; }
-    .badge-info { background:#d1ecf1; color:#0c5460; }
-    .badge-muted { background:#eee; color:#666; }
-    .btn-secondary { background:#e9ecef; color:#333; border:1px solid #ced4da; padding:.5rem .75rem; border-radius:8px; }
-    [hidden] { display:none!important; }
-  </style>
 </head>
 <body>
   <header class="site-header">
@@ -58,22 +48,35 @@
     <section class="card" style="margin-top:1rem;">
       <h3>Mijn Percelen upload (KMZ)</h3>
       <p>Upload je <strong>.kmz</strong> export uit “Mijn Percelen”. Oppervlakte en gewas uit de KMZ zijn leidend; je percelen worden op de kaart getekend en we bepalen automatisch de wettelijke grondsoort.</p>
-      <div style="display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap;">
+
+      <div class="kmz-upload">
         <input type="file" id="kmz-file" accept=".kmz" />
-        <!-- Kaart.js beheert spinner + label in deze knop -->
-        <button id="kmz-add" type="button" class="btn btn-primary">Koppel percelen</button>
+        <button id="kmz-add" type="button" class="btn btn-neutral">
+          <span id="kmz-label" aria-live="polite">Koppel percelen</span>
+        </button>
+        <small style="opacity:.8">Handmatige kaartselectie is uitgeschakeld in deze modus.</small>
       </div>
-      <small id="kmz-status" style="display:block;opacity:.8;margin-top:.5rem;"></small>
-      <small style="opacity:.8">Handmatige kaartselectie is uitgeschakeld in deze modus.</small>
     </section>
 
+    <!-- Kaart -->
     <div id="map" role="region" aria-label="Kaart met geselecteerde percelen"></div>
 
+    <!-- Geselecteerde percelen -->
     <section class="parcel-list-section card">
+      <div class="parcel-filter" id="parcelFilterBar" hidden>
+        <label class="sr-only" for="parcelFilter">Toon percelen</label>
+        <select id="parcelFilter" class="pf-select" aria-label="Toon percelen">
+          <option value="all">Alle percelen</option>
+          <option value="bemestbaar">Bemestbaar</option>
+          <option value="niet">Niet-bemestbaar</option>
+        </select>
+      </div>
+
       <h3>Geselecteerde percelen</h3>
       <div id="parcelList" class="parcel-list"></div>
     </section>
 
+    <!-- Resultaten -->
     <section id="results-section" class="card" style="display:none;">
       <h3>Beschikbare nutriëntenruimte</h3>
       <div class="field-group">
@@ -121,27 +124,42 @@
   <script type="module" src="kaart.js"></script>
   <script type="module" src="berekening.js"></script>
 
-  <!-- KMZ-import init -->
+  <!-- KMZ-import init: voortgang in de knop -->
   <script type="module">
     import { setupKMZImport } from './kmzImport.js';
     setupKMZImport('#kmz-file', '#kmz-add', { eligibilityUrl: '/data/rvoGebruik-eligibility.json' });
 
-    const msg = document.getElementById('kmz-status');
+    const btn   = document.getElementById('kmz-add');
+    const label = document.getElementById('kmz-label');
+
+    function setBusy(on, text) {
+      btn.disabled = !!on;
+      label.textContent = text || 'Koppel percelen';
+    }
 
     window.addEventListener('kmz:linking:start', (e) => {
       const total = e.detail?.total ?? 0;
-      msg.textContent = `Bezig met koppelen van ${total} percelen… dit kan enkele seconden tot ~1 minuut duren.`;
+      setBusy(true, `Koppelen… 0/${total}`);
     });
+
     window.addEventListener('kmz:linking:progress', (e) => {
       const { done, total } = e.detail || {};
-      if (typeof done === 'number' && typeof total === 'number') {
-        msg.textContent = `Koppelen… ${done}/${total} percelen verwerkt.`;
+      if (Number.isFinite(done) && Number.isFinite(total)) {
+        label.textContent = `Koppelen… ${done}/${total}`;
       }
     });
+
     window.addEventListener('kmz:linking:end', (e) => {
       const { added } = e.detail || {};
-      msg.textContent = (added != null) ? `Koppelen voltooid (${added} percelen).` : 'Koppelen voltooid.';
-      setTimeout(() => { msg.textContent = ''; }, 4000);
+      setBusy(false, `Gekoppeld (${added ?? 0})`);
+      setTimeout(() => { label.textContent = 'Koppel percelen'; }, 2500);
+    });
+
+    // toon filterbar zodra er percelen zijn (kaart.js zet parcels & dispatcht event)
+    window.addEventListener('parcels:changed', (e) => {
+      const bar = document.getElementById('parcelFilterBar');
+      const list = e.detail?.parcels || [];
+      bar.hidden = !(Array.isArray(list) && list.length > 0);
     });
   </script>
 
