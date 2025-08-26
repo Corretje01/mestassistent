@@ -133,7 +133,14 @@
     const label = document.getElementById('kmz-label');
 
     function setBusy(on, text) {
+      // Vergrendel knop om dubbelklikken te voorkomen
       btn.disabled = !!on;
+  
+      // Poets eventuele "busy" indicatoren weg als een ander script die zou zetten
+      btn.removeAttribute('aria-busy');
+      btn.classList.remove('is-busy','busy','loading','is-loading');
+  
+      // Update label (teller blijft gewoon zichtbaar)
       label.textContent = text || 'Koppel percelen';
     }
 
