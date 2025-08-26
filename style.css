@@ -119,6 +119,17 @@ a.btn,.btn,.nav-links a,.nav-logo,.btn-login,.nav__item{text-decoration:none!imp
 .btn-primary:hover{background:var(--color-yellow-dark);transform:translateY(-1px);box-shadow:0 8px 20px rgba(0,0,0,.08)}
 .btn-primary:active{transform:translateY(0)}
 
+/* Zorg dat de primaire knop geel blijft als hij disabled is (tijdens koppelen) */
+.btn-primary:disabled,
+.btn-primary[aria-busy="true"]{
+  background: var(--color-yellow);
+  color: var(--color-black);
+  opacity: .7;            /* subtiel gedimd i.p.v. grijs of blauw */
+  box-shadow: none;
+  transform: none;
+  cursor: not-allowed;
+}
+
 .btn-danger{
   background:var(--color-danger);color:#fff;border:none;padding:.75rem 1.5rem;font-weight:600;border-radius:6px;cursor:pointer;transition:background .2s
 }
