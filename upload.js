@@ -35,6 +35,31 @@ let selectedCat = null;
 let selectedType = null;
 
 /* ========================
+   WIZARD: stappen tonen/verbergen
+======================== */
+const stepSections = Array.from(document.querySelectorAll('#uploadForm .form-section'));
+const actionsRow   = document.querySelector('#uploadForm .actions');
+
+// Alles na Stap 1 (dus 2..5) + actierij (= submit-knop) verbergen/toonbaar maken
+const advancedBlocks = stepSections.slice(1);
+if (actionsRow) advancedBlocks.push(actionsRow);
+
+function setDisabledWithin(el, disabled){
+  if (!el) return;
+  el.querySelectorAll('input, select, textarea, button').forEach(n => {
+    n.disabled = disabled;
+  });
+}
+
+function toggleAdvancedSteps(show){
+  advancedBlocks.forEach(block => {
+    if (!block) return;
+    block.hidden = !show;             // verbergt/tonen hele sectie
+    setDisabledWithin(block, !show);  // geen focus/validatie/tabben zolang verborgen
+  });
+}
+
+/* ========================
    INIT
 ======================== */
 (async function init(){
@@ -63,6 +88,9 @@ let selectedType = null;
 
   // mestsoorten + UI
   await renderMestChoices();
+
+  // wizard init: verberg stappen 2..5 + submit
+  toggleAdvancedSteps(false);
 
   // formulier events
   elFile.addEventListener('change', handleFileChange);
@@ -168,14 +196,21 @@ function attachMestToggleHandlers(containerSel = '#mestChoiceList'){
         selectedCat  = r.dataset.cat || null;
         selectedType = r.dataset.type || null;
         clearInlineError(listContainer);
-        if (selectedCat && selectedType) applyDefaultsFromSelection(selectedCat, selectedType);
+
+        if (selectedCat && selectedType) {
+          applyDefaultsFromSelection(selectedCat, selectedType);
+          toggleAdvancedSteps(true);  // ✅ toon stappen 2..5 + submit
+        }
       } else {
+        // deselect → alles weer dichtklappen
         selectedCat  = null;
         selectedType = null;
+        toggleAdvancedSteps(false);   // ✅ verberg stappen 2..5 + submit
       }
     });
   });
 
+  // Toggle-deselect via klik op label (bestond al)
   root.querySelectorAll('input[type="radio"][name="mest_one"]').forEach(r => {
     const lbl = root.querySelector(`label[for="${r.id}"]`);
     if (!lbl) return;
@@ -349,6 +384,7 @@ async function onSubmit(e){
     [elDS, elN, elP, elK, elOS, elBio].forEach(i => i.value = '');
     selectedCat = null; selectedType = null;
     await renderMestChoices();
+    toggleAdvancedSteps(false);
 
     cbUseProfile.checked = !!profilePostcodeNow;
     wrapPostcode.style.display = cbUseProfile.checked ? 'none' : 'block';
