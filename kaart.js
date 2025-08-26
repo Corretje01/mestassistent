@@ -277,40 +277,27 @@ function setAddButtonLoading(isLoading, progressText) {
    5) UI-lijst + segmented filter
 --------------------------------- */
 function ensureFilterUI() {
-  if (document.getElementById('parcelFilterBar')) return;
+  if (document.getElementById('parcelFilter')) return;
 
   const section = document.querySelector('.parcel-list-section');
   if (!section) return;
 
-  const bar = document.createElement('div');
-  bar.id = 'parcelFilterBar';
-  bar.className = 'card';
-  bar.style.cssText = 'margin:.75rem 0; padding:.5rem; display:flex; gap:.75rem; align-items:center; flex-wrap:wrap;';
-
-  bar.innerHTML = `
-    <div style="font-weight:600; opacity:.9;">Toon percelen:</div>
-    <div role="group" aria-label="Filter percelen" class="seg" style="
-      display:inline-flex; border:1px solid #e3e6ea; border-radius:12px; overflow:hidden;">
-      <button data-filter="all" class="seg-btn active" style="${segBtnStyle(true)}">Alle</button>
-      <button data-filter="bemestbaar" class="seg-btn" style="${segBtnStyle(false)}">Bemestbaar</button>
-      <button data-filter="niet" class="seg-btn" style="${segBtnStyle(false)}">Niet-bemestbaar</button>
-    </div>
-    <small style="opacity:.75;">Filtert de lijst en dimt overige percelen op de kaart.</small>
+  const wrap = document.createElement('div');
+  wrap.className = 'parcel-filter';
+  wrap.innerHTML = `
+    <label for="parcelFilter" class="sr-only">Filter percelen</label>
+    <select id="parcelFilter" class="pf-select" aria-label="Filter percelen">
+      <option value="all">Alle percelen</option>
+      <option value="bemestbaar">Bemestbaar</option>
+      <option value="niet">Niet-bemestbaar</option>
+    </select>
   `;
-  section.insertBefore(bar, section.firstChild);
+  section.insertBefore(wrap, section.firstChild);
 
-  bar.addEventListener('click', (e) => {
-    const btn = e.target.closest('.seg-btn');
-    if (!btn) return;
-    const key = btn.getAttribute('data-filter');
-    // active state
-    bar.querySelectorAll('.seg-btn').forEach(b => {
-      b.classList.toggle('active', b === btn);
-      b.style.cssText = segBtnStyle(b.classList.contains('active'));
-    });
-    applyParcelFilter(key);
-  });
+  const sel = wrap.querySelector('#parcelFilter');
+  sel.addEventListener('change', () => applyParcelFilter(sel.value));
 }
+
 function segBtnStyle(active) {
   return `
     appearance:none; border:0; padding:.45rem .8rem; font:inherit; cursor:pointer;
