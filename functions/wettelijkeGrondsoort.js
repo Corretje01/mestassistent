@@ -1,21 +1,20 @@
 // netlify/functions/wettelijkeGrondsoort.js
-// Queryt de "wettelijke grondsoortenkaart" (ArcGIS FeatureServer/MapServer) met een punt.
-// Verwacht ?lon=...&lat=... (EPSG:4326). Antwoord: { bodemsoortNaam: "zand|klei|veen|löss" }
+// Haalt de wettelijke grondsoort (zand/klei/veen/löss) op via ArcGIS FeatureServer query.
+// Config: LEGAL_SOIL_URL = https://.../FeatureServer/0/query
 
-const SERVICE_URL = process.env.LEGAL_SOIL_URL
-  // Voorbeeld: FeatureServer layer 0 (invullen!)
-  // "https://services.arcgis.com/<orgId>/ArcGIS/rest/services/Grondsoortenkaart/FeatureServer/0/query"
-  || "";
+const SERVICE_URL = process.env.LEGAL_SOIL_URL || "";
 
 export async function handler(event) {
   try {
     const { lon, lat } = event.queryStringParameters || {};
     const x = Number(lon), y = Number(lat);
-    if (!Number.isFinite(x) || !Number.isFinite(y)) return bad(400, "lon/lat verplicht");
+    if (!Number.isFinite(x) || !Number.isFinite(y)) {
+      return resp(400, { error: "lon/lat verplicht" });
+    }
+    if (!SERVICE_URL) {
+      return resp(500, { error: "LEGAL_SOIL_URL niet geconfigureerd" });
+    }
 
-    if (!SERVICE_URL) return bad(500, "LEGAL_SOIL_URL niet geconfigureerd");
-
-    // ArcGIS FeatureServer "query" met point
     const params = new URLSearchParams({
       f: "json",
       geometry: JSON.stringify({ x, y, spatialReference: { wkid: 4326 } }),
@@ -23,32 +22,23 @@ export async function handler(event) {
       inSR: "4326",
       spatialRel: "esriSpatialRelIntersects",
       returnGeometry: "false",
-      outFields: "*",
+      outFields: "HOOFDGRS",
       resultRecordCount: "1"
     });
 
     const url = `${SERVICE_URL}?${params.toString()}`;
-    const json = await fetchJsonWithRetry(url, { timeoutMs: 8000, retries: 2 });
+    const data = await fetchJsonWithRetry(url, { timeoutMs: 8000, retries: 2 });
 
-    const feat = json?.features?.[0];
-    if (!feat?.attributes) return ok({ bodemsoortNaam: "" });
+    const raw = String(data?.features?.[0]?.attributes?.HOOFDGRS || "").toUpperCase(); // KLEI|ZAND|VEEN|LOSS
+    const cat =
+      raw === "ZAND" ? "zand" :
+      raw === "KLEI" ? "klei" :
+      raw === "VEEN" ? "veen" :
+      raw === "LOSS" ? "löss" : "";
 
-    // Bepaal attribuutnaam met de wettelijke categorie (verschilt per service)
-    // Probeer gangbare velden:
-    const attrs = feat.attributes;
-    let value = attrs.grondsoort || attrs.WETTELIJK || attrs.wettelijke || attrs.Wettelijke || attrs.klasse || "";
-
-    // Normaliseren naar zand/klei/veen/löss
-    value = String(value || "").toLowerCase();
-    if (value.includes("zand")) value = "zand";
-    else if (value.includes("klei") || value.includes("zavel")) value = "klei";
-    else if (value.includes("veen")) value = "veen";
-    else if (value.includes("löss") || value.includes("loess") || value.includes("loss")) value = "löss";
-    else value = ""; // onbekend
-
-    return ok({ bodemsoortNaam: value, bron: "wettelijke-grondsoortenkaart" });
+    return resp(200, { bodemsoortNaam: cat, bron: "wettelijke-grondsoortenkaart" });
   } catch (e) {
-    return bad(502, e.message || "Fout");
+    return resp(502, { error: e.message || "Fout" });
   }
 }
 
@@ -58,18 +48,22 @@ async function fetchJsonWithRetry(url, { timeoutMs = 8000, retries = 2 } = {}) {
     try {
       const ctrl = new AbortController();
       const t = setTimeout(() => ctrl.abort(), timeoutMs);
-      const res = await fetch(url, { signal: ctrl.signal });
+      const r = await fetch(url, { signal: ctrl.signal });
       clearTimeout(t);
-      if (!res.ok) throw new Error("HTTP " + res.status);
-      return await res.json();
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      return await r.json();
     } catch (e) {
       last = e;
-      if (i < retries) await new Promise(r => setTimeout(r, 500 * Math.pow(2, i)));
+      if (i < retries) await new Promise(res => setTimeout(res, 500 * (2 ** i)));
     }
   }
   throw last || new Error("Onbekende fout");
 }
 
-const ok = (body) => ({ statusCode: 200, headers: cors(), body: JSON.stringify(body) });
-const bad = (code, msg) => ({ statusCode: code, headers: cors(), body: JSON.stringify({ error: msg }) });
-const cors = () => ({ "Access-Control-Allow-Origin": "*" });
+function resp(statusCode, body) {
+  return {
+    statusCode,
+    headers: { "Access-Control-Allow-Origin": "*" },
+    body: JSON.stringify(body)
+  };
+}
