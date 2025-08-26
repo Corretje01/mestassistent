@@ -135,20 +135,32 @@ a.btn,.btn,.nav-links a,.nav-logo,.btn-login,.nav__item{text-decoration:none!imp
 }
 .btn-danger:hover{background:var(--color-danger-dark)}
 
-/* Neutrale (huisstijlvriendelijke) knop */
+/* Neutrale (huisstijlvriendelijke) knop — subtiele variant in lijn met .btn-primary */
 .btn-neutral{
   background:#f6f7f9;
   color:#111827;
   border:1px solid #e5e7eb;
-  padding:.55rem .9rem;
-  border-radius:10px;
+  padding:.75rem 1.5rem;    /* zelfde geometrie als .btn-primary */
+  border-radius:6px;        /* idem */
   font-weight:600;
+  transition: background .2s, border-color .2s;  /* subtiel; geen lift/schaduw */
 }
-.btn-neutral:hover{ background:#f3f4f6; }
-.btn-neutral:disabled{ opacity:.65; cursor:wait; }
-
-a.btn:focus-visible,.btn:focus-visible,.nav-links a:focus-visible,.btn-login:focus-visible,.nav__item:focus-visible{
-  outline:3px solid rgba(241,196,15,.6);outline-offset:2px;border-radius:8px
+.btn-neutral:hover{
+  background:#f3f4f6;       /* lichte nuance */
+  border-color:#e3e7ee;     /* subtiele borderverandering */
+}
+.btn-neutral:active{
+  background:#eef1f5;       /* héél subtiel donkerder bij active */
+  border-color:#dfe3ea;
+}
+.btn-neutral:focus-visible{
+  outline: 3px solid rgba(241,196,15,.6);
+  outline-offset: 2px;
+  border-radius: 8px;       /* consistent met je globale focus-stijl */
+}
+.btn-neutral:disabled{
+  opacity:.65;
+  cursor:not-allowed;
 }
 
 /* ============ Cards & secties ============ */
