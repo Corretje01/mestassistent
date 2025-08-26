@@ -3,8 +3,9 @@
 // - Wettelijke grondsoort via Netlify function 'wettelijkeGrondsoort'
 // - “Bemestbaar” afgeleid van “Geen norm” in stikstofnormen_tabel2.json
 // - “Review nodig” alleen als gewascode niet in normen voorkomt (badge toont code)
-// - Oppervlakte uit KMZ is leidend en wordt gedeeld door 1000 (jouw KMZ had factor 1000 te groot)
-// - Stuurt kmz:linking:start/progress/end events voor de spinner/status in stap1.html
+// - Opp. uit KMZ robuust geparsed: 'ha' of 'm²/m2' of getal; >1000 ⇒ m² → /10.000
+// - Stuurt kmz:linking:start/progress/end events voor spinner/status
+// - Optionele filter UI: <select id="parcelFilter"> (zie comment onderaan)
 
 /* ---------------------------------
    1) Map init
@@ -32,6 +33,7 @@ window.addEventListener('resize', () => {
    2) State + events
 --------------------------------- */
 export let parcels = [];
+let currentFilter = 'all'; // 'all' | 'bemestbaar' | 'niet'
 
 function uuid() { return 'p_' + Math.random().toString(36).slice(2); }
 
@@ -79,6 +81,31 @@ function polygonCentroid(geom) {
   }
   if (areaSum === 0) return null;
   return { lon: xSum / areaSum, lat: ySum / areaSum };
+}
+
+// Opp. parser uit KMZ: accepteert '2.9574ha', '29574 m²', '29574', '2,9574 ha' etc.
+function toHaFromKmz(v) {
+  const sRaw = String(v ?? '').trim().toLowerCase();
+  if (!sRaw) return 0;
+
+  const s = sRaw.replace(/\s+/g, ' ').replace(',', '.');
+
+  // expliciete units
+  if (s.includes('ha')) {
+    const num = parseFloat(s.replace('ha', '').trim());
+    return Number.isFinite(num) ? num : 0;
+  }
+  if (s.includes('m²') || s.includes('m2') || s.includes(' m ')) {
+    // m² → ha
+    const num = parseFloat(s.replace(/[^\d.+-eE]/g, '')); // laat alleen getal over
+    return Number.isFinite(num) ? (num / 10_000) : 0;
+  }
+
+  // geen unit → heuristiek:
+  // > 1000 ⇒ waarschijnlijk m² → /10.000, anders behandelen als ha
+  const num = parseFloat(s.replace(/[^\d.+-eE]/g, ''));
+  if (!Number.isFinite(num)) return 0;
+  return (num > 1000) ? (num / 10_000) : num;
 }
 
 // Labels voor tijdelijk grasland (266) uit normen-bestand
@@ -162,7 +189,7 @@ function renderBadges(b) {
 }
 
 /* ---------------------------------
-   4) UI-lijst
+   4) UI-lijst + filter
 --------------------------------- */
 function renderParcelList() {
   const container = document.getElementById('parcelList');
@@ -204,9 +231,10 @@ function renderParcelList() {
       parcels = parcels.filter(x => x.id !== p.id);
       renderParcelList();
       dispatchParcelsChanged();
+      applyParcelFilter(currentFilter); // zorg dat filter actief blijft
     };
 
-    // 266: select met varianten
+    // 266-varianten
     if (isTG) {
       const sel = div.querySelector('.tg-variant');
       loadTijdelijkGrasLabels().then(labels => {
@@ -223,6 +251,50 @@ function renderParcelList() {
 
     container.append(div);
   });
+
+  // Na render filter meteen toepassen (als UI aanwezig is)
+  initParcelFilterUI();
+  applyParcelFilter(currentFilter);
+}
+
+// Filter logica (alleen weergave; berekening blijft op alle parcels gebaseerd)
+function matchesFilter(p, filterKey) {
+  const bem = !!p?.badges?.bemestbaar;
+  if (filterKey === 'bemestbaar')   return bem;
+  if (filterKey === 'niet')         return !bem;
+  return true; // 'all'
+}
+
+function applyParcelFilter(filterKey = 'all') {
+  currentFilter = filterKey;
+
+  // lijst verbergen/tonen
+  const container = document.getElementById('parcelList');
+  if (container) {
+    for (const el of container.querySelectorAll('.parcel-item')) {
+      const id = el.dataset.id;
+      const p  = parcels.find(x => x.id === id);
+      el.style.display = (p && matchesFilter(p, filterKey)) ? '' : 'none';
+    }
+  }
+
+  // kaartlagen dimmen/verbergen (hier: dimmen voor context)
+  for (const p of parcels) {
+    const show = matchesFilter(p, filterKey);
+    try {
+      p.layer.setStyle({
+        opacity: show ? 1 : 0.2,
+        fillOpacity: show ? 0.2 : 0.04
+      });
+    } catch {}
+  }
+}
+
+function initParcelFilterUI() {
+  const sel = document.getElementById('parcelFilter');
+  if (!sel || sel.dataset._bound === '1') return;
+  sel.dataset._bound = '1';
+  sel.addEventListener('change', () => applyParcelFilter(sel.value));
 }
 
 /* ---------------------------------
@@ -233,7 +305,7 @@ map.on('click', () => { /* handmatige selectie uitgeschakeld */ });
 /* ---------------------------------
    6) KMZ-only koppeling
    Verwacht:
-     window.__KMZ_RAW = [{ sectorId, gewasCode, gewasNaam, ha, reviewNeeded? ... }]
+     window.__KMZ_RAW = [{ sectorId, gewasCode, gewasNaam, ha, ... }]
      window.__KMZ_GEO.byId[sectorId] = Feature (Polygon/MultiPolygon)
 --------------------------------- */
 window.addEventListener('rvo:imported', async () => {
@@ -287,12 +359,7 @@ window.addEventListener('rvo:imported', async () => {
       // Teken laag in blauwe stijl
       const layer = L.geoJSON(feat.geometry, { style: { color: '#1e90ff', weight: 2, fillOpacity: 0.2 } }).addTo(map);
 
-      // juist: parse KMZ '2.9574ha' of '2,9574ha' direct als hectare
-      function toHaFromKmz(v) {
-        const s = String(v || '').toLowerCase().replace('ha', '').trim();
-        const n = parseFloat(s.replace(',', '.'));
-        return Number.isFinite(n) ? n : 0;
-      }
+      // Oppervlakte: KMZ leidend, robuust geparsed
       const haFixed = toHaFromKmz(row.ha).toFixed(2);
 
       parcels.push({
@@ -356,3 +423,15 @@ function escapeHtml(s) {
 // Init
 renderParcelList();
 dispatchParcelsChanged();
+
+/*
+  ▼▼▼ Optionele filter UI in je HTML (bijv. boven de lijst) ▼▼▼
+  <div class="card" style="margin:.5rem 0; display:flex; gap:.5rem; align-items:center;">
+    <label for="parcelFilter" style="min-width:9rem;">Toon percelen:</label>
+    <select id="parcelFilter">
+      <option value="all">Alle</option>
+      <option value="bemestbaar">Bemestbaar</option>
+      <option value="niet">Niet-bemestbaar</option>
+    </select>
+  </div>
+*/
