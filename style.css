@@ -153,14 +153,20 @@ a.btn,.btn,.nav-links a,.nav-logo,.btn-login,.nav__item{text-decoration:none!imp
   background:#eef1f5;       /* héél subtiel donkerder bij active */
   border-color:#dfe3ea;
 }
-.btn-neutral:focus-visible{
-  outline: 3px solid rgba(241,196,15,.6);
-  outline-offset: 2px;
-  border-radius: 8px;       /* consistent met je globale focus-stijl */
-}
 .btn-neutral:disabled{
   opacity:.65;
   cursor:not-allowed;
+}
+
+/* Globale focus-visible stijl voor knoppen/links (laat maar 1x in je CSS staan) */
+a.btn:focus-visible,
+.btn:focus-visible,
+.nav-links a:focus-visible,
+.btn-login:focus-visible,
+.nav__item:focus-visible{
+  outline:3px solid rgba(241,196,15,.6);
+  outline-offset:2px;
+  border-radius:8px;
 }
 
 /* ============ Cards & secties ============ */
