@@ -384,3 +384,41 @@ body.is-auth .guest-only{display:none!important}
   align-items:flex-start;
   gap:.6rem;
 }
+
+/* === Override: KMZ-koppelknop blijft huisstijl-geel en toont géén spinner === */
+#kmz-add,
+#kmz-add:hover,
+#kmz-add:active,
+#kmz-add:focus,
+#kmz-add:disabled,
+#kmz-add[aria-busy="true"] {
+  background: var(--color-yellow) !important;
+  color: var(--color-black) !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* Verberg elk denkbaar “busy”-icoon of spinner die via pseudo-element of child wordt toegevoegd */
+#kmz-add::after,
+#kmz-add[aria-busy="true"]::after,
+#kmz-add .spinner,
+#kmz-add .loading,
+#kmz-add .busy {
+  content: none !important;
+  display: none !important;
+}
+
+/* Zorg voor nette focusring in jouw huisstijl (géén blauwe ring) */
+#kmz-add:focus,
+#kmz-add:focus-visible {
+  outline: 3px solid rgba(241,196,15,.6) !important;
+  outline-offset: 2px !important;
+}
+
+/* Optioneel: tijdens verwerken subtiel gedimd i.p.v. blauwe states */
+#kmz-add[disabled],
+#kmz-add[aria-busy="true"] {
+  opacity: .85;
+  cursor: not-allowed;
+}
+
