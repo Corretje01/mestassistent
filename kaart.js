@@ -83,27 +83,27 @@ function polygonCentroid(geom) {
   return { lon: xSum / areaSum, lat: ySum / areaSum };
 }
 
-// Opp. parser uit KMZ: '2.9574ha', '29574 m²', '29574', '2,9574 ha' etc.
-// Zonder unit: >= 500 ⇒ aannemen m² → /10.000; anders als ha.
+// Opp. parser uit KMZ → altijd als ha teruggeven:
+// - "2.9574 ha" of "2,9574 ha"  → parse als ha
+// - "29574 m²" / "29574 m2"     → / 10.000
+// - "29574" (géén unit)         → aanname m² → / 10.000
 function toHaFromKmz(v) {
-  const sRaw = String(v ?? '').trim().toLowerCase();
-  if (!sRaw) return 0;
+  const raw = String(v ?? '').trim().toLowerCase();
+  if (!raw) return 0;
 
-  const s = sRaw.replace(/\s+/g, ' ').replace(',', '.');
+  const s = raw.replace(/\s+/g, ' ').replace(',', '.');
 
   if (s.includes('ha')) {
     const num = parseFloat(s.replace('ha', '').trim());
     return Number.isFinite(num) ? num : 0;
   }
-  if (s.includes('m²') || s.includes('m2')) {
-    const num = parseFloat(s.replace(/[^\d.+-eE]/g, ''));
-    return Number.isFinite(num) ? (num / 10_000) : 0;
-  }
 
-  const num = parseFloat(s.replace(/[^\d.+-eE]/g, ''));
-  if (!Number.isFinite(num)) return 0;
-  return (num >= 500) ? (num / 10_000) : num;
+  // m² of m2 (of geen unit) → altijd / 10.000
+  const numeric = parseFloat(s.replace(/[^\d.+-eE]/g, ''));
+  if (!Number.isFinite(numeric)) return 0;
+  return numeric / 10_000;
 }
+
 
 // Labels voor tijdelijk grasland (266) uit normen-bestand
 let __tgLabelsCache = null;
@@ -237,7 +237,7 @@ function renderParcelList() {
       </div>
 
       <p class="meta" style="margin:.25rem 0 .5rem 0; color:#444; font-size:.92rem;">
-        Opp: <strong>${escapeHtml(p.ha ?? '')} ha</strong>
+        Opp: <strong>${formatHa(p.ha)} ha</strong>
         &nbsp;·&nbsp; Code: <strong>${escapeHtml(p.gewasCode ?? '')}</strong>
         &nbsp;·&nbsp; Gewas: <strong>${escapeHtml(p.gewasNaam ?? '')}</strong>
         &nbsp;·&nbsp; Grondsoort: <strong>${escapeHtml(p.grondsoort ?? '')}</strong>
@@ -367,14 +367,14 @@ window.addEventListener('rvo:imported', async () => {
       // Teken laag in blauwe stijl
       const layer = L.geoJSON(feat.geometry, { style: { color: '#1e90ff', weight: 2, fillOpacity: 0.2 } }).addTo(map);
 
-      // Oppervlakte: KMZ leidend, robuust geparsed (>=500 zonder unit ⇒ m²)
-      const haFixed = toHaFromKmz(row.ha).toFixed(2);
+      // Oppervlakte: KMZ → altijd naar ha, als **getal** bewaren (geen toFixed hier!)
+      const haNum = toHaFromKmz(row.ha);
 
       parcels.push({
         id: uuid(),
         layer,
         name: feat.properties?.weergavenaam || feat.properties?.identificatie || row.sectorId,
-        ha: haFixed,
+        ha: haNum,
         gewasCode: row.gewasCode,
         gewasNaam,
         provincie: '',
@@ -419,6 +419,12 @@ window.addEventListener('rvo:imported', async () => {
 /* ---------------------------------
    7) Utils
 --------------------------------- */
+function formatHa(v) {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return '';
+  return n.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 function escapeHtml(s) {
   return String(s ?? '')
     .replace(/&/g,'&amp;')
