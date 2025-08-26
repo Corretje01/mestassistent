@@ -422,4 +422,41 @@ body.is-auth .guest-only{display:none!important}
   cursor: not-allowed;
 }
 
+/* --- Zorg dat Bootstrap variabelen voor deze knop jouw merkgeel gebruiken --- */
+.btn.btn-brand{
+  --bs-btn-color: var(--color-black);
+  --bs-btn-bg: var(--color-yellow);
+  --bs-btn-border-color: var(--color-yellow);
+
+  --bs-btn-hover-color: var(--color-black);
+  --bs-btn-hover-bg: var(--color-yellow);
+  --bs-btn-hover-border-color: var(--color-yellow);
+
+  --bs-btn-active-color: var(--color-black);
+  --bs-btn-active-bg: var(--color-yellow);
+  --bs-btn-active-border-color: var(--color-yellow);
+
+  --bs-btn-disabled-bg: var(--color-yellow);
+  --bs-btn-disabled-border-color: var(--color-yellow);
+
+  /* Gele focus glow ipv blauw */
+  --bs-btn-focus-shadow-rgb: 241,196,15;
+}
+
+/* --- Dwing active/checked/show-states af in jouw geel (Bootstrap selectors) --- */
+.btn-check:checked + .btn.btn-brand,
+.btn.btn-brand.active,
+.btn.btn-brand.show,
+.btn.btn-brand:first-child:active,
+:not(.btn-check) + .btn.btn-brand:active,
+.btn.btn-brand:active {
+  background-color: var(--color-yellow) !important;
+  border-color: var(--color-yellow) !important;
+  color: var(--color-black) !important;
+  box-shadow: none !important;
+}
+
+/* voorkom blauwe tap-highlight op mobiel */
+.btn-brand { -webkit-tap-highlight-color: transparent; }
+
 
