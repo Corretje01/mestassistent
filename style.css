@@ -385,24 +385,42 @@ body.is-auth .guest-only{display:none!important}
   gap:.6rem;
 }
 
-/* KMZ-knop: merkgeel in alle states + geen spinner */
+/* KMZ-knop ('btn-brand') – zelfde look & feel als .btn-primary, maar zonder spinner */
 .btn-brand{
   background: var(--color-yellow);
   color: var(--color-black);
   border: none;
+  padding: .75rem 1.5rem;       /* gelijk aan .btn-primary */
+  font-weight: 600;             /* gelijk aan .btn-primary */
+  border-radius: 6px;           /* gelijk aan .btn-primary */
+  cursor: pointer;
+  transition: background .2s, transform .08s, box-shadow .18s; /* gelijk aan .btn-primary */
+}
+.btn-brand:hover{
+  background: var(--color-yellow-dark);      /* gelijk aan .btn-primary:hover */
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(0,0,0,.08);
+}
+.btn-brand:active{
+  transform: translateY(0);
   box-shadow: none;
 }
-.btn-brand:is(:hover,:active,:focus,:disabled,[aria-busy="true"]){
-  background: var(--color-yellow);
-  color: var(--color-black);
-  box-shadow: none;
-}
-.btn-brand:focus,
 .btn-brand:focus-visible{
   outline: 3px solid rgba(241,196,15,.6);
   outline-offset: 2px;
+  border-radius: 8px;           /* consistent met je :focus-visible overal */
 }
-/* kill alle mogelijke spinner varianten (ook van libs of oude js) */
+/* Disabled/busy: hou ‘m geel en demp subtiel (zelfde gedrag als .btn-primary) */
+.btn-brand:disabled,
+.btn-brand[aria-busy="true"]{
+  background: var(--color-yellow);
+  color: var(--color-black);
+  opacity: .7;
+  box-shadow: none;
+  transform: none;
+  cursor: not-allowed;
+}
+/* Kill alle mogelijke spinner-varianten (ook die via JS of frameworks) */
 .btn-brand::after,
 .btn-brand .spinner,
 .btn-brand .spinner-border,
@@ -413,6 +431,3 @@ body.is-auth .guest-only{display:none!important}
   content: none !important;
   display: none !important;
 }
-
-#kmz-add { -webkit-tap-highlight-color: transparent; }
-
