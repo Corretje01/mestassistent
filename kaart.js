@@ -287,8 +287,13 @@ window.addEventListener('rvo:imported', async () => {
       // Teken laag in blauwe stijl
       const layer = L.geoJSON(feat.geometry, { style: { color: '#1e90ff', weight: 2, fillOpacity: 0.2 } }).addTo(map);
 
-      // Oppervlakte: KMZ leidend, gedeeld door 1000
-      const haFixed = (Number(row.ha) / 1000).toFixed(2);
+      // juist: parse KMZ '2.9574ha' of '2,9574ha' direct als hectare
+      function toHaFromKmz(v) {
+        const s = String(v || '').toLowerCase().replace('ha', '').trim();
+        const n = parseFloat(s.replace(',', '.'));
+        return Number.isFinite(n) ? n : 0;
+      }
+      const haFixed = toHaFromKmz(row.ha).toFixed(2);
 
       parcels.push({
         id: uuid(),
