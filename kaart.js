@@ -3,9 +3,9 @@
 // - Wettelijke grondsoort via Netlify function 'wettelijkeGrondsoort'
 // - “Bemestbaar” afgeleid van “Geen norm” in stikstofnormen_tabel2.json
 // - “Review nodig” alleen als gewascode niet in normen voorkomt (badge toont code)
-// - Opp. uit KMZ robuust geparsed: 'ha' of 'm²/m2' of getal; >=500 ⇒ m² → /10.000
-// - kmz:linking:start/progress/end events voor spinner/status
-// - Automatische filter UI: Alle / Bemestbaar / Niet-bemestbaar
+// - Opp. uit KMZ robuust geparsed: altijd naar ha (m² → /10.000, ha blijft ha)
+// - kmz:linking:start/progress/end events → spinner overlay + (optioneel) knopspinner
+// - Segmented filter: Alle / Bemestbaar / Niet-bemestbaar + dimmen op kaart
 
 /* ---------------------------------
    1) Map init
@@ -104,7 +104,6 @@ function toHaFromKmz(v) {
   return numeric / 10_000;
 }
 
-
 // Labels voor tijdelijk grasland (266) uit normen-bestand
 let __tgLabelsCache = null;
 async function loadTijdelijkGrasLabels() {
@@ -169,7 +168,7 @@ async function codeKnownInNormen(gewasCode) {
 function renderBadges(b) {
   if (!b) return '';
   const pill = (txt, cls) =>
-    `<span class="badge ${cls}" style="padding:.1rem .4rem;border-radius:8px;font-size:.75rem;">${txt}</span>`;
+    `<span class="badge ${cls}" style="padding:.15rem .5rem;border-radius:999px;font-size:.75rem;">${txt}</span>`;
   const out = [];
 
   if (typeof b.bemestbaar === 'boolean') {
@@ -185,32 +184,140 @@ function renderBadges(b) {
   return out.join('');
 }
 
+function formatHa(v) {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return '';
+  return n.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function escapeHtml(s) {
+  return String(s ?? '')
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;')
+    .replace(/'/g,'&#39;');
+}
+
 /* ---------------------------------
-   4) UI-lijst + filter
+   4) Spinner overlay + knop spinner (optioneel)
+--------------------------------- */
+let mapSpinnerEl = null;
+function ensureMapSpinner() {
+  if (mapSpinnerEl) return mapSpinnerEl;
+  const wrap = document.createElement('div');
+  wrap.style.cssText = `
+    position:absolute; inset:0; display:none; align-items:center; justify-content:center;
+    background:rgba(255,255,255,.55); backdrop-filter:saturate(120%) blur(1px); z-index:500;
+  `;
+  const inner = document.createElement('div');
+  inner.style.cssText = 'display:flex; flex-direction:column; gap:.5rem; align-items:center; font-size:.95rem; color:#333;';
+  inner.innerHTML = `
+    <div class="spinner" style="
+      width:28px;height:28px;border:3px solid rgba(0,0,0,.15);
+      border-top-color:#1e90ff;border-radius:50%;animation:spin 0.8s linear infinite;"></div>
+    <div class="msg">Koppelen van percelen…</div>
+  `;
+  wrap.appendChild(inner);
+
+  // keyframes (inline)
+  const style = document.createElement('style');
+  style.textContent = `@keyframes spin{to{transform:rotate(360deg)}}`;
+  document.head.appendChild(style);
+
+  mapEl.style.position = 'relative';
+  mapEl.appendChild(wrap);
+  mapSpinnerEl = wrap;
+  return wrap;
+}
+function setMapSpinner(visible, text) {
+  const el = ensureMapSpinner();
+  el.style.display = visible ? 'flex' : 'none';
+  const msg = el.querySelector('.msg');
+  if (msg && text) msg.textContent = text;
+}
+
+// Optioneel: knop met id #kmz-add of #rvo-add upgraden (styling + loading)
+function setAddButtonLoading(isLoading, progressText) {
+  const btn = document.querySelector('#kmz-add, #rvo-add');
+  if (!btn) return;
+  // label fix
+  if (!btn.dataset._labelSet) {
+    btn.textContent = 'Koppel percelen';
+    btn.dataset._labelSet = '1';
+    // stijl iets meer huisstijl
+    btn.style.padding = '.55rem .9rem';
+    btn.style.borderRadius = '10px';
+    btn.style.border = '1px solid #1e90ff';
+    btn.style.background = '#1e90ff';
+    btn.style.color = '#fff';
+    btn.style.boxShadow = '0 1px 2px rgba(30,144,255,.25)';
+  }
+  if (isLoading) {
+    btn.disabled = true;
+    btn.style.opacity = '.85';
+    if (!btn.querySelector('.btnspin')) {
+      const sp = document.createElement('span');
+      sp.className = 'btnspin';
+      sp.style.cssText = 'display:inline-block;width:16px;height:16px;margin-left:.5rem;border:2px solid rgba(255,255,255,.7);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite;vertical-align:-3px;';
+      btn.appendChild(sp);
+    }
+    btn.dataset._origText = btn.dataset._origText || 'Koppel percelen';
+    btn.firstChild.nodeValue = progressText || 'Koppelen…';
+  } else {
+    btn.disabled = false;
+    btn.style.opacity = '1';
+    const sp = btn.querySelector('.btnspin');
+    if (sp) sp.remove();
+    btn.firstChild.nodeValue = 'Koppel percelen';
+  }
+}
+
+/* ---------------------------------
+   5) UI-lijst + segmented filter
 --------------------------------- */
 function ensureFilterUI() {
-  if (document.getElementById('parcelFilter')) return;
+  if (document.getElementById('parcelFilterBar')) return;
 
   const section = document.querySelector('.parcel-list-section');
   if (!section) return;
 
   const bar = document.createElement('div');
+  bar.id = 'parcelFilterBar';
   bar.className = 'card';
-  bar.style.cssText = 'margin:.5rem 0; display:flex; gap:.5rem; align-items:center;';
+  bar.style.cssText = 'margin:.75rem 0; padding:.5rem; display:flex; gap:.75rem; align-items:center; flex-wrap:wrap;';
 
   bar.innerHTML = `
-    <label for="parcelFilter" style="min-width:9rem;">Toon percelen:</label>
-    <select id="parcelFilter" style="padding:.35rem .5rem; border-radius:8px; border:1px solid #ddd;">
-      <option value="all">Alle</option>
-      <option value="bemestbaar">Bemestbaar</option>
-      <option value="niet">Niet-bemestbaar</option>
-    </select>
-    <small style="opacity:.75;">Filtering beïnvloedt alleen de weergave, niet de berekening.</small>
+    <div style="font-weight:600; opacity:.9;">Toon percelen:</div>
+    <div role="group" aria-label="Filter percelen" class="seg" style="
+      display:inline-flex; border:1px solid #e3e6ea; border-radius:12px; overflow:hidden;">
+      <button data-filter="all" class="seg-btn active" style="${segBtnStyle(true)}">Alle</button>
+      <button data-filter="bemestbaar" class="seg-btn" style="${segBtnStyle(false)}">Bemestbaar</button>
+      <button data-filter="niet" class="seg-btn" style="${segBtnStyle(false)}">Niet-bemestbaar</button>
+    </div>
+    <small style="opacity:.75;">Filtert de lijst en dimt overige percelen op de kaart.</small>
   `;
   section.insertBefore(bar, section.firstChild);
 
-  const sel = bar.querySelector('#parcelFilter');
-  sel.addEventListener('change', () => applyParcelFilter(sel.value));
+  bar.addEventListener('click', (e) => {
+    const btn = e.target.closest('.seg-btn');
+    if (!btn) return;
+    const key = btn.getAttribute('data-filter');
+    // active state
+    bar.querySelectorAll('.seg-btn').forEach(b => {
+      b.classList.toggle('active', b === btn);
+      b.style.cssText = segBtnStyle(b.classList.contains('active'));
+    });
+    applyParcelFilter(key);
+  });
+}
+function segBtnStyle(active) {
+  return `
+    appearance:none; border:0; padding:.45rem .8rem; font:inherit; cursor:pointer;
+    background:${active ? '#1e90ff' : '#fff'};
+    color:${active ? '#fff' : '#222'};
+    transition:background .2s ease;
+  `;
 }
 
 function renderParcelList() {
@@ -225,18 +332,24 @@ function renderParcelList() {
     div.className = 'parcel-item';
     div.dataset.id = p.id;
 
+    // compact + luchtig: card-achtige blokjes met spacing
+    div.style.cssText = `
+      border:1px solid #eceff3; border-radius:12px; padding:.65rem .8rem; margin:.5rem 0;
+      box-shadow: 0 1px 1px rgba(16,24,40,.04);
+    `;
+
     const isTG = Number(p.gewasCode) === 266;
 
-    // Compacte layout: 1 titelregel + 1 metaregel (+ optionele TG-select)
+    // 1 titelregel + 1 meta-regel (+ optionele TG-select)
     div.innerHTML = `
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;">
-        <h3 style="margin:0; font-size:1rem; font-weight:600;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:.75rem;">
+        <h3 style="margin:0; font-size:1rem; font-weight:600; line-height:1.2;">
           ${escapeHtml(p.name)}
         </h3>
         <div>${renderBadges(p.badges)}</div>
       </div>
 
-      <p class="meta" style="margin:.25rem 0 .5rem 0; color:#444; font-size:.92rem;">
+      <p class="meta" style="margin:.35rem 0 0 0; color:#444; font-size:.92rem; line-height:1.45;">
         Opp: <strong>${formatHa(p.ha)} ha</strong>
         &nbsp;·&nbsp; Code: <strong>${escapeHtml(p.gewasCode ?? '')}</strong>
         &nbsp;·&nbsp; Gewas: <strong>${escapeHtml(p.gewasNaam ?? '')}</strong>
@@ -244,9 +357,9 @@ function renderParcelList() {
       </p>
 
       ${isTG ? `
-        <div class="field-group" style="margin:.25rem 0;">
-          <label style="font-size:.85rem; opacity:.8;">Variant tijdelijk grasland (266):</label>
-          <select class="tg-variant" style="padding:.25rem .4rem; border-radius:8px; border:1px solid #ddd;"></select>
+        <div class="field-group" style="margin:.5rem 0 0 0;">
+          <label style="font-size:.85rem; opacity:.8; display:block; margin:.15rem 0;">Variant tijdelijk grasland (266):</label>
+          <select class="tg-variant" style="padding:.35rem .5rem; border-radius:8px; border:1px solid #e3e6ea;"></select>
         </div>
       ` : ``}
     `;
@@ -293,25 +406,27 @@ function applyParcelFilter(filterKey = 'all') {
     }
   }
 
-  // kaartlagen dimmen/verbergen (hier: dimmen voor context)
+  // kaartlagen dimmen (filter ≠ all → dim overige)
   for (const p of parcels) {
     const show = matchesFilter(p, filterKey);
     try {
       p.layer.setStyle({
-        opacity: show ? 1 : 0.2,
-        fillOpacity: show ? 0.2 : 0.04
+        opacity: show ? 1 : 0.15,
+        weight: show ? 2 : 1,
+        fillOpacity: show ? 0.25 : 0.04
       });
+      if (show && p.layer.bringToFront) p.layer.bringToFront();
     } catch {}
   }
 }
 
 /* ---------------------------------
-   5) Handmatige klikselectie uit (KMZ-only)
+   6) Handmatige klikselectie uit (KMZ-only)
 --------------------------------- */
 map.on('click', () => { /* handmatige selectie uitgeschakeld */ });
 
 /* ---------------------------------
-   6) KMZ-only koppeling
+   7) KMZ-only koppeling
    Verwacht:
      window.__KMZ_RAW = [{ sectorId, gewasCode, gewasNaam, ha, ... }]
      window.__KMZ_GEO.byId[sectorId] = Feature (Polygon/MultiPolygon)
@@ -322,7 +437,9 @@ window.addEventListener('rvo:imported', async () => {
     const geo  = window.__KMZ_GEO && window.__KMZ_GEO.byId ? window.__KMZ_GEO.byId : null;
     if (!rows.length || !geo) return;
 
-    // Start progress UI
+    // Start progress UI (overlay + knop)
+    setMapSpinner(true, 'Koppelen van percelen…');
+    setAddButtonLoading(true, 'Koppelen…');
     window.dispatchEvent(new CustomEvent('kmz:linking:start', { detail: { total: rows.length } }));
 
     // Huidige selectie leegmaken
@@ -365,7 +482,7 @@ window.addEventListener('rvo:imported', async () => {
       const reviewNeeded = !known;
 
       // Teken laag in blauwe stijl
-      const layer = L.geoJSON(feat.geometry, { style: { color: '#1e90ff', weight: 2, fillOpacity: 0.2 } }).addTo(map);
+      const layer = L.geoJSON(feat.geometry, { style: { color: '#1e90ff', weight: 2, fillOpacity: 0.25 } }).addTo(map);
 
       // Oppervlakte: KMZ → altijd naar ha, als **getal** bewaren (geen toFixed hier!)
       const haNum = toHaFromKmz(row.ha);
@@ -393,6 +510,8 @@ window.addEventListener('rvo:imported', async () => {
       added++; done++;
       if (done % 5 === 0 || done === rows.length) {
         window.dispatchEvent(new CustomEvent('kmz:linking:progress', { detail: { done, total: rows.length } }));
+        setMapSpinner(true, `Koppelen… ${done}/${rows.length}`);
+        setAddButtonLoading(true, `Koppelen… ${done}/${rows.length}`);
       }
     }
 
@@ -408,32 +527,25 @@ window.addEventListener('rvo:imported', async () => {
 
     // Einde progress
     window.dispatchEvent(new CustomEvent('kmz:linking:end', { detail: { added } }));
+    setMapSpinner(false);
+    setAddButtonLoading(false);
 
   } catch (err) {
     console.error('[kaart] rvo:imported (KMZ) fout:', err);
     window.dispatchEvent(new CustomEvent('kmz:linking:end', { detail: { added: 0 } }));
+    setMapSpinner(false);
+    setAddButtonLoading(false);
     alert('Er ging iets mis bij het plotten van de geüploade percelen.');
   }
 });
 
 /* ---------------------------------
-   7) Utils
+   8) Klikselectie uit (nogmaals voor de zekerheid)
 --------------------------------- */
-function formatHa(v) {
-  const n = Number(v);
-  if (!Number.isFinite(n)) return '';
-  return n.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
+map.on('click', () => { /* handmatige selectie uitgeschakeld */ });
 
-function escapeHtml(s) {
-  return String(s ?? '')
-    .replace(/&/g,'&amp;')
-    .replace(/</g,'&lt;')
-    .replace(/>/g,'&gt;')
-    .replace(/"/g,'&quot;')
-    .replace(/'/g,'&#39;');
-}
-
-// Init
+/* ---------------------------------
+   9) Init
+--------------------------------- */
 renderParcelList();
 dispatchParcelsChanged();
