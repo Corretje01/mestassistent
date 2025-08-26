@@ -3,11 +3,9 @@
 // Config: LEGAL_SOIL_URL = https://.../FeatureServer/0/query   (of MapServer/0/query)
 // Fallback: DEFAULT_SERVICE_URL hieronder (handig als de env-var nog niet is gezet).
 
-const DEFAULT_SERVICE_URL =
+// Vast ingestelde service-URL (env-var niet meer nodig)
+const SERVICE_URL =
   "https://services.arcgis.com/kE0BiyvJHb5SwQv7/arcgis/rest/services/Grondsoortenkaart/FeatureServer/0/query";
-
-// 1) Kies env-var of fallback
-const SERVICE_URL = process.env.LEGAL_SOIL_URL || DEFAULT_SERVICE_URL;
 
 // 2) Public handler
 export async function handler(event) {
@@ -30,13 +28,6 @@ export async function handler(event) {
     } else {
       // simpele RD-detectie (geldig bereik RD: x≈0–300k, y≈300k–650k)
       if (x > 1000 && x < 300000 && y > 300000 && y < 650000) inSR = 28992;
-    }
-
-    if (!SERVICE_URL) {
-      return resp(500, {
-        error: "LEGAL_SOIL_URL niet geconfigureerd en geen DEFAULT_SERVICE_URL aanwezig",
-        expect: "…/FeatureServer/0/query"
-      });
     }
 
     // ArcGIS query parameters
