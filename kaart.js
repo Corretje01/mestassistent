@@ -590,6 +590,20 @@ window.addEventListener('rvo:imported', async () => {
 --------------------------------- */
 map.on('click', () => { /* handmatige selectie uitgeschakeld */ });
 
+export function clearAllParcels() {
+  try {
+    // verwijder layers van de kaart
+    for (const p of parcels) {
+      try { if (p.layer && map && map.removeLayer) map.removeLayer(p.layer); } catch {}
+    }
+    parcels.length = 0;         // array leeg
+    renderParcelList();         // UI lijst legen
+    dispatchParcelsChanged();   // event voor andere modules
+  } catch (e) {
+    console.warn('clearAllParcels():', e);
+  }
+}
+
 /* ---------------------------------
    9) Init
 --------------------------------- */
