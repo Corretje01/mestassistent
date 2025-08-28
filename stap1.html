@@ -131,31 +131,31 @@
     import { setupKMZImport } from './kmzImport.js';
     import { supabase } from './supabaseClient.js';
     import { parcels, clearAllParcels } from './kaart.js';
-  
+
     setupKMZImport('#kmz-file', '#kmz-add', { eligibilityUrl: '/data/rvoGebruik-eligibility.json' });
-  
+
     const btnAdd    = document.getElementById('kmz-add');
     const btnDel    = document.getElementById('kmz-delete');
     const label     = document.getElementById('kmz-label');
     const fileInput = document.getElementById('kmz-file');
-  
+
     function setBusy(on, text) {
       btnAdd.disabled = !!on;
       btnAdd.removeAttribute('aria-busy');
       btnAdd.classList.remove('is-busy','busy','loading','is-loading');
       label.textContent = text || 'Koppel percelen';
     }
-  
+
     function updateDeleteVisibility() {
       const hasParcels = Array.isArray(parcels) && parcels.length > 0;
       btnDel.hidden = !hasParcels;
     }
-  
+
     async function saveParcelsToAccount() {
       const { data: { session } } = await supabase.auth.getSession();
       const user = session?.user;
       if (!user) { alert('Log in om percelen op te slaan.'); return; }
-  
+
       // Minimaliseer payload (geen Leaflet layers)
       const minimal = parcels.map(p => ({
         id: p.id,
@@ -166,10 +166,10 @@
         grondsoort: p.grondsoort ?? null,
         badges: p.badges ?? null,
         centroid: p.centroid ?? null,
-        geometry: p.geometry ?? null  // laat staan als je geometrie wilt bewaren
+        geometry: p.geometry ?? null
       }));
       const totalArea = minimal.reduce((s,p)=> s + (Number(p.ha)||0), 0);
-  
+
       // (optioneel) upload het ruwe KMZ-bestand (bucket 'kmz')
       let kmz_path = null;
       const kmzFile = fileInput?.files?.[0];
@@ -182,7 +182,7 @@
           if (!up.error) kmz_path = path;
         } catch {}
       }
-  
+
       const { error } = await supabase
         .from('user_parcel_sets')
         .upsert({
@@ -193,18 +193,18 @@
           parcels: minimal,
           meta: { source: 'kmz', saved_at: new Date().toISOString() }
         }, { onConflict: 'user_id' });
-  
+
       if (error) { console.error(error); alert('Opslaan van percelen is niet gelukt.'); return; }
-  
+
       label.textContent = `Gekoppeld (${minimal.length})`;
       setTimeout(()=> label.textContent = 'Koppel percelen', 2000);
     }
-  
+
     async function deleteParcelsFromAccount() {
       const { data: { session } } = await supabase.auth.getSession();
       const user = session?.user;
       if (!user) { alert('Je moet ingelogd zijn om te verwijderen.'); return; }
-  
+
       // Haal kmz_path op om bestand ook te kunnen verwijderen
       let kmz_path = null;
       try {
@@ -215,49 +215,49 @@
           .single();
         kmz_path = data?.kmz_path || null;
       } catch {}
-  
+
       // Verwijder DB-record
       const { error } = await supabase
         .from('user_parcel_sets')
         .delete()
         .eq('user_id', user.id);
       if (error) { console.error(error); alert('Verwijderen uit je account is niet gelukt.'); return; }
-  
+
       // (optioneel) verwijder ook het KMZ-bestand
       if (kmz_path) {
         try { await supabase.storage.from('kmz').remove([kmz_path]); } catch {}
       }
-  
+
       // UI leegmaken
       clearAllParcels();
       fileInput.value = '';
       label.textContent = 'Koppel percelen';
       updateDeleteVisibility();
-  
+
       // filterbalk verbergen
       const bar = document.getElementById('parcelFilterBar');
       if (bar) bar.hidden = true;
     }
-  
+
     // Events van KMZ-koppeling
     window.addEventListener('kmz:linking:start', (e) => {
       const total = e.detail?.total ?? 0;
       setBusy(true, `Koppelen… 0/${total}`);
     });
-  
+
     window.addEventListener('kmz:linking:progress', (e) => {
       const { done, total } = e.detail || {};
       if (Number.isFinite(done) && Number.isFinite(total)) {
         label.textContent = `Koppelen… ${done}/${total}`;
       }
     });
-  
+
     window.addEventListener('kmz:linking:end', async () => {
       setBusy(false, 'Koppel percelen');
       updateDeleteVisibility();
       try { await saveParcelsToAccount(); } catch {}
     });
-  
+
     // Toon filterbar zodra er percelen zijn
     window.addEventListener('parcels:changed', (e) => {
       const bar = document.getElementById('parcelFilterBar');
@@ -265,12 +265,12 @@
       bar.hidden = !(Array.isArray(list) && list.length > 0);
       updateDeleteVisibility();
     });
-  
+
     // Klik handler delete
     btnDel.addEventListener('click', deleteParcelsFromAccount);
   </script>
 
-  <!-- Route-guard -->
+  <!-- Route-guard + opgeslagen percelen laden -->
   <script type="module">
     import { supabase } from './supabaseClient.js';
     document.addEventListener('DOMContentLoaded', async () => {
@@ -279,8 +279,29 @@
         window.location.replace('/account.html?signin=1');
         return;
       }
+      // Footer jaartal
       const y = document.getElementById('year');
       if (y) y.textContent = new Date().getFullYear();
+
+      // Opgeslagen percelen ophalen en in kaart/lijst zetten
+      try {
+        const { data } = await supabase
+          .from('user_parcel_sets')
+          .select('parcels')
+          .eq('user_id', session.user.id)
+          .single();
+
+        const saved = Array.isArray(data?.parcels) ? data.parcels : [];
+        // kaart.js luistert hierop (zie 'parcels:loadSaved' listener)
+        window.dispatchEvent(new CustomEvent('parcels:loadSaved', { detail: { parcels: saved } }));
+
+        if (saved.length) {
+          const bar = document.getElementById('parcelFilterBar'); if (bar) bar.hidden = false;
+          const btnDel = document.getElementById('kmz-delete');   if (btnDel) btnDel.hidden = false;
+        }
+      } catch (e) {
+        console.warn('Laden opgeslagen percelen faalde:', e);
+      }
     });
   </script>
 </body>
