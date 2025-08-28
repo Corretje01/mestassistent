@@ -572,23 +572,63 @@ window.addEventListener('rvo:imported', async () => {
 });
 
 /* ---------------------------------
-   8) Saved percelen hydrateren (vanuit account)
+   8) Saved percelen hydrateren (vanuit account) – robuust
 --------------------------------- */
 window.addEventListener('parcels:loadSaved', (e) => {
   const items = Array.isArray(e.detail?.parcels) ? e.detail.parcels : [];
 
-  // Oude layers opruimen
+  // 0) Helpers om geometry robuust te maken
+  const toNum = (v) => (typeof v === 'string' ? parseFloat(v) : v);
+  const normCoords = (coords) => {
+    // Recursief: [x,y] → [Number, Number], of diep geneste arrays normaliseren
+    if (!Array.isArray(coords)) return coords;
+    if (coords.length === 2 && coords.every(n => typeof n === 'number' || typeof n === 'string')) {
+      const x = toNum(coords[0]);
+      const y = toNum(coords[1]);
+      return [Number.isFinite(x) ? x : coords[0], Number.isFinite(y) ? y : coords[1]];
+    }
+    return coords.map(normCoords);
+  };
+  const asFeature = (row) => {
+    // Accept: Feature / FeatureCollection / Geometry
+    if (row?.type === 'Feature' && row.geometry) {
+      return { type: 'Feature', geometry: { ...row.geometry, coordinates: normCoords(row.geometry.coordinates) }, properties: {} };
+    }
+    if (row?.type === 'FeatureCollection' && Array.isArray(row.features)) {
+      // Neem alle features over; Leaflet kan direct met FeatureCollection werken
+      return {
+        type: 'FeatureCollection',
+        features: row.features.map(f =>
+          (f?.type === 'Feature' && f.geometry)
+            ? { ...f, geometry: { ...f.geometry, coordinates: normCoords(f.geometry.coordinates) } }
+            : f
+        )
+      };
+    }
+    if (row?.geometry?.type && row.geometry?.coordinates) {
+      return { type: 'Feature', geometry: { ...row.geometry, coordinates: normCoords(row.geometry.coordinates) }, properties: {} };
+    }
+    return null;
+  };
+
+  // 1) Oude lagen opruimen
   try { for (const p of parcels) { if (p.layer) map.removeLayer(p.layer); } } catch {}
   parcels.length = 0;
 
-  // Opbouwen uit opgeslagen JSON
+  // 2) Opbouwen uit opgeslagen JSON → altijd via geldig GeoJSON object
+  const layers = [];
   for (const row of items) {
     let layer = null;
     try {
-      if (row.geometry) {
-        layer = L.geoJSON(row.geometry, { style: { color: '#1e90ff', weight: 2, fillOpacity: 0.25 } }).addTo(map);
+      const featureOrFC = asFeature(row) || asFeature({ geometry: row?.geometry });
+      if (featureOrFC) {
+        layer = L.geoJSON(featureOrFC, { style: { color: '#1e90ff', weight: 2, fillOpacity: 0.25 } }).addTo(map);
+        layers.push(layer);
       }
-    } catch {}
+    } catch (err) {
+      console.warn('Kon opgeslagen geometry niet tekenen:', err, row);
+    }
+
     parcels.push({
       id: row.id || uuid(),
       layer,
@@ -607,13 +647,24 @@ window.addEventListener('parcels:loadSaved', (e) => {
     });
   }
 
-  // Lijst + event + zoom
+  // 3) Lijst + event
   renderParcelList();
   dispatchParcelsChanged();
+
+  // 4) Zoom alleen als er echt lagen zijn
   try {
-    const group = L.featureGroup(parcels.map(p => p.layer).filter(Boolean));
-    if (group.getLayers().length) map.fitBounds(group.getBounds().pad(0.1));
-  } catch {}
+    const group = L.featureGroup(
+      parcels.map(p => p.layer).filter(Boolean).flatMap(l => (l.getLayers ? l.getLayers() : [l]))
+    );
+    if (group.getLayers().length) {
+      map.fitBounds(group.getBounds().pad(0.1));
+    }
+  } catch (err) {
+    console.warn('fitBounds fout:', err);
+  }
+
+  // 5) Voor de zekerheid maat updaten
+  try { map.invalidateSize(); } catch {}
 });
 
 /* ---------------------------------
