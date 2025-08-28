@@ -1,12 +1,9 @@
-// kaart.js — Percelen via KMZ upload plotten + filter/sort + opslaan/laden-ondersteuning
-// - Handmatige klikselectie uitgeschakeld
-// - Wettelijke grondsoort via Netlify function 'wettelijkeGrondsoort'
-// - “Bemestbaar” afgeleid van “Geen norm” in stikstofnormen_tabel2.json
-// - “Review nodig” alleen als gewascode niet in normen voorkomt (badge toont code)
-// - Opp. uit KMZ robuust geparsed: altijd naar ha (m² → /10.000, ha blijft ha)
-// - kmz:linking:start/progress/end events → spinner overlay + (optioneel) knopbusy (zonder blauwe inline styles)
-// - UI: filter Alle / Bemestbaar / Niet-bemestbaar + sorteren op gewas (A–Z / Z–A)
-// - Saved hydrateren: 'parcels:loadSaved' event vult kaart & lijst met percelen uit account
+// kaart.js — Percelen via KMZ upload + filter/sort + opslaan/laden + SELECTIE (kaart ↔ lijst)
+// - Multi-select: klik op polygon of lijstitem togglet selectie
+// - Geselecteerd: donkerblauw in kaart, geel randje in lijst
+// - Klik op lege kaart: deselecteer alles
+// - Filter & sort blijven werken
+// - Geometry/centroid worden bewaard en bij laden robuust getekend
 
 /* ---------------------------------
    1) Map init
@@ -34,8 +31,8 @@ window.addEventListener('resize', () => {
    2) State + events
 --------------------------------- */
 export let parcels = [];
-let currentFilter = 'all';  // 'all' | 'bemestbaar' | 'niet'
-let currentSort   = 'none'; // 'none' | 'gew_asc' | 'gew_desc'
+let currentFilter = 'all';   // 'all' | 'bemestbaar' | 'niet'
+let currentSort   = 'none';  // 'none' | 'gew_asc' | 'gew_desc'
 
 function uuid() { return 'p_' + Math.random().toString(36).slice(2); }
 
@@ -85,28 +82,21 @@ function polygonCentroid(geom) {
   return { lon: xSum / areaSum, lat: ySum / areaSum };
 }
 
-// Opp. parser uit KMZ → altijd als ha teruggeven:
-// - "2.9574 ha" of "2,9574 ha"  → parse als ha
-// - "29574 m²" / "29574 m2"     → / 10.000
-// - "29574" (géén unit)         → aanname m² → / 10.000
+// Opp. parser uit KMZ → altijd als ha teruggeven
 function toHaFromKmz(v) {
   const raw = String(v ?? '').trim().toLowerCase();
   if (!raw) return 0;
-
   const s = raw.replace(/\s+/g, ' ').replace(',', '.');
-
   if (s.includes('ha')) {
     const num = parseFloat(s.replace('ha', '').trim());
     return Number.isFinite(num) ? num : 0;
   }
-
-  // m² of m2 (of geen unit) → altijd / 10.000
   const numeric = parseFloat(s.replace(/[^\d.+-eE]/g, ''));
   if (!Number.isFinite(numeric)) return 0;
   return numeric / 10_000;
 }
 
-// Labels voor tijdelijk grasland (266) uit normen-bestand
+// Tijdelijk grasland labels (266)
 let __tgLabelsCache = null;
 async function loadTijdelijkGrasLabels() {
   if (__tgLabelsCache) return __tgLabelsCache;
@@ -122,7 +112,7 @@ async function loadTijdelijkGrasLabels() {
   }
 }
 
-// Set met gewascodes uit “Geen norm” (→ niet-bemestbaar)
+// “Geen norm” set (→ niet-bemestbaar)
 let __geenNormSet = null;
 async function loadGeenNormSet() {
   if (__geenNormSet) return __geenNormSet;
@@ -138,11 +128,11 @@ async function loadGeenNormSet() {
 async function isBemestbaar(gewasCode) {
   const set = await loadGeenNormSet();
   const codeStr = String(gewasCode ?? '');
-  if (!codeStr) return true; // geen code → bemestbaar aannemen
+  if (!codeStr) return true;
   return !set.has(codeStr);
 }
 
-// Set met ALLE gewascodes uit normen (voor “review nodig”)
+// Alle gewascodes set (voor review)
 let __allGewasCodesSet = null;
 async function loadAllGewasCodesSet() {
   if (__allGewasCodesSet) return __allGewasCodesSet;
@@ -166,23 +156,19 @@ async function codeKnownInNormen(gewasCode) {
   return set.has(codeStr);
 }
 
-// Badge-render helper
+// Badges
 function renderBadges(b) {
   if (!b) return '';
   const pill = (txt, cls) =>
     `<span class="badge ${cls}" style="padding:.15rem .5rem;border-radius:999px;font-size:.75rem;">${txt}</span>`;
   const out = [];
-
   if (typeof b.bemestbaar === 'boolean') {
-    out.push(b.bemestbaar ? pill('bemestbaar', 'badge-info')
-                          : pill('niet-bemestbaar', 'badge-warn'));
+    out.push(b.bemestbaar ? pill('bemestbaar', 'badge-info') : pill('niet-bemestbaar', 'badge-warn'));
   }
-
   if (b.reviewNeeded) {
     const extra = b.missingCode ? ` (code ${String(b.missingCode)})` : '';
     out.push(pill(`review nodig${extra}`, 'badge-warn'));
   }
-
   return out.join('');
 }
 
@@ -191,18 +177,12 @@ function formatHa(v) {
   if (!Number.isFinite(n)) return '';
   return n.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
-
 function escapeHtml(s) {
-  return String(s ?? '')
-    .replace(/&/g,'&amp;')
-    .replace(/</g,'&lt;')
-    .replace(/>/g,'&gt;')
-    .replace(/"/g,'&quot;')
-    .replace(/'/g,'&#39;');
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
 /* ---------------------------------
-   4) Spinner overlay + knop-busy (zonder blauwe inline stijl)
+   4) Spinner overlay + knop-busy
 --------------------------------- */
 let mapSpinnerEl = null;
 function ensureMapSpinner() {
@@ -221,12 +201,9 @@ function ensureMapSpinner() {
     <div class="msg">Koppelen van percelen…</div>
   `;
   wrap.appendChild(inner);
-
-  // keyframes (inline)
   const style = document.createElement('style');
   style.textContent = `@keyframes spin{to{transform:rotate(360deg)}}`;
   document.head.appendChild(style);
-
   mapEl.style.position = 'relative';
   mapEl.appendChild(wrap);
   mapSpinnerEl = wrap;
@@ -238,27 +215,14 @@ function setMapSpinner(visible, text) {
   const msg = el.querySelector('.msg');
   if (msg && text) msg.textContent = text;
 }
-
-// Optioneel: knop met id #kmz-add of #rvo-add busy-state (zonder inline kleuren)
 function setAddButtonLoading(isLoading, progressText) {
   const btn = document.querySelector('#kmz-add, #rvo-add');
   if (!btn) return;
-
-  // Gebruik het bestaande label in de knop (teller blijft werken)
   const labelEl = btn.querySelector('#kmz-label') || document.getElementById('kmz-label');
-
-  // Opruimen van inline styling/spinners van oudere versies
-  btn.style.border = '';
-  btn.style.background = '';
-  btn.style.color = '';
-  btn.style.boxShadow = '';
-  btn.style.padding = '';
-  btn.style.borderRadius = '';
-  btn.style.opacity = '';
+  btn.style.border = btn.style.background = btn.style.color = btn.style.boxShadow =
+  btn.style.padding = btn.style.borderRadius = btn.style.opacity = '';
   btn.removeAttribute('aria-busy');
-  const sp = btn.querySelector('.btnspin');
-  if (sp) sp.remove();
-
+  const sp = btn.querySelector('.btnspin'); if (sp) sp.remove();
   if (isLoading) {
     btn.disabled = true;
     btn.setAttribute('aria-busy', 'true');
@@ -271,10 +235,64 @@ function setAddButtonLoading(isLoading, progressText) {
 }
 
 /* ---------------------------------
-   5) UI-lijst + filter/sort
+   5) Selectie & stijl
+--------------------------------- */
+function matchesFilter(p, filterKey) {
+  const bem = !!p?.badges?.bemestbaar;
+  if (filterKey === 'bemestbaar') return bem;
+  if (filterKey === 'niet')       return !bem;
+  return true;
+}
+function parcelBaseStyle(p) {
+  // Niet-geselecteerd: blauw; geselecteerd: donkerder blauw
+  if (p._selected) {
+    return { color:'#0b63c7', opacity:1, weight:3, fillOpacity:0.35 };
+  }
+  // Dimming als filter actief en dit perceel niet matcht
+  const show = matchesFilter(p, currentFilter);
+  return {
+    color:'#1e90ff',
+    opacity: show ? 1 : 0.15,
+    weight: show ? 2 : 1,
+    fillOpacity: show ? 0.25 : 0.04
+  };
+}
+function setLayerStyle(layer, styleObj) {
+  try {
+    if (layer && layer.setStyle) layer.setStyle(styleObj);
+    else if (layer && layer.eachLayer) layer.eachLayer(l => l.setStyle && l.setStyle(styleObj));
+  } catch {}
+}
+function applyParcelStyle(p) {
+  setLayerStyle(p.layer, parcelBaseStyle(p));
+  // lijstmarkering
+  const el = document.querySelector(`.parcel-item[data-id="${p.id}"]`);
+  if (el) {
+    if (p._selected) el.classList.add('is-selected');
+    else el.classList.remove('is-selected');
+  }
+}
+function toggleParcelSelectedById(id, centerOn = true) {
+  const p = parcels.find(x => x.id === id);
+  if (!p) return;
+  p._selected = !p._selected;
+  applyParcelStyle(p);
+  if (centerOn && p.layer && p.layer.getBounds) {
+    try { map.fitBounds(p.layer.getBounds().pad(0.2)); } catch {}
+  }
+}
+function clearSelectedParcels() {
+  let changed = false;
+  for (const p of parcels) {
+    if (p._selected) { p._selected = false; applyParcelStyle(p); changed = true; }
+  }
+  if (changed) dispatchParcelsChanged();
+}
+
+/* ---------------------------------
+   6) UI-lijst + filter/sort
 --------------------------------- */
 function ensureFilterUI() {
-  // 1) Zoek bestaande balk of maak ‘m aan
   const section = document.querySelector('.parcel-list-section');
   if (!section) return;
 
@@ -285,7 +303,6 @@ function ensureFilterUI() {
     section.insertBefore(wrap, section.firstChild);
   }
 
-  // 2) Filter-select
   let filterSel = wrap.querySelector('#parcelFilter');
   if (!filterSel) {
     const label = document.createElement('label');
@@ -305,7 +322,6 @@ function ensureFilterUI() {
     wrap.appendChild(label);
     wrap.appendChild(filterSel);
   }
-
   if (!filterSel.dataset.bound) {
     filterSel.addEventListener('change', () => applyParcelFilter(filterSel.value));
     filterSel.dataset.bound = '1';
@@ -313,7 +329,6 @@ function ensureFilterUI() {
   filterSel.value = currentFilter || 'all';
   wrap.hidden = false;
 
-  // 3) Sorteer-select (A–Z / Z–A op gewas)
   let sortSel = wrap.querySelector('#parcelSort');
   if (!sortSel) {
     sortSel = document.createElement('select');
@@ -336,13 +351,10 @@ function ensureFilterUI() {
 
 function renderParcelList() {
   ensureFilterUI();
-
   const container = document.getElementById('parcelList');
   if (!container) return;
-
   container.innerHTML = '';
 
-  // respecteer sortering o.b.v. gewas
   const listParcels = [...parcels];
   if (currentSort === 'gew_asc' || currentSort === 'gew_desc') {
     listParcels.sort((a, b) => {
@@ -357,14 +369,13 @@ function renderParcelList() {
     const div = document.createElement('div');
     div.className = 'parcel-item';
     div.dataset.id = p.id;
-
     div.style.cssText = `
       border:1px solid #eceff3; border-radius:12px; padding:.65rem .8rem; margin:.5rem 0;
-      box-shadow: 0 1px 1px rgba(16,24,40,.04);
+      box-shadow: 0 1px 1px rgba(16,24,40,.04); cursor:pointer;
     `;
+    if (p._selected) div.classList.add('is-selected');
 
     const isTG = Number(p.gewasCode) === 266;
-
     div.innerHTML = `
       <div style="display:flex;align-items:center;justify-content:space-between;gap:.75rem;">
         <h3 style="margin:0; font-size:1rem; font-weight:600; line-height:1.2;">
@@ -388,6 +399,12 @@ function renderParcelList() {
       ` : ``}
     `;
 
+    // Klik op lijstitem → toggle selectie + center
+    div.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      toggleParcelSelectedById(p.id, true);
+    });
+
     // 266-varianten vullen + handler
     if (isTG) {
       const sel = div.querySelector('.tg-variant');
@@ -397,8 +414,9 @@ function renderParcelList() {
           return `<option ${selAttr} value="${escapeHtml(l)}">${escapeHtml(l)}</option>`;
         }).join('');
       });
-      sel.addEventListener('change', () => {
-        p.gewasNaam = sel.value; // naam-override → berekening.js matcht via naam
+      sel.addEventListener('change', (e) => {
+        e.stopPropagation();
+        p.gewasNaam = sel.value;
         dispatchParcelsChanged();
       });
     }
@@ -406,21 +424,14 @@ function renderParcelList() {
     container.append(div);
   });
 
-  applyParcelFilter(currentFilter);
-}
-
-// Filter logica (alleen weergave; berekening blijft op alle parcels gebaseerd)
-function matchesFilter(p, filterKey) {
-  const bem = !!p?.badges?.bemestbaar;
-  if (filterKey === 'bemestbaar')   return bem;
-  if (filterKey === 'niet')         return !bem;
-  return true; // 'all'
+  applyParcelFilter(currentFilter); // zet zichtbaarheid + dimmen
+  // na render: stijl nog eens toepassen (incl. selectie)
+  for (const p of parcels) applyParcelStyle(p);
 }
 
 function applyParcelFilter(filterKey = 'all') {
   currentFilter = filterKey;
 
-  // lijst verbergen/tonen
   const container = document.getElementById('parcelList');
   if (container) {
     for (const el of container.querySelectorAll('.parcel-item')) {
@@ -430,36 +441,17 @@ function applyParcelFilter(filterKey = 'all') {
     }
   }
 
-  // kaartlagen dimmen (filter ≠ all → dim overige)
-  for (const p of parcels) {
-    const show = matchesFilter(p, filterKey);
-    try {
-      p.layer.setStyle({
-        opacity: show ? 1 : 0.15,
-        weight: show ? 2 : 1,
-        fillOpacity: show ? 0.25 : 0.04
-      });
-      if (show && p.layer.bringToFront) p.layer.bringToFront();
-    } catch {}
-  }
+  for (const p of parcels) applyParcelStyle(p); // dim/undim + selectie
 }
 
 function applyParcelSort(sortKey = 'none') {
   currentSort = sortKey;
-  renderParcelList();              // lijst opnieuw
-  applyParcelFilter(currentFilter); // huidig filter behouden
+  renderParcelList();
+  applyParcelFilter(currentFilter);
 }
 
 /* ---------------------------------
-   6) Handmatige klikselectie uit (KMZ-only)
---------------------------------- */
-map.on('click', () => { /* handmatige selectie uitgeschakeld */ });
-
-/* ---------------------------------
-   7) KMZ-only koppeling
-   Verwacht:
-     window.__KMZ_RAW = [{ sectorId, gewasCode, gewasNaam, ha, ... }]
-     window.__KMZ_GEO.byId[sectorId] = Feature (Polygon/MultiPolygon)
+   7) KMZ-only koppeling (upload)
 --------------------------------- */
 window.addEventListener('rvo:imported', async () => {
   try {
@@ -507,18 +499,25 @@ window.addEventListener('rvo:imported', async () => {
       }
 
       // Bemestbaar / Review nodig
-      const bem = await isBemestbaar(row.gewasCode);
+      const bem   = await isBemestbaar(row.gewasCode);
       const known = await codeKnownInNormen(row.gewasCode);
       const reviewNeeded = !known;
 
-      // Teken laag
-      const layer = L.geoJSON(feat.geometry, { style: { color: '#1e90ff', weight: 2, fillOpacity: 0.25 } }).addTo(map);
+      const id = uuid();
+      const layer = L.geoJSON(feat.geometry, {
+        style: () => ({ color:'#1e90ff', weight:2, fillOpacity:0.25, opacity:1 }),
+        onEachFeature: (_f, lyr) => {
+          lyr.on('click', (ev) => {
+            L.DomEvent.stop(ev);
+            toggleParcelSelectedById(id, false);
+          });
+        }
+      }).addTo(map);
 
-      // Oppervlakte: KMZ → ha (getal)
       const haNum = toHaFromKmz(row.ha);
 
       parcels.push({
-        id: uuid(),
+        id,
         layer,
         name: feat.properties?.weergavenaam || feat.properties?.identificatie || row.sectorId,
         ha: haNum,
@@ -533,10 +532,11 @@ window.addEventListener('rvo:imported', async () => {
           missingCode: reviewNeeded ? String(row.gewasCode ?? '') : null,
           isTG: Number(row.gewasCode) === 266
         },
-        centroid: c || null,             // <-- centroid opslaan
-        geometry: feat.geometry || null,  // <-- volledige GeoJSON opslaan
+        centroid: c || null,
+        geometry: feat.geometry || null,
         _meta:  { sectorId: row.sectorId },
-        _source:'upload-kmz'
+        _source:'upload-kmz',
+        _selected:false
       });
 
       added++; done++;
@@ -547,17 +547,14 @@ window.addEventListener('rvo:imported', async () => {
       }
     }
 
-    // Render + event
     renderParcelList();
     dispatchParcelsChanged();
 
-    // Zoom naar selectie
     try {
       const group = L.featureGroup(parcels.map(p => p.layer).filter(Boolean));
       if (group.getLayers().length) map.fitBounds(group.getBounds().pad(0.1));
     } catch {}
 
-    // Einde progress
     window.dispatchEvent(new CustomEvent('kmz:linking:end', { detail: { added } }));
     setMapSpinner(false);
     setAddButtonLoading(false);
@@ -577,25 +574,21 @@ window.addEventListener('rvo:imported', async () => {
 window.addEventListener('parcels:loadSaved', (e) => {
   const items = Array.isArray(e.detail?.parcels) ? e.detail.parcels : [];
 
-  // 0) Helpers om geometry robuust te maken
+  // Helpers: normaliseer coördinaten en bouw altijd een geldig GeoJSON object
   const toNum = (v) => (typeof v === 'string' ? parseFloat(v) : v);
   const normCoords = (coords) => {
-    // Recursief: [x,y] → [Number, Number], of diep geneste arrays normaliseren
     if (!Array.isArray(coords)) return coords;
     if (coords.length === 2 && coords.every(n => typeof n === 'number' || typeof n === 'string')) {
-      const x = toNum(coords[0]);
-      const y = toNum(coords[1]);
+      const x = toNum(coords[0]); const y = toNum(coords[1]);
       return [Number.isFinite(x) ? x : coords[0], Number.isFinite(y) ? y : coords[1]];
     }
     return coords.map(normCoords);
   };
   const asFeature = (row) => {
-    // Accept: Feature / FeatureCollection / Geometry
     if (row?.type === 'Feature' && row.geometry) {
       return { type: 'Feature', geometry: { ...row.geometry, coordinates: normCoords(row.geometry.coordinates) }, properties: {} };
     }
     if (row?.type === 'FeatureCollection' && Array.isArray(row.features)) {
-      // Neem alle features over; Leaflet kan direct met FeatureCollection werken
       return {
         type: 'FeatureCollection',
         features: row.features.map(f =>
@@ -611,26 +604,33 @@ window.addEventListener('parcels:loadSaved', (e) => {
     return null;
   };
 
-  // 1) Oude lagen opruimen
+  // Oude lagen opruimen
   try { for (const p of parcels) { if (p.layer) map.removeLayer(p.layer); } } catch {}
   parcels.length = 0;
 
-  // 2) Opbouwen uit opgeslagen JSON → altijd via geldig GeoJSON object
-  const layers = [];
+  // Opbouwen uit opgeslagen JSON → altijd via geldig GeoJSON object
   for (const row of items) {
+    const id = row.id || uuid();
     let layer = null;
     try {
       const featureOrFC = asFeature(row) || asFeature({ geometry: row?.geometry });
       if (featureOrFC) {
-        layer = L.geoJSON(featureOrFC, { style: { color: '#1e90ff', weight: 2, fillOpacity: 0.25 } }).addTo(map);
-        layers.push(layer);
+        layer = L.geoJSON(featureOrFC, {
+          style: () => ({ color:'#1e90ff', weight:2, fillOpacity:0.25, opacity:1 }),
+          onEachFeature: (_f, lyr) => {
+            lyr.on('click', (ev) => {
+              L.DomEvent.stop(ev);
+              toggleParcelSelectedById(id, false);
+            });
+          }
+        }).addTo(map);
       }
     } catch (err) {
       console.warn('Kon opgeslagen geometry niet tekenen:', err, row);
     }
 
     parcels.push({
-      id: row.id || uuid(),
+      id,
       layer,
       name: row.name ?? '',
       ha: Number(row.ha) || 0,
@@ -643,50 +643,43 @@ window.addEventListener('parcels:loadSaved', (e) => {
       centroid: row.centroid ?? null,
       geometry: row.geometry ?? null,
       _meta: row._meta ?? {},
-      _source: 'saved'
+      _source: 'saved',
+      _selected:false
     });
   }
 
-  // 3) Lijst + event
   renderParcelList();
   dispatchParcelsChanged();
 
-  // 4) Zoom alleen als er echt lagen zijn
   try {
-    const group = L.featureGroup(
-      parcels.map(p => p.layer).filter(Boolean).flatMap(l => (l.getLayers ? l.getLayers() : [l]))
-    );
-    if (group.getLayers().length) {
-      map.fitBounds(group.getBounds().pad(0.1));
-    }
+    const group = L.featureGroup(parcels.map(p => p.layer).filter(Boolean));
+    if (group.getLayers().length) map.fitBounds(group.getBounds().pad(0.1));
   } catch (err) {
     console.warn('fitBounds fout:', err);
   }
 
-  // 5) Voor de zekerheid maat updaten
   try { map.invalidateSize(); } catch {}
 });
 
 /* ---------------------------------
-   9) Klikselectie uit (nogmaals voor de zekerheid) + API
+   9) Kaartclick → deselect all
 --------------------------------- */
-map.on('click', () => { /* handmatige selectie uitgeschakeld */ });
+map.on('click', () => { clearSelectedParcels(); });
 
+/* ---------------------------------
+   10) API
+--------------------------------- */
 export function clearAllParcels() {
   try {
-    for (const p of parcels) {
-      try { if (p.layer && map && map.removeLayer) map.removeLayer(p.layer); } catch {}
-    }
+    for (const p of parcels) { try { if (p.layer && map && map.removeLayer) map.removeLayer(p.layer); } catch {} }
     parcels.length = 0;
     renderParcelList();
     dispatchParcelsChanged();
-  } catch (e) {
-    console.warn('clearAllParcels():', e);
-  }
+  } catch (e) { console.warn('clearAllParcels():', e); }
 }
 
 /* ---------------------------------
-   10) Init
+   11) Init
 --------------------------------- */
 renderParcelList();
 dispatchParcelsChanged();
