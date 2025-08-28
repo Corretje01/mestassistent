@@ -8,6 +8,15 @@
   <link rel="stylesheet" href="style.css" />
   <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+
+  <!-- Selectie marker in de lijst -->
+  <style>
+    /* Geel randje + subtiele glow bij geselecteerde lijstkaart */
+    .parcel-item.is-selected{
+      border-color: var(--color-yellow, #f1c40f) !important;
+      box-shadow: 0 0 0 2px rgba(241,196,15,.35) inset, 0 1px 1px rgba(16,24,40,.06);
+    }
+  </style>
 </head>
 <body>
   <header class="site-header">
@@ -145,7 +154,6 @@
       btnAdd.classList.remove('is-busy','busy','loading','is-loading');
       label.textContent = text || 'Koppel percelen';
     }
-
     function updateDeleteVisibility() {
       const hasParcels = Array.isArray(parcels) && parcels.length > 0;
       btnDel.hidden = !hasParcels;
@@ -156,7 +164,6 @@
       const user = session?.user;
       if (!user) { alert('Log in om percelen op te slaan.'); return; }
 
-      // Minimaliseer payload (geen Leaflet layers)
       const minimal = parcels.map(p => ({
         id: p.id,
         name: p.name ?? null,
@@ -166,11 +173,11 @@
         grondsoort: p.grondsoort ?? null,
         badges: p.badges ?? null,
         centroid: p.centroid ?? null,
-        geometry: p.geometry ?? null
+        geometry: p.geometry ?? null   // essentieel voor tekenen na refresh
       }));
       const totalArea = minimal.reduce((s,p)=> s + (Number(p.ha)||0), 0);
 
-      // (optioneel) upload het ruwe KMZ-bestand (bucket 'kmz')
+      // (optioneel) ruwe KMZ uploaden
       let kmz_path = null;
       const kmzFile = fileInput?.files?.[0];
       if (kmzFile) {
@@ -205,7 +212,6 @@
       const user = session?.user;
       if (!user) { alert('Je moet ingelogd zijn om te verwijderen.'); return; }
 
-      // Haal kmz_path op om bestand ook te kunnen verwijderen
       let kmz_path = null;
       try {
         const { data } = await supabase
@@ -216,49 +222,37 @@
         kmz_path = data?.kmz_path || null;
       } catch {}
 
-      // Verwijder DB-record
       const { error } = await supabase
         .from('user_parcel_sets')
         .delete()
         .eq('user_id', user.id);
       if (error) { console.error(error); alert('Verwijderen uit je account is niet gelukt.'); return; }
 
-      // (optioneel) verwijder ook het KMZ-bestand
-      if (kmz_path) {
-        try { await supabase.storage.from('kmz').remove([kmz_path]); } catch {}
-      }
+      if (kmz_path) { try { await supabase.storage.from('kmz').remove([kmz_path]); } catch {} }
 
-      // UI leegmaken
       clearAllParcels();
       fileInput.value = '';
       label.textContent = 'Koppel percelen';
       updateDeleteVisibility();
-
-      // filterbalk verbergen
-      const bar = document.getElementById('parcelFilterBar');
-      if (bar) bar.hidden = true;
+      const bar = document.getElementById('parcelFilterBar'); if (bar) bar.hidden = true;
     }
 
-    // Events van KMZ-koppeling
+    // KMZ events
     window.addEventListener('kmz:linking:start', (e) => {
       const total = e.detail?.total ?? 0;
       setBusy(true, `Koppelen… 0/${total}`);
     });
-
     window.addEventListener('kmz:linking:progress', (e) => {
       const { done, total } = e.detail || {};
-      if (Number.isFinite(done) && Number.isFinite(total)) {
-        label.textContent = `Koppelen… ${done}/${total}`;
-      }
+      if (Number.isFinite(done) && Number.isFinite(total)) label.textContent = `Koppelen… ${done}/${total}`;
     });
-
     window.addEventListener('kmz:linking:end', async () => {
       setBusy(false, 'Koppel percelen');
       updateDeleteVisibility();
       try { await saveParcelsToAccount(); } catch {}
     });
 
-    // Toon filterbar zodra er percelen zijn
+    // Filterbar tonen zodra er percelen zijn
     window.addEventListener('parcels:changed', (e) => {
       const bar = document.getElementById('parcelFilterBar');
       const list = e.detail?.parcels || [];
@@ -266,7 +260,7 @@
       updateDeleteVisibility();
     });
 
-    // Klik handler delete
+    // Verwijderen
     btnDel.addEventListener('click', deleteParcelsFromAccount);
   </script>
 
@@ -275,15 +269,10 @@
     import { supabase } from './supabaseClient.js';
     document.addEventListener('DOMContentLoaded', async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        window.location.replace('/account.html?signin=1');
-        return;
-      }
-      // Footer jaartal
-      const y = document.getElementById('year');
-      if (y) y.textContent = new Date().getFullYear();
+      if (!session) { window.location.replace('/account.html?signin=1'); return; }
 
-      // Opgeslagen percelen ophalen en in kaart/lijst zetten
+      const y = document.getElementById('year'); if (y) y.textContent = new Date().getFullYear();
+
       try {
         const { data } = await supabase
           .from('user_parcel_sets')
@@ -292,7 +281,6 @@
           .single();
 
         const saved = Array.isArray(data?.parcels) ? data.parcels : [];
-        // kaart.js luistert hierop (zie 'parcels:loadSaved' listener)
         window.dispatchEvent(new CustomEvent('parcels:loadSaved', { detail: { parcels: saved } }));
 
         if (saved.length) {
