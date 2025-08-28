@@ -533,8 +533,8 @@ window.addEventListener('rvo:imported', async () => {
           missingCode: reviewNeeded ? String(row.gewasCode ?? '') : null,
           isTG: Number(row.gewasCode) === 266
         },
-        centroid: c || null,
-        geometry: feat.geometry || null,
+        centroid: c || null,             // <-- centroid opslaan
+        geometry: feat.geometry || null,  // <-- volledige GeoJSON opslaan
         _meta:  { sectorId: row.sectorId },
         _source:'upload-kmz'
       });
