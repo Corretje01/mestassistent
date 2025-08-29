@@ -476,6 +476,8 @@ body.is-auth .guest-only{display:none!important}
   scroll-behavior:smooth;
   padding-right:.25rem;             /* ruimte voor scrollbar */
   padding-bottom:2.75rem;           /* ruimte zodat knoppen niets overlappen */
+  -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable both-edges;
 }
 
 /* Scrollbar (webkit) – subtiel */
@@ -503,6 +505,7 @@ body.is-auth .guest-only{display:none!important}
   background:#fff;
   box-shadow:0 2px 8px rgba(16,24,40,.08);
   cursor:pointer;
+  touch-action: manipulation;
 }
 .scroll-btn:hover{ background:#f6f7f9; }
 .scroll-btn:active{ transform:translateY(1px); }
