@@ -449,3 +449,67 @@ body.is-auth .guest-only{display:none!important}
   content: none !important;
   display: none !important;
 }
+
+/* ===== Scrollbaar paneel voor geselecteerde percelen ===== */
+.parcel-list-section{ position:relative; }
+
+.parcel-panel{
+  display:flex;
+  flex-direction:column;
+  gap:.5rem;
+  /* Houd kaart in beeld: cap de hoogte van de lijst */
+  max-height: clamp(240px, 42vh, 520px);
+}
+
+.parcel-panel .panel-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:.75rem;
+  margin-bottom:.25rem;
+}
+
+.parcel-scroll{
+  flex:1;
+  overflow:auto;
+  overscroll-behavior:contain;
+  scroll-behavior:smooth;
+  padding-right:.25rem;             /* ruimte voor scrollbar */
+  padding-bottom:2.75rem;           /* ruimte zodat knoppen niets overlappen */
+}
+
+/* Scrollbar (webkit) – subtiel */
+.parcel-scroll::-webkit-scrollbar{ width:10px; }
+.parcel-scroll::-webkit-scrollbar-thumb{
+  background:#d7dbe3; border-radius:999px; border:2px solid transparent; background-clip:content-box;
+}
+.parcel-scroll::-webkit-scrollbar-track{ background:transparent; }
+
+/* Up/Down-knoppen: floating, mobielvriendelijk (44px+) */
+.parcel-scroll-controls{
+  position:absolute;
+  right:12px;
+  bottom:12px;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  z-index:2;
+}
+.scroll-btn{
+  display:inline-flex; align-items:center; justify-content:center;
+  width:44px; height:44px;
+  border-radius:999px;
+  border:1px solid #e5e7eb;
+  background:#fff;
+  box-shadow:0 2px 8px rgba(16,24,40,.08);
+  cursor:pointer;
+}
+.scroll-btn:hover{ background:#f6f7f9; }
+.scroll-btn:active{ transform:translateY(1px); }
+.scroll-btn:focus-visible{ outline:3px solid rgba(241,196,15,.6); outline-offset:2px; }
+.scroll-btn svg{ width:20px; height:20px; }
+
+@media (max-width:640px){
+  .parcel-panel{ max-height: clamp(220px, 40vh, 420px); }
+  .scroll-btn{ width:48px; height:48px; }
+}
