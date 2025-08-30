@@ -179,18 +179,6 @@ a.btn:focus-visible,.btn:focus-visible,.nav-links a:focus-visible,.btn-login:foc
   background-size:12px 12px;background-position:center;background-repeat:no-repeat;background-color:transparent;border:none
 }
 
-/* ============ Responsiviteit (globaal) ============ */
-@media (max-width:768px){
-  .navbar,.container{padding:.75rem}
-  .nav-links{flex-direction:column}
-  .nav-links li{margin-left:0;margin-bottom:.5rem}
-  .nav-links li:last-child{margin-bottom:0}
-  .btn-primary,.btn-danger{width:100%}
-  .category{gap:.5rem}
-  .category__label{width:100%;margin-bottom:.25rem}
-  .btn.mest-btn{margin:0;width:100%;height:44px;text-align:center;box-sizing:border-box}
-}
-
 /* ============ Animaties & utilities ============ */
 @keyframes shake{0%{transform:translateX(0)}25%{transform:translateX(-4px)}50%{transform:translateX(4px)}75%{transform:translateX(-4px)}100%{transform:translateX(0)}}
 .shake{animation:shake .3s ease-in-out}
@@ -201,85 +189,25 @@ a.btn:focus-visible,.btn:focus-visible,.nav-links a:focus-visible,.btn-login:foc
 body.is-guest .auth-only{display:none!important}
 body.is-auth .guest-only{display:none!important}
 
-/* =========================================================
-   UPLOADS – Kaarten (i.p.v. tabel)
-========================================================= */
-
-/* Grid */
-.uploads-grid{display:grid;grid-template-columns:1fr;gap:1rem}
-@media (min-width:800px){.uploads-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-.uploads-grid--airy{display:grid;gap:.75rem}
-
-/* Card */
-.upload-card{position:relative;border:1px solid #eceff3;border-radius:12px;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.03)}
-.upload-card--airy{padding:1.1rem 1.25rem}
-
-/* Iconen */
-.card-close,.card-save{
-  position:absolute;top:.4rem;width:26px;height:26px;z-index:2;display:inline-flex;align-items:center;justify-content:center;
-  border:1px solid #eaecef;border-radius:8px;background:#fff;color:#6b7280;cursor:pointer
-}
-.card-close{left:.45rem;font-weight:700;font-size:16px;line-height:1;transition:background .15s,border-color .15s,color .15s,transform .05s}
-.card-close:hover:not([disabled]),.card-close:focus-visible{background:var(--color-yellow);border-color:var(--color-yellow);color:var(--color-black);outline:none}
-.card-close:active:not([disabled]){transform:scale(.98)}
-.card-save{right:.45rem;display:none;font-weight:700;font-size:16px;line-height:1;transition:background .15s,border-color .15s,color .15s,transform .05s}
-.upload-card.is-dirty .card-save{display:inline-flex}
-.upload-card.is-saving .card-save{pointer-events:none;opacity:.65}
-.upload-card.is-saved .card-save{display:inline-flex;background:#e6f6ec;color:#0b7a3e;border-color:#bbebd2}
-.card-save:hover:not([disabled]){background:var(--color-yellow);border-color:var(--color-yellow);color:var(--color-black)}
-.card-save:active:not([disabled]){transform:scale(.98)}
-.card-save[disabled]{opacity:.45;cursor:not-allowed}
-
-/* Head & meta */
-.upload-card__head{
-  display:flex;flex-direction:column;align-items:flex-start;gap:.25rem;margin-bottom:.8rem;
-  padding-left:var(--card-left-pad);padding-right:var(--card-right-pad);
-}
-.upload-card .title{font-size:var(--fs-card);font-weight:700;letter-spacing:.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.upload-card__head .status{margin:0}
-.upload-card__head .status .badge{font-size:calc(var(--fs-card) - .08rem);line-height:1.2}
-.upload-card__head .status-wrap{display:flex;align-items:center;gap:.35rem}
-.upload-card__meta{display:grid;row-gap:10px;margin:.5rem 0 .6rem;padding-left:var(--card-left-pad)}
-.meta-row{display:grid;grid-template-columns:var(--meta-label-w) 1fr;gap:.5rem .8rem;align-items:start;margin:0}
-.meta-row--analysis{margin:14px 0}
-.meta-label{color:#374151;font-size:var(--fs-card);font-weight:600;white-space:nowrap}
-.meta-value{color:#1f2937;font-size:var(--fs-card)}
-.analysis-pills{display:flex;align-items:center;flex-wrap:wrap;gap:.55rem .6rem;margin:0}
-.pill{display:inline-flex;align-items:center;gap:.4rem;padding:.3rem .7rem;border-radius:999px;background:#f7f8fb;border:1px solid #eef1f6;color:#1f2937;font-size:var(--fs-card)}
-.pill-k{font-weight:700;color:#111827}
-.pill-v{color:#374151}
-
-/* Inline formulier */
-.upload-card__form{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;padding-left:var(--card-left-pad);align-items:end}
-@media (max-width:640px){.upload-card__form{grid-template-columns:1fr}}
-.field-sm{display:flex;flex-direction:column;gap:8px}
-.label-sm{font-size:var(--fs-card);color:#374151;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.input--sm{padding:.75rem .9rem;border-radius:10px;border:1px solid #e5e7eb;line-height:1.25;font-size:var(--fs-card);background:#fff;color:#111827;width:100%}
-.chip{display:inline-flex;align-items:center;gap:.35rem;font-size:.8rem;padding:.2rem .6rem;border-radius:999px;background:#f3f4f6;color:#4b5563}
-.chip .dot{width:6px;height:6px;border-radius:50%;background:#9ca3af}
-.chip.ok .dot{background:#0ea5a0}
-.chip.none .dot{background:#9ca3af}
-@media (max-width:640px){
-  .upload-card__meta{row-gap:14px}
-  .upload-card__meta .meta-row{grid-template-columns:1fr!important;gap:.25rem 0}
-  .upload-card__meta .meta-label{margin-bottom:.25rem}
-}
-#optimaliseer-btn{margin-top:1rem;display:none!important}
-
 /* === Kaart === */
 #map{
   height:clamp(340px,52vh,560px);width:100%;border-radius:12px;overflow:hidden;box-shadow:0 6px 18px rgba(0,0,0,.06);margin:0 0 1rem;
 }
 .leaflet-container{font:inherit}
 
-/* ===== Filters (boven lijst) ===== */
-.parcel-filter{
+/* ===== Toolbar (filter + zoeken) ===== */
+.parcel-toolbar,
+.parcel-filter{ /* (alias voor oude class) */
   display:flex;align-items:center;justify-content:flex-end;gap:.5rem;margin:.25rem 0 .5rem;max-width:100%;flex-wrap:wrap;
 }
 .pf-select{
   font-size:.9rem;padding:.35rem .6rem;border:1px solid #e4e4e7;border-radius:8px;background:#fff;color:#111827;
 }
-.pf-select:focus{outline:none;box-shadow:0 0 0 3px rgba(17,24,39,.06);border-color:#d4d4d8}
+.pf-search{
+  font-size:.9rem;padding:.35rem .6rem;border:1px solid #e4e4e7;border-radius:8px;background:#fff;color:#111827;
+  min-width:200px;flex:1 1 220px;max-width:100%;
+}
+.pf-select:focus,.pf-search:focus{outline:none;box-shadow:0 0 0 3px rgba(17,24,39,.06);border-color:#d4d4d8}
 
 /* toegankelijkheid */
 .sr-only{
@@ -287,6 +215,22 @@ body.is-auth .guest-only{display:none!important}
 }
 
 /* ===== Lijst geselecteerde percelen ===== */
+.parcel-list-section{position:relative}
+.parcel-panel{display:flex;flex-direction:column;gap:.5rem;max-height:clamp(240px,42vh,520px)}
+.parcel-panel .panel-head{display:flex;align-items:center;justify-content:space-between;gap:.75rem;margin-bottom:.25rem}
+
+.parcel-scroll{
+  flex:1;overflow:auto;overflow-x:hidden;overscroll-behavior:contain;scroll-behavior:smooth;
+  padding-right:.25rem;padding-bottom:.5rem;
+  -webkit-overflow-scrolling:touch;scrollbar-gutter:stable both-edges;
+}
+@supports (padding:max(0px)){
+  .parcel-scroll{padding-bottom:max(.5rem,env(safe-area-inset-bottom))}
+}
+.parcel-scroll::-webkit-scrollbar{width:10px}
+.parcel-scroll::-webkit-scrollbar-thumb{background:#d7dbe3;border-radius:999px;border:2px solid transparent;background-clip:content-box}
+.parcel-scroll::-webkit-scrollbar-track{background:transparent}
+
 .parcel-list{display:flex;flex-direction:column;gap:.5rem;min-width:0}
 .parcel-item{padding:.5rem .25rem;border-bottom:1px solid #ededed}
 .parcel-item:last-child{border-bottom:0}
@@ -295,10 +239,16 @@ body.is-auth .guest-only{display:none!important}
   box-shadow:0 0 0 2px rgba(241,196,15,.35) inset,0 1px 1px rgba(16,24,40,.06);
 }
 
-/* KMZ upload blok */
-.kmz-upload{display:flex;flex-direction:column;align-items:flex-start;gap:.6rem}
+.title-row{display:flex;align-items:center;justify-content:space-between;gap:.75rem}
+.parcel-title{margin:0;font-size:1rem;font-weight:600;line-height:1.2;max-width:100%;word-break:break-word;overflow-wrap:anywhere}
+.badge-row{display:flex;flex-wrap:wrap;gap:.35rem}
+.meta-list{
+  margin:.35rem 0 0;color:#444;font-size:.92rem;line-height:1.45;display:flex;flex-wrap:wrap;gap:.25rem .75rem
+}
+.meta-item{white-space:normal}
 
-/* KMZ-knop (consistent met .btn-primary) */
+/* ===== KMZ upload ===== */
+.kmz-upload{display:flex;flex-direction:column;align-items:flex-start;gap:.6rem}
 .btn-brand{
   background:var(--color-yellow);color:var(--color-black);border:none;padding:.75rem 1.5rem;border-radius:6px;font-weight:600;cursor:pointer;
   transition:background .2s,transform .08s,box-shadow .18s
@@ -309,44 +259,16 @@ body.is-auth .guest-only{display:none!important}
 .btn-brand:disabled,.btn-brand[aria-busy="true"]{background:var(--color-yellow);color:var(--color-black);opacity:.7;box-shadow:none;transform:none;cursor:not-allowed}
 .btn-brand::after,.btn-brand .spinner,.btn-brand .spinner-border,.btn-brand .spinner-grow,.btn-brand .btnspin,.btn-brand .loading,.btn-brand .busy{content:none!important;display:none!important}
 
-/* Scrollbaar paneel */
-.parcel-list-section{position:relative}
-.parcel-panel{display:flex;flex-direction:column;gap:.5rem;max-height:clamp(240px,42vh,520px)}
-.parcel-panel .panel-head{display:flex;align-items:center;justify-content:space-between;gap:.75rem;margin-bottom:.25rem}
-
-/* Scrollgebied (één geconsolideerde rule) */
-.parcel-scroll{
-  flex:1;overflow:auto;overflow-x:hidden;overscroll-behavior:contain;scroll-behavior:smooth;
-  padding-right:.25rem;padding-bottom:.5rem;
-  -webkit-overflow-scrolling:touch;scrollbar-gutter:stable both-edges;
-}
-@supports (padding:max(0px)){
-  .parcel-scroll{padding-bottom:max(.5rem,env(safe-area-inset-bottom))}
-}
-
-/* Scrollbar (webkit) – subtiel */
-.parcel-scroll::-webkit-scrollbar{width:10px}
-.parcel-scroll::-webkit-scrollbar-thumb{background:#d7dbe3;border-radius:999px;border:2px solid transparent;background-clip:content-box}
-.parcel-scroll::-webkit-scrollbar-track{background:transparent}
-
-/* Titels/badges/meta mobielvriendelijk */
-.title-row{display:flex;align-items:center;justify-content:space-between;gap:.75rem}
-.parcel-title{margin:0;font-size:1rem;font-weight:600;line-height:1.2;max-width:100%;word-break:break-word;overflow-wrap:anywhere}
-.badge-row{display:flex;flex-wrap:wrap;gap:.35rem}
-.meta-list{
-  margin:.35rem 0 0;color:#444;font-size:.92rem;line-height:1.45;display:flex;flex-wrap:wrap;gap:.25rem .75rem
-}
-.meta-item{white-space:normal}
-
-/* ===== Filters mobiel onder de titel ===== */
+/* ===== Mobiel ===== */
 @media (max-width:640px){
   .parcel-panel .panel-head{flex-direction:column;align-items:stretch;gap:.35rem}
   #parcelFilterBar{width:100%}
-  .parcel-filter{display:grid;grid-template-columns:1fr;gap:.5rem;justify-content:initial;margin-top:.25rem}
-  .pf-select{width:100%;min-width:0}
+  .parcel-toolbar{display:grid;grid-template-columns:1fr;gap:.5rem;justify-content:initial;margin-top:.25rem}
+  .pf-select,.pf-search{width:100%;min-width:0}
   .meta-list{font-size:.9rem}
   .title-row{flex-direction:column;align-items:flex-start;gap:.35rem}
 }
+/* Iets breder mobiel: 2 kolommen (filter + zoekveld naast elkaar) */
 @media (min-width:420px) and (max-width:640px){
-  .parcel-filter{grid-template-columns:1fr 1fr}
+  .parcel-toolbar{grid-template-columns:1fr 1fr}
 }
