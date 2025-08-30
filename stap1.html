@@ -72,7 +72,7 @@
     <!-- Kaart -->
     <div id="map" role="region" aria-label="Kaart met geselecteerde percelen"></div>
 
-    <!-- Geselecteerde percelen (scrollbaar paneel met up/down knoppen) -->
+    <!-- Geselecteerde percelen (scrollbaar paneel, zonder zwevende knoppen) -->
     <section class="parcel-list-section card">
       <div class="parcel-panel">
         <div class="panel-head">
@@ -90,16 +90,6 @@
         <!-- Scrollbaar gebied -->
         <div id="parcelList" class="parcel-list parcel-scroll"
              tabindex="0" aria-label="Lijst van geselecteerde percelen">
-        </div>
-
-        <!-- Scroll-controls: verschijnen alleen als er iets te scrollen valt -->
-        <div id="parcelScrollControls" class="parcel-scroll-controls" hidden>
-          <button type="button" id="parcelScrollUp" class="scroll-btn" aria-label="Scroll omhoog" title="Omhoog">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 14l5-5 5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </button>
-          <button type="button" id="parcelScrollDown" class="scroll-btn" aria-label="Scroll omlaag" title="Omlaag">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10l5 5 5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </button>
         </div>
       </div>
     </section>
