@@ -323,67 +323,77 @@ function matchesSearch(p, termRaw) {
 function renderParcelList() {
   ensureFilterUI();
 
-  const container = document.getElementById('parcelList');
-  if (!container) return;
 
-  container.innerHTML = '';
+container.innerHTML = '';
 
-  parcels.forEach(p => {
-    const div = document.createElement('div');
-    div.className = 'parcel-item';
-    div.dataset.id = p.id;
+// ---- Sorteer percelen op opp. (ha) aflopend ----
+const sorted = [...parcels].sort((a, b) => {
+  const ah = Number(a?.ha) || 0;
+  const bh = Number(b?.ha) || 0;
+  if (bh !== ah) return bh - ah; // grootste eerst
+  // tie-breaker op naam voor stabiele volgorde
+  const an = String(a?.name || '');
+  const bn = String(b?.name || '');
+  return an.localeCompare(bn, 'nl', { numeric: true, sensitivity: 'base' });
+});
 
-    div.style.cssText = `
-      border:1px solid #eceff3; border-radius:12px; padding:.65rem .8rem; margin:.5rem 0;
-      box-shadow: 0 1px 1px rgba(16,24,40,.04);
-    `;
+// ---- Render in gesorteerde volgorde ----
+sorted.forEach(p => {
+  const div = document.createElement('div');
+  div.className = 'parcel-item';
+  div.dataset.id = p.id;
 
-    const isTG = Number(p.gewasCode) === 266;
+  div.style.cssText = `
+    border:1px solid #eceff3; border-radius:12px; padding:.65rem .8rem; margin:.5rem 0;
+    box-shadow: 0 1px 1px rgba(16,24,40,.04);
+  `;
 
-    // highlight naam/gewas/code/grondsoort
-    const hName  = highlight(p.name, currentSearch);
-    const hCode  = highlight(String(p.gewasCode ?? ''), currentSearch);
-    const hGewas = highlight(p.gewasNaam ?? '', currentSearch);
-    const hGrond = highlight(p.grondsoort ?? '', currentSearch);
+  const isTG = Number(p.gewasCode) === 266;
 
-    div.innerHTML = `
-      <div class="title-row">
-        <h3 class="parcel-title">${hName}</h3>
-        <div class="badge-row">${renderBadges(p.badges)}</div>
+  // highlight naam/gewas/code/grondsoort
+  const hName  = highlight(p.name, currentSearch);
+  const hCode  = highlight(String(p.gewasCode ?? ''), currentSearch);
+  const hGewas = highlight(p.gewasNaam ?? '', currentSearch);
+  const hGrond = highlight(p.grondsoort ?? '', currentSearch);
+
+  div.innerHTML = `
+    <div class="title-row">
+      <h3 class="parcel-title">${hName}</h3>
+      <div class="badge-row">${renderBadges(p.badges)}</div>
+    </div>
+
+    <div class="meta-list">
+      <span class="meta-item">Opp: <strong>${formatHa(p.ha)} ha</strong></span>
+      <span class="meta-item">Code: <strong>${hCode}</strong></span>
+      <span class="meta-item">Gewas: <strong>${hGewas}</strong></span>
+      <span class="meta-item">Grondsoort: <strong>${hGrond}</strong></span>
+    </div>
+
+    ${isTG ? `
+      <div class="field-group" style="margin:.5rem 0 0 0;">
+        <label style="font-size:.85rem; opacity:.8; display:block; margin:.15rem 0;">Variant tijdelijk grasland (266):</label>
+        <select class="tg-variant" style="padding:.35rem .5rem; border-radius:8px; border:1px solid #e3e6ea;"></select>
       </div>
+    ` : ``}
+  `;
 
-      <div class="meta-list">
-        <span class="meta-item">Opp: <strong>${formatHa(p.ha)} ha</strong></span>
-        <span class="meta-item">Code: <strong>${hCode}</strong></span>
-        <span class="meta-item">Gewas: <strong>${hGewas}</strong></span>
-        <span class="meta-item">Grondsoort: <strong>${hGrond}</strong></span>
-      </div>
+  if (isTG) {
+    const sel = div.querySelector('.tg-variant');
+    loadTijdelijkGrasLabels().then(labels => {
+      sel.innerHTML = labels.map(l => {
+        const selAttr = (String(p.gewasNaam).toLowerCase() === String(l).toLowerCase()) ? 'selected' : '';
+        return `<option ${selAttr} value="${escapeHtml(l)}">${escapeHtml(l)}</option>`;
+      }).join('');
+    });
+    sel.addEventListener('change', () => {
+      p.gewasNaam = sel.value;
+      dispatchParcelsChanged();
+      renderParcelList(); // update highlight mogelijk
+    });
+  }
 
-      ${isTG ? `
-        <div class="field-group" style="margin:.5rem 0 0 0;">
-          <label style="font-size:.85rem; opacity:.8; display:block; margin:.15rem 0;">Variant tijdelijk grasland (266):</label>
-          <select class="tg-variant" style="padding:.35rem .5rem; border-radius:8px; border:1px solid #e3e6ea;"></select>
-        </div>
-      ` : ``}
-    `;
-
-    if (isTG) {
-      const sel = div.querySelector('.tg-variant');
-      loadTijdelijkGrasLabels().then(labels => {
-        sel.innerHTML = labels.map(l => {
-          const selAttr = (String(p.gewasNaam).toLowerCase() === String(l).toLowerCase()) ? 'selected' : '';
-          return `<option ${selAttr} value="${escapeHtml(l)}">${escapeHtml(l)}</option>`;
-        }).join('');
-      });
-      sel.addEventListener('change', () => {
-        p.gewasNaam = sel.value;
-        dispatchParcelsChanged();
-        renderParcelList(); // update highlight mogelijk
-      });
-    }
-
-    container.append(div);
-  });
+  container.append(div);
+});
 
   // zichtbaarheid toepassen + kaart dimmen
   applyVisibility(currentFilter, currentSearch);
