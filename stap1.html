@@ -211,10 +211,20 @@
     }
 
     async function deleteParcelsFromAccount() {
+      // 1) Bevestigingspopup (met aantallen)
+      const count = Array.isArray(parcels) ? parcels.length : 0;
+      if (!count) return;
+      const ok = confirm(
+        `Weet je zeker dat je ${count} gekoppeld${count===1?' perceel':'e percelen'} wilt verwijderen?`
+      );
+      if (!ok) return;
+    
+      // 2) (ongewijzigd) sessie check
       const { data: { session } } = await supabase.auth.getSession();
       const user = session?.user;
       if (!user) { alert('Je moet ingelogd zijn om te verwijderen.'); return; }
-
+    
+      // 3) (ongewijzigd) kmz-pad ophalen om ook uit storage te kunnen verwijderen
       let kmz_path = null;
       try {
         const { data } = await supabase
@@ -224,22 +234,25 @@
           .single();
         kmz_path = data?.kmz_path || null;
       } catch {}
-
+    
+      // 4) (ongewijzigd) DB record verwijderen
       const { error } = await supabase
         .from('user_parcel_sets')
         .delete()
         .eq('user_id', user.id);
       if (error) { console.error(error); alert('Verwijderen uit je account is niet gelukt.'); return; }
-
+    
+      // 5) (ongewijzigd) KMZ uit storage verwijderen (best effort)
       if (kmz_path) {
         try { await supabase.storage.from('kmz').remove([kmz_path]); } catch {}
       }
-
+    
+      // 6) (ongewijzigd) UI resetten
       clearAllParcels();
       fileInput.value = '';
       label.textContent = 'Koppel percelen';
       updateDeleteVisibility();
-
+    
       const bar = document.getElementById('parcelFilterBar');
       if (bar) bar.hidden = true;
     }
