@@ -395,6 +395,12 @@ body.is-auth .guest-only{display:none!important}
 }
 .parcel-item:last-child{ border-bottom:0 }
 
+/* Geselecteerd lijstitem: geel randje + subtiele glow */
+.parcel-item.is-selected{
+  border-color: var(--color-yellow) !important;
+  box-shadow: 0 0 0 2px rgba(241,196,15,.35) inset, 0 1px 1px rgba(16,24,40,.06);
+}
+
 /* KMZ upload blok (verticale stapeling) */
 .kmz-upload{
   display:flex;
@@ -403,7 +409,7 @@ body.is-auth .guest-only{display:none!important}
   gap:.6rem;
 }
 
-/* KMZ-knop ('btn-brand') – zelfde look & feel als .btn-primary, maar zonder spinner */
+/* KMZ-knop ('btn-brand') – consistent met .btn-primary, spinner uit */
 .btn-brand{
   background: var(--color-yellow);
   color: var(--color-black);
@@ -412,10 +418,10 @@ body.is-auth .guest-only{display:none!important}
   font-weight: 600;             /* gelijk aan .btn-primary */
   border-radius: 6px;           /* gelijk aan .btn-primary */
   cursor: pointer;
-  transition: background .2s, transform .08s, box-shadow .18s; /* gelijk aan .btn-primary */
+  transition: background .2s, transform .08s, box-shadow .18s;
 }
 .btn-brand:hover{
-  background: var(--color-yellow-dark);      /* gelijk aan .btn-primary:hover */
+  background: var(--color-yellow-dark);
   transform: translateY(-1px);
   box-shadow: 0 8px 20px rgba(0,0,0,.08);
 }
@@ -426,9 +432,8 @@ body.is-auth .guest-only{display:none!important}
 .btn-brand:focus-visible{
   outline: 3px solid rgba(241,196,15,.6);
   outline-offset: 2px;
-  border-radius: 8px;           /* consistent met je :focus-visible overal */
+  border-radius: 8px;
 }
-/* Disabled/busy: hou ‘m geel en demp subtiel (zelfde gedrag als .btn-primary) */
 .btn-brand:disabled,
 .btn-brand[aria-busy="true"]{
   background: var(--color-yellow);
@@ -438,7 +443,7 @@ body.is-auth .guest-only{display:none!important}
   transform: none;
   cursor: not-allowed;
 }
-/* Kill alle mogelijke spinner-varianten (ook die via JS of frameworks) */
+/* Spinner varianten uitschakelen */
 .btn-brand::after,
 .btn-brand .spinner,
 .btn-brand .spinner-border,
@@ -476,8 +481,15 @@ body.is-auth .guest-only{display:none!important}
   scroll-behavior:smooth;
   padding-right:.25rem;             /* ruimte voor scrollbar */
   padding-bottom:2.75rem;           /* ruimte zodat knoppen niets overlappen */
-  -webkit-overflow-scrolling: touch;
-  scrollbar-gutter: stable both-edges;
+  -webkit-overflow-scrolling: touch;/* soepel scrollen op iOS */
+  scrollbar-gutter: stable both-edges; /* voorkomt layout-shift bij scrollbar */
+}
+
+/* optioneel: extra bodemruimte inclusief safe area (moderne iPhones) */
+@supports (padding: max(0px)) {
+  .parcel-scroll{
+    padding-bottom: max(2.75rem, env(safe-area-inset-bottom));
+  }
 }
 
 /* Scrollbar (webkit) – subtiel */
@@ -505,7 +517,7 @@ body.is-auth .guest-only{display:none!important}
   background:#fff;
   box-shadow:0 2px 8px rgba(16,24,40,.08);
   cursor:pointer;
-  touch-action: manipulation;
+  touch-action: manipulation; /* snellere taps op mobiel */
 }
 .scroll-btn:hover{ background:#f6f7f9; }
 .scroll-btn:active{ transform:translateY(1px); }
