@@ -377,18 +377,16 @@ function renderParcelList() {
 
     const isTG = Number(p.gewasCode) === 266;
     div.innerHTML = `
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:.75rem;">
-        <h3 style="margin:0; font-size:1rem; font-weight:600; line-height:1.2;">
-          ${escapeHtml(p.name)}
-        </h3>
-        <div>${renderBadges(p.badges)}</div>
+      <div class="title-row">
+        <h3 class="parcel-title">${escapeHtml(p.name)}</h3>
+        <div class="badge-row">${renderBadges(p.badges)}</div>
       </div>
 
-      <p class="meta" style="margin:.35rem 0 0 0; color:#444; font-size:.92rem; line-height:1.45;">
-        Opp: <strong>${formatHa(p.ha)} ha</strong>
-        &nbsp;·&nbsp; Code: <strong>${escapeHtml(p.gewasCode ?? '')}</strong>
-        &nbsp;·&nbsp; Gewas: <strong>${escapeHtml(p.gewasNaam ?? '')}</strong>
-        &nbsp;·&nbsp; Grondsoort: <strong>${escapeHtml(p.grondsoort ?? '')}</strong>
+      <p class="meta-list">
+        <span class="meta-item">Opp: <strong>${formatHa(p.ha)} ha</strong></span>
+        <span class="meta-item">Code: <strong>${escapeHtml(p.gewasCode ?? '')}</strong></span>
+        <span class="meta-item">Gewas: <strong>${escapeHtml(p.gewasNaam ?? '')}</strong></span>
+        <span class="meta-item">Grondsoort: <strong>${escapeHtml(p.grondsoort ?? '')}</strong></span>
       </p>
 
       ${isTG ? `
