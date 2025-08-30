@@ -430,7 +430,7 @@ function matchesFilter(p, filterKey) {
 function matchesSearch(p, termRaw) {
    const term = (termRaw || '').trim().toLowerCase();
    if (!term) return true;
-   const hay = [p.name, p.gewasNaam, p.grondsoort, String(p.gewasCode ?? '')]
+   const hay = [p.name, p.gewasNaam, String(p.gewasCode ?? '')]
       .map(x => String(x || '').toLowerCase());
    return hay.some(s => s.includes(term));
 }
