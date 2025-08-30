@@ -264,6 +264,14 @@ function scrollItemIntoView(id) {
    if (el) el.scrollIntoView({ block: 'center', behavior: 'smooth' });
 }
 
+function scrollMapIntoView() {
+  try {
+    if (mapEl && mapEl.scrollIntoView) {
+      mapEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  } catch {}
+}
+
 function deselectParcel({ repaint = true } = {}) {
    if (!selectedParcelId) return;
    const prev = parcels.find(x => x.id === selectedParcelId);
@@ -272,28 +280,29 @@ function deselectParcel({ repaint = true } = {}) {
    if (repaint) renderParcelList(); // (roept applyVisibility aan → styles)
 }
 
-function selectParcel(id, { center = true, scroll = true } = {}) {
-   if (selectedParcelId && selectedParcelId !== id) {
-      const prev = parcels.find(x => x.id === selectedParcelId);
-      if (prev) prev.isSelected = false;
-   }
-   if (selectedParcelId === id) {
-      // toggle: zelfde perceel → deselect
-      deselectParcel({ repaint: true });
-      return;
-   }
-   selectedParcelId = id;
-   const curr = parcels.find(x => x.id === id);
-   if (!curr) return;
-   curr.isSelected = true;
+function selectParcel(id, { center = true, scroll = true, scrollMap = false } = {}) {
+  if (selectedParcelId && selectedParcelId !== id) {
+    const prev = parcels.find(x => x.id === selectedParcelId);
+    if (prev) prev.isSelected = false;
+  }
+  if (selectedParcelId === id) {
+    // toggle: zelfde perceel → deselect
+    deselectParcel({ repaint: true });
+    return;
+  }
+  selectedParcelId = id;
+  const curr = parcels.find(x => x.id === id);
+  if (!curr) return;
+  curr.isSelected = true;
 
-   // Klik die select veroorzaakt negeer van eerstvolgende globale klik
-   suppressNextGlobalDeselect = true;
-   setTimeout(() => { suppressNextGlobalDeselect = false; }, 0);
+  // Klik die select veroorzaakt negeer van eerstvolgende globale klik
+  suppressNextGlobalDeselect = true;
+  setTimeout(() => { suppressNextGlobalDeselect = false; }, 0);
 
-   renderParcelList();
-   if (scroll) scrollItemIntoView(id);
-   if (center) focusMapOnParcel(curr);
+  renderParcelList();
+  if (scroll)  scrollItemIntoView(id);
+  if (center)  focusMapOnParcel(curr);
+  if (scrollMap) scrollMapIntoView(); // <<— NIEUW: lijst ⇒ terug naar de kaart
 }
 
 /* ---------------------------------
