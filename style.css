@@ -496,3 +496,59 @@ body.is-auth .guest-only{display:none!important}
   background:#d7dbe3; border-radius:999px; border:2px solid transparent; background-clip:content-box;
 }
 .parcel-scroll::-webkit-scrollbar-track{ background:transparent; }
+
+/* ===== Geselecteerde percelen – mobielvriendelijk ===== */
+
+/* Zorg dat flex-children kunnen krimpen zonder overflow */
+.parcel-panel,
+.parcel-list { min-width: 0; }
+
+/* Scrollvlak mag nooit horizontaal overlopen */
+.parcel-scroll{
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable both-edges;
+}
+
+/* Titel + badges responsief */
+.title-row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:.75rem;
+}
+.parcel-title{
+  margin:0;
+  font-size:1rem;
+  font-weight:600;
+  line-height:1.2;
+  max-width:100%;
+  word-break:break-word;
+  overflow-wrap:anywhere;
+}
+.badge-row{
+  display:flex;
+  flex-wrap:wrap;
+  gap:.35rem;
+}
+
+/* Meta als losse items die vanzelf aflopen */
+.meta-list{
+  margin:.35rem 0 0;
+  color:#444;
+  font-size:.92rem;
+  line-height:1.45;
+  display:flex;
+  flex-wrap:wrap;
+  gap:.25rem .75rem; /* rij- en kolomgap */
+}
+.meta-item{ white-space:normal; }
+
+@media (max-width:640px){
+  .title-row{
+    flex-direction:column;
+    align-items:flex-start;
+    gap:.35rem;
+  }
+  .meta-list{ font-size:.9rem; }
+}
