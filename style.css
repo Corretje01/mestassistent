@@ -239,6 +239,26 @@ mark.hl{
 .parcel-list{display:flex;flex-direction:column;gap:.5rem;min-width:0}
 .parcel-item{padding:.5rem .25rem;border-bottom:1px solid #ededed}
 .parcel-item:last-child{border-bottom:0}
+
+/* Lege staat in percelenlijst */
+.parcel-empty{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  min-height:120px;
+  padding:1rem;
+  color:#6b7280; /* subtiel grijs */
+}
+.parcel-empty .empty-title{
+  font-weight:600;
+  margin-bottom:.25rem;
+  color:#374151;
+}
+.parcel-empty .empty-hint{
+  font-size:.9rem;
+}
+
 .parcel-item.is-selected{
   border-color:var(--color-yellow)!important;
   box-shadow:0 0 0 2px rgba(241,196,15,.35) inset,0 1px 1px rgba(16,24,40,.06);
