@@ -28,6 +28,14 @@ export let parcels = [];
 let currentFilter = 'all';   // 'all' | 'bemestbaar' | 'niet'
 let currentSearch = '';      // zoekterm (highlight & filteren)
 
+// -- Enkelvoudige selectie (max 1) --
+let selectedParcelId = null;
+let suppressNextGlobalDeselect = false;
+
+// Kleuren & styles
+const COLOR_DEFAULT  = '#1e90ff';
+const COLOR_SELECTED = '#f1c40f'; // huisstijl-geel
+
 function uuid() {
    return 'p_' + Math.random().toString(36).slice(2);
 }
@@ -217,6 +225,92 @@ function formatHa(v) {
    return n.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+// Layer styles (incl. selectie)
+function updateParcelLayerStyle(p, show) {
+   if (!p?.layer) return;
+   if (p.id === selectedParcelId) {
+      p.layer.setStyle({
+         color: COLOR_SELECTED,
+         fillColor: COLOR_SELECTED,
+         weight: 3,
+         opacity: 1,
+         fillOpacity: 0.30
+      });
+      try { if (p.layer.bringToFront) p.layer.bringToFront(); } catch {}
+   } else if (show) {
+      p.layer.setStyle({
+         color: COLOR_DEFAULT,
+         fillColor: COLOR_DEFAULT,
+         weight: 2,
+         opacity: 1,
+         fillOpacity: 0.25
+      });
+   } else {
+      p.layer.setStyle({
+         color: COLOR_DEFAULT,
+         fillColor: COLOR_DEFAULT,
+         weight: 1,
+         opacity: 0.15,
+         fillOpacity: 0.04
+      });
+   }
+}
+
+function focusMapOnParcel(p) {
+   try {
+      const b = p?.layer?.getBounds?.();
+      if (b && b.isValid && b.isValid()) {
+         map.fitBounds(b.pad(0.15), { animate: true });
+      } else if (p?.centroid) {
+         map.setView([p.centroid.lat, p.centroid.lon], Math.max(map.getZoom(), 16), { animate: true });
+      }
+   } catch {}
+}
+
+function scrollItemIntoView(id) {
+   const list = document.getElementById('parcelList');
+   if (!list) return;
+   const el = list.querySelector(`.parcel-item[data-id="${id}"]`);
+   if (el) el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+}
+
+function deselectParcel({ repaint = true } = {}) {
+   if (!selectedParcelId) return;
+   const prev = parcels.find(x => x.id === selectedParcelId);
+   if (prev) prev.isSelected = false;
+   selectedParcelId = null;
+   if (repaint) {
+      renderParcelList(); // roept applyVisibility aan → styles updaten
+   }
+}
+
+function selectParcel(id, { center = true, scroll = true } = {}) {
+   // toggle: zelfde id = deselect
+   if (selectedParcelId && selectedParcelId === id) {
+      deselectParcel({ repaint: true });
+      return;
+   }
+   // deselect vorige
+   if (selectedParcelId && selectedParcelId !== id) {
+      const prev = parcels.find(x => x.id === selectedParcelId);
+      if (prev) prev.isSelected = false;
+   }
+   // selecteer nieuwe
+   selectedParcelId = id;
+   const curr = parcels.find(x => x.id === id);
+   if (!curr) return;
+   curr.isSelected = true;
+
+   // Klik die select veroorzaakt niet direct een globale deselect:
+   suppressNextGlobalDeselect = true;
+   setTimeout(() => { suppressNextGlobalDeselect = false; }, 0);
+
+   // UI bijwerken
+   renderParcelList(); // tekent lijst + applyVisibility → kaartstijl
+   if (scroll) scrollItemIntoView(id);
+   if (center) focusMapOnParcel(curr);
+}
+
 /* ---------------------------------
    4) Spinner overlay + knop-busy
 --------------------------------- */
@@ -236,7 +330,7 @@ function ensureMapSpinner() {
    inner.innerHTML = `
       <div class="spinner" style="
          width:28px;height:28px;border:3px solid rgba(0,0,0,.15);
-         border-top-color:#1e90ff;border-radius:50%;animation:spin 0.8s linear infinite;"></div>
+         border-top-color:${COLOR_DEFAULT};border-radius:50%;animation:spin 0.8s linear infinite;"></div>
       <div class="msg">Koppelen van percelen…</div>
    `;
 
@@ -417,6 +511,11 @@ function renderParcelList() {
       div.className = 'parcel-item';
       div.dataset.id = p.id;
 
+      if (p.id === selectedParcelId || p.isSelected) {
+         div.classList.add('is-selected');
+         div.setAttribute('aria-selected', 'true');
+      }
+
       div.style.cssText = `
          border:1px solid #eceff3; border-radius:12px; padding:.65rem .8rem; margin:.5rem 0;
          box-shadow: 0 1px 1px rgba(16,24,40,.04);
@@ -466,10 +565,30 @@ function renderParcelList() {
          });
       }
 
+      // Klik op lijst-item = selecteren/zoomen/centeren
+      div.tabIndex = 0;
+      div.addEventListener('click', () => {
+         if (selectedParcelId === p.id) {
+            deselectParcel({ repaint: true });
+         } else {
+            selectParcel(p.id, { center: true, scroll: true });
+         }
+      });
+      div.addEventListener('keydown', (e) => {
+         if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            if (selectedParcelId === p.id) {
+               deselectParcel({ repaint: true });
+            } else {
+               selectParcel(p.id, { center: true, scroll: true });
+            }
+         }
+      });
+
       container.append(div);
    });
 
-   // zichtbaarheid toepassen + kaart dimmen
+   // zichtbaarheid toepassen + kaart dimmen / highlight
    applyVisibility(currentFilter, currentSearch);
 }
 
@@ -505,27 +624,32 @@ function applyVisibility(filterKey = 'all', search = '') {
       empty.style.display = visibleCount === 0 ? '' : 'none';
    }
 
-   // 3) Kaartlagen dimmen
+   // 3) Kaartlagen dimmen of highlighten
    for (const p of parcels) {
       const show = matchesFilter(p, filterKey) && matchesSearch(p, search);
-      try {
-         p.layer.setStyle({
-            opacity: show ? 1 : 0.15,
-            weight: show ? 2 : 1,
-            fillOpacity: show ? 0.25 : 0.04
-         });
-         if (show && p.layer.bringToFront) p.layer.bringToFront();
-      } catch {}
+      updateParcelLayerStyle(p, show);
    }
 }
 
 /* ---------------------------------
-   6) Handmatige klikselectie uit (KMZ-only)
+   6) Globale klik: tweede klik = deselect
 --------------------------------- */
-map.on('click', () => { /* handmatige selectie uitgeschakeld */ });
+document.addEventListener('click', () => {
+   if (!selectedParcelId) return;
+   if (suppressNextGlobalDeselect) { suppressNextGlobalDeselect = false; return; }
+   deselectParcel({ repaint: true });
+});
 
 /* ---------------------------------
-   7) KMZ-only koppeling
+   7) Kaart interactie
+--------------------------------- */
+// Klik op lege kaart = deselect
+map.on('click', () => {
+   if (selectedParcelId) deselectParcel({ repaint: true });
+});
+
+/* ---------------------------------
+   8) KMZ-only koppeling
 --------------------------------- */
 window.addEventListener('rvo:imported', async () => {
    try {
@@ -578,13 +702,14 @@ window.addEventListener('rvo:imported', async () => {
          const reviewNeeded = !known;
 
          const layer = L.geoJSON(feat.geometry, {
-            style: { color: '#1e90ff', weight: 2, fillOpacity: 0.25 }
+            style: { color: COLOR_DEFAULT, fillColor: COLOR_DEFAULT, weight: 2, fillOpacity: 0.25 }
          }).addTo(map);
 
+         const id = uuid();
          const haNum = toHaFromKmz(row.ha);
 
          parcels.push({
-            id: uuid(),
+            id,
             layer,
             name: feat.properties?.weergavenaam || feat.properties?.identificatie || row.sectorId,
             ha: haNum,
@@ -602,8 +727,20 @@ window.addEventListener('rvo:imported', async () => {
             centroid: c || null,
             geometry: feat.geometry || null,
             _meta:  { sectorId: row.sectorId },
-            _source:'upload-kmz'
+            _source:'upload-kmz',
+            isSelected: false
          });
+
+         try {
+            layer.on('click', (evt) => {
+               try { if (evt?.originalEvent && L?.DomEvent) L.DomEvent.stop(evt.originalEvent); } catch {}
+               if (selectedParcelId === id) {
+                  deselectParcel({ repaint: true });
+               } else {
+                  selectParcel(id, { center: true, scroll: true });
+               }
+            });
+         } catch {}
 
          added++;
          done++;
@@ -636,7 +773,7 @@ window.addEventListener('rvo:imported', async () => {
 });
 
 /* ---------------------------------
-   8) Opgeslagen percelen hydrateren
+   9) Opgeslagen percelen hydrateren
 --------------------------------- */
 window.addEventListener('parcels:loadSaved', (e) => {
    const items = Array.isArray(e.detail?.parcels) ? e.detail.parcels : [];
@@ -694,14 +831,16 @@ window.addEventListener('parcels:loadSaved', (e) => {
       try {
          const featureOrFC = asFeature(row) || asFeature({ geometry: row?.geometry });
          if (featureOrFC) {
-            layer = L.geoJSON(featureOrFC, { style: { color: '#1e90ff', weight: 2, fillOpacity: 0.25 } }).addTo(map);
+            layer = L.geoJSON(featureOrFC, { style: { color: COLOR_DEFAULT, fillColor: COLOR_DEFAULT, weight: 2, fillOpacity: 0.25 } }).addTo(map);
          }
       } catch (err) {
          console.warn('Kon opgeslagen geometry niet tekenen:', err, row);
       }
 
+      const id = row.id || uuid();
+
       parcels.push({
-         id: row.id || uuid(),
+         id,
          layer,
          name: row.name ?? '',
          ha: Number(row.ha) || 0,
@@ -714,8 +853,20 @@ window.addEventListener('parcels:loadSaved', (e) => {
          centroid: row.centroid ?? null,
          geometry: row.geometry ?? null,
          _meta: row._meta ?? {},
-         _source: 'saved'
+         _source: 'saved',
+         isSelected: false
       });
+
+      try {
+         if (layer) layer.on('click', (evt) => {
+            try { if (evt?.originalEvent && L?.DomEvent) L.DomEvent.stop(evt.originalEvent); } catch {}
+            if (selectedParcelId === id) {
+               deselectParcel({ repaint: true });
+            } else {
+               selectParcel(id, { center: true, scroll: true });
+            }
+         });
+      } catch {}
    }
 
    renderParcelList();
@@ -734,16 +885,15 @@ window.addEventListener('parcels:loadSaved', (e) => {
 });
 
 /* ---------------------------------
-   9) Clear API
+   10) Clear API
 --------------------------------- */
 export function clearAllParcels() {
    try {
       for (const p of parcels) {
-         try {
-            if (p.layer && map && map.removeLayer) map.removeLayer(p.layer);
-         } catch {}
+         try { if (p.layer && map && map.removeLayer) map.removeLayer(p.layer); } catch {}
       }
       parcels.length = 0;
+      selectedParcelId = null;
       renderParcelList();
       dispatchParcelsChanged();
    } catch (e) {
@@ -752,7 +902,7 @@ export function clearAllParcels() {
 }
 
 /* ---------------------------------
-   10) Init
+   11) Init
 --------------------------------- */
 renderParcelList();
 dispatchParcelsChanged();
