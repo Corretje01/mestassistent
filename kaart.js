@@ -1,12 +1,4 @@
-// kaart.js — Percelen via KMZ upload plotten + filter + zoeken + opslaan/laden-ondersteuning
-// - Handmatige klikselectie uitgeschakeld
-// - Wettelijke grondsoort via Netlify function 'wettelijkeGrondsoort'
-// - “Bemestbaar” afgeleid van “Geen norm” in stikstofnormen_tabel2.json
-// - “Review nodig” alleen als gewascode niet in normen voorkomt (badge toont code)
-// - Opp. uit KMZ robuust geparsed: altijd naar ha (m² → /10.000, ha blijft ha)
-// - kmz:linking:start/progress/end events → spinner overlay + knopbusy
-// - UI: filter (Alle/Bemestbaar/Niet-bemestbaar) + zoekveld (binnen huidig filter)
-// - Saved hydrateren: 'parcels:loadSaved' event vult kaart & lijst met percelen uit account
+// kaart.js — Percelen via KMZ upload plotten + filter + zoeken + highlight + opslaan/laden
 
 /* ---------------------------------
    1) Map init
@@ -23,7 +15,6 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   attribution: '© OSM contributors'
 }).addTo(map);
 
-// Zorg dat Leaflet de containermaat kent
 setTimeout(() => map.invalidateSize(), 0);
 window.addEventListener('resize', () => {
   clearTimeout(window.__leafletResizeTO);
@@ -35,7 +26,7 @@ window.addEventListener('resize', () => {
 --------------------------------- */
 export let parcels = [];
 let currentFilter = 'all';   // 'all' | 'bemestbaar' | 'niet'
-let currentSearch = '';      // vrije tekst zoeken binnen huidig filter
+let currentSearch = '';      // zoekterm (highlight & filteren)
 
 function uuid() { return 'p_' + Math.random().toString(36).slice(2); }
 
@@ -85,18 +76,15 @@ function polygonCentroid(geom) {
   return { lon: xSum / areaSum, lat: ySum / areaSum };
 }
 
-// Opp. parser uit KMZ → altijd als ha teruggeven
+// Opp. parser uit KMZ → altijd ha
 function toHaFromKmz(v) {
   const raw = String(v ?? '').trim().toLowerCase();
   if (!raw) return 0;
-
   const s = raw.replace(/\s+/g, ' ').replace(',', '.');
-
   if (s.includes('ha')) {
     const num = parseFloat(s.replace('ha', '').trim());
     return Number.isFinite(num) ? num : 0;
   }
-
   const numeric = parseFloat(s.replace(/[^\d.+-eE]/g, ''));
   if (!Number.isFinite(numeric)) return 0;
   return numeric / 10_000;
@@ -115,7 +103,7 @@ async function loadTijdelijkGrasLabels() {
   } catch { __tgLabelsCache = []; return __tgLabelsCache; }
 }
 
-// "Geen norm" set (→ niet-bemestbaar)
+// "Geen norm" set
 let __geenNormSet = null;
 async function loadGeenNormSet() {
   if (__geenNormSet) return __geenNormSet;
@@ -155,13 +143,34 @@ async function codeKnownInNormen(gewasCode) {
   return set.has(codeStr);
 }
 
+// Escaping + highlight helpers
+function escapeHtml(s) {
+  return String(s ?? '')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function escapeRegex(s) { return String(s).replace(/[.*+?^${}()|[\]\\]/g,'\\$&'); }
+function highlight(text, term) {
+  const raw = String(text ?? '');
+  const q = String(term ?? '').trim();
+  if (!q) return escapeHtml(raw);
+  const re = new RegExp(escapeRegex(q), 'gi');
+  let out = '', last = 0, m;
+  while ((m = re.exec(raw)) !== null) {
+    out += escapeHtml(raw.slice(last, m.index));
+    out += `<mark class="hl">${escapeHtml(m[0])}</mark>`;
+    last = m.index + m[0].length;
+  }
+  out += escapeHtml(raw.slice(last));
+  return out;
+}
+
 // Badges HTML
 function renderBadges(b) {
   if (!b) return '';
   const pill = (txt, cls) =>
     `<span class="badge ${cls}" style="padding:.15rem .5rem;border-radius:999px;font-size:.75rem;">${txt}</span>`;
   const out = [];
-
   if (typeof b.bemestbaar === 'boolean') {
     out.push(b.bemestbaar ? pill('bemestbaar', 'badge-info')
                           : pill('niet-bemestbaar', 'badge-warn'));
@@ -172,16 +181,10 @@ function renderBadges(b) {
   }
   return out.join('');
 }
-
 function formatHa(v) {
   const n = Number(v);
   if (!Number.isFinite(n)) return '';
   return n.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-function escapeHtml(s) {
-  return String(s ?? '')
-    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
-    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
 /* ---------------------------------
@@ -218,8 +221,6 @@ function setMapSpinner(visible, text) {
   const msg = el.querySelector('.msg');
   if (msg && text) msg.textContent = text;
 }
-
-// Knop busy zonder inline kleuren
 function setAddButtonLoading(isLoading, progressText) {
   const btn = document.querySelector('#kmz-add, #rvo-add');
   if (!btn) return;
@@ -236,24 +237,21 @@ function setAddButtonLoading(isLoading, progressText) {
   const sp = btn.querySelector('.btnspin'); if (sp) sp.remove();
 
   if (isLoading) {
-    btn.disabled = true;
-    btn.setAttribute('aria-busy', 'true');
+    btn.disabled = true; btn.setAttribute('aria-busy','true');
     if (labelEl) labelEl.textContent = progressText || 'Koppelen…';
   } else {
-    btn.disabled = false;
-    btn.removeAttribute('aria-busy');
+    btn.disabled = false; btn.removeAttribute('aria-busy');
     if (labelEl) labelEl.textContent = 'Koppel percelen';
   }
 }
 
 /* ---------------------------------
-   5) UI-lijst + filter + zoek
+   5) UI-lijst + filter + zoek (met highlight)
 --------------------------------- */
 function ensureFilterUI() {
   const section = document.querySelector('.parcel-list-section');
   if (!section) return;
 
-  // wrapper
   let wrap = document.getElementById('parcelFilterBar') || section.querySelector('.parcel-toolbar') || section.querySelector('.parcel-filter');
   if (!wrap) {
     wrap = document.createElement('div');
@@ -266,24 +264,19 @@ function ensureFilterUI() {
   let filterSel = wrap.querySelector('#parcelFilter');
   if (!filterSel) {
     const label = document.createElement('label');
-    label.className = 'sr-only';
-    label.setAttribute('for', 'parcelFilter');
-    label.textContent = 'Filter percelen';
+    label.className = 'sr-only'; label.setAttribute('for','parcelFilter'); label.textContent = 'Filter percelen';
 
     filterSel = document.createElement('select');
-    filterSel.id = 'parcelFilter';
-    filterSel.className = 'pf-select';
-    filterSel.setAttribute('aria-label', 'Toon percelen');
+    filterSel.id = 'parcelFilter'; filterSel.className = 'pf-select'; filterSel.setAttribute('aria-label','Toon percelen');
     filterSel.innerHTML = `
       <option value="all">Alle percelen</option>
       <option value="bemestbaar">Bemestbaar</option>
       <option value="niet">Niet-bemestbaar</option>
     `;
-    wrap.appendChild(label);
-    wrap.appendChild(filterSel);
+    wrap.appendChild(label); wrap.appendChild(filterSel);
   }
   if (!filterSel.dataset.bound) {
-    filterSel.addEventListener('change', () => applyVisibility(filterSel.value, currentSearch));
+    filterSel.addEventListener('change', () => { currentFilter = filterSel.value; renderParcelList(); });
     filterSel.dataset.bound = '1';
   }
   filterSel.value = currentFilter;
@@ -292,32 +285,39 @@ function ensureFilterUI() {
   let searchInp = wrap.querySelector('#parcelSearch');
   if (!searchInp) {
     const sl = document.createElement('label');
-    sl.className = 'sr-only';
-    sl.setAttribute('for', 'parcelSearch');
-    sl.textContent = 'Zoek in percelen';
+    sl.className = 'sr-only'; sl.setAttribute('for','parcelSearch'); sl.textContent = 'Zoek in percelen';
 
     searchInp = document.createElement('input');
-    searchInp.id = 'parcelSearch';
-    searchInp.className = 'pf-search';
-    searchInp.type = 'search';
-    searchInp.placeholder = 'Zoeken in percelen…';
-    searchInp.setAttribute('inputmode', 'search');
-    searchInp.setAttribute('autocomplete', 'off');
+    searchInp.id = 'parcelSearch'; searchInp.className = 'pf-search'; searchInp.type = 'search';
+    searchInp.placeholder = 'Zoeken in percelen…'; searchInp.setAttribute('inputmode','search'); searchInp.setAttribute('autocomplete','off');
 
-    wrap.appendChild(sl);
-    wrap.appendChild(searchInp);
+    wrap.appendChild(sl); wrap.appendChild(searchInp);
   }
   if (!searchInp.dataset.bound) {
     let to = null;
     searchInp.addEventListener('input', () => {
       clearTimeout(to);
-      to = setTimeout(() => applyVisibility(currentFilter, searchInp.value || ''), 120);
+      to = setTimeout(() => { currentSearch = searchInp.value || ''; renderParcelList(); }, 120);
     });
     searchInp.dataset.bound = '1';
   }
   searchInp.value = currentSearch;
 
   wrap.hidden = false;
+}
+
+function matchesFilter(p, filterKey) {
+  const bem = !!p?.badges?.bemestbaar;
+  if (filterKey === 'bemestbaar') return bem;
+  if (filterKey === 'niet')       return !bem;
+  return true;
+}
+function matchesSearch(p, termRaw) {
+  const term = (termRaw || '').trim().toLowerCase();
+  if (!term) return true;
+  const hay = [p.name, p.gewasNaam, p.grondsoort, String(p.gewasCode ?? '')]
+    .map(x => String(x || '').toLowerCase());
+  return hay.some(s => s.includes(term));
 }
 
 function renderParcelList() {
@@ -340,17 +340,23 @@ function renderParcelList() {
 
     const isTG = Number(p.gewasCode) === 266;
 
+    // highlight naam/gewas/code/grondsoort
+    const hName  = highlight(p.name, currentSearch);
+    const hCode  = highlight(String(p.gewasCode ?? ''), currentSearch);
+    const hGewas = highlight(p.gewasNaam ?? '', currentSearch);
+    const hGrond = highlight(p.grondsoort ?? '', currentSearch);
+
     div.innerHTML = `
       <div class="title-row">
-        <h3 class="parcel-title">${escapeHtml(p.name)}</h3>
+        <h3 class="parcel-title">${hName}</h3>
         <div class="badge-row">${renderBadges(p.badges)}</div>
       </div>
 
       <div class="meta-list">
         <span class="meta-item">Opp: <strong>${formatHa(p.ha)} ha</strong></span>
-        <span class="meta-item">Code: <strong>${escapeHtml(p.gewasCode ?? '')}</strong></span>
-        <span class="meta-item">Gewas: <strong>${escapeHtml(p.gewasNaam ?? '')}</strong></span>
-        <span class="meta-item">Grondsoort: <strong>${escapeHtml(p.grondsoort ?? '')}</strong></span>
+        <span class="meta-item">Code: <strong>${hCode}</strong></span>
+        <span class="meta-item">Gewas: <strong>${hGewas}</strong></span>
+        <span class="meta-item">Grondsoort: <strong>${hGrond}</strong></span>
       </div>
 
       ${isTG ? `
@@ -372,41 +378,21 @@ function renderParcelList() {
       sel.addEventListener('change', () => {
         p.gewasNaam = sel.value;
         dispatchParcelsChanged();
-        // na wijziging opnieuw filteren/zoeken
-        applyVisibility(currentFilter, currentSearch);
+        renderParcelList(); // update highlight mogelijk
       });
     }
 
     container.append(div);
   });
 
-  // Eerste keer zichtbaarheid toepassen
+  // zichtbaarheid toepassen + kaart dimmen
   applyVisibility(currentFilter, currentSearch);
 }
 
-function matchesFilter(p, filterKey) {
-  const bem = !!p?.badges?.bemestbaar;
-  if (filterKey === 'bemestbaar') return bem;
-  if (filterKey === 'niet')       return !bem;
-  return true;
-}
-function matchesSearch(p, termRaw) {
-  const term = (termRaw || '').trim().toLowerCase();
-  if (!term) return true;
-  const hay = [
-    p.name, p.gewasNaam, p.grondsoort, String(p.gewasCode ?? '')
-  ].map(x => String(x || '').toLowerCase());
-  return hay.some(s => s.includes(term));
-}
-
-// Toepassen op lijst + kaart (dimmen/tonen)
+// Lijst tonen/verbergen + kaart dimmen
 function applyVisibility(filterKey = 'all', search = '') {
-  currentFilter = filterKey;
-  currentSearch = search;
-
   const container = document.getElementById('parcelList');
 
-  // Lijst
   if (container) {
     for (const el of container.querySelectorAll('.parcel-item')) {
       const id = el.dataset.id;
@@ -416,7 +402,6 @@ function applyVisibility(filterKey = 'all', search = '') {
     }
   }
 
-  // Kaart dimmen
   for (const p of parcels) {
     const show = matchesFilter(p, filterKey) && matchesSearch(p, search);
     try {
@@ -448,7 +433,6 @@ window.addEventListener('rvo:imported', async () => {
     setAddButtonLoading(true, 'Koppelen…');
     window.dispatchEvent(new CustomEvent('kmz:linking:start', { detail: { total: rows.length } }));
 
-    // Huidige selectie leegmaken
     try { for (const p of parcels) { if (p.layer) map.removeLayer(p.layer); } parcels.length = 0; } catch {}
 
     const tgLabels = await loadTijdelijkGrasLabels();
@@ -462,7 +446,6 @@ window.addEventListener('rvo:imported', async () => {
         continue;
       }
 
-      // Wettelijke grondsoort via centroid
       let bodem = {};
       const c = polygonCentroid(feat.geometry);
       if (c) {
@@ -472,22 +455,17 @@ window.addEventListener('rvo:imported', async () => {
         } catch {}
       }
 
-      // 266 → default-variantlabel
       let gewasNaam = row.gewasNaam || '';
       if (Number(row.gewasCode) === 266) {
         const fallback = tgLabels.find(k => /1 januari.*15 oktober/i.test(k)) || tgLabels[0] || 'Tijdelijk grasland';
         gewasNaam = fallback;
       }
 
-      // Bemestbaar / Review nodig
-      const bem = await isBemestbaar(row.gewasCode);
+      const bem   = await isBemestbaar(row.gewasCode);
       const known = await codeKnownInNormen(row.gewasCode);
       const reviewNeeded = !known;
 
-      // Teken laag
       const layer = L.geoJSON(feat.geometry, { style: { color: '#1e90ff', weight: 2, fillOpacity: 0.25 } }).addTo(map);
-
-      // Opp. ha
       const haNum = toHaFromKmz(row.ha);
 
       parcels.push({
@@ -523,7 +501,6 @@ window.addEventListener('rvo:imported', async () => {
     renderParcelList();
     dispatchParcelsChanged();
 
-    // Zoom naar selectie
     try {
       const group = L.featureGroup(parcels.map(p => p.layer).filter(Boolean));
       if (group.getLayers().length) map.fitBounds(group.getBounds().pad(0.1));
