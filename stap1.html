@@ -6,7 +6,6 @@
   <title>Mestplaatsingsruimte 2025</title>
 
   <link rel="stylesheet" href="style.css" />
-  <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 </head>
 <body>
@@ -90,7 +89,7 @@
       </div>
     </section>
 
-    <!-- Resultaten (verborgen tot gebruikt) -->
+    <!-- Resultaten -->
     <section id="results-section" class="card" style="display:none;">
       <h3>Beschikbare nutriëntenruimte</h3>
       <div class="field-group">
@@ -168,7 +167,6 @@
       const user = session?.user;
       if (!user) { alert('Log in om percelen op te slaan.'); return; }
 
-      // Minimaliseer payload (geen Leaflet layers)
       const minimal = parcels.map(p => ({
         id: p.id,
         name: p.name ?? null,
@@ -182,7 +180,6 @@
       }));
       const totalArea = minimal.reduce((s,p)=> s + (Number(p.ha)||0), 0);
 
-      // (optioneel) upload het ruwe KMZ-bestand (bucket 'kmz')
       let kmz_path = null;
       const kmzFile = fileInput?.files?.[0];
       if (kmzFile) {
@@ -217,7 +214,6 @@
       const user = session?.user;
       if (!user) { alert('Je moet ingelogd zijn om te verwijderen.'); return; }
 
-      // Haal kmz_path op om bestand ook te kunnen verwijderen
       let kmz_path = null;
       try {
         const { data } = await supabase
@@ -228,30 +224,25 @@
         kmz_path = data?.kmz_path || null;
       } catch {}
 
-      // Verwijder DB-record
       const { error } = await supabase
         .from('user_parcel_sets')
         .delete()
         .eq('user_id', user.id);
       if (error) { console.error(error); alert('Verwijderen uit je account is niet gelukt.'); return; }
 
-      // (optioneel) verwijder ook het KMZ-bestand
       if (kmz_path) {
         try { await supabase.storage.from('kmz').remove([kmz_path]); } catch {}
       }
 
-      // UI leegmaken
       clearAllParcels();
       fileInput.value = '';
       label.textContent = 'Koppel percelen';
       updateDeleteVisibility();
 
-      // filterbalk verbergen
       const bar = document.getElementById('parcelFilterBar');
       if (bar) bar.hidden = true;
     }
 
-    // Events van KMZ-koppeling
     window.addEventListener('kmz:linking:start', (e) => {
       const total = e.detail?.total ?? 0;
       setBusy(true, `Koppelen… 0/${total}`);
@@ -278,7 +269,6 @@
       updateDeleteVisibility();
     });
 
-    // Klik handler delete
     btnDel.addEventListener('click', deleteParcelsFromAccount);
   </script>
 
@@ -294,7 +284,6 @@
       const y = document.getElementById('year');
       if (y) y.textContent = new Date().getFullYear();
 
-      // Opgeslagen percelen ophalen en in kaart/lijst zetten
       try {
         const { data } = await supabase
           .from('user_parcel_sets')
