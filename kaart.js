@@ -475,7 +475,6 @@ function renderParcelList() {
       const hName  = highlight(p.name, currentSearch);
       const hCode  = highlight(String(p.gewasCode ?? ''), currentSearch);
       const hGewas = highlight(p.gewasNaam ?? '', currentSearch);
-      const hGrond = highlight(p.grondsoort ?? '', currentSearch);
 
       div.innerHTML = `
          <div class="title-row">
@@ -487,7 +486,6 @@ function renderParcelList() {
             <span class="meta-item">Opp: <strong>${formatHa(p.ha)} ha</strong></span>
             <span class="meta-item">Code: <strong>${hCode}</strong></span>
             <span class="meta-item">Gewas: <strong>${hGewas}</strong></span>
-            <span class="meta-item">Grondsoort: <strong>${hGrond}</strong></span>
          </div>
 
          ${isTG ? `
