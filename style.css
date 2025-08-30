@@ -366,6 +366,7 @@ mark.hl{
    /* Kaart iets lager voor extra lijst-ruimte (optioneel, goed default) */
    #map{height:clamp(280px,42vh,420px)}
 }
+
 @media (min-width:420px) and (max-width:640px){
    .parcel-toolbar{grid-template-columns:1fr 1fr}
 }
