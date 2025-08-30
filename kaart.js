@@ -1,9 +1,12 @@
-// kaart.js — Percelen via KMZ upload + filter/sort + opslaan/laden + SELECTIE (kaart ↔ lijst)
-// - Multi-select: klik op polygon of lijstitem togglet selectie
-// - Geselecteerd: donkerblauw in kaart, geel randje in lijst
-// - Klik op lege kaart: deselecteer alles
-// - Filter & sort blijven werken
-// - Geometry/centroid worden bewaard en bij laden robuust getekend
+// kaart.js — Percelen via KMZ upload plotten + filter + zoeken + opslaan/laden-ondersteuning
+// - Handmatige klikselectie uitgeschakeld
+// - Wettelijke grondsoort via Netlify function 'wettelijkeGrondsoort'
+// - “Bemestbaar” afgeleid van “Geen norm” in stikstofnormen_tabel2.json
+// - “Review nodig” alleen als gewascode niet in normen voorkomt (badge toont code)
+// - Opp. uit KMZ robuust geparsed: altijd naar ha (m² → /10.000, ha blijft ha)
+// - kmz:linking:start/progress/end events → spinner overlay + knopbusy
+// - UI: filter (Alle/Bemestbaar/Niet-bemestbaar) + zoekveld (binnen huidig filter)
+// - Saved hydrateren: 'parcels:loadSaved' event vult kaart & lijst met percelen uit account
 
 /* ---------------------------------
    1) Map init
@@ -32,7 +35,7 @@ window.addEventListener('resize', () => {
 --------------------------------- */
 export let parcels = [];
 let currentFilter = 'all';   // 'all' | 'bemestbaar' | 'niet'
-let currentSort   = 'none';  // 'none' | 'gew_asc' | 'gew_desc'
+let currentSearch = '';      // vrije tekst zoeken binnen huidig filter
 
 function uuid() { return 'p_' + Math.random().toString(36).slice(2); }
 
@@ -86,17 +89,20 @@ function polygonCentroid(geom) {
 function toHaFromKmz(v) {
   const raw = String(v ?? '').trim().toLowerCase();
   if (!raw) return 0;
+
   const s = raw.replace(/\s+/g, ' ').replace(',', '.');
+
   if (s.includes('ha')) {
     const num = parseFloat(s.replace('ha', '').trim());
     return Number.isFinite(num) ? num : 0;
   }
+
   const numeric = parseFloat(s.replace(/[^\d.+-eE]/g, ''));
   if (!Number.isFinite(numeric)) return 0;
   return numeric / 10_000;
 }
 
-// Tijdelijk grasland labels (266)
+// Tijdelijk grasland labels
 let __tgLabelsCache = null;
 async function loadTijdelijkGrasLabels() {
   if (__tgLabelsCache) return __tgLabelsCache;
@@ -106,13 +112,10 @@ async function loadTijdelijkGrasLabels() {
     const tg = keys.filter(k => k.toLowerCase().startsWith('tijdelijk grasland'));
     __tgLabelsCache = tg;
     return tg;
-  } catch {
-    __tgLabelsCache = [];
-    return __tgLabelsCache;
-  }
+  } catch { __tgLabelsCache = []; return __tgLabelsCache; }
 }
 
-// “Geen norm” set (→ niet-bemestbaar)
+// "Geen norm" set (→ niet-bemestbaar)
 let __geenNormSet = null;
 async function loadGeenNormSet() {
   if (__geenNormSet) return __geenNormSet;
@@ -120,9 +123,7 @@ async function loadGeenNormSet() {
     const norms = await fetchJson('/data/stikstofnormen_tabel2.json');
     const geen = norms?.['Geen norm']?.Gewascodes || [];
     __geenNormSet = new Set(geen.map(String));
-  } catch {
-    __geenNormSet = new Set();
-  }
+  } catch { __geenNormSet = new Set(); }
   return __geenNormSet;
 }
 async function isBemestbaar(gewasCode) {
@@ -132,7 +133,7 @@ async function isBemestbaar(gewasCode) {
   return !set.has(codeStr);
 }
 
-// Alle gewascodes set (voor review)
+// Alle gewascodes (voor "review nodig")
 let __allGewasCodesSet = null;
 async function loadAllGewasCodesSet() {
   if (__allGewasCodesSet) return __allGewasCodesSet;
@@ -144,9 +145,7 @@ async function loadAllGewasCodesSet() {
       if (Array.isArray(codes)) for (const c of codes) set.add(String(c));
     }
     __allGewasCodesSet = set;
-  } catch {
-    __allGewasCodesSet = new Set();
-  }
+  } catch { __allGewasCodesSet = new Set(); }
   return __allGewasCodesSet;
 }
 async function codeKnownInNormen(gewasCode) {
@@ -156,14 +155,16 @@ async function codeKnownInNormen(gewasCode) {
   return set.has(codeStr);
 }
 
-// Badges
+// Badges HTML
 function renderBadges(b) {
   if (!b) return '';
   const pill = (txt, cls) =>
     `<span class="badge ${cls}" style="padding:.15rem .5rem;border-radius:999px;font-size:.75rem;">${txt}</span>`;
   const out = [];
+
   if (typeof b.bemestbaar === 'boolean') {
-    out.push(b.bemestbaar ? pill('bemestbaar', 'badge-info') : pill('niet-bemestbaar', 'badge-warn'));
+    out.push(b.bemestbaar ? pill('bemestbaar', 'badge-info')
+                          : pill('niet-bemestbaar', 'badge-warn'));
   }
   if (b.reviewNeeded) {
     const extra = b.missingCode ? ` (code ${String(b.missingCode)})` : '';
@@ -178,7 +179,9 @@ function formatHa(v) {
   return n.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 function escapeHtml(s) {
-  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  return String(s ?? '')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
 /* ---------------------------------
@@ -215,14 +218,23 @@ function setMapSpinner(visible, text) {
   const msg = el.querySelector('.msg');
   if (msg && text) msg.textContent = text;
 }
+
+// Knop busy zonder inline kleuren
 function setAddButtonLoading(isLoading, progressText) {
   const btn = document.querySelector('#kmz-add, #rvo-add');
   if (!btn) return;
   const labelEl = btn.querySelector('#kmz-label') || document.getElementById('kmz-label');
-  btn.style.border = btn.style.background = btn.style.color = btn.style.boxShadow =
-  btn.style.padding = btn.style.borderRadius = btn.style.opacity = '';
+
+  btn.style.border = '';
+  btn.style.background = '';
+  btn.style.color = '';
+  btn.style.boxShadow = '';
+  btn.style.padding = '';
+  btn.style.borderRadius = '';
+  btn.style.opacity = '';
   btn.removeAttribute('aria-busy');
   const sp = btn.querySelector('.btnspin'); if (sp) sp.remove();
+
   if (isLoading) {
     btn.disabled = true;
     btn.setAttribute('aria-busy', 'true');
@@ -235,80 +247,28 @@ function setAddButtonLoading(isLoading, progressText) {
 }
 
 /* ---------------------------------
-   5) Selectie & stijl
---------------------------------- */
-function matchesFilter(p, filterKey) {
-  const bem = !!p?.badges?.bemestbaar;
-  if (filterKey === 'bemestbaar') return bem;
-  if (filterKey === 'niet')       return !bem;
-  return true;
-}
-function parcelBaseStyle(p) {
-  // Niet-geselecteerd: blauw; geselecteerd: donkerder blauw
-  if (p._selected) {
-    return { color:'#0b63c7', opacity:1, weight:3, fillOpacity:0.35 };
-  }
-  // Dimming als filter actief en dit perceel niet matcht
-  const show = matchesFilter(p, currentFilter);
-  return {
-    color:'#1e90ff',
-    opacity: show ? 1 : 0.15,
-    weight: show ? 2 : 1,
-    fillOpacity: show ? 0.25 : 0.04
-  };
-}
-function setLayerStyle(layer, styleObj) {
-  try {
-    if (layer && layer.setStyle) layer.setStyle(styleObj);
-    else if (layer && layer.eachLayer) layer.eachLayer(l => l.setStyle && l.setStyle(styleObj));
-  } catch {}
-}
-function applyParcelStyle(p) {
-  setLayerStyle(p.layer, parcelBaseStyle(p));
-  // lijstmarkering
-  const el = document.querySelector(`.parcel-item[data-id="${p.id}"]`);
-  if (el) {
-    if (p._selected) el.classList.add('is-selected');
-    else el.classList.remove('is-selected');
-  }
-}
-function toggleParcelSelectedById(id, centerOn = true) {
-  const p = parcels.find(x => x.id === id);
-  if (!p) return;
-  p._selected = !p._selected;
-  applyParcelStyle(p);
-  if (centerOn && p.layer && p.layer.getBounds) {
-    try { map.fitBounds(p.layer.getBounds().pad(0.2)); } catch {}
-  }
-}
-function clearSelectedParcels() {
-  let changed = false;
-  for (const p of parcels) {
-    if (p._selected) { p._selected = false; applyParcelStyle(p); changed = true; }
-  }
-  if (changed) dispatchParcelsChanged();
-}
-
-/* ---------------------------------
-   6) UI-lijst + filter/sort
+   5) UI-lijst + filter + zoek
 --------------------------------- */
 function ensureFilterUI() {
   const section = document.querySelector('.parcel-list-section');
   if (!section) return;
 
-  let wrap = document.getElementById('parcelFilterBar') || section.querySelector('.parcel-filter');
+  // wrapper
+  let wrap = document.getElementById('parcelFilterBar') || section.querySelector('.parcel-toolbar') || section.querySelector('.parcel-filter');
   if (!wrap) {
     wrap = document.createElement('div');
-    wrap.className = 'parcel-filter';
-    section.insertBefore(wrap, section.firstChild);
+    wrap.id = 'parcelFilterBar';
+    wrap.className = 'parcel-toolbar';
+    section.insertBefore(wrap, section.querySelector('.parcel-panel')?.firstChild || section.firstChild);
   }
 
+  // Filter select
   let filterSel = wrap.querySelector('#parcelFilter');
   if (!filterSel) {
     const label = document.createElement('label');
     label.className = 'sr-only';
     label.setAttribute('for', 'parcelFilter');
-    label.textContent = 'Toon percelen';
+    label.textContent = 'Filter percelen';
 
     filterSel = document.createElement('select');
     filterSel.id = 'parcelFilter';
@@ -323,71 +283,75 @@ function ensureFilterUI() {
     wrap.appendChild(filterSel);
   }
   if (!filterSel.dataset.bound) {
-    filterSel.addEventListener('change', () => applyParcelFilter(filterSel.value));
+    filterSel.addEventListener('change', () => applyVisibility(filterSel.value, currentSearch));
     filterSel.dataset.bound = '1';
   }
-  filterSel.value = currentFilter || 'all';
-  wrap.hidden = false;
+  filterSel.value = currentFilter;
 
-  let sortSel = wrap.querySelector('#parcelSort');
-  if (!sortSel) {
-    sortSel = document.createElement('select');
-    sortSel.id = 'parcelSort';
-    sortSel.className = 'pf-select';
-    sortSel.setAttribute('aria-label', 'Sorteer percelen');
-    sortSel.innerHTML = `
-      <option value="none">Originele volgorde</option>
-      <option value="gew_asc">A–Z (gewas)</option>
-      <option value="gew_desc">Z–A (gewas)</option>
-    `;
-    wrap.appendChild(sortSel);
+  // Zoekveld
+  let searchInp = wrap.querySelector('#parcelSearch');
+  if (!searchInp) {
+    const sl = document.createElement('label');
+    sl.className = 'sr-only';
+    sl.setAttribute('for', 'parcelSearch');
+    sl.textContent = 'Zoek in percelen';
+
+    searchInp = document.createElement('input');
+    searchInp.id = 'parcelSearch';
+    searchInp.className = 'pf-search';
+    searchInp.type = 'search';
+    searchInp.placeholder = 'Zoeken in percelen…';
+    searchInp.setAttribute('inputmode', 'search');
+    searchInp.setAttribute('autocomplete', 'off');
+
+    wrap.appendChild(sl);
+    wrap.appendChild(searchInp);
   }
-  if (!sortSel.dataset.bound) {
-    sortSel.addEventListener('change', () => applyParcelSort(sortSel.value));
-    sortSel.dataset.bound = '1';
+  if (!searchInp.dataset.bound) {
+    let to = null;
+    searchInp.addEventListener('input', () => {
+      clearTimeout(to);
+      to = setTimeout(() => applyVisibility(currentFilter, searchInp.value || ''), 120);
+    });
+    searchInp.dataset.bound = '1';
   }
-  sortSel.value = currentSort || 'none';
+  searchInp.value = currentSearch;
+
+  wrap.hidden = false;
 }
 
 function renderParcelList() {
   ensureFilterUI();
+
   const container = document.getElementById('parcelList');
   if (!container) return;
+
   container.innerHTML = '';
 
-  const listParcels = [...parcels];
-  if (currentSort === 'gew_asc' || currentSort === 'gew_desc') {
-    listParcels.sort((a, b) => {
-      const an = String(a.gewasNaam || '');
-      const bn = String(b.gewasNaam || '');
-      const cmp = an.localeCompare(bn, 'nl', { sensitivity: 'base' });
-      return currentSort === 'gew_desc' ? -cmp : cmp;
-    });
-  }
-
-  listParcels.forEach(p => {
+  parcels.forEach(p => {
     const div = document.createElement('div');
     div.className = 'parcel-item';
     div.dataset.id = p.id;
+
     div.style.cssText = `
       border:1px solid #eceff3; border-radius:12px; padding:.65rem .8rem; margin:.5rem 0;
-      box-shadow: 0 1px 1px rgba(16,24,40,.04); cursor:pointer;
+      box-shadow: 0 1px 1px rgba(16,24,40,.04);
     `;
-    if (p._selected) div.classList.add('is-selected');
 
     const isTG = Number(p.gewasCode) === 266;
+
     div.innerHTML = `
       <div class="title-row">
         <h3 class="parcel-title">${escapeHtml(p.name)}</h3>
         <div class="badge-row">${renderBadges(p.badges)}</div>
       </div>
 
-      <p class="meta-list">
+      <div class="meta-list">
         <span class="meta-item">Opp: <strong>${formatHa(p.ha)} ha</strong></span>
         <span class="meta-item">Code: <strong>${escapeHtml(p.gewasCode ?? '')}</strong></span>
         <span class="meta-item">Gewas: <strong>${escapeHtml(p.gewasNaam ?? '')}</strong></span>
         <span class="meta-item">Grondsoort: <strong>${escapeHtml(p.grondsoort ?? '')}</strong></span>
-      </p>
+      </div>
 
       ${isTG ? `
         <div class="field-group" style="margin:.5rem 0 0 0;">
@@ -397,13 +361,6 @@ function renderParcelList() {
       ` : ``}
     `;
 
-    // Klik op lijstitem → toggle selectie + center
-    div.addEventListener('click', (ev) => {
-      ev.stopPropagation();
-      toggleParcelSelectedById(p.id, true);
-    });
-
-    // 266-varianten vullen + handler
     if (isTG) {
       const sel = div.querySelector('.tg-variant');
       loadTijdelijkGrasLabels().then(labels => {
@@ -412,44 +369,74 @@ function renderParcelList() {
           return `<option ${selAttr} value="${escapeHtml(l)}">${escapeHtml(l)}</option>`;
         }).join('');
       });
-      sel.addEventListener('change', (e) => {
-        e.stopPropagation();
+      sel.addEventListener('change', () => {
         p.gewasNaam = sel.value;
         dispatchParcelsChanged();
+        // na wijziging opnieuw filteren/zoeken
+        applyVisibility(currentFilter, currentSearch);
       });
     }
 
     container.append(div);
   });
 
-  applyParcelFilter(currentFilter); // zet zichtbaarheid + dimmen
-  // na render: stijl nog eens toepassen (incl. selectie)
-  for (const p of parcels) applyParcelStyle(p);
+  // Eerste keer zichtbaarheid toepassen
+  applyVisibility(currentFilter, currentSearch);
 }
 
-function applyParcelFilter(filterKey = 'all') {
+function matchesFilter(p, filterKey) {
+  const bem = !!p?.badges?.bemestbaar;
+  if (filterKey === 'bemestbaar') return bem;
+  if (filterKey === 'niet')       return !bem;
+  return true;
+}
+function matchesSearch(p, termRaw) {
+  const term = (termRaw || '').trim().toLowerCase();
+  if (!term) return true;
+  const hay = [
+    p.name, p.gewasNaam, p.grondsoort, String(p.gewasCode ?? '')
+  ].map(x => String(x || '').toLowerCase());
+  return hay.some(s => s.includes(term));
+}
+
+// Toepassen op lijst + kaart (dimmen/tonen)
+function applyVisibility(filterKey = 'all', search = '') {
   currentFilter = filterKey;
+  currentSearch = search;
 
   const container = document.getElementById('parcelList');
+
+  // Lijst
   if (container) {
     for (const el of container.querySelectorAll('.parcel-item')) {
       const id = el.dataset.id;
       const p  = parcels.find(x => x.id === id);
-      el.style.display = (p && matchesFilter(p, filterKey)) ? '' : 'none';
+      const show = p && matchesFilter(p, filterKey) && matchesSearch(p, search);
+      el.style.display = show ? '' : 'none';
     }
   }
 
-  for (const p of parcels) applyParcelStyle(p); // dim/undim + selectie
-}
-
-function applyParcelSort(sortKey = 'none') {
-  currentSort = sortKey;
-  renderParcelList();
-  applyParcelFilter(currentFilter);
+  // Kaart dimmen
+  for (const p of parcels) {
+    const show = matchesFilter(p, filterKey) && matchesSearch(p, search);
+    try {
+      p.layer.setStyle({
+        opacity: show ? 1 : 0.15,
+        weight: show ? 2 : 1,
+        fillOpacity: show ? 0.25 : 0.04
+      });
+      if (show && p.layer.bringToFront) p.layer.bringToFront();
+    } catch {}
+  }
 }
 
 /* ---------------------------------
-   7) KMZ-only koppeling (upload)
+   6) Handmatige klikselectie uit (KMZ-only)
+--------------------------------- */
+map.on('click', () => { /* handmatige selectie uitgeschakeld */ });
+
+/* ---------------------------------
+   7) KMZ-only koppeling
 --------------------------------- */
 window.addEventListener('rvo:imported', async () => {
   try {
@@ -457,16 +444,12 @@ window.addEventListener('rvo:imported', async () => {
     const geo  = window.__KMZ_GEO && window.__KMZ_GEO.byId ? window.__KMZ_GEO.byId : null;
     if (!rows.length || !geo) return;
 
-    // Start progress UI (overlay + knop)
     setMapSpinner(true, 'Koppelen van percelen…');
     setAddButtonLoading(true, 'Koppelen…');
     window.dispatchEvent(new CustomEvent('kmz:linking:start', { detail: { total: rows.length } }));
 
     // Huidige selectie leegmaken
-    try {
-      for (const p of parcels) { if (p.layer) map.removeLayer(p.layer); }
-      parcels.length = 0;
-    } catch {}
+    try { for (const p of parcels) { if (p.layer) map.removeLayer(p.layer); } parcels.length = 0; } catch {}
 
     const tgLabels = await loadTijdelijkGrasLabels();
     let done = 0, added = 0;
@@ -497,25 +480,18 @@ window.addEventListener('rvo:imported', async () => {
       }
 
       // Bemestbaar / Review nodig
-      const bem   = await isBemestbaar(row.gewasCode);
+      const bem = await isBemestbaar(row.gewasCode);
       const known = await codeKnownInNormen(row.gewasCode);
       const reviewNeeded = !known;
 
-      const id = uuid();
-      const layer = L.geoJSON(feat.geometry, {
-        style: () => ({ color:'#1e90ff', weight:2, fillOpacity:0.25, opacity:1 }),
-        onEachFeature: (_f, lyr) => {
-          lyr.on('click', (ev) => {
-            L.DomEvent.stop(ev);
-            toggleParcelSelectedById(id, false);
-          });
-        }
-      }).addTo(map);
+      // Teken laag
+      const layer = L.geoJSON(feat.geometry, { style: { color: '#1e90ff', weight: 2, fillOpacity: 0.25 } }).addTo(map);
 
+      // Opp. ha
       const haNum = toHaFromKmz(row.ha);
 
       parcels.push({
-        id,
+        id: uuid(),
         layer,
         name: feat.properties?.weergavenaam || feat.properties?.identificatie || row.sectorId,
         ha: haNum,
@@ -533,8 +509,7 @@ window.addEventListener('rvo:imported', async () => {
         centroid: c || null,
         geometry: feat.geometry || null,
         _meta:  { sectorId: row.sectorId },
-        _source:'upload-kmz',
-        _selected:false
+        _source:'upload-kmz'
       });
 
       added++; done++;
@@ -548,6 +523,7 @@ window.addEventListener('rvo:imported', async () => {
     renderParcelList();
     dispatchParcelsChanged();
 
+    // Zoom naar selectie
     try {
       const group = L.featureGroup(parcels.map(p => p.layer).filter(Boolean));
       if (group.getLayers().length) map.fitBounds(group.getBounds().pad(0.1));
@@ -567,12 +543,11 @@ window.addEventListener('rvo:imported', async () => {
 });
 
 /* ---------------------------------
-   8) Saved percelen hydrateren (vanuit account) – robuust
+   8) Opgeslagen percelen hydrateren
 --------------------------------- */
 window.addEventListener('parcels:loadSaved', (e) => {
   const items = Array.isArray(e.detail?.parcels) ? e.detail.parcels : [];
 
-  // Helpers: normaliseer coördinaten en bouw altijd een geldig GeoJSON object
   const toNum = (v) => (typeof v === 'string' ? parseFloat(v) : v);
   const normCoords = (coords) => {
     if (!Array.isArray(coords)) return coords;
@@ -602,33 +577,20 @@ window.addEventListener('parcels:loadSaved', (e) => {
     return null;
   };
 
-  // Oude lagen opruimen
   try { for (const p of parcels) { if (p.layer) map.removeLayer(p.layer); } } catch {}
   parcels.length = 0;
 
-  // Opbouwen uit opgeslagen JSON → altijd via geldig GeoJSON object
   for (const row of items) {
-    const id = row.id || uuid();
     let layer = null;
     try {
       const featureOrFC = asFeature(row) || asFeature({ geometry: row?.geometry });
       if (featureOrFC) {
-        layer = L.geoJSON(featureOrFC, {
-          style: () => ({ color:'#1e90ff', weight:2, fillOpacity:0.25, opacity:1 }),
-          onEachFeature: (_f, lyr) => {
-            lyr.on('click', (ev) => {
-              L.DomEvent.stop(ev);
-              toggleParcelSelectedById(id, false);
-            });
-          }
-        }).addTo(map);
+        layer = L.geoJSON(featureOrFC, { style: { color: '#1e90ff', weight: 2, fillOpacity: 0.25 } }).addTo(map);
       }
-    } catch (err) {
-      console.warn('Kon opgeslagen geometry niet tekenen:', err, row);
-    }
+    } catch (err) { console.warn('Kon opgeslagen geometry niet tekenen:', err, row); }
 
     parcels.push({
-      id,
+      id: row.id || uuid(),
       layer,
       name: row.name ?? '',
       ha: Number(row.ha) || 0,
@@ -641,8 +603,7 @@ window.addEventListener('parcels:loadSaved', (e) => {
       centroid: row.centroid ?? null,
       geometry: row.geometry ?? null,
       _meta: row._meta ?? {},
-      _source: 'saved',
-      _selected:false
+      _source: 'saved'
     });
   }
 
@@ -650,34 +611,35 @@ window.addEventListener('parcels:loadSaved', (e) => {
   dispatchParcelsChanged();
 
   try {
-    const group = L.featureGroup(parcels.map(p => p.layer).filter(Boolean));
+    const group = L.featureGroup(
+      parcels.map(p => p.layer).filter(Boolean).flatMap(l => (l.getLayers ? l.getLayers() : [l]))
+    );
     if (group.getLayers().length) map.fitBounds(group.getBounds().pad(0.1));
-  } catch (err) {
-    console.warn('fitBounds fout:', err);
-  }
+  } catch (err) { console.warn('fitBounds fout:', err); }
 
   try { map.invalidateSize(); } catch {}
 });
 
 /* ---------------------------------
-   9) Kaartclick → deselect all
+   9) Clear API
 --------------------------------- */
-map.on('click', () => { clearSelectedParcels(); });
+map.on('click', () => { /* handmatige selectie uitgeschakeld */ });
 
-/* ---------------------------------
-   10) API
---------------------------------- */
 export function clearAllParcels() {
   try {
-    for (const p of parcels) { try { if (p.layer && map && map.removeLayer) map.removeLayer(p.layer); } catch {} }
+    for (const p of parcels) {
+      try { if (p.layer && map && map.removeLayer) map.removeLayer(p.layer); } catch {}
+    }
     parcels.length = 0;
     renderParcelList();
     dispatchParcelsChanged();
-  } catch (e) { console.warn('clearAllParcels():', e); }
+  } catch (e) {
+    console.warn('clearAllParcels():', e);
+  }
 }
 
 /* ---------------------------------
-   11) Init
+   10) Init
 --------------------------------- */
 renderParcelList();
 dispatchParcelsChanged();
