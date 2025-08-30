@@ -392,16 +392,35 @@ function renderParcelList() {
 // Lijst tonen/verbergen + kaart dimmen
 function applyVisibility(filterKey = 'all', search = '') {
   const container = document.getElementById('parcelList');
+  let visibleCount = 0;
 
   if (container) {
-    for (const el of container.querySelectorAll('.parcel-item')) {
+    // 1) Toon/verberg items + tel zichtbare
+    const items = container.querySelectorAll('.parcel-item');
+    items.forEach(el => {
       const id = el.dataset.id;
       const p  = parcels.find(x => x.id === id);
       const show = p && matchesFilter(p, filterKey) && matchesSearch(p, search);
       el.style.display = show ? '' : 'none';
+      if (show) visibleCount++;
+    });
+
+    // 2) Lege-staat element maken/tonen/verbergen
+    let empty = container.querySelector('.parcel-empty');
+    if (!empty) {
+      empty = document.createElement('div');
+      empty.className = 'parcel-empty';
+      empty.innerHTML = `
+        <div>
+          <div class="empty-title">Geen zoekresultaten</div>
+          <div class="empty-hint">Pas je filter of zoekopdracht aan.</div>
+        </div>`;
+      container.appendChild(empty);
     }
+    empty.style.display = visibleCount === 0 ? '' : 'none';
   }
 
+  // 3) Kaartlagen dimmen
   for (const p of parcels) {
     const show = matchesFilter(p, filterKey) && matchesSearch(p, search);
     try {
