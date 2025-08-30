@@ -28,13 +28,14 @@ export let parcels = [];
 let currentFilter = 'all';   // 'all' | 'bemestbaar' | 'niet'
 let currentSearch = '';      // zoekterm (highlight & filteren)
 
-// -- Enkelvoudige selectie (max 1) --
+// Enkelvoudige selectie
 let selectedParcelId = null;
-let suppressNextGlobalDeselect = false;
+let suppressNextGlobalDeselect = false; // negeer eerstvolgende document-click
+let suppressNextMapDeselect    = false; // negeer eerstvolgende map-click (na layer-click)
 
-// Kleuren & styles
+// Kleuren
 const COLOR_DEFAULT  = '#1e90ff';
-const COLOR_SELECTED = '#f1c40f'; // huisstijl-geel
+const COLOR_SELECTED = '#f1c40f'; // geel (huisstijl)
 
 function uuid() {
    return 'p_' + Math.random().toString(36).slice(2);
@@ -135,7 +136,6 @@ async function loadGeenNormSet() {
    }
    return __geenNormSet;
 }
-
 async function isBemestbaar(gewasCode) {
    const set = await loadGeenNormSet();
    const codeStr = String(gewasCode ?? '');
@@ -152,9 +152,7 @@ async function loadAllGewasCodesSet() {
       const set = new Set();
       for (const entry of Object.values(norms || {})) {
          const codes = entry?.Gewascodes;
-         if (Array.isArray(codes)) {
-            for (const c of codes) set.add(String(c));
-         }
+         if (Array.isArray(codes)) for (const c of codes) set.add(String(c));
       }
       __allGewasCodesSet = set;
    } catch {
@@ -162,7 +160,6 @@ async function loadAllGewasCodesSet() {
    }
    return __allGewasCodesSet;
 }
-
 async function codeKnownInNormen(gewasCode) {
    const set = await loadAllGewasCodesSet();
    const codeStr = String(gewasCode ?? '');
@@ -179,25 +176,20 @@ function escapeHtml(s) {
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#39;');
 }
-
 function escapeRegex(s) {
    return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
-
 function highlight(text, term) {
    const raw = String(text ?? '');
    const q = String(term ?? '').trim();
    if (!q) return escapeHtml(raw);
-
    const re = new RegExp(escapeRegex(q), 'gi');
    let out = '', last = 0, m;
-
    while ((m = re.exec(raw)) !== null) {
       out += escapeHtml(raw.slice(last, m.index));
       out += `<mark class="hl">${escapeHtml(m[0])}</mark>`;
       last = m.index + m[0].length;
    }
-
    out += escapeHtml(raw.slice(last));
    return out;
 }
@@ -207,7 +199,6 @@ function renderBadges(b) {
    if (!b) return '';
    const pill = (txt, cls) =>
       `<span class="badge ${cls}" style="padding:.15rem .5rem;border-radius:999px;font-size:.75rem;">${txt}</span>`;
-
    const out = [];
    if (typeof b.bemestbaar === 'boolean') {
       out.push(b.bemestbaar ? pill('bemestbaar', 'badge-info') : pill('niet-bemestbaar', 'badge-warn'));
@@ -218,14 +209,13 @@ function renderBadges(b) {
    }
    return out.join('');
 }
-
 function formatHa(v) {
    const n = Number(v);
    if (!Number.isFinite(n)) return '';
    return n.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-// Layer styles (incl. selectie)
+// Kaartstijl (incl. selectie)
 function updateParcelLayerStyle(p, show) {
    if (!p?.layer) return;
    if (p.id === selectedParcelId) {
@@ -279,34 +269,29 @@ function deselectParcel({ repaint = true } = {}) {
    const prev = parcels.find(x => x.id === selectedParcelId);
    if (prev) prev.isSelected = false;
    selectedParcelId = null;
-   if (repaint) {
-      renderParcelList(); // roept applyVisibility aan → styles updaten
-   }
+   if (repaint) renderParcelList(); // (roept applyVisibility aan → styles)
 }
 
 function selectParcel(id, { center = true, scroll = true } = {}) {
-   // toggle: zelfde id = deselect
-   if (selectedParcelId && selectedParcelId === id) {
-      deselectParcel({ repaint: true });
-      return;
-   }
-   // deselect vorige
    if (selectedParcelId && selectedParcelId !== id) {
       const prev = parcels.find(x => x.id === selectedParcelId);
       if (prev) prev.isSelected = false;
    }
-   // selecteer nieuwe
+   if (selectedParcelId === id) {
+      // toggle: zelfde perceel → deselect
+      deselectParcel({ repaint: true });
+      return;
+   }
    selectedParcelId = id;
    const curr = parcels.find(x => x.id === id);
    if (!curr) return;
    curr.isSelected = true;
 
-   // Klik die select veroorzaakt niet direct een globale deselect:
+   // Klik die select veroorzaakt negeer van eerstvolgende globale klik
    suppressNextGlobalDeselect = true;
    setTimeout(() => { suppressNextGlobalDeselect = false; }, 0);
 
-   // UI bijwerken
-   renderParcelList(); // tekent lijst + applyVisibility → kaartstijl
+   renderParcelList();
    if (scroll) scrollItemIntoView(id);
    if (center) focusMapOnParcel(curr);
 }
@@ -315,16 +300,13 @@ function selectParcel(id, { center = true, scroll = true } = {}) {
    4) Spinner overlay + knop-busy
 --------------------------------- */
 let mapSpinnerEl = null;
-
 function ensureMapSpinner() {
    if (mapSpinnerEl) return mapSpinnerEl;
-
    const wrap = document.createElement('div');
    wrap.style.cssText = `
       position:absolute; inset:0; display:none; align-items:center; justify-content:center;
       background:rgba(255,255,255,.55); backdrop-filter:saturate(120%) blur(1px); z-index:500;
    `;
-
    const inner = document.createElement('div');
    inner.style.cssText = 'display:flex; flex-direction:column; gap:.5rem; align-items:center; font-size:.95rem; color:#333;';
    inner.innerHTML = `
@@ -333,31 +315,24 @@ function ensureMapSpinner() {
          border-top-color:${COLOR_DEFAULT};border-radius:50%;animation:spin 0.8s linear infinite;"></div>
       <div class="msg">Koppelen van percelen…</div>
    `;
-
    wrap.appendChild(inner);
-
    const style = document.createElement('style');
    style.textContent = `@keyframes spin{to{transform:rotate(360deg)}}`;
    document.head.appendChild(style);
-
    mapEl.style.position = 'relative';
    mapEl.appendChild(wrap);
-
    mapSpinnerEl = wrap;
    return wrap;
 }
-
 function setMapSpinner(visible, text) {
    const el = ensureMapSpinner();
    el.style.display = visible ? 'flex' : 'none';
    const msg = el.querySelector('.msg');
    if (msg && text) msg.textContent = text;
 }
-
 function setAddButtonLoading(isLoading, progressText) {
    const btn = document.querySelector('#kmz-add, #rvo-add');
    if (!btn) return;
-
    const labelEl = btn.querySelector('#kmz-label') || document.getElementById('kmz-label');
 
    btn.style.border = '';
@@ -368,17 +343,13 @@ function setAddButtonLoading(isLoading, progressText) {
    btn.style.borderRadius = '';
    btn.style.opacity = '';
    btn.removeAttribute('aria-busy');
-
-   const sp = btn.querySelector('.btnspin');
-   if (sp) sp.remove();
+   const sp = btn.querySelector('.btnspin'); if (sp) sp.remove();
 
    if (isLoading) {
-      btn.disabled = true;
-      btn.setAttribute('aria-busy', 'true');
+      btn.disabled = true; btn.setAttribute('aria-busy','true');
       if (labelEl) labelEl.textContent = progressText || 'Koppelen…';
    } else {
-      btn.disabled = false;
-      btn.removeAttribute('aria-busy');
+      btn.disabled = false; btn.removeAttribute('aria-busy');
       if (labelEl) labelEl.textContent = 'Koppel percelen';
    }
 }
@@ -406,28 +377,20 @@ function ensureFilterUI() {
    let filterSel = wrap.querySelector('#parcelFilter');
    if (!filterSel) {
       const label = document.createElement('label');
-      label.className = 'sr-only';
-      label.setAttribute('for', 'parcelFilter');
-      label.textContent = 'Filter percelen';
+      label.className = 'sr-only'; label.setAttribute('for','parcelFilter'); label.textContent = 'Filter percelen';
 
       filterSel = document.createElement('select');
-      filterSel.id = 'parcelFilter';
-      filterSel.className = 'pf-select';
-      filterSel.setAttribute('aria-label', 'Toon percelen');
+      filterSel.id = 'parcelFilter'; filterSel.className = 'pf-select'; filterSel.setAttribute('aria-label','Toon percelen');
       filterSel.innerHTML = `
          <option value="all">Alle percelen</option>
          <option value="bemestbaar">Bemestbaar</option>
          <option value="niet">Niet-bemestbaar</option>
       `;
-
-      wrap.appendChild(label);
-      wrap.appendChild(filterSel);
+      wrap.appendChild(label); wrap.appendChild(filterSel);
    }
-
    if (!filterSel.dataset.bound) {
       filterSel.addEventListener('change', () => {
-         currentFilter = filterSel.value;
-         renderParcelList();
+         currentFilter = filterSel.value; renderParcelList();
       });
       filterSel.dataset.bound = '1';
    }
@@ -437,30 +400,19 @@ function ensureFilterUI() {
    let searchInp = wrap.querySelector('#parcelSearch');
    if (!searchInp) {
       const sl = document.createElement('label');
-      sl.className = 'sr-only';
-      sl.setAttribute('for', 'parcelSearch');
-      sl.textContent = 'Zoek in percelen';
+      sl.className = 'sr-only'; sl.setAttribute('for','parcelSearch'); sl.textContent = 'Zoek in percelen';
 
       searchInp = document.createElement('input');
-      searchInp.id = 'parcelSearch';
-      searchInp.className = 'pf-search';
-      searchInp.type = 'search';
-      searchInp.placeholder = 'Zoeken in percelen…';
-      searchInp.setAttribute('inputmode', 'search');
-      searchInp.setAttribute('autocomplete', 'off');
+      searchInp.id = 'parcelSearch'; searchInp.className = 'pf-search'; searchInp.type = 'search';
+      searchInp.placeholder = 'Zoeken in percelen…'; searchInp.setAttribute('inputmode','search'); searchInp.setAttribute('autocomplete','off');
 
-      wrap.appendChild(sl);
-      wrap.appendChild(searchInp);
+      wrap.appendChild(sl); wrap.appendChild(searchInp);
    }
-
    if (!searchInp.dataset.bound) {
       let to = null;
       searchInp.addEventListener('input', () => {
          clearTimeout(to);
-         to = setTimeout(() => {
-            currentSearch = searchInp.value || '';
-            renderParcelList();
-         }, 120);
+         to = setTimeout(() => { currentSearch = searchInp.value || ''; renderParcelList(); }, 120);
       });
       searchInp.dataset.bound = '1';
    }
@@ -472,17 +424,14 @@ function ensureFilterUI() {
 function matchesFilter(p, filterKey) {
    const bem = !!p?.badges?.bemestbaar;
    if (filterKey === 'bemestbaar') return bem;
-   if (filterKey === 'niet') return !bem;
+   if (filterKey === 'niet')       return !bem;
    return true;
 }
-
 function matchesSearch(p, termRaw) {
    const term = (termRaw || '').trim().toLowerCase();
    if (!term) return true;
-
    const hay = [p.name, p.gewasNaam, p.grondsoort, String(p.gewasCode ?? '')]
       .map(x => String(x || '').toLowerCase());
-
    return hay.some(s => s.includes(term));
 }
 
@@ -494,18 +443,17 @@ function renderParcelList() {
 
    container.innerHTML = '';
 
-   // ---- Sorteer percelen op opp. (ha) aflopend ----
+   // Sorteer percelen op opp. (ha) aflopend
    const sorted = [...parcels].sort((a, b) => {
       const ah = Number(a?.ha) || 0;
       const bh = Number(b?.ha) || 0;
-      if (bh !== ah) return bh - ah; // grootste eerst
-      // tie-breaker op naam voor stabiele volgorde
+      if (bh !== ah) return bh - ah;
       const an = String(a?.name || '');
       const bn = String(b?.name || '');
       return an.localeCompare(bn, 'nl', { numeric: true, sensitivity: 'base' });
    });
 
-   // ---- Render in gesorteerde volgorde ----
+   // Render lijst
    sorted.forEach(p => {
       const div = document.createElement('div');
       div.className = 'parcel-item';
@@ -565,7 +513,7 @@ function renderParcelList() {
          });
       }
 
-      // Klik op lijst-item = selecteren/zoomen/centeren
+      // Klik op lijst-item: selecteer/deselecteer + zoom + scroll
       div.tabIndex = 0;
       div.addEventListener('click', () => {
          if (selectedParcelId === p.id) {
@@ -588,17 +536,16 @@ function renderParcelList() {
       container.append(div);
    });
 
-   // zichtbaarheid toepassen + kaart dimmen / highlight
+   // Zichtbaarheid + kaart-dim/highlight
    applyVisibility(currentFilter, currentSearch);
 }
 
-// Lijst tonen/verbergen + kaart dimmen
+// Lijst tonen/verbergen + kaart dimmen/highlighten
 function applyVisibility(filterKey = 'all', search = '') {
    const container = document.getElementById('parcelList');
    let visibleCount = 0;
 
    if (container) {
-      // 1) Toon/verberg items + tel zichtbare
       const items = container.querySelectorAll('.parcel-item');
       items.forEach(el => {
          const id = el.dataset.id;
@@ -608,7 +555,6 @@ function applyVisibility(filterKey = 'all', search = '') {
          if (show) visibleCount++;
       });
 
-      // 2) Lege-staat element maken/tonen/verbergen
       let empty = container.querySelector('.parcel-empty');
       if (!empty) {
          empty = document.createElement('div');
@@ -624,7 +570,6 @@ function applyVisibility(filterKey = 'all', search = '') {
       empty.style.display = visibleCount === 0 ? '' : 'none';
    }
 
-   // 3) Kaartlagen dimmen of highlighten
    for (const p of parcels) {
       const show = matchesFilter(p, filterKey) && matchesSearch(p, search);
       updateParcelLayerStyle(p, show);
@@ -632,7 +577,7 @@ function applyVisibility(filterKey = 'all', search = '') {
 }
 
 /* ---------------------------------
-   6) Globale klik: tweede klik = deselect
+   6) Globale klik = deselect (tweede klik)
 --------------------------------- */
 document.addEventListener('click', () => {
    if (!selectedParcelId) return;
@@ -643,8 +588,9 @@ document.addEventListener('click', () => {
 /* ---------------------------------
    7) Kaart interactie
 --------------------------------- */
-// Klik op lege kaart = deselect
+// Klik op lege kaart = deselect (na layer-click 1x negeren)
 map.on('click', () => {
+   if (suppressNextMapDeselect) { suppressNextMapDeselect = false; return; }
    if (selectedParcelId) deselectParcel({ repaint: true });
 });
 
@@ -662,9 +608,7 @@ window.addEventListener('rvo:imported', async () => {
       window.dispatchEvent(new CustomEvent('kmz:linking:start', { detail: { total: rows.length } }));
 
       try {
-         for (const p of parcels) {
-            if (p.layer) map.removeLayer(p.layer);
-         }
+         for (const p of parcels) { if (p.layer) map.removeLayer(p.layer); }
          parcels.length = 0;
       } catch {}
 
@@ -690,10 +634,7 @@ window.addEventListener('rvo:imported', async () => {
 
          let gewasNaam = row.gewasNaam || '';
          if (Number(row.gewasCode) === 266) {
-            const fallback =
-               tgLabels.find(k => /1 januari.*15 oktober/i.test(k)) ||
-               tgLabels[0] ||
-               'Tijdelijk grasland';
+            const fallback = tgLabels.find(k => /1 januari.*15 oktober/i.test(k)) || tgLabels[0] || 'Tijdelijk grasland';
             gewasNaam = fallback;
          }
 
@@ -733,7 +674,11 @@ window.addEventListener('rvo:imported', async () => {
 
          try {
             layer.on('click', (evt) => {
+               // Stop bubbling zodat map.click/doc.click niet meteen deselecteren
                try { if (evt?.originalEvent && L?.DomEvent) L.DomEvent.stop(evt.originalEvent); } catch {}
+               suppressNextMapDeselect = true;
+               setTimeout(() => { suppressNextMapDeselect = false; }, 0);
+
                if (selectedParcelId === id) {
                   deselectParcel({ repaint: true });
                } else {
@@ -742,8 +687,7 @@ window.addEventListener('rvo:imported', async () => {
             });
          } catch {}
 
-         added++;
-         done++;
+         added++; done++;
          if (done % 5 === 0 || done === rows.length) {
             window.dispatchEvent(new CustomEvent('kmz:linking:progress', { detail: { done, total: rows.length } }));
             setMapSpinner(true, `Koppelen… ${done}/${rows.length}`);
@@ -779,24 +723,17 @@ window.addEventListener('parcels:loadSaved', (e) => {
    const items = Array.isArray(e.detail?.parcels) ? e.detail.parcels : [];
 
    const toNum = (v) => (typeof v === 'string' ? parseFloat(v) : v);
-
    const normCoords = (coords) => {
       if (!Array.isArray(coords)) return coords;
       if (coords.length === 2 && coords.every(n => typeof n === 'number' || typeof n === 'string')) {
-         const x = toNum(coords[0]);
-         const y = toNum(coords[1]);
+         const x = toNum(coords[0]); const y = toNum(coords[1]);
          return [Number.isFinite(x) ? x : coords[0], Number.isFinite(y) ? y : coords[1]];
       }
       return coords.map(normCoords);
    };
-
    const asFeature = (row) => {
       if (row?.type === 'Feature' && row.geometry) {
-         return {
-            type: 'Feature',
-            geometry: { ...row.geometry, coordinates: normCoords(row.geometry.coordinates) },
-            properties: {}
-         };
+         return { type: 'Feature', geometry: { ...row.geometry, coordinates: normCoords(row.geometry.coordinates) }, properties: {} };
       }
       if (row?.type === 'FeatureCollection' && Array.isArray(row.features)) {
          return {
@@ -809,21 +746,12 @@ window.addEventListener('parcels:loadSaved', (e) => {
          };
       }
       if (row?.geometry?.type && row.geometry?.coordinates) {
-         return {
-            type: 'Feature',
-            geometry: { ...row.geometry, coordinates: normCoords(row.geometry.coordinates) },
-            properties: {}
-         };
+         return { type: 'Feature', geometry: { ...row.geometry, coordinates: normCoords(row.geometry.coordinates) }, properties: {} };
       }
       return null;
    };
 
-   try {
-      for (const p of parcels) {
-         if (p.layer) map.removeLayer(p.layer);
-      }
-   } catch {}
-
+   try { for (const p of parcels) { if (p.layer) map.removeLayer(p.layer); } } catch {}
    parcels.length = 0;
 
    for (const row of items) {
@@ -833,9 +761,7 @@ window.addEventListener('parcels:loadSaved', (e) => {
          if (featureOrFC) {
             layer = L.geoJSON(featureOrFC, { style: { color: COLOR_DEFAULT, fillColor: COLOR_DEFAULT, weight: 2, fillOpacity: 0.25 } }).addTo(map);
          }
-      } catch (err) {
-         console.warn('Kon opgeslagen geometry niet tekenen:', err, row);
-      }
+      } catch (err) { console.warn('Kon opgeslagen geometry niet tekenen:', err, row); }
 
       const id = row.id || uuid();
 
@@ -848,7 +774,7 @@ window.addEventListener('parcels:loadSaved', (e) => {
          gewasNaam: row.gewasNaam ?? '',
          provincie: row.provincie ?? '',
          grondsoort: row.grondsoort ?? '',
-         landgebruik: row.landgebruik ?? (String(row.gewasNaam || '').toLowerCase().includes('gras') ? 'Grasland' : 'Bouwland'),
+         landgebruik: row.landgebruik ?? (String(row.gewasNaam||'').toLowerCase().includes('gras') ? 'Grasland' : 'Bouwland'),
          badges: row.badges ?? {},
          centroid: row.centroid ?? null,
          geometry: row.geometry ?? null,
@@ -860,6 +786,9 @@ window.addEventListener('parcels:loadSaved', (e) => {
       try {
          if (layer) layer.on('click', (evt) => {
             try { if (evt?.originalEvent && L?.DomEvent) L.DomEvent.stop(evt.originalEvent); } catch {}
+            suppressNextMapDeselect = true;
+            setTimeout(() => { suppressNextMapDeselect = false; }, 0);
+
             if (selectedParcelId === id) {
                deselectParcel({ repaint: true });
             } else {
@@ -877,9 +806,7 @@ window.addEventListener('parcels:loadSaved', (e) => {
          parcels.map(p => p.layer).filter(Boolean).flatMap(l => (l.getLayers ? l.getLayers() : [l]))
       );
       if (group.getLayers().length) map.fitBounds(group.getBounds().pad(0.1));
-   } catch (err) {
-      console.warn('fitBounds fout:', err);
-   }
+   } catch (err) { console.warn('fitBounds fout:', err); }
 
    try { map.invalidateSize(); } catch {}
 });
