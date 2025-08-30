@@ -274,18 +274,20 @@ mark.hl{
 /* ===== Lijst geselecteerde percelen ===== */
 .parcel-list-section{position:relative}
 .parcel-panel{
-   display:flex;flex-direction:column;gap:.5rem;
-   max-height:clamp(240px,42vh,520px);
+  display:flex;flex-direction:column;gap:.5rem;
+  height: clamp(480px, 56vh, 760px); /* ≈ min. 3 items op laptop/desktop */
 }
 .parcel-panel .panel-head{
    display:flex;align-items:center;justify-content:space-between;gap:.75rem;margin-bottom:.25rem
 }
 
 .parcel-scroll{
-   flex:1;overflow:auto;overflow-x:hidden;overscroll-behavior:contain;scroll-behavior:smooth;
-   padding-right:.25rem;padding-bottom:.5rem;
-   -webkit-overflow-scrolling:touch;scrollbar-gutter:stable both-edges;
+  flex:1;min-height:0; /* <- nieuw: voorkomt dat de scroller de layout gaat "duwen" */
+  overflow:auto;overflow-x:hidden;overscroll-behavior:contain;scroll-behavior:smooth;
+  padding-right:.25rem;padding-bottom:.5rem;
+  -webkit-overflow-scrolling:touch;scrollbar-gutter:stable both-edges;
 }
+
 @supports (padding:max(0px)){
    .parcel-scroll{padding-bottom:max(.5rem,env(safe-area-inset-bottom))}
 }
@@ -353,12 +355,8 @@ mark.hl{
    .title-row{flex-direction:column;align-items:flex-start;gap:.35rem}
 
   /* Stabieler en langer paneel: gebruik vaste hoogte met fallback + svh */
-  .parcel-panel{ height: clamp(560px, 78vh, 960px); }
-
-  /* Als svh wordt ondersteund: geen “jumping UI” bij adresbalk tonen/verbergen */
-  @supports (height: 1svh) {
-    .parcel-panel{ height: clamp(560px, 78svh, 960px); }
-  }
+  .parcel-panel{ height: clamp(560px, 78vh, 960px); }        /* fallback voor browsers zonder svh */
+  @supports (height: 1svh){ .parcel-panel{ height: clamp(560px, 78svh, 960px); } }
   
    /* Flex-child fix: laat de scroller netjes krimpen binnen het paneel */
   .parcel-scroll{ min-height: 0; }
