@@ -264,12 +264,13 @@ function scrollItemIntoView(id) {
    if (el) el.scrollIntoView({ block: 'center', behavior: 'smooth' });
 }
 
+// NIEUW: vanuit de lijst naar de kaart scrollen (mobiel/klein scherm)
 function scrollMapIntoView() {
-  try {
-    if (mapEl && mapEl.scrollIntoView) {
-      mapEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-  } catch {}
+   try {
+      if (mapEl && mapEl.scrollIntoView) {
+         mapEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+   } catch {}
 }
 
 function deselectParcel({ repaint = true } = {}) {
@@ -281,28 +282,28 @@ function deselectParcel({ repaint = true } = {}) {
 }
 
 function selectParcel(id, { center = true, scroll = true, scrollMap = false } = {}) {
-  if (selectedParcelId && selectedParcelId !== id) {
-    const prev = parcels.find(x => x.id === selectedParcelId);
-    if (prev) prev.isSelected = false;
-  }
-  if (selectedParcelId === id) {
-    // toggle: zelfde perceel → deselect
-    deselectParcel({ repaint: true });
-    return;
-  }
-  selectedParcelId = id;
-  const curr = parcels.find(x => x.id === id);
-  if (!curr) return;
-  curr.isSelected = true;
+   if (selectedParcelId && selectedParcelId !== id) {
+      const prev = parcels.find(x => x.id === selectedParcelId);
+      if (prev) prev.isSelected = false;
+   }
+   if (selectedParcelId === id) {
+      // toggle: zelfde perceel → deselect
+      deselectParcel({ repaint: true });
+      return;
+   }
+   selectedParcelId = id;
+   const curr = parcels.find(x => x.id === id);
+   if (!curr) return;
+   curr.isSelected = true;
 
-  // Klik die select veroorzaakt negeer van eerstvolgende globale klik
-  suppressNextGlobalDeselect = true;
-  setTimeout(() => { suppressNextGlobalDeselect = false; }, 0);
+   // Klik die select veroorzaakt negeer van eerstvolgende globale klik
+   suppressNextGlobalDeselect = true;
+   setTimeout(() => { suppressNextGlobalDeselect = false; }, 0);
 
-  renderParcelList();
-  if (scroll)  scrollItemIntoView(id);
-  if (center)  focusMapOnParcel(curr);
-  if (scrollMap) scrollMapIntoView(); // <<— NIEUW: lijst ⇒ terug naar de kaart
+   renderParcelList();
+   if (scroll)     scrollItemIntoView(id);
+   if (center)     focusMapOnParcel(curr);
+   if (scrollMap)  scrollMapIntoView(); // lijst → kaart terug in beeld
 }
 
 /* ---------------------------------
@@ -480,7 +481,7 @@ function renderParcelList() {
 
       const isTG = Number(p.gewasCode) === 266;
 
-      // highlight naam/gewas/code/grondsoort
+      // highlight naam/gewas/code
       const hName  = highlight(p.name, currentSearch);
       const hCode  = highlight(String(p.gewasCode ?? ''), currentSearch);
       const hGewas = highlight(p.gewasNaam ?? '', currentSearch);
@@ -520,13 +521,13 @@ function renderParcelList() {
          });
       }
 
-      // Klik op lijst-item: selecteer/deselecteer + zoom + scroll
+      // Klik op lijst-item: selecteer/deselecteer + zoom + scroll + scrollMap
       div.tabIndex = 0;
       div.addEventListener('click', () => {
          if (selectedParcelId === p.id) {
             deselectParcel({ repaint: true });
          } else {
-            selectParcel(p.id, { center: true, scroll: true });
+            selectParcel(p.id, { center: true, scroll: true, scrollMap: true });
          }
       });
       div.addEventListener('keydown', (e) => {
@@ -535,7 +536,7 @@ function renderParcelList() {
             if (selectedParcelId === p.id) {
                deselectParcel({ repaint: true });
             } else {
-               selectParcel(p.id, { center: true, scroll: true });
+               selectParcel(p.id, { center: true, scroll: true, scrollMap: true });
             }
          }
       });
