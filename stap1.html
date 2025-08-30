@@ -299,45 +299,5 @@
       }
     });
   </script>
-  
-  <!-- Scroll-controls logica voor parcelList -->
-  <script type="module">
-    function updateScrollControlsVisibility(){
-      const list  = document.getElementById('parcelList');
-      const ctrls = document.getElementById('parcelScrollControls');
-      if (!list || !ctrls) return;
-      const needs = (list.scrollHeight - list.clientHeight) > 4;
-      ctrls.hidden = !needs;
-    }
-
-    function wireScrollControls(){
-      const list  = document.getElementById('parcelList');
-      const up    = document.getElementById('parcelScrollUp');
-      const down  = document.getElementById('parcelScrollDown');
-      if (!list || !up || !down) return;
-
-      const step = () => Math.max(180, Math.round(list.clientHeight * 0.8)); // comfortabel
-      up.addEventListener('click',   () => list.scrollBy({ top: -step(), behavior: 'smooth' }));
-      down.addEventListener('click', () => list.scrollBy({ top:  step(), behavior: 'smooth' }));
-
-      // toetsenbord: PgUp/PgDn/Home/End
-      list.addEventListener('keydown', (e) => {
-        if (e.key === 'PageDown') { e.preventDefault(); list.scrollBy({ top:  step(), behavior:'smooth' }); }
-        if (e.key === 'PageUp')   { e.preventDefault(); list.scrollBy({ top: -step(), behavior:'smooth' }); }
-        if (e.key === 'Home')     { e.preventDefault(); list.scrollTo({ top: 0, behavior:'smooth' }); }
-        if (e.key === 'End')      { e.preventDefault(); list.scrollTo({ top: list.scrollHeight, behavior:'smooth' }); }
-      });
-    }
-
-    // Init bij DOM ready
-    document.addEventListener('DOMContentLoaded', () => {
-      wireScrollControls();
-      updateScrollControlsVisibility();
-    });
-
-    // Updaten wanneer lijst verandert of venster resizet
-    window.addEventListener('parcels:changed', updateScrollControlsVisibility);
-    window.addEventListener('resize', updateScrollControlsVisibility);
-  </script>
 </body>
 </html>
