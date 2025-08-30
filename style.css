@@ -4,7 +4,6 @@
 
 /* ============ Variabelen ============ */
 :root{
-  /* Kleuren */
   --color-black:#0d0d0d; --color-white:#fff;
   --color-yellow:#f1c40f; --color-yellow-dark:#d4ac0d;
   --color-gray-light:#f5f5f5; --color-gray-dark:#777;
@@ -12,17 +11,14 @@
   --color-error-bg:#ffe8e6;  --color-error-text:#9b2226;
   --color-danger:#e74c3c;    --color-danger-dark:#c0392b;
 
-  /* Breakpoints */
   --bp-sm:480px; --bp-md:768px; --bp-lg:1024px; --bp-xl:1280px;
 
-  /* Type scale */
   --fs-h1:clamp(1.625rem,1.2rem + 2vw,2.25rem);
   --fs-h2:clamp(1.25rem,1.1rem + 1.2vw,1.75rem);
   --fs-h3:clamp(1.125rem,1rem + .8vw,1.375rem);
   --fs-body:clamp(1rem,.95rem + .3vw,1.0625rem);
   --fs-card:.9rem;
 
-  /* Upload-card layout */
   --card-icon-w:26px;
   --card-left-gap:.35rem;
   --card-left-pad:calc(var(--card-icon-w) + var(--card-left-gap));
@@ -197,7 +193,7 @@ body.is-auth .guest-only{display:none!important}
 
 /* ===== Toolbar (filter + zoeken) ===== */
 .parcel-toolbar,
-.parcel-filter{ /* (alias voor oude class) */
+.parcel-filter{
   display:flex;align-items:center;justify-content:flex-end;gap:.5rem;margin:.25rem 0 .5rem;max-width:100%;flex-wrap:wrap;
 }
 .pf-select{
@@ -208,6 +204,15 @@ body.is-auth .guest-only{display:none!important}
   min-width:200px;flex:1 1 220px;max-width:100%;
 }
 .pf-select:focus,.pf-search:focus{outline:none;box-shadow:0 0 0 3px rgba(17,24,39,.06);border-color:#d4d4d8}
+
+/* Highlight van zoekterm */
+mark.hl{
+  background: rgba(241,196,15,.35);
+  color: inherit;
+  padding: 0 .08em;
+  border-radius: .2em;
+  box-decoration-break: clone;
+}
 
 /* toegankelijkheid */
 .sr-only{
@@ -268,7 +273,6 @@ body.is-auth .guest-only{display:none!important}
   .meta-list{font-size:.9rem}
   .title-row{flex-direction:column;align-items:flex-start;gap:.35rem}
 }
-/* Iets breder mobiel: 2 kolommen (filter + zoekveld naast elkaar) */
 @media (min-width:420px) and (max-width:640px){
   .parcel-toolbar{grid-template-columns:1fr 1fr}
 }
