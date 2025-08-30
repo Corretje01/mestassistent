@@ -353,7 +353,7 @@ mark.hl{
    .title-row{flex-direction:column;align-items:flex-start;gap:.35rem}
 
    /* Meer ruimte voor de percelenlijst (≈ 3 items zichtbaar) */
-   .parcel-panel{max-height:clamp(420px,65dvh,720px)}
+   .parcel-panel{max-height:clamp(480px,75dvh,820px)}
 
    /* Kaart iets lager voor extra lijst-ruimte (optioneel, goed default) */
    #map{height:clamp(280px,42vh,420px)}
