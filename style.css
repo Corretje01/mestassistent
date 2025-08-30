@@ -352,8 +352,16 @@ mark.hl{
    .meta-list{font-size:.9rem}
    .title-row{flex-direction:column;align-items:flex-start;gap:.35rem}
 
-   /* Meer ruimte voor de percelenlijst (≈ 3 items zichtbaar) */
-   .parcel-panel{max-height:clamp(480px,75dvh,820px)}
+  /* Stabieler en langer paneel: gebruik vaste hoogte met fallback + svh */
+  .parcel-panel{ height: clamp(560px, 78vh, 960px); }
+
+  /* Als svh wordt ondersteund: geen “jumping UI” bij adresbalk tonen/verbergen */
+  @supports (height: 1svh) {
+    .parcel-panel{ height: clamp(560px, 78svh, 960px); }
+  }
+  
+   /* Flex-child fix: laat de scroller netjes krimpen binnen het paneel */
+  .parcel-scroll{ min-height: 0; }
 
    /* Kaart iets lager voor extra lijst-ruimte (optioneel, goed default) */
    #map{height:clamp(280px,42vh,420px)}
