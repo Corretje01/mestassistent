@@ -296,3 +296,11 @@ mark.hl{
 @media (min-width:420px) and (max-width:640px){
   .parcel-toolbar{grid-template-columns:1fr 1fr}
 }
+
+/* --- Mobiel: meer ruimte voor de percelenlijst --- */
+@media (max-width:640px){
+  /* Verhoog het paneel-plafond zodat ±3 items zichtbaar zijn */
+  .parcel-panel{
+    max-height: clamp(420px, 65dvh, 720px);
+  }
+}
