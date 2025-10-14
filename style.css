@@ -368,3 +368,39 @@ mark.hl{
 @media (min-width:420px) and (max-width:640px){
    .parcel-toolbar{grid-template-columns:1fr 1fr}
 }
+
+/* ====== Mijn uploads – robuuste grid lay-out ====== */
+#myUploads{
+  display:grid !important;
+  grid-template-columns: 1fr;                 /* mobiel: 1 kolom */
+  gap:1.25rem;
+  width:100% !important;
+  max-width:100% !important;
+  box-sizing:border-box;
+  justify-items:stretch;
+  align-items:start;
+}
+
+@media (min-width: 800px){
+  #myUploads{ grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (min-width: 1100px){
+  #myUploads{ grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+/* Grid-kinderen vullen hun track volledig */
+#myUploads > *{
+  width:100%;
+  min-width:0;
+  box-sizing:border-box;
+}
+
+/* Kaarten zelf (veilig hier nogmaals definiëren) */
+.upload-card{
+  border:1px solid #e5e7eb;
+  border-radius:12px;
+  background:#fff;
+  padding:1rem 1rem .85rem;
+  box-shadow:0 6px 20px rgba(0,0,0,.04);
+}
+
