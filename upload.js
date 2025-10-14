@@ -436,9 +436,10 @@ async function loadMyUploads(){
     }
 
     myUploads.innerHTML = '';
-    myUploads.classList.add('uploads-grid');
-    myUploads.appendChild(renderUploadsGrid(data));
+    myUploads.classList.add('uploads-grid');  // mag blijven, stoort niet
+    renderUploadsGrid(data);                  // gewoon aanroepen
     bindUploadActions(data);
+    
   } catch (e) {
     console.error(e);
     myUploads.textContent = 'Kon jouw uploads niet ophalen.';
@@ -448,8 +449,16 @@ async function loadMyUploads(){
 function renderUploadsGrid(rows) {
   const grid = document.getElementById('myUploads');
   if (!grid) return;
-  grid.innerHTML = '';            // leegmaken
-  rows.forEach(rowEl => grid.appendChild(rowEl)); // kaarten direct erin
+
+  grid.innerHTML = '';                         // leeg grid
+  const frag = document.createDocumentFragment();
+
+  rows.forEach((r) => {
+    const cardEl = renderUploadCard(r);        // maak <article.upload-card> uit data
+    if (cardEl) frag.appendChild(cardEl);
+  });
+
+  grid.appendChild(frag);                      // één keer append voor performance
 }
 
 function renderBadge(status){
