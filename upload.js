@@ -436,7 +436,6 @@ async function loadMyUploads(){
     }
 
     myUploads.innerHTML = '';
-    myUploads.classList.add('uploads-grid');  // mag blijven, stoort niet
     renderUploadsGrid(data);                  // gewoon aanroepen
     bindUploadActions(data);
     
@@ -618,8 +617,8 @@ function escapeHtml(s){
 }
 function renderFileChip(hasFile){
   return hasFile
-    ? `<span class="chip ok"><span class="dot"></span> aanwezig</span>`
-    : `<span class="chip none"><span class="dot"></span> geen bestand</span>`;
+    ? `<span class="file-chip ok"><span class="dot"></span> aanwezig</span>`
+    : `<span class="file-chip"><span class="dot"></span> geen bestand</span>`;
 }
 
 /* === AUTOSAVE infra === */
