@@ -447,17 +447,36 @@ mark.hl{
 
 /* Analyse: klikbare 'chip' als link (vervangt oude .file-chip) */
 .file-link{
-  display:inline-flex;align-items:center;gap:.4rem;
-  padding:.25rem .55rem;border-radius:999px;border:1px dashed #d1d5db;background:#fafafa;
-  font-size:.9rem;line-height:1.2;color:#111827;text-decoration:underline;cursor:pointer;
-  appearance:none;-webkit-tap-highlight-color:transparent;user-select:none;
+  display:inline-flex; align-items:center; gap:.4rem;
+  padding:.25rem .55rem; border-radius:999px;
+  border:1px dashed #d1d5db; background:#fafafa;
+  font-size:.9rem; line-height:1.2; color:#111827;
+  text-decoration:none; cursor:pointer;
+  appearance:none; -webkit-tap-highlight-color:transparent; user-select:none;
 }
-.file-link.ok{border-style:solid;background:#eef2ff}
-.file-link .dot{width:.45rem;height:.45rem;border-radius:50%;background:#9ca3af;display:inline-block}
-.file-link.ok .dot{background:#2563eb} /* blauw dot bij 'aanwezig' */
-.file-link:hover{background:#f3f4f6}
-.file-link:focus-visible{outline:3px solid rgba(241,196,15,.35);outline-offset:2px}
-.file-link[disabled],.file-link[aria-busy="true"]{opacity:.6;cursor:not-allowed;text-decoration:none}
+
+.file-link .dot{
+  width:.45rem; height:.45rem; border-radius:50%;
+  background:#9ca3af; display:inline-block;
+}
+
+/* Aanwezig -> gele themakleur i.p.v. blauw */
+.file-link.ok{
+  border-style:solid;
+  border-color:var(--color-yellow);
+  background:rgba(241,196,15,.12);
+}
+.file-link.ok .dot{
+  background:var(--color-yellow-dark);
+}
+
+/* Hover/Focus/Disabled states */
+.file-link:hover{ background:#f3f4f6; }
+.file-link.ok:hover{ background:rgba(241,196,15,.18); }
+.file-link:focus-visible{ outline:3px solid rgba(241,196,15,.35); outline-offset:2px; }
+.file-link[disabled], .file-link[aria-busy="true"]{
+  opacity:.6; cursor:not-allowed; text-decoration:none;
+}
 
 /* Compact formulier in kaart */
 .upload-card__form{
