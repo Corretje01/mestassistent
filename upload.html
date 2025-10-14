@@ -10,7 +10,7 @@
   <!-- Supabase in head (zoals op je andere pagina's) -->
   <script type="module" src="supabaseClient.js"></script>
 
-  <!-- Pagina-specifieke (scoped) form styles -->
+  <!-- Pagina-specifieke (scoped) form + kaarten styles -->
   <style>
     .container { max-width: 980px; margin: 0 auto; padding: 1rem; }
     .card { background:#fff; border-radius: 14px; padding: 1.25rem; box-shadow: 0 10px 30px rgba(0,0,0,.06); margin-bottom: 1.25rem; }
@@ -98,10 +98,127 @@
         box-sizing:border-box;
       }
     }
-       
+
+    /* ===========================
+       MIJN UPLOADS – GRID & KAART
+       =========================== */
+
+    /* Lege staat netjes tonen zonder extra JS */
+    #myUploads:empty::before{
+      content:"Nog geen uploads. Voeg eerst een analyse toe.";
+      display:block;
+      color:#6b7280;
+      font-size:.95rem;
+      padding:.25rem 0 .5rem;
+    }
+
+    /* Grid lay-out */
+    .uploads-grid{
+      display:grid;
+      grid-template-columns:1fr;
+      gap:1rem;
+    }
+    @media (min-width:720px){
+      .uploads-grid{ grid-template-columns:1fr 1fr; }
+    }
+    @media (min-width:1120px){
+      .uploads-grid{ grid-template-columns:1fr 1fr 1fr; }
+    }
+
+    /* Kaart zelf */
+    .upload-card{
+      position:relative; /* popover positioning */
+      border:1px solid #e5e7eb; border-radius:12px; background:#fff;
+      padding:1rem 1rem .85rem;
+      box-shadow:0 6px 20px rgba(0,0,0,.04);
+    }
+    .upload-card--airy{ padding-top:1rem; }
+
+    /* Sluit-knop (X) */
+    .upload-card .card-close{
+      position:absolute; right:.6rem; top:.6rem;
+      border:0; background:transparent; color:#9ca3af;
+      font-size:1.25rem; line-height:1; cursor:pointer;
+    }
+    .upload-card .card-close:hover{ color:#111827; }
+
+    /* Header: titel (inline-edit) + status */
+    .upload-card__head{
+      display:flex; align-items:center; justify-content:space-between; gap:.75rem;
+      margin-bottom:.65rem;
+      text-align:left !important; /* tegen globale center regels */
+    }
+    .upload-card__head .title{
+      font-weight:700; font-size:1rem; line-height:1.2; margin:0;
+      cursor:text; border-bottom:1px dashed transparent;
+    }
+    .upload-card__head .title.is-editing{ outline:3px solid rgba(241,196,15,.25); border-radius:6px; padding:.15rem .25rem; }
+    .upload-card__head .title:not(.is-editing):hover{ border-bottom-color:#e5e7eb; }
+    .upload-card__head .status-wrap{ display:flex; align-items:center; gap:.35rem; }
+    .status-wrap .badge{ align-self:center; } /* nette uitlijning badge */
+
+    /* Meta-rijen (links label, rechts waarde/chips) */
+    .upload-card__meta{ display:flex; flex-direction:column; gap:.35rem; margin-bottom:.75rem; }
+    .meta-row{ display:flex; gap:.75rem; align-items:flex-start; }
+    .meta-label{
+      width:120px; min-width:120px; font-weight:600; color:#374151;
+      text-align:left !important;
+    }
+    .meta-value{ flex:1; min-width:0; }
+
+    /* Analyse-chips */
+    .analysis-pills{ display:flex; flex-wrap:wrap; gap:.35rem; }
+    .analysis-pills .pill{
+      display:inline-flex; align-items:center; gap:.35rem;
+      font-size:.85rem; padding:.25rem .5rem; border-radius:999px;
+      background:#f3f4f6; color:#111827; border:1px solid #e5e7eb;
+    }
+    .analysis-pills .pill .u{ font-weight:700; }
+
+    /* Bestand-chip + actie */
+    .file-chip{
+      display:inline-flex; align-items:center; gap:.45rem;
+      padding:.25rem .55rem; border-radius:999px; border:1px dashed #d1d5db; background:#fafafa;
+      font-size:.85rem; color:#374151;
+    }
+    .file-chip.ok{ border-style:solid; background:#eef2ff; }
+    .file-chip .a-fileedit{
+      margin-left:.35rem; font-size:.85rem; color:#111827; text-decoration:underline; background:none; border:0; cursor:pointer;
+    }
+    .file-chip .a-fileedit:hover{ opacity:.8; }
+
+    /* Compacte velden onderaan de kaart */
+    .upload-card__form{
+      display:grid; grid-template-columns:1fr; gap:.5rem; padding-top:.35rem; border-top:1px solid #f1f1f1;
+    }
+    @media (min-width:560px){
+      .upload-card__form{ grid-template-columns:1fr 1fr 1fr; }
+    }
+    .field-sm{ display:flex; flex-direction:column; gap:.25rem; }
+    .label-sm{ font-weight:600; font-size:.9rem; color:#111827; }
+    .input--sm{
+      font-size:.95rem; padding:.55rem .7rem; border-radius:10px; border:1px solid #e5e7eb; outline:none;
+      transition:border-color .15s ease, box-shadow .15s ease, background-color .15s ease;
+    }
+    .input--sm:focus{ border-color:var(--color-yellow); box-shadow:0 0 0 3px rgba(241,196,15,.25); }
+    .addon.left{ position:absolute; left:.55rem; top:50%; transform:translateY(-50%); color:#6b7280; font-weight:600; }
+    .addon.right{ position:absolute; right:.55rem; top:50%; transform:translateY(-50%); color:#6b7280; font-weight:600; }
+    .addon-left-pad{ padding-left:1.6rem; }
+    .addon-right-pad{ padding-right:1.6rem; }
+
+    /* Autosave feedback (upload.js zet .is-saving / .is-saved) */
+    .upload-card.is-saving::after{
+      content:"Opslaan…";
+      position:absolute; right:1rem; bottom:.65rem; font-size:.85rem; color:#6b7280;
+    }
+    .upload-card.is-saved{
+      box-shadow:0 0 0 2px rgba(241,196,15,.35), 0 6px 20px rgba(0,0,0,.05);
+      transition:box-shadow .35s ease;
+    }
+
     /* Zorg dat de popover absoluut t.o.v. de kaart kan positioneren */
     .upload-card{ position: relative; }
-    
+
     /* Info-icoon: compacte fallback; JS zet uiteindelijk exacte maat */
     .status-info-btn{
       border:2px solid var(--color-black);
@@ -123,29 +240,23 @@
     }
     .status-info-btn:hover{ background: var(--color-yellow); border-color: var(--color-yellow); }
     .status-info-btn:active{ transform: translateY(1px); }
-    
-    /* Chip en knopje netjes uitgelijnd */
-    .status-wrap .badge{ align-self:center; }
 
-    /* Mobielvriendelijke popup: desktop = absolute in kaart; mobiel = fixed bottom sheet */
+    /* Mobielvriendelijke popup: desktop = absolute in kaart; mobiel = fixed modal */
     .reason-popover{
       position:absolute;
       left:12px;
       top:42px;
-    
-      /* Belangrijk: houd hem BINNEN de kaart op desktop/tablet */
-      width: min(420px, calc(100% - 24px)); /* 12px marge links+rechts */
+      width: min(420px, calc(100% - 24px));
       max-height: min(60vh, 420px);
       overflow:auto;
-    
       background:#fff;
       border:1px solid #e5e7eb;
       border-radius:12px;
       box-shadow: 0 10px 30px rgba(0,0,0,.08);
       padding:.85rem;
-      z-index: 1000;                  /* iets hoger voor zekerheid */
+      z-index: 1000;
       box-sizing: border-box;
-      word-break: break-word;         /* lange woorden breken */
+      word-break: break-word;
       -webkit-overflow-scrolling: touch;
     }
     .reason-popover__title{ font-weight:800; margin:0 0 .35rem; }
@@ -153,50 +264,38 @@
     .reason-popover__actions{
       display:flex;
       gap:.5rem;
-      justify-content:space-between; /* ruimte gelijk verdelen */
+      justify-content:space-between;
     }
-    /* Beide knoppen exact even groot en op één regel */
     .reason-popover__actions .btn-ghost,
     .reason-popover__actions .btn-primary{
-      flex:1 1 0;                  /* gelijke breedte verdeling */
-      display:flex;                /* centreren van label */
+      flex:1 1 0;
+      display:flex;
       align-items:center;
       justify-content:center;
-      min-height:44px;             /* iets hoger voor leesbaarheid */
-      height:auto;                 /* geen vaste 36px meer */
-      padding:.6rem .9rem;         /* iets ruimer zodat "Sluiten" past */
-      white-space:nowrap;          /* niet afbreken */
+      min-height:44px;
+      height:auto;
+      padding:.6rem .9rem;
+      white-space:nowrap;
       border-radius:10px;
       box-sizing:border-box;
     }
-    
-    /* Stijlverschil blijft behouden */
     .reason-popover__actions .btn-ghost{
       background:transparent; border:2px solid transparent; color:#111827;
     }
     .reason-popover__actions .btn-ghost:hover{ background:#f5f5f5; }
-    
     .reason-popover__actions .btn-primary{
       background: var(--color-yellow); border:2px solid var(--color-yellow); color: var(--color-black);
       font-weight:700;
     }
-    
     @media (max-width: 640px){
       .reason-popover{
-        /* maak er een gecentreerde modal van */
         position: fixed;
         left: 50%;
         top: 50%;
-        right: auto;          /* reset eventuele eerdere waarden */
-        bottom: auto;         /* reset eventuele eerdere waarden */
         transform: translate(-50%, -50%);
-    
-        /* maatvoering: nooit buiten beeld, altijd leesbaar */
         width: min(92vw, 420px);
         max-height: min(70vh, 560px);
         overflow: auto;
-    
-        /* kleine cosmetiek voor modalgevoel */
         border-radius: 14px;
         padding: 1rem;
         z-index: 1000;
@@ -206,7 +305,7 @@
       }
     }
 
-    /* Lokale overrides tegen eventuele globale 'text-center' regels */
+    /* Lokale text-align overrides tegen eventuele globale regels */
     .upload-card__head,
     .upload-card__head .title,
     .upload-card__head .status,
@@ -391,38 +490,39 @@
     <section class="card" aria-labelledby="h-overview">
       <h2 id="h-overview" style="margin-bottom:.25rem;">Mijn uploads</h2>
       <div class="muted" style="margin-bottom:.5rem;">Controleer je gegevens; Nutriëntwaarden wijzig je uitsluitend met een nieuwe analyse.</div>
-      <div id="myUploads"></div>
+      <!-- Belangrijk: grid class toegevoegd -->
+      <div id="myUploads" class="uploads-grid"></div>
     </section>
 
     <!-- Kaart-template voor Mijn uploads -->
     <template id="tpl-upload-card">
       <article class="upload-card upload-card--airy" data-id="">
         <button class="card-close a-del" aria-label="Verwijderen" title="Verwijderen">×</button>
-      
+
         <header class="upload-card__head">
           <div class="title"></div>
           <div class="status"></div>
         </header>
-      
+
         <div class="upload-card__meta">
           <div class="meta-row">
             <div class="meta-label">Mestsoort</div>
             <div class="meta-value js-kind"></div>
           </div>
-      
+
           <div class="meta-row">
             <div class="meta-label">Nutriënten</div>
             <div class="meta-value">
               <div class="analysis-pills js-analysis"></div>
             </div>
           </div>
-      
+
           <div class="meta-row">
             <div class="meta-label">Analyse</div>
             <div class="meta-value js-filechip"></div>
           </div>
         </div>
-      
+
         <div class="upload-card__form">
           <label class="field-sm">
             <span class="label-sm">Vraagprijs per ton</span>
@@ -431,7 +531,7 @@
               <input class="input input--sm addon-left-pad e-prijs" inputmode="decimal" placeholder="0,00" value="">
             </div>
           </label>
-      
+
           <label class="field-sm">
             <span class="label-sm">Aantal ton</span>
             <div class="control">
@@ -439,7 +539,7 @@
               <span class="addon right">t</span>
             </div>
           </label>
-      
+
           <label class="field-sm">
             <span class="label-sm">Postcode</span>
             <div class="control">
@@ -474,43 +574,33 @@
       const formatPrice = (raw) => {
         if (raw == null) return '';
         let s = String(raw);
-    
-        // 1) converteer alle punten naar komma
-        s = s.replace(/\./g, ',');
-    
-        // 2) filter alles behalve cijfers en komma
-        s = s.replace(/[^0-9,]/g, '');
-    
-        // 3) houd maximaal één komma
+        s = s.replace(/\./g, ',');            // punten → komma
+        s = s.replace(/[^0-9,]/g, '');        // alleen cijfers en komma
         const i = s.indexOf(',');
         if (i !== -1) {
           const before = s.slice(0, i);
-          let after = s.slice(i + 1).replace(/,/g, ''); // extra komma's weg
-          after = after.slice(0, 2);                    // max 2 decimalen
+          let after = s.slice(i + 1).replace(/,/g, '');
+          after = after.slice(0, 2);          // max 2 decimals
           s = before + (after.length ? ',' + after : ',');
         }
-        // optioneel: voorkom ",xx" → maak "0,xx"
-        if (s.startsWith(',')) s = '0' + s;
-    
+        if (s.startsWith(',')) s = '0' + s;   // ",xx" → "0,xx"
         return s;
       };
-    
+
       elPrijs.addEventListener('beforeinput', (e) => {
-        // minteken blokkeren; teken kies je met de ±-toggle
-        if (e.data === '-') e.preventDefault();
+        if (e.data === '-') e.preventDefault();  // minteken blokkeren
       });
-    
+
       elPrijs.addEventListener('input', () => {
         const val = elPrijs.value;
         const formatted = formatPrice(val);
         if (formatted !== val) {
           elPrijs.value = formatted;
-          // caret eenvoudig naar eind — simpel & robuust
           const end = elPrijs.value.length;
           elPrijs.setSelectionRange(end, end);
         }
       });
-    
+
       elPrijs.addEventListener('blur', () => {
         elPrijs.value = formatPrice(elPrijs.value);
       });
@@ -533,27 +623,25 @@
         const start = elPC.selectionStart;
         const end   = elPC.selectionEnd;
         const val   = elPC.value;
-    
-        // Alleen bij caret zonder selectie, direct ná de spatie ("1234⎵AB" => index 5)
+
         if (start === end && start > 0 && val[start - 1] === ' ' && /^\d{4} $/.test(val.slice(0, start))) {
           e.preventDefault();
-          // Verwijder de spatie en zet caret één naar links
           elPC.value = val.slice(0, start - 1) + val.slice(start);
           elPC.setSelectionRange(start - 1, start - 1);
         }
       });
-    
+
       // Live normalisatie: 4 cijfers + optioneel spatie + max 2 hoofdletters
       elPC.addEventListener('input', () => {
         const raw = elPC.value;
         const digits  = raw.replace(/\D/g, '').slice(0, 4);
         const letters = raw.replace(/[^a-zA-Z]/g, '').toUpperCase().slice(0, 2);
-    
+
         let out = digits;
-        if (letters.length) out += ' ' + letters; // spatie alleen als er letters zijn
+        if (letters.length) out += ' ' + letters;
         elPC.value = out;
       });
-    
+
       // Bij verlaten veld: laatste nette format
       elPC.addEventListener('blur', () => {
         const raw = elPC.value;
