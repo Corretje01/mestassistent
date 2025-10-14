@@ -445,11 +445,11 @@ async function loadMyUploads(){
   }
 }
 
-function renderUploadsGrid(rows){
-  // Geen extra wrapper meer; maak een fragment met alleen kaarten
-  const frag = document.createDocumentFragment();
-  rows.forEach(r => frag.appendChild(renderUploadCard(r)));
-  return frag;
+function renderUploadsGrid(rows) {
+  const grid = document.getElementById('myUploads');
+  if (!grid) return;
+  grid.innerHTML = '';            // leegmaken
+  rows.forEach(rowEl => grid.appendChild(rowEl)); // kaarten direct erin
 }
 
 function renderBadge(status){
