@@ -9,293 +9,6 @@
 
   <!-- Supabase in head (zoals op je andere pagina's) -->
   <script type="module" src="supabaseClient.js"></script>
-
-  <!-- Pagina-specifieke (scoped) form + kaarten styles -->
-  <style>
-    .container { max-width: 980px; margin: 0 auto; padding: 1rem; }
-    .card { background:#fff; border-radius: 14px; padding: 1.25rem; box-shadow: 0 10px 30px rgba(0,0,0,.06); margin-bottom: 1.25rem; }
-    .form-grid { display: grid; gap: 1rem; }
-    @media (min-width: 720px){ .cols-2 { grid-template-columns: 1fr 1fr; } }
-    .form-section { border: 1px solid #f1f1f1; border-radius: 12px; padding: 1rem; background: #fafafa; }
-    .section-header { display: flex; align-items: center; gap: .5rem; margin-bottom: .75rem; }
-    .step-badge { display:inline-flex; align-items:center; justify-content:center; min-width:26px; height:26px; padding:0 6px; border-radius: 999px; background: var(--color-yellow); color: var(--color-black); font-weight: 700; font-size:.9rem; }
-    .section-title { margin:0; font-size:1.05rem; }
-
-    .field { display:flex; flex-direction: column; gap: .35rem; }
-    .label { font-weight: 600; color: var(--color-black); }
-    .hint { color:#6b7280; font-size:.9rem; }
-    .control { position: relative; }
-    .input, .select, .file {
-      width:100%; border:1px solid #e5e7eb; background:#fff; color:#111827;
-      border-radius: 10px; padding: .7rem .85rem; outline: none;
-      transition: border-color .15s ease, box-shadow .15s ease, background-color .15s ease;
-    }
-    .input:focus, .select:focus, .file:focus {
-      border-color: var(--color-yellow);
-      box-shadow: 0 0 0 3px rgba(241,196,15,.25);
-      background:#fff;
-    }
-    .input[readonly] { background: #f9fafb; color:#4b5563; }
-
-    /* input met addon (€, ton) */
-    .addon-wrap { position: relative; }
-    .addon { position:absolute; left:.6rem; top:50%; transform: translateY(-50%); color:#6b7280; font-weight:600; }
-    .addon-right { left:auto; right:.6rem; }
-    .addon-wrap .input { padding-left: 2rem; }
-    .addon-wrap .input.addon-right-pad { padding-right: 2.2rem; }
-
-    /* tabel overzicht */
-    table { width:100%; border-collapse: collapse; }
-    th, td { padding:.65rem; border-bottom: 1px solid #eee; vertical-align: top; }
-    .right { text-align:right; }
-
-    /* Mestselectie-knoppen (zelfde look als mestplan) */
-    .category { display:flex; align-items:flex-start; gap:.75rem; flex-wrap:wrap; margin-bottom: .75rem; }
-    .category__label { width: 140px; min-width:140px; font-weight:700; font-size:.95rem; padding-top:.35rem; }
-    .category__choices { display:flex; flex-wrap:wrap; gap:.35rem; }
-    .btn.mest-btn { border: 2px solid var(--color-black); background: var(--color-white); color: var(--color-black); padding:.5rem .8rem; border-radius: 8px; font-size:.92rem; cursor:pointer; transition: background .18s, border-color .18s, transform .08s; }
-    .btn.mest-btn:hover { transform: translateY(-1px); }
-    .category input[type="radio"] { position:absolute; opacity:0; pointer-events:none; width:0; height:0; }
-    .category input[type="radio"]:checked + label { background: var(--color-yellow); border-color: var(--color-yellow); }
-    .category input[type="radio"]:focus + label { outline: 3px solid rgba(241,196,15,.35); outline-offset: 2px; }
-
-    /* Sign segmented control (vraagprijs ±) */
-    .segmented { display:inline-flex; border:1px solid #e5e7eb; border-radius: 10px; overflow:hidden; background:#fff; }
-    .segmented button {
-      appearance: none; border:0; background:transparent; padding:.55rem .8rem; font-weight:600; cursor:pointer;
-    }
-    .segmented button[aria-pressed="true"] { background: var(--color-yellow); color: var(--color-black); }
-    .segmented button:focus-visible { outline:3px solid rgba(241,196,15,.35); outline-offset: -2px; }
-
-    .actions { display:flex; gap:.75rem; flex-wrap:wrap; }
-    .muted { color:#6b7280; font-size:.9rem; }
-
-    /* Postcode toggle rij */
-    .inline-toggle { display:flex; gap:.75rem; flex-wrap:wrap; align-items:center; }
-    .inline-toggle .field { flex: 1 1 280px; margin: 0; }
-
-    /* kleine badge voor status */
-    .status-note { font-size:.9rem; color:#6b7280; }
-
-    /* fout-styles (worden vanuit utils gezet) */
-    .input-error { border-color: #c62828; }
-    [data-error]::after { content: attr(data-error); color: #c62828; font-size: .85rem; display:block; margin-top:.25rem; }
-
-    /* MOBIEL: alle mestknoppen full-width identiek */
-    @media (max-width:768px){
-      #mestChoiceList .category{ align-items:stretch; flex-direction:column; }
-      #mestChoiceList .category__label{ width:100%; min-width:0; margin-bottom:.25rem; }
-      #mestChoiceList .category__choices{
-        display:flex; flex-wrap:wrap; gap:.5rem;
-      }
-      #mestChoiceList .category__choices .btn.mest-btn{
-        flex: 1 1 100% !important;
-        max-width:100% !important;
-        width:100% !important;
-        height:44px;
-        text-align:center;
-        margin:0;
-        box-sizing:border-box;
-      }
-    }
-
-    /* ===========================
-       MIJN UPLOADS – GRID & KAART
-       =========================== */
-
-    /* Lege staat netjes tonen zonder extra JS */
-    #myUploads:empty::before{
-      content:"Nog geen uploads. Voeg eerst een analyse toe.";
-      display:block;
-      color:#6b7280;
-      font-size:.95rem;
-      padding:.25rem 0 .5rem;
-    }
-
-    /* Kaart zelf */
-    .upload-card{
-      position:relative; /* popover positioning */
-      border:1px solid #e5e7eb; border-radius:12px; background:#fff;
-      padding:1rem 1rem .85rem;
-      box-shadow:0 6px 20px rgba(0,0,0,.04);
-    }
-    .upload-card--airy{ padding-top:1rem; }
-
-    /* Sluit-knop (X) */
-    .upload-card .card-close{
-      position:absolute; right:.6rem; top:.6rem;
-      border:0; background:transparent; color:#9ca3af;
-      font-size:1.25rem; line-height:1; cursor:pointer;
-    }
-    .upload-card .card-close:hover{ color:#111827; }
-
-    /* Header: titel boven, status eronder */
-    .upload-card__head{
-      display:flex;
-      flex-direction:column;        /* <— sleutel: stapel ipv naast elkaar */
-      align-items:flex-start;
-      gap:.35rem;
-      margin-bottom:.65rem;
-      text-align:left !important;
-    }
-    .upload-card__head .title{
-      font-weight:700;
-      font-size:1rem;
-      line-height:1.2;
-      margin:0;
-      cursor:text;
-      border-bottom:1px dashed transparent;
-    }
-    .upload-card__head .title.is-editing{
-      outline:3px solid rgba(241,196,15,.25);
-      border-radius:6px;
-      padding:.15rem .25rem;
-    }
-    .upload-card__head .title:not(.is-editing):hover{ border-bottom-color:#e5e7eb; }
-    .upload-card__head .status-wrap{
-      display:flex;
-      align-items:center;
-      gap:.35rem;
-      font-size:.9rem;
-      color:#374151;
-    }
-    .status-wrap .badge{ align-self:center; }
-
-    /* Meta-rijen: LABELS BOVEN WAARDEN */
-    .upload-card__meta{
-      display:flex; flex-direction:column; gap:.75rem; margin-bottom:.85rem;
-    }
-    .meta-row{
-      display:flex; flex-direction:column; align-items:flex-start; gap:.35rem;
-    }
-    .meta-label{
-      width:auto; min-width:0; margin:0;
-      font-weight:700; font-size:.82rem; line-height:1.15;
-      color:#6b7280; text-transform:uppercase; letter-spacing:.02em;
-      text-align:left !important;
-    }
-    .meta-value{ flex:unset; width:100%; min-width:0; }
-
-    /* Analyse-chips */
-    .analysis-pills{ display:flex; flex-wrap:wrap; gap:.35rem; margin-top:.05rem; }
-    .analysis-pills .pill{
-      display:inline-flex; align-items:center; gap:.35rem;
-      font-size:.85rem; padding:.25rem .5rem; border-radius:999px;
-      background:#f3f4f6; color:#111827; border:1px solid #e5e7eb;
-    }
-    .analysis-pills .pill .u{ font-weight:700; }
-
-    /* Bestand-chip + actie */
-    .file-chip{
-      display:inline-flex; align-items:center; gap:.45rem;
-      padding:.25rem .55rem; border-radius:999px; border:1px dashed #d1d5db; background:#fafafa;
-      font-size:.85rem; color:#374151; margin-top:.05rem;
-    }
-    .file-chip.ok{ border-style:solid; background:#eef2ff; }
-    .file-chip .a-fileedit{
-      margin-left:.35rem; font-size:.85rem; color:#111827; text-decoration:underline; background:none; border:0; cursor:pointer;
-    }
-    .file-chip .a-fileedit:hover{ opacity:.8; }
-
-    /* Compacte velden onderaan de kaart */
-    .upload-card__form{
-      display:grid;
-      grid-template-columns:1fr;    /* altijd één kolom */
-      gap:.75rem;
-      padding-top:.35rem;
-      border-top:1px solid #f1f1f1;
-      margin-top:.25rem;
-      width:100%;                   /* vult altijd hele kaartbreedte */
-    }
-
-    .field-sm{
-      display:flex;
-      flex-direction:column;
-      gap:.25rem;
-      width:100%;                   /* label + input full-width */
-    }
-
-    .field-sm .control,
-    .field-sm .input--sm{
-      width:100%;                   /* input strekt over hele rij */
-      box-sizing:border-box;
-    }
-
-    .label-sm{ font-weight:600; font-size:.9rem; color:#111827; }
-    .input--sm{
-      font-size:.95rem; padding:.55rem .7rem; border-radius:10px; border:1px solid #e5e7eb; outline:none;
-      transition:border-color .15s ease, box-shadow .15s ease, background-color .15s ease;
-    }
-    .input--sm:focus{ border-color:var(--color-yellow); box-shadow:0 0 0 3px rgba(241,196,15,.25); }
-    .addon.left{ position:absolute; left:.55rem; top:50%; transform:translateY(-50%); color:#6b7280; font-weight:600; }
-    .addon.right{ position:absolute; right:.55rem; top:50%; transform:translateY(-50%); color:#6b7280; font-weight:600; }
-    .addon-left-pad{ padding-left:1.6rem; }
-    .addon-right-pad{ padding-right:1.6rem; }
-
-    /* Autosave feedback (upload.js zet .is-saving / .is-saved) */
-    .upload-card.is-saving::after{
-      content:"Opslaan…";
-      position:absolute; right:1rem; bottom:.65rem; font-size:.85rem; color:#6b7280;
-    }
-    .upload-card.is-saved{
-      box-shadow:0 0 0 2px rgba(241,196,15,.35), 0 6px 20px rgba(0,0,0,.05);
-      transition:box-shadow .35s ease;
-    }
-
-    /* Info-icoon: compacte fallback; JS zet uiteindelijk exacte maat */
-    .status-info-btn{
-      border:2px solid var(--color-black);
-      background:#fff;
-      color:var(--color-black);
-      width:22px; height:22px;
-      border-radius:999px;
-      font-weight:700; font-size:12px; line-height:1;
-      display:inline-flex; align-items:center; justify-content:center;
-      cursor:pointer;
-      transition: background .15s ease, border-color .15s ease, transform .06s ease;
-      padding:0; margin-left:.1rem;
-    }
-    .status-info-btn:hover{ background: var(--color-yellow); border-color: var(--color-yellow); }
-    .status-info-btn:active{ transform: translateY(1px); }
-
-    /* Popover: desktop = absolute; mobiel = modal */
-    .reason-popover{
-      position:absolute; left:12px; top:42px;
-      width: min(420px, calc(100% - 24px));
-      max-height: min(60vh, 420px); overflow:auto;
-      background:#fff; border:1px solid #e5e7eb; border-radius:12px;
-      box-shadow: 0 10px 30px rgba(0,0,0,.08);
-      padding:.85rem; z-index: 1000; box-sizing: border-box;
-      word-break: break-word; -webkit-overflow-scrolling: touch;
-    }
-    .reason-popover__title{ font-weight:800; margin:0 0 .35rem; }
-    .reason-popover__text{ margin:0 0 .6rem; color:#374151; }
-    .reason-popover__actions{ display:flex; gap:.5rem; justify-content:space-between; }
-    .reason-popover__actions .btn-ghost,
-    .reason-popover__actions .btn-primary{
-      flex:1 1 0; display:flex; align-items:center; justify-content:center;
-      min-height:44px; height:auto; padding:.6rem .9rem; white-space:nowrap; border-radius:10px; box-sizing:border-box;
-    }
-    .reason-popover__actions .btn-ghost{ background:transparent; border:2px solid transparent; color:#111827; }
-    .reason-popover__actions .btn-ghost:hover{ background:#f5f5f5; }
-    .reason-popover__actions .btn-primary{ background: var(--color-yellow); border:2px solid var(--color-yellow); color: var(--color-black); font-weight:700; }
-    @media (max-width: 640px){
-      .reason-popover{
-        position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%);
-        width: min(92vw, 420px); max-height: min(70vh, 560px); overflow: auto;
-        border-radius: 14px; padding: 1rem; z-index: 1000; -webkit-overflow-scrolling: touch; box-sizing: border-box; word-break: break-word;
-      }
-    }
-
-    /* Lokale text-align overrides tegen eventuele globale regels */
-    .upload-card__head,
-    .upload-card__head .title,
-    .upload-card__head .status,
-    .upload-card__head .status-wrap{ text-align:left !important; }
-
-    /* Zorg dat de popover absoluut t.o.v. de kaart kan positioneren */
-    .upload-card{ position: relative; }
-  </style>
 </head>
 <body>
   <!-- NAV / HEADER -->
@@ -325,10 +38,10 @@
   </header>
 
   <!-- MAIN -->
-  <main id="main" class="container">
+  <main id="main" class="container container--narrow">
     <section class="card" aria-labelledby="h-upload">
-      <h2 id="h-upload" style="margin-bottom:.5rem;">Mest uploaden</h2>
-      <p class="muted" style="margin-bottom:1rem;">Vul de velden hieronder in. <em>De analyse upload je als laatste stap.</em></p>
+      <h2 id="h-upload" class="mb-050">Mest uploaden</h2>
+      <p class="muted mb-100">Vul de velden hieronder in. <em>De analyse upload je als laatste stap.</em></p>
 
       <form id="uploadForm" class="form-grid" novalidate>
         <!-- Stap 1: kies mestsoort -->
@@ -350,7 +63,7 @@
             <h3 class="section-title">Basisgegevens</h3>
           </div>
           <div class="form-grid cols-2">
-            <div class="field" style="grid-column: 1 / -1;">
+            <div class="field col-span-2">
               <label for="naam" class="label">Naam<span aria-hidden="true">*</span></label>
               <div class="control">
                 <input id="naam" name="naam" class="input" placeholder="Bijv. Mest opslag 34" maxlength="25" required/>
@@ -369,13 +82,13 @@
           <div class="form-grid cols-2">
             <div class="field">
               <label for="inkoopprijs" class="label">Vraagprijs per ton (€)<span aria-hidden="true">*</span></label>
-              <div class="control" style="display:flex; gap:.5rem; align-items:center;">
+              <div class="control control--row">
                 <div class="segmented" data-role="price-sign" aria-label="Teken van de vraagprijs">
                   <button type="button" aria-pressed="true"  data-sign="pos" title="Ik ontvang geld (positief)">+</button>
                   <button type="button" aria-pressed="false" data-sign="neg" title="Ik betaal bij (negatief)">−</button>
                 </div>
                 <input type="hidden" id="priceSign" value="pos" />
-                <div class="addon-wrap" style="flex:1;">
+                <div class="addon-wrap flex-1">
                   <span class="addon">€</span>
                   <input id="inkoopprijs" class="input" inputmode="decimal" placeholder="Bijv. 12.50" autocomplete="off" required/>
                 </div>
@@ -422,7 +135,7 @@
           </div>
 
           <div class="form-grid cols-2">
-            <div class="field" style="grid-column: 1 / -1;">
+            <div class="field col-span-2">
               <label for="file" class="label">Analysebestand (PDF/JPG/PNG) <span class="muted">(optioneel)</span></label>
               <div class="control">
                 <input id="file" type="file" class="file" accept=".pdf,.png,.jpg,.jpeg"/>
@@ -430,7 +143,7 @@
               <div class="hint">Max. 10 MB. Als je niets uploadt, gebruiken we de standaardwaarden voor de gekozen mestsoort.</div>
             </div>
 
-            <div class="form-grid cols-2" style="grid-column: 1 / -1; margin-top:.25rem;">
+            <div class="form-grid cols-2 col-span-2 mt-025">
               <div class="field">
                 <label for="DS_percent" class="label">Droge stof (DS%)</label>
                 <input id="DS_percent" class="input" readonly/>
@@ -466,9 +179,8 @@
     </section>
 
     <section class="card" aria-labelledby="h-overview">
-      <h2 id="h-overview" style="margin-bottom:.25rem;">Mijn uploads</h2>
-      <div class="muted" style="margin-bottom:.5rem;">Controleer je gegevens; Nutriëntwaarden wijzig je uitsluitend met een nieuwe analyse.</div>
-      <!-- Belangrijk: grid class toegevoegd -->
+      <h2 id="h-overview" class="mb-025">Mijn uploads</h2>
+      <div class="muted mb-050">Controleer je gegevens; Nutriëntwaarden wijzig je uitsluitend met een nieuwe analyse.</div>
       <div id="myUploads"></div>
     </section>
 
