@@ -112,20 +112,22 @@
       padding:.25rem 0 .5rem;
     }
 
-    /* Grid lay-out – max 3 kolommen, strikt binnen container */
+    /* Grid lay-out – 3 gelijke kolommen die de container volledig benutten */
     .uploads-grid{
       display:grid;
-      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); /* smaller min zodat 3 kolommen + gap passen */
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); /* < 960px: 1–2 kolommen */
       gap:1.25rem;
       align-items:start;
-      justify-items:stretch;
       width:100%;
       box-sizing:border-box;
     }
 
-    @media (min-width:960px){ /* bij containerbreedte ~980px past dit exact binnen de kaart */
+    @media (min-width:960px){
       .uploads-grid{
-        grid-template-columns: repeat(3, minmax(0, 1fr)); /* altijd 3 gelijke kolommen, geen overflow rechts */
+        grid-template-columns: repeat(3, 1fr);   /* exact 3 kolommen die oprekken */
+      }
+      .uploads-grid > *{
+        width:100%; min-width:0;                 /* kaart vult track volledig */
       }
     }
 
