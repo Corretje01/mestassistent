@@ -212,13 +212,20 @@
 
     /* Compacte velden onderaan de kaart */
     .upload-card__form{
-      display:grid; grid-template-columns:1fr; gap:.5rem; padding-top:.35rem; border-top:1px solid #f1f1f1;
+      display:grid;
+      grid-template-columns:1fr;    /* altijd 1 kolom, ook op desktop */
+      gap:.65rem;
+      padding-top:.35rem;
+      border-top:1px solid #f1f1f1;
       margin-top:.25rem;
     }
-    @media (min-width:560px){
-      .upload-card__form{ grid-template-columns:1fr 1fr 1fr; }
+    /* Verwijderd: de media-query die 3 kolommen maakte */
+    .field-sm{
+      display:flex;
+      flex-direction:column;
+      gap:.25rem;
     }
-    .field-sm{ display:flex; flex-direction:column; gap:.25rem; }
+
     .label-sm{ font-weight:600; font-size:.9rem; color:#111827; }
     .input--sm{
       font-size:.95rem; padding:.55rem .7rem; border-radius:10px; border:1px solid #e5e7eb; outline:none;
