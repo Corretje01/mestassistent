@@ -436,6 +436,7 @@ async function loadMyUploads(){
     }
 
     myUploads.innerHTML = '';
+    myUploads.classList.add('uploads-grid');
     myUploads.appendChild(renderUploadsGrid(data));
     bindUploadActions(data);
   } catch (e) {
@@ -445,10 +446,10 @@ async function loadMyUploads(){
 }
 
 function renderUploadsGrid(rows){
-  const wrap = document.createElement('div');
-  wrap.className = 'uploads-grid uploads-grid--airy';
-  rows.forEach(r => wrap.appendChild(renderUploadCard(r)));
-  return wrap;
+  // Geen extra wrapper meer; maak een fragment met alleen kaarten
+  const frag = document.createDocumentFragment();
+  rows.forEach(r => frag.appendChild(renderUploadCard(r)));
+  return frag;
 }
 
 function renderBadge(status){
