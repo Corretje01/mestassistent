@@ -142,20 +142,37 @@
     }
     .upload-card .card-close:hover{ color:#111827; }
 
-    /* Header: titel (inline-edit) + status */
+    /* Header: titel boven, status eronder */
     .upload-card__head{
-      display:flex; align-items:center; justify-content:space-between; gap:.75rem;
+      display:flex;
+      flex-direction:column;        /* <— sleutel: stapel ipv naast elkaar */
+      align-items:flex-start;
+      gap:.35rem;
       margin-bottom:.65rem;
-      text-align:left !important; /* tegen globale center regels */
+      text-align:left !important;
     }
     .upload-card__head .title{
-      font-weight:700; font-size:1rem; line-height:1.2; margin:0;
-      cursor:text; border-bottom:1px dashed transparent;
+      font-weight:700;
+      font-size:1rem;
+      line-height:1.2;
+      margin:0;
+      cursor:text;
+      border-bottom:1px dashed transparent;
     }
-    .upload-card__head .title.is-editing{ outline:3px solid rgba(241,196,15,.25); border-radius:6px; padding:.15rem .25rem; }
+    .upload-card__head .title.is-editing{
+      outline:3px solid rgba(241,196,15,.25);
+      border-radius:6px;
+      padding:.15rem .25rem;
+    }
     .upload-card__head .title:not(.is-editing):hover{ border-bottom-color:#e5e7eb; }
-    .upload-card__head .status-wrap{ display:flex; align-items:center; gap:.35rem; }
-    .status-wrap .badge{ align-self:center; } /* nette uitlijning badge */
+    .upload-card__head .status-wrap{
+      display:flex;
+      align-items:center;
+      gap:.35rem;
+      font-size:.9rem;
+      color:#374151;
+    }
+    .status-wrap .badge{ align-self:center; }
 
     /* Meta-rijen: LABELS BOVEN WAARDEN */
     .upload-card__meta{
