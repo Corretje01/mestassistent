@@ -112,17 +112,18 @@
       padding:.25rem 0 .5rem;
     }
 
-    /* Grid lay-out */
+    /* Grid lay-out – max 3 kolommen, beter benut */
     .uploads-grid{
       display:grid;
-      grid-template-columns:1fr;
-      gap:1rem;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); /* flexibel tot 3 kolommen */
+      gap:1.25rem;                  /* iets meer lucht */
+      justify-content:center;       /* mooi gecentreerd in container */
     }
-    @media (min-width:720px){
-      .uploads-grid{ grid-template-columns:1fr 1fr; }
-    }
-    @media (min-width:1120px){
-      .uploads-grid{ grid-template-columns:1fr 1fr 1fr; }
+
+    @media (min-width:1280px){
+      .uploads-grid{
+        grid-template-columns: repeat(3, minmax(320px, 1fr)); /* max 3 kolommen op brede schermen */
+      }
     }
 
     /* Kaart zelf */
