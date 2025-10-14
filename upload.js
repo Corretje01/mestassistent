@@ -436,6 +436,7 @@ async function loadMyUploads(){
     }
 
     myUploads.innerHTML = '';
+    myUploads.classList.add('uploads-grid');  // mag blijven, stoort niet
     renderUploadsGrid(data);                  // gewoon aanroepen
     bindUploadActions(data);
     
@@ -544,14 +545,7 @@ function renderUploadCard(r){
   const fileCell = frag.querySelector('.js-filechip');
   fileCell.innerHTML = renderFileChip(!!r.file_path);
 
-  // “Voeg/Wijzig analyse”
-  const btn = document.createElement('button');
-  btn.type = 'button';
-  btn.className = 'a-fileedit';
-  btn.textContent = r.file_path ? 'Wijzig analyse' : 'Voeg analyse toe';
-  btn.style.cssText = 'margin-left:.5rem;font-size:.9rem;text-decoration:underline;background:none;border:0;padding:0;cursor:pointer;';
-  fileCell.appendChild(btn);
-
+  // (VERVANGING) géén losse onderstreepte knop meer; wel een hidden input voor upload
   const hidden = document.createElement('input');
   hidden.type = 'file';
   hidden.accept = '.pdf,.png,.jpg,.jpeg';
@@ -600,6 +594,15 @@ function prettyKind(cat, type){
 }
 function cap(s){ return s ? s.charAt(0).toUpperCase()+s.slice(1) : ''; }
 
+/* === (NIEUW) klikbare chip renderer === */
+function renderFileChip(hasFile){
+  const label = hasFile ? 'Analyse wijzigen' : 'Analyse toevoegen';
+  const cls   = hasFile ? 'ok' : 'none';
+  return `<button type="button" class="file-link ${cls}" aria-label="${label}">
+            <span class="dot"></span> ${label}
+          </button>`;
+}
+
 function fmtEditSigned(v){
   if (v === null || v === undefined || v === '') return '';
   const n = Number(v);
@@ -614,11 +617,6 @@ function fmtInt(v){
 }
 function escapeHtml(s){
   return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-}
-function renderFileChip(hasFile){
-  return hasFile
-    ? `<span class="file-chip ok"><span class="dot"></span> aanwezig</span>`
-    : `<span class="file-chip"><span class="dot"></span> geen bestand</span>`;
 }
 
 /* === AUTOSAVE infra === */
@@ -695,9 +693,9 @@ function bindUploadActions(rows){
     const elP     = card.querySelector('.e-prijs');
     const elT     = card.querySelector('.e-ton');
     const elPC    = card.querySelector('.e-postcode');
-    const btnEdit = card.querySelector('.a-fileedit');
-    const hidFile = card.querySelector('.e-file');
-    const chipBox = card.querySelector('.js-filechip');
+    const chipLink = card.querySelector('.file-link');   // << nieuw: chip zelf is de “knop”
+    const hidFile  = card.querySelector('.e-file');
+    const chipBox  = card.querySelector('.js-filechip');
 
     // ---------- Titel/Naam: inline edit + autosave ----------
     (function initInlineTitleEdit(){
@@ -813,19 +811,20 @@ function bindUploadActions(rows){
     });
 
     // ---------- Analyse: toevoegen/wijzigen (status → in_behandeling) ----------
-    if (btnEdit && hidFile) {
-      btnEdit.addEventListener('click', () => hidFile.click());
+    if (chipLink && hidFile) {
+      chipLink.addEventListener('click', () => hidFile.click());
+
       hidFile.addEventListener('change', async () => {
         const file = hidFile.files?.[0];
         if (!file) return;
         if (!isFileAllowed(file)) { toast('Alleen PDF/JPG/PNG en max 10MB.', 'error'); hidFile.value=''; return; }
 
-        btnEdit.disabled = true;
-        const prevText = btnEdit.textContent;
-        btnEdit.textContent = 'Uploaden…';
+        chipLink.disabled = true;
+        const prevHtml = chipLink.innerHTML;
+        chipLink.innerHTML = 'Uploaden…';
 
         try {
-          const now = new Date();
+          const now  = new Date();
           const ext  = (file.name?.split('.').pop() || 'bin').toLowerCase();
           const uuid = makeUUID();
           const newPath = `${userId}/${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,'0')}/${String(now.getDate()).padStart(2,'0')}/${uuid}.${ext}`;
@@ -852,19 +851,25 @@ function bindUploadActions(rows){
           // UI bijwerken
           clearAllReasonAcksFor(r.id);
           hidFile.dataset.prevPath = newPath;
-          if (chipBox) chipBox.innerHTML = renderFileChip(true);
 
-          // update statuschip-live
+          // Chip hertekenen → nu “Analyse wijzigen”
+          chipBox.innerHTML = renderFileChip(true);
+
+          // statuschip live updaten
           const statusWrap = card.querySelector('.status-wrap');
           if (statusWrap) statusWrap.innerHTML = `<div class="status">${renderBadge('in_behandeling')}</div>`;
-          btnEdit.textContent = 'Wijzig analyse';
+
+          // nieuwe chipLink opnieuw binden
+          const newChipLink = card.querySelector('.file-link');
+          newChipLink?.addEventListener('click', () => hidFile.click());
+
           toast('Analyse geüpdatet. Status: In behandeling.', 'success');
         } catch (e) {
           console.error(e);
+          chipLink.innerHTML = prevHtml;
           toast('Upload mislukt: ' + (e?.message || e), 'error');
-          btnEdit.textContent = prevText;
         } finally {
-          btnEdit.disabled = false;
+          chipLink.disabled = false;
         }
       });
     }
