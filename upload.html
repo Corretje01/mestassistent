@@ -81,7 +81,7 @@
     .input-error { border-color: #c62828; }
     [data-error]::after { content: attr(data-error); color: #c62828; font-size: .85rem; display:block; margin-top:.25rem; }
 
-    /* MOBIEL: alle mestknoppen (incl. Drijfmest/Koe/Varken) full-width en identiek */
+    /* MOBIEL: alle mestknoppen full-width identiek */
     @media (max-width:768px){
       #mestChoiceList .category{ align-items:stretch; flex-direction:column; }
       #mestChoiceList .category__label{ width:100%; min-width:0; margin-bottom:.25rem; }
@@ -157,17 +157,23 @@
     .upload-card__head .status-wrap{ display:flex; align-items:center; gap:.35rem; }
     .status-wrap .badge{ align-self:center; } /* nette uitlijning badge */
 
-    /* Meta-rijen (links label, rechts waarde/chips) */
-    .upload-card__meta{ display:flex; flex-direction:column; gap:.35rem; margin-bottom:.75rem; }
-    .meta-row{ display:flex; gap:.75rem; align-items:flex-start; }
+    /* Meta-rijen: LABELS BOVEN WAARDEN */
+    .upload-card__meta{
+      display:flex; flex-direction:column; gap:.75rem; margin-bottom:.85rem;
+    }
+    .meta-row{
+      display:flex; flex-direction:column; align-items:flex-start; gap:.35rem;
+    }
     .meta-label{
-      width:120px; min-width:120px; font-weight:600; color:#374151;
+      width:auto; min-width:0; margin:0;
+      font-weight:700; font-size:.82rem; line-height:1.15;
+      color:#6b7280; text-transform:uppercase; letter-spacing:.02em;
       text-align:left !important;
     }
-    .meta-value{ flex:1; min-width:0; }
+    .meta-value{ flex:unset; width:100%; min-width:0; }
 
     /* Analyse-chips */
-    .analysis-pills{ display:flex; flex-wrap:wrap; gap:.35rem; }
+    .analysis-pills{ display:flex; flex-wrap:wrap; gap:.35rem; margin-top:.05rem; }
     .analysis-pills .pill{
       display:inline-flex; align-items:center; gap:.35rem;
       font-size:.85rem; padding:.25rem .5rem; border-radius:999px;
@@ -179,7 +185,7 @@
     .file-chip{
       display:inline-flex; align-items:center; gap:.45rem;
       padding:.25rem .55rem; border-radius:999px; border:1px dashed #d1d5db; background:#fafafa;
-      font-size:.85rem; color:#374151;
+      font-size:.85rem; color:#374151; margin-top:.05rem;
     }
     .file-chip.ok{ border-style:solid; background:#eef2ff; }
     .file-chip .a-fileedit{
@@ -190,6 +196,7 @@
     /* Compacte velden onderaan de kaart */
     .upload-card__form{
       display:grid; grid-template-columns:1fr; gap:.5rem; padding-top:.35rem; border-top:1px solid #f1f1f1;
+      margin-top:.25rem;
     }
     @media (min-width:560px){
       .upload-card__form{ grid-template-columns:1fr 1fr 1fr; }
@@ -216,92 +223,48 @@
       transition:box-shadow .35s ease;
     }
 
-    /* Zorg dat de popover absoluut t.o.v. de kaart kan positioneren */
-    .upload-card{ position: relative; }
-
     /* Info-icoon: compacte fallback; JS zet uiteindelijk exacte maat */
     .status-info-btn{
       border:2px solid var(--color-black);
       background:#fff;
       color:var(--color-black);
-      width:22px;                 /* fallback-maat */
-      height:22px;                /* fallback-maat */
+      width:22px; height:22px;
       border-radius:999px;
-      font-weight:700;
-      font-size:12px;             /* kleiner 'i' teken */
-      line-height:1;
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
+      font-weight:700; font-size:12px; line-height:1;
+      display:inline-flex; align-items:center; justify-content:center;
       cursor:pointer;
       transition: background .15s ease, border-color .15s ease, transform .06s ease;
-      padding:0;
-      margin-left:.1rem;          /* subtiele ruimte naast de chip */
+      padding:0; margin-left:.1rem;
     }
     .status-info-btn:hover{ background: var(--color-yellow); border-color: var(--color-yellow); }
     .status-info-btn:active{ transform: translateY(1px); }
 
-    /* Mobielvriendelijke popup: desktop = absolute in kaart; mobiel = fixed modal */
+    /* Popover: desktop = absolute; mobiel = modal */
     .reason-popover{
-      position:absolute;
-      left:12px;
-      top:42px;
+      position:absolute; left:12px; top:42px;
       width: min(420px, calc(100% - 24px));
-      max-height: min(60vh, 420px);
-      overflow:auto;
-      background:#fff;
-      border:1px solid #e5e7eb;
-      border-radius:12px;
+      max-height: min(60vh, 420px); overflow:auto;
+      background:#fff; border:1px solid #e5e7eb; border-radius:12px;
       box-shadow: 0 10px 30px rgba(0,0,0,.08);
-      padding:.85rem;
-      z-index: 1000;
-      box-sizing: border-box;
-      word-break: break-word;
-      -webkit-overflow-scrolling: touch;
+      padding:.85rem; z-index: 1000; box-sizing: border-box;
+      word-break: break-word; -webkit-overflow-scrolling: touch;
     }
     .reason-popover__title{ font-weight:800; margin:0 0 .35rem; }
     .reason-popover__text{ margin:0 0 .6rem; color:#374151; }
-    .reason-popover__actions{
-      display:flex;
-      gap:.5rem;
-      justify-content:space-between;
-    }
+    .reason-popover__actions{ display:flex; gap:.5rem; justify-content:space-between; }
     .reason-popover__actions .btn-ghost,
     .reason-popover__actions .btn-primary{
-      flex:1 1 0;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      min-height:44px;
-      height:auto;
-      padding:.6rem .9rem;
-      white-space:nowrap;
-      border-radius:10px;
-      box-sizing:border-box;
+      flex:1 1 0; display:flex; align-items:center; justify-content:center;
+      min-height:44px; height:auto; padding:.6rem .9rem; white-space:nowrap; border-radius:10px; box-sizing:border-box;
     }
-    .reason-popover__actions .btn-ghost{
-      background:transparent; border:2px solid transparent; color:#111827;
-    }
+    .reason-popover__actions .btn-ghost{ background:transparent; border:2px solid transparent; color:#111827; }
     .reason-popover__actions .btn-ghost:hover{ background:#f5f5f5; }
-    .reason-popover__actions .btn-primary{
-      background: var(--color-yellow); border:2px solid var(--color-yellow); color: var(--color-black);
-      font-weight:700;
-    }
+    .reason-popover__actions .btn-primary{ background: var(--color-yellow); border:2px solid var(--color-yellow); color: var(--color-black); font-weight:700; }
     @media (max-width: 640px){
       .reason-popover{
-        position: fixed;
-        left: 50%;
-        top: 50%;
-        transform: translate(-50%, -50%);
-        width: min(92vw, 420px);
-        max-height: min(70vh, 560px);
-        overflow: auto;
-        border-radius: 14px;
-        padding: 1rem;
-        z-index: 1000;
-        -webkit-overflow-scrolling: touch;
-        box-sizing: border-box;
-        word-break: break-word;
+        position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%);
+        width: min(92vw, 420px); max-height: min(70vh, 560px); overflow: auto;
+        border-radius: 14px; padding: 1rem; z-index: 1000; -webkit-overflow-scrolling: touch; box-sizing: border-box; word-break: break-word;
       }
     }
 
@@ -309,9 +272,10 @@
     .upload-card__head,
     .upload-card__head .title,
     .upload-card__head .status,
-    .upload-card__head .status-wrap{
-      text-align:left !important;
-    }
+    .upload-card__head .status-wrap{ text-align:left !important; }
+
+    /* Zorg dat de popover absoluut t.o.v. de kaart kan positioneren */
+    .upload-card{ position: relative; }
   </style>
 </head>
 <body>
@@ -384,18 +348,14 @@
             <h3 class="section-title">Prijs & hoeveelheid</h3>
           </div>
           <div class="form-grid cols-2">
-            <!-- Vraagprijs per ton met ± toggle -->
             <div class="field">
               <label for="inkoopprijs" class="label">Vraagprijs per ton (€)<span aria-hidden="true">*</span></label>
               <div class="control" style="display:flex; gap:.5rem; align-items:center;">
-                <!-- segmented sign control -->
                 <div class="segmented" data-role="price-sign" aria-label="Teken van de vraagprijs">
                   <button type="button" aria-pressed="true"  data-sign="pos" title="Ik ontvang geld (positief)">+</button>
                   <button type="button" aria-pressed="false" data-sign="neg" title="Ik betaal bij (negatief)">−</button>
                 </div>
-                <!-- hidden field dat upload.js leest -->
                 <input type="hidden" id="priceSign" value="pos" />
-                <!-- bedrag -->
                 <div class="addon-wrap" style="flex:1;">
                   <span class="addon">€</span>
                   <input id="inkoopprijs" class="input" inputmode="decimal" placeholder="Bijv. 12.50" autocomplete="off" required/>
@@ -404,7 +364,6 @@
               <div class="hint">+ = je ontvangt; - = je geeft mee. Maximaal 2 decimalen.</div>
             </div>
 
-            <!-- Aantal ton (altijd hele getallen) -->
             <div class="field">
               <label for="aantalTon" class="label">Aantal ton<span aria-hidden="true">*</span></label>
               <div class="control addon-wrap">
