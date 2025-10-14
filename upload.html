@@ -112,33 +112,37 @@
       padding:.25rem 0 .5rem;
     }
 
-    /* Grid lay-out – 3 gelijke kolommen, volledig binnen container */
+    /* Grid lay-out – vult de hele card en verdeelt strak in 3 gelijke kolommen */
     .uploads-grid{
       display:grid;
-      grid-template-columns: 1fr;            /* mobiel: 1 kolom */
-      gap: 1.25rem;
+      grid-template-columns: 1fr;        /* mobiel: 1 kolom */
+      gap:1.25rem;
       width:100%;
       box-sizing:border-box;
-      align-self:stretch;                    /* vult hele card-breedte ook bij flex-parents */
-      justify-items:stretch;                 /* kaarten rekken mee met kolombreedte */
+
+      /* cruciaal als .card een flex container is */
+      flex: 1 1 100%;                    /* pak volledige breedte als flex-item */
+      min-width:0;                       /* voorkom content-gedreven krimp */
+      align-self:stretch;                /* cross-as vullen */
+      justify-items:stretch;             /* kaarten vullen hun track */
     }
 
     @media (min-width: 800px){
       .uploads-grid{
-        grid-template-columns: repeat(2, minmax(0, 1fr));  /* tablet: 2 kolommen */
+        grid-template-columns: repeat(2, 1fr);   /* tablet: 2 kolommen */
       }
     }
 
     @media (min-width: 1100px){
       .uploads-grid{
-        grid-template-columns: repeat(3, minmax(0, 1fr));  /* desktop: 3 gelijke kolommen */
+        grid-template-columns: repeat(3, 1fr);   /* desktop: 3 gelijke kolommen die de container opvullen */
       }
     }
 
     .uploads-grid > *{
       width:100%;
       min-width:0;
-      box-sizing:border-box;                 /* kaart vult kolom perfect */
+      box-sizing:border-box;
     }
 
     /* Kaart zelf */
