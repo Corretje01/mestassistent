@@ -1,0 +1,44 @@
+<!-- /markt.html -->
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Marktplaats – MestAssistent</title>
+  <link rel="stylesheet" href="style.css" />
+  <!-- Pagina-specifieke CSS -->
+  <link rel="stylesheet" href="./pages/markt/view.css" />
+</head>
+<body>
+  <header class="site-header">
+    <nav class="navbar">
+      <a href="index.html" class="nav-logo">KoeHandelaar</a>
+      <button id="nav-toggle" class="nav-toggle" aria-label="Menu" aria-controls="site-menu" aria-expanded="false">
+        <span class="bars" aria-hidden="true"></span>
+      </button>
+      <div id="site-menu" class="site-menu" hidden>
+        <button id="nav-close" class="nav-close" aria-label="Menu sluiten"><span aria-hidden="true">&times;</span></button>
+        <ul class="menu-list">
+          <li><a href="index.html" class="nav__item">Home</a></li>
+          <li><a href="stap1.html" class="nav__item">Plaatsingsruimte</a></li>
+          <li><a href="mestplan.html" class="nav__item">Mestplan</a></li>
+          <li><a href="upload.html" class="nav__item">Upload</a></li>
+          <li><a href="markt.html" class="nav__item is-active">Markt</a></li>
+          <li class="auth-only"><a href="account.html" class="nav__item" id="nav-account">Mijn account</a></li>
+          <li class="auth-only admin-only"><a href="beheer.html" class="nav__item" id="nav-beheer">Beheer</a></li>
+          <li class="nav-auth-item"><button class="btn-login" id="nav-auth">Inloggen</button></li>
+        </ul>
+      </div>
+    </nav>
+  </header>
+
+  <main id="app" data-page="markt"></main>
+
+  <script type="module">
+    import './nav.js';                    // je bestaande navigatiescript
+    import { mountMarketPage } from './pages/markt/view.js';
+    const root = document.getElementById('app');
+    mountMarketPage(root);
+  </script>
+</body>
+</html>
