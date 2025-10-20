@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Marktplaats – MestAssistent</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="./core/ui/styles/base.css" />
+  <link rel="stylesheet" href="./core/ui/styles/tokens.css" />
+  <link rel="stylesheet" href="./pages/markt/view.css" />
+</head>
+<body>
+  <header class="site-header">
+    <nav class="navbar">
+      <a href="index.html" class="nav-logo">KoeHandelaar</a>
+      <ul class="menu-list">
+        <li><a href="index.html" class="nav__item">Home</a></li>
+        <li><a href="stap1.html" class="nav__item">Plaatsingsruimte</a></li>
+        <li><a href="mestplan.html" class="nav__item">Mestplan</a></li>
+        <li><a href="upload.html" class="nav__item">Upload</a></li>
+        <li><a href="markt.html" class="nav__item is-active">Markt</a></li>
+        <li><a href="account.html" class="nav__item">Mijn account</a></li>
+        <li><a href="beheer.html" class="nav__item">Beheer</a></li>
+      </ul>
+    </nav>
+  </header>
+  <main id="app" data-page="markt"></main>
+  <script type="module">
+    import './core/ui/nav.js';
+    import { mountMarktPage } from './pages/markt/view.js';
+    const root = document.getElementById('app');
+    mountMarktPage(root);
+  </script>
+</body>
+</html>
