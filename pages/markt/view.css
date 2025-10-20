@@ -1,36 +1,5 @@
-/* /pages/markt/view.css — alleen voor de marktpagina */
-[data-page="markt"] .markt-hero {
-  display: grid;
-  gap: 0.75rem;
-  padding: 1rem;
-  background: #f6f7fb;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-}
-
-[data-page="markt"] .markt-actions {
-  display: flex;
-  gap: .5rem;
-  flex-wrap: wrap;
-}
-
-[data-page="markt"] .listing {
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  padding: .75rem;
-  background: #fff;
-  margin-bottom: .75rem;
-}
-
-[data-page="markt"] .muted {
-  color: #6b7280;
-  font-size: .9rem;
-}
-
-[data-page="markt"] .empty {
-  padding: 1rem;
-  text-align: center;
-  border: 1px dashed #e5e7eb;
-  border-radius: 12px;
-  background: #fafafa;
-}
+/* /pages/markt/view.css */
+[data-page="markt"] .markt-hero { display:grid; gap:.75rem; padding:1rem; background:#f6f7fb; border:1px solid #e5e7eb; border-radius:12px; }
+[data-page="markt"] .markt-actions { display:flex; gap:.5rem; flex-wrap:wrap; }
+[data-page="markt"] .listing { border:1px solid #e5e7eb; border-radius:12px; padding:.75rem; background:#fff; margin-bottom:.75rem; }
+[data-page="markt"] .empty { padding:1rem; text-align:center; border:1px dashed #e5e7eb; border-radius:12px; background:#fafafa; }

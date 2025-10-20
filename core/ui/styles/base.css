@@ -1,0 +1,5 @@
+/* /core/ui/styles/base.css */
+:root { --radius: 12px; --border: #e5e7eb; }
+.card { border: 1px solid var(--border); border-radius: var(--radius); padding: .75rem; background:#fff; }
+.btn  { display:inline-flex; align-items:center; gap:.5rem; padding:.5rem .8rem; border:1px solid var(--border); border-radius:8px; background:#fff; cursor:pointer; }
+.muted{ color:#6b7280; }
