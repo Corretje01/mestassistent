@@ -47,7 +47,7 @@ export async function updateNavUI() {
   // Toon/verberg links met .auth-only
   document.querySelectorAll('.auth-only').forEach(li => { li.style.display = isLoggedIn ? '' : 'none'; });
 
-  // NEW: admin-only toggling
+  // Admin-only
   let isAdmin = false;
   if (isLoggedIn) {
     try {
@@ -57,7 +57,7 @@ export async function updateNavUI() {
   }
   document.querySelectorAll('.admin-only').forEach(li => { li.style.display = (isLoggedIn && isAdmin) ? '' : 'none'; });
 
-  // Auth-knop: Inloggen ↔ Uitloggen
+  // Auth-knop
   const authBtn = $('nav-auth');
   if (authBtn) {
     authBtn.type = 'button';
@@ -106,11 +106,11 @@ async function robustSignOut() {
 /* ========== bindings ========== */
 function bindNavLinks() {
   const map = [
-    ['nav-bereken',  'stap1.html'],
+    ['nav-bereken',  'plaatsingsruimte.html'], // <-- aangepast
     ['nav-mestplan', 'mestplan.html'],
-    ['nav-upload',   'upload.html'],   // NEW
+    ['nav-upload',   'upload.html'],
     ['nav-account',  'account.html'],
-    ['nav-beheer',   'beheer.html'],   // NEW (admin-only)
+    ['nav-beheer',   'beheer.html'],
   ];
   for (const [id, href] of map) {
     const el = $(id);
@@ -158,7 +158,10 @@ function bindAuthButton() {
 /* ========== route guard ========== */
 async function guardProtectedPages() {
   const slug = location.pathname.replace(/\/+$/, '').split('/').pop().toLowerCase();
-  const protectedSet = new Set(['stap1', 'stap1.html', 'mestplan', 'mestplan.html']);
+  const protectedSet = new Set([
+    'plaatsingsruimte', 'plaatsingsruimte.html', // <-- toegevoegd
+    'mestplan', 'mestplan.html'
+  ]);
   if (!protectedSet.has(slug)) return;
 
   const { data: { session } } = await supabase.auth.getSession();
