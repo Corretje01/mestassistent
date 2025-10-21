@@ -155,14 +155,14 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
   <!-- App modules -->
-  <script type="module" src="./pages/plaatsingsruimte/kaart.js"></script>
+  <script type="module" src="./pages/plaatsingsruimte/plaatsingsruimte.js"></script>
   <script type="module" src="./pages/plaatsingsruimte/berekening.js"></script>
 
   <!-- KMZ-import init + opslaan/verwijderen + saved laden -->
   <script type="module">
     import { setupKMZImport } from './pages/plaatsingsruimte/kmzImport.js';
     import { supabase } from './supabaseClient.js';
-    import { parcels, clearAllParcels } from './pages/plaatsingsruimte/kaart.js';
+    import { parcels, clearAllParcels } from './pages/plaatsingsruimte/plaatsingsruimte.js';
 
     // let op: pad naar eligibility JSON binnen je core/domain/data
     setupKMZImport('#kmz-file', '#kmz-add', { eligibilityUrl: './core/domain/data/rvoGebruik-eligibility.json' });
