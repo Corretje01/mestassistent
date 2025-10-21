@@ -1,5 +1,7 @@
-// account.js — robuuste login/registratie/profiel + mobiele fixes
-import { supabase } from './supabaseClient.js';
+// pages/account/account.js — robuuste login/registratie/profiel + mobiele fixes
+
+// LET OP: dit pad is relatief vanaf DIT bestand (pages/account/…)
+import { supabase } from '../../supabaseClient.js';
 
 /* ========== helpers ========== */
 const $ = (id) => document.getElementById(id);
@@ -71,8 +73,8 @@ async function fillProfileFromUser() {
 
 /* Na succesvolle login: directe harde redirect (voorkom terug naar auth) */
 function gotoAfterLogin() {
-  // Relatief pad werkt overal (root/subdir/Netlify)
-  location.replace('/stap1.html');
+  // Gebruik jouw actuele slug:
+  location.replace('/plaatsingsruimte.html');
 }
 
 /* Na account delete: zeker weten uitgelogd + terug naar account.html */
@@ -143,17 +145,17 @@ document.addEventListener('DOMContentLoaded', async () => {
           return;
         }
 
-        // ✅ Meteen navigeren; guard op /stap1(.html) beschermt als sessie nog niet klaar is
+        // ✅ Meteen navigeren; guard op /plaatsingsruimte(.html)
         const go = (href) => { location.replace(href); };
-        go('/stap1.html');
+        go('/plaatsingsruimte.html');
 
-        // ✅ Watchdog (max ~2s): als we nog op account zitten, check sessie en navigeer alsnog.
+        // ✅ Watchdog (max ~2s): fallback als navigatie/ sessie nog niet klaar is
         let tries = 0;
         const t = setInterval(async () => {
           tries++;
           if (!/\/account(?:\.html)?$/i.test(location.pathname)) { clearInterval(t); return; }
           const s = await getSessionSafe();
-          if (s) { clearInterval(t); go('stap1.html'); }
+          if (s) { clearInterval(t); go('/plaatsingsruimte.html'); }
           if (tries > 10) { clearInterval(t); if (btn) btn.disabled = false; }
         }, 200);
       });
