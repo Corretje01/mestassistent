@@ -1,4 +1,5 @@
-// kaart.js — Percelen via KMZ upload plotten + filter + zoeken + highlight + opslaan/laden
+// pages/plaatsingsruimte/plaatsingsruimte.js
+// Percelen via KMZ upload plotten + filter + zoeken + highlight + opslaan/laden
 
 /* ---------------------------------
    1) Map init
@@ -112,7 +113,7 @@ let __tgLabelsCache = null;
 async function loadTijdelijkGrasLabels() {
    if (__tgLabelsCache) return __tgLabelsCache;
    try {
-      const norms = await fetchJson('/data/stikstofnormen_tabel2.json');
+      const norms = await fetchJson('./core/domain/data/stikstofnormen_tabel2.json');
       const keys = Object.keys(norms || {});
       const tg = keys.filter(k => k.toLowerCase().startsWith('tijdelijk grasland'));
       __tgLabelsCache = tg;
@@ -128,7 +129,7 @@ let __geenNormSet = null;
 async function loadGeenNormSet() {
    if (__geenNormSet) return __geenNormSet;
    try {
-      const norms = await fetchJson('/data/stikstofnormen_tabel2.json');
+      const norms = await fetchJson('./core/domain/data/stikstofnormen_tabel2.json');
       const geen = norms?.['Geen norm']?.Gewascodes || [];
       __geenNormSet = new Set(geen.map(String));
    } catch {
@@ -148,7 +149,7 @@ let __allGewasCodesSet = null;
 async function loadAllGewasCodesSet() {
    if (__allGewasCodesSet) return __allGewasCodesSet;
    try {
-      const norms = await fetchJson('/data/stikstofnormen_tabel2.json');
+      const norms = await fetchJson('./core/domain/data/stikstofnormen_tabel2.json');
       const set = new Set();
       for (const entry of Object.values(norms || {})) {
          const codes = entry?.Gewascodes;
