@@ -842,21 +842,3 @@ export function clearAllParcels() {
 --------------------------------- */
 renderParcelList();
 dispatchParcelsChanged();
-
-// 12) Knop "Ga naar stap 2"
-(function bindStep2() {
-  const goBtn = document.getElementById('go-to-step2');
-  if (!goBtn) return;
-
-  // Eén keer binden
-  if (goBtn.dataset.bound === '1') return;
-  goBtn.dataset.bound = '1';
-
-  goBtn.addEventListener('click', (e) => {
-    e.preventDefault();
-    // Eventueel kun je hier nog validaties doen of een save triggeren,
-    // maar voor nu gewoon door naar stap 2:
-    window.location.assign('mestplan.html');
-  });
-})();
-
