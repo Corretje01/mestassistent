@@ -1,14 +1,19 @@
-// kmzImport.js — KMZ-only import voor “Mijn Percelen”
+// pages/plaatsingsruimte/kmzImport.js
+// KMZ-only import voor “Mijn Percelen”
 // - Leest .kmz (KML in ZIP), haalt per perceel velden uit <description>-tabel
 // - Normaliseert naar Excel-achtige rows (sectorId, gewasCode, gewasNaam, ha, geldigheid, gebruik, melding)
 // - Zet geometry index: window.__KMZ_GEO = { byId: { sectorId: Feature } }
 // - Zet data-rows:      window.__KMZ_RAW = [ ... ]
-// - Dispatcht 'rvo:imported' zodat kaart.js percelen tekent en berekening start
+// - Dispatcht 'rvo:imported' zodat plaatsingsruimte.js percelen tekent en berekening start
 
 import JSZip from 'https://cdn.jsdelivr.net/npm/jszip@3.10.1/+esm';
 
 // Publieke API
-export function setupKMZImport(inputSelector = '#kmz-file', addButtonSelector = '#kmz-add', opts = {}) {
+export function setupKMZImport(
+  inputSelector = '#kmz-file',
+  addButtonSelector = '#kmz-add',
+  opts = {}
+) {
   const $input = document.querySelector(inputSelector);
   const $btn   = document.querySelector(addButtonSelector);
   if (!$input || !$btn) {
@@ -17,7 +22,18 @@ export function setupKMZImport(inputSelector = '#kmz-file', addButtonSelector = 
   }
 
   let kmzFile = null;
-  $input.addEventListener('change', e => { kmzFile = e.target.files?.[0] || null; });
+
+  // Accept alleen .kmz (zover mogelijk)
+  $input.addEventListener('change', e => {
+    const f = e.target.files?.[0] || null;
+    if (f && !/\.kmz$/i.test(f.name)) {
+      alert('Kies een .kmz bestand (export uit Mijn Percelen).');
+      e.target.value = '';
+      kmzFile = null;
+      return;
+    }
+    kmzFile = f;
+  });
 
   $btn.addEventListener('click', async () => {
     if (!kmzFile) return alert('Kies eerst een .kmz bestand.');
@@ -25,7 +41,8 @@ export function setupKMZImport(inputSelector = '#kmz-file', addButtonSelector = 
     try {
       const rowsAndGeo = await parseKMZ(kmzFile, {
         peildatum: resolvePeildatum(opts.peildatum),
-        eligibilityUrl: opts.eligibilityUrl || '/data/rvoGebruik-eligibility.json',
+        // ✅ standaardpad naar eligibility-config binnen je nieuwe structuur
+        eligibilityUrl: opts.eligibilityUrl || './core/domain/data/rvoGebruik-eligibility.json',
       });
 
       if (!rowsAndGeo || !rowsAndGeo.rows?.length) {
@@ -35,6 +52,7 @@ export function setupKMZImport(inputSelector = '#kmz-file', addButtonSelector = 
 
       window.__KMZ_RAW = rowsAndGeo.rows;
       window.__KMZ_GEO = rowsAndGeo.geo;
+
       window.dispatchEvent(new CustomEvent('rvo:imported', {
         detail: { count: rowsAndGeo.rows.length, via: 'kmz' }
       }));
