@@ -1,6 +1,6 @@
-// beheer.js — UX-upgrade: sticky filters, result count, chips, dirty-detect, persist filters
-import { supabase } from './supabaseClient.js';
-import { toast } from './utils.js';
+// pages/beheer/beheer.js — UX-upgrade: sticky filters, result count, chips, dirty-detect, persist filters
+import { supabase } from '../../supabaseClient.js';
+import { toast } from '../../core/utils/utils.js';
 
 const listEl   = document.getElementById('adminList');
 const fStatus  = document.getElementById('fStatus');
@@ -9,9 +9,9 @@ const fCat     = document.getElementById('fCategorie');
 const fType    = document.getElementById('fType');
 const resCount = document.getElementById('resultCount');
 
-const btnReset   = document.getElementById('btnResetFilters');
-const btnExpand  = document.getElementById('btnExpandAll');
-const btnCollapse= document.getElementById('btnCollapseAll');
+const btnReset    = document.getElementById('btnResetFilters');
+const btnExpand   = document.getElementById('btnExpandAll');
+const btnCollapse = document.getElementById('btnCollapseAll');
 
 const ALLOWED_STATUS = ['in_behandeling', 'gepubliceerd', 'afgewezen'];
 let session, userId, isAdmin = false;
@@ -85,7 +85,7 @@ function labelCategorie(c) {
 // Laad mestsoorten.json -> vul filter dropdowns (array- of object-vorm)
 async function loadMestSoorten() {
   try {
-    const resp = await fetch('data/mestsoorten.json', { cache: 'no-store' });
+    const resp = await fetch('../../core/domain/data/mestsoorten.json', { cache: 'no-store' });
     const data = await resp.json();
 
     let cats = [], types = [];
@@ -106,6 +106,7 @@ async function loadMestSoorten() {
 }
 
 async function loadList() {
+  if (!listEl) return;
   listEl.textContent = 'Laden…';
 
   let q = supabase.from('mest_uploads')
@@ -213,6 +214,8 @@ function fmtDate(iso){
 function bindItemActions(rows) {
   rows.forEach(r => {
     const root     = document.querySelector(`details[data-id="${r.id}"]`);
+    if (!root) return;
+
     const btnSave  = root.querySelector('.a-save');
     const btnOpen  = root.querySelector('.a-open');
     const statusEl = root.querySelector('.f-status');
@@ -220,7 +223,7 @@ function bindItemActions(rows) {
     const inputs   = root.querySelectorAll('input[data-k]');
 
     // Open file (signed URL)
-    btnOpen.addEventListener('click', async () => {
+    btnOpen?.addEventListener('click', async () => {
       if (!r.file_path) { toast('Geen bestand beschikbaar.', 'error'); return; }
       const { data, error } = await supabase.storage
         .from('mest-analyses')
@@ -230,27 +233,27 @@ function bindItemActions(rows) {
     });
 
     // Dirty-detect: enable save bij wijziging
-    const markDirty = () => { btnSave.disabled = false; };
+    const markDirty = () => { if (btnSave) btnSave.disabled = false; };
     [statusEl, noteEl, ...inputs].forEach(el => {
-      el.addEventListener('input', markDirty);
-      el.addEventListener('change', markDirty);
+      el?.addEventListener('input', markDirty);
+      el?.addEventListener('change', markDirty);
     });
 
     // Enter in input => save
     inputs.forEach(i => {
       i.addEventListener('keydown', e => {
-        if (e.key === 'Enter') { e.preventDefault(); btnSave.click(); }
+        if (e.key === 'Enter') { e.preventDefault(); btnSave?.click(); }
       });
     });
 
     // Cmd/Ctrl+S => save
     root.addEventListener('keydown', e => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') {
-        e.preventDefault(); btnSave.click();
+        e.preventDefault(); btnSave?.click();
       }
     });
 
-    btnSave.addEventListener('click', async () => {
+    btnSave?.addEventListener('click', async () => {
       // Valideer status
       const newStatus = statusEl.value;
       if (!ALLOWED_STATUS.includes(newStatus)) { toast('Ongeldige status.', 'error'); return; }
