@@ -45,12 +45,10 @@
     <!-- KMZ upload -->
     <section class="card" style="margin-top:1rem;">
       <h3>Upload je percelen</h3>
-    
       <p style="margin:0 0 1rem">
         Upload hier je <strong>.kmz</strong>-export uit <em>Mijn Percelen</em>. Wij tekenen de percelen op de kaart op basis van de
         RVO-gegevens (grenzen, gewas en oppervlakte) en bepalen automatisch de wettelijke grondsoort op basis van de locatie.
       </p>
-    
       <ol style="margin:0 0 1rem 1.25rem">
         <li>Ga naar: <a href="https://mijnrvo.nl/percelen-registreren" target="_blank" rel="noopener">mijnrvo.nl/percelen-registreren</a></li>
         <li>Klik op <strong>Registreren en wijzigen</strong> en log in.</li>
@@ -60,11 +58,9 @@
             <em>Let op:</em> zonder <strong>.kmz</strong> kunnen we geen berekening maken.</li>
         <li>Upload het gedownloade <strong>.kmz</strong>-bestand via de knop hieronder.</li>
       </ol>
-    
       <p style="margin:0 0 1rem;color:#555">
         <strong>Tip:</strong> Bevat je export veel kleine perceeltjes? Dat is normaal — we tekenen alles op de kaart zodat je eenvoudig kunt selecteren.
       </p>
-    
       <div class="kmz-upload">
         <input type="file" id="kmz-file" accept=".kmz" />
         <button id="kmz-add" type="button" class="btn btn-brand" data-role="kmz-link">
@@ -144,8 +140,8 @@
   <!-- Supabase client (ES module) -->
   <script type="module" src="supabaseClient.js"></script>
 
-  <!-- nav.js als normaal script + nav-menu als ES-module -->
-  <script src="./core/ui/nav.js"></script>
+  <!-- nav als modules -->
+  <script type="module" src="./core/ui/nav.js"></script>
   <script type="module">
     import { initNavMenu } from './core/ui/nav-menu.js';
     initNavMenu({ menuId: 'site-menu', toggleId: 'nav-toggle' });
@@ -238,11 +234,11 @@
         `Weet je zeker dat je ${count} gekoppeld${count===1?' perceel':'e percelen'} wilt verwijderen?`
       );
       if (!ok) return;
-    
+
       const { data: { session } } = await supabase.auth.getSession();
       const user = session?.user;
       if (!user) { alert('Je moet ingelogd zijn om te verwijderen.'); return; }
-    
+
       let kmz_path = null;
       try {
         const { data } = await supabase
@@ -252,22 +248,22 @@
           .single();
         kmz_path = data?.kmz_path || null;
       } catch {}
-    
+
       const { error } = await supabase
         .from('user_parcel_sets')
         .delete()
         .eq('user_id', user.id);
       if (error) { console.error(error); alert('Verwijderen uit je account is niet gelukt.'); return; }
-    
+
       if (kmz_path) {
         try { await supabase.storage.from('kmz').remove([kmz_path]); } catch {}
       }
-    
+
       clearAllParcels();
       fileInput.value = '';
       label.textContent = 'Koppel percelen';
       updateDeleteVisibility();
-    
+
       const bar = document.getElementById('parcelFilterBar');
       if (bar) bar.hidden = true;
     }
@@ -290,7 +286,7 @@
       try { await saveParcelsToAccount(); } catch {}
     });
 
-    // Toon toolbar zodra er percelen zijn
+    // Toolbar tonen zodra er percelen zijn
     window.addEventListener('parcels:changed', (e) => {
       const bar = document.getElementById('parcelFilterBar');
       const list = e.detail?.parcels || [];
@@ -298,7 +294,7 @@
       updateDeleteVisibility();
     });
 
-    document.getElementById('kmz-delete').addEventListener('click', deleteParcelsFromAccount);
+    document.getElementById('kmz-delete')?.addEventListener('click', deleteParcelsFromAccount);
   </script>
 
   <!-- Route-guard + opgeslagen percelen laden -->
