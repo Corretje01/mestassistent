@@ -1,7 +1,9 @@
-// nav-menu.js
-// Usage per pagina:
-//   import { initNavMenu } from './nav-menu.js';
-//   initNavMenu({ menuId: 'site-menu', toggleId: 'nav-toggle' });
+// core/ui/nav-menu.js
+// Gebruik per pagina (vanaf de project-root-HTML):
+//   <script type="module">
+//     import { initNavMenu } from './core/ui/nav-menu.js';
+//     initNavMenu({ menuId: 'site-menu', toggleId: 'nav-toggle' });
+//   </script>
 
 export function initNavMenu({
   menuId = 'site-menu',
@@ -16,6 +18,7 @@ export function initNavMenu({
   const main     = document.getElementById(mainId);
   const footer   = document.getElementById(footerId);
 
+  // Als verplichte elementen ontbreken, stop dan stilletjes (voorkomt fouten op pagina's zonder menu)
   if (!menu || !toggle) return;
 
   const mql = window.matchMedia('(min-width: 1024px)');
