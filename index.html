@@ -28,7 +28,7 @@
         <ul class="nav-links">
           <!-- Alleen na inloggen zichtbaar -->
           <li class="auth-only">
-            <a href="stap1.html" class="nav__item" id="nav-bereken">Bereken plaatsingsruimte</a>
+            <a href="plaatsingsruimte.html" class="nav__item" id="nav-bereken">Bereken plaatsingsruimte</a>
           </li>
           <li class="auth-only">
             <a href="mestplan.html" class="nav__item" id="nav-mestplan">Maak mestplan</a>
@@ -180,11 +180,13 @@
     </div>
   </footer>
 
-  <!-- Supabase client + nav logic (ESM) -->
+  <!-- Supabase client -->
   <script type="module" src="supabaseClient.js"></script>
-  <script type="module" src="./core/ui/nav.js"></script>
+  <!-- nav.js als normaal script (geen module), zodat bestaande window-scope code blijft werken -->
+  <script src="./core/ui/nav.js"></script>
+  <!-- nav-menu is een ES-module -->
   <script type="module">
-    import { initNavMenu } from './nav-menu.js';
+    import { initNavMenu } from './core/ui/nav-menu.js';
     initNavMenu({ menuId: 'site-menu', toggleId: 'nav-toggle' });
   </script>
   <script>
