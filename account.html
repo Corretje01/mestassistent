@@ -3,34 +3,35 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Account | KoeHandelaar</title>
+  <title>Mijn account</title>
   <link rel="stylesheet" href="style.css">
+  <!-- (optioneel) pagina-specifieke CSS -->
+  <link rel="stylesheet" href="./pages/account/view.css">
 </head>
 <body>
   <header class="site-header">
     <nav class="navbar">
-      <!-- Home: altijd relatief naar index.html -->
+      <!-- Home -->
       <a href="index.html" class="nav-logo">KoeHandelaar</a>
-  
+
       <!-- Hamburger toggle (mobiel) -->
       <button id="nav-toggle" class="nav-toggle" aria-label="Menu" aria-controls="site-menu" aria-expanded="false">
         <span class="bars" aria-hidden="true"></span>
       </button>
-  
-      <!-- Menu (overlay op mobiel, inline op desktop) -->
+
+      <!-- Menu -->
       <div id="site-menu" class="site-menu" hidden>
-        <!-- Close-button (X) voor mobiel menu -->
         <button id="nav-close" class="nav-close" aria-label="Menu sluiten">
           <span aria-hidden="true">&times;</span>
         </button>
-  
+
         <ul class="nav-links">
           <!-- Alleen na inloggen zichtbaar -->
           <li class="auth-only">
-            <a href="plaatsingsruimte.html" class="nav__item" id="nav-bereken">Bereken plaatsingsruimteuimte</a>
+            <a href="plaatsingsruimte.html" class="nav__item" id="nav-bereken">Plaatsingsruimte berekenen</a>
           </li>
           <li class="auth-only">
-            <a href="mestplan.html" class="nav__item" id="nav-mestplan">Maak mestplan</a>
+            <a href="mestplan.html" class="nav__item" id="nav-mestplan">Mestplan samenstellen</a>
           </li>
           <li class="auth-only">
             <a href="upload.html" class="nav__item" id="nav-upload">Mest uploaden</a>
@@ -38,13 +39,13 @@
           <li class="auth-only">
             <a href="account.html" class="nav__item" id="nav-account">Mijn account</a>
           </li>
-  
+
           <!-- Alleen admin -->
           <li class="auth-only admin-only">
             <a href="beheer.html" class="nav__item" id="nav-beheer">Beheer</a>
           </li>
-  
-          <!-- Altijd aanwezig; tekst/actie wisselt: Inloggen ↔ Uitloggen -->
+
+          <!-- Inloggen/Uitloggen -->
           <li class="nav-auth-item">
             <button class="btn-login" id="nav-auth">Inloggen</button>
           </li>
@@ -53,7 +54,6 @@
     </nav>
   </header>
 
-  <!-- Originele inhoud hersteld -->
   <main id="main" class="container">
     <noscript>
       <div class="message error" style="margin-top:1rem;">
@@ -63,10 +63,10 @@
 
     <div id="auth-message" class="message"></div>
 
-    <!-- Login & registratie sectie -->
+    <!-- Login & registratie -->
     <section id="auth-section" style="margin-top:2rem;">
 
-      <!-- Loginformulier -->
+      <!-- Login -->
       <form id="loginForm" class="auth-form">
         <h2>Inloggen</h2>
         <div class="field-group">
@@ -83,7 +83,7 @@
         </p>
       </form>
 
-      <!-- Registratieformulier (start verborgen) -->
+      <!-- Registreren -->
       <form id="registerForm" class="auth-form" style="display:none;">
         <h2>Registreren</h2>
         <div class="field-group">
@@ -135,10 +135,9 @@
           <a href="#" id="show-login">Log hier in</a>
         </p>
       </form>
-
     </section>
 
-    <!-- Profiel sectie -->
+    <!-- Profiel -->
     <section id="profile-section" hidden>
       <h2>Mijn profiel</h2>
       <form id="profileForm">
@@ -156,16 +155,18 @@
       </form>
       <div id="profile-message" class="message"></div>
     </section>
-
   </main>
 
-  <!-- ES-modules -->
+  <!-- Scripts -->
   <script type="module" src="supabaseClient.js"></script>
-  <script type="module" src="./core/ui/nav.js"></script>
+  <!-- nav.js als normaal script (geen module) zodat oude code met window-scope gewoon werkt -->
+  <script src="./core/ui/nav.js"></script>
+  <!-- nav-menu is wel een ES-module -->
   <script type="module">
-    import { initNavMenu } from './nav-menu.js';
+    import { initNavMenu } from './core/ui/nav-menu.js';
     initNavMenu({ menuId: 'site-menu', toggleId: 'nav-toggle' });
   </script>
-  <script type="module" src="account.js"></script>
+  <!-- account-pagina logica (ES-module) -->
+  <script type="module" src="./pages/account/account.js"></script>
 </body>
 </html>
