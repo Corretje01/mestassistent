@@ -1,6 +1,7 @@
-// rvoImport.js — Excel-first RVO import (XLSX/XLS/CSV) met robuuste kolomdetectie en peildatumfilter
+// pages/plaatsingsruimte/rvoImport.js
+// Excel-first RVO import (XLSX/XLS/CSV) met robuuste kolomdetectie en peildatumfilter
 // - Geen breaking changes: zet window.__RVO_RAW en dispatcht 'rvo:imported' met {count}
-// - Excel is leidend voor ha/gewas; BRP-koppeling gebeurt elders via kaart.js
+// - Excel is leidend voor ha/gewas; BRP-koppeling gebeurt elders via plaatsingsruimte.js
 
 // SheetJS via ESM CDN
 import * as XLSX from 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/+esm';
@@ -11,7 +12,7 @@ import * as XLSX from 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/+esm';
  * @param {Object} [opts]
  * @param {string} [opts.addButtonSelector] - optionele "Toevoegen"-knop (bv. '#rvo-add'); zo niet aanwezig, import start direct bij bestand kiezen
  * @param {Date|string} [opts.peildatum] - default 15-05-huidig jaar; mag Date of 'YYYY-MM-DD'
- * @param {string} [opts.eligibilityUrl] - pad naar eligibility-config (default '/data/rvoGebruik-eligibility.json')
+ * @param {string} [opts.eligibilityUrl] - pad naar eligibility-config (default './core/domain/data/rvoGebruik-eligibility.json')
  * @param {function} [opts.onProgress] - callback({stage, info})
  */
 export function setupRVOImport(inputSelector = '#rvo-file', opts = {}) {
@@ -23,7 +24,8 @@ export function setupRVOImport(inputSelector = '#rvo-file', opts = {}) {
 
   const state = {
     peildatum: resolvePeildatum(opts.peildatum),
-    eligibilityUrl: opts.eligibilityUrl || '/data/rvoGebruik-eligibility.json',
+    // ✅ default pad naar je nieuwe datastructuur
+    eligibilityUrl: opts.eligibilityUrl || './core/domain/data/rvoGebruik-eligibility.json',
     eligibilityMap: null,
     onProgress: typeof opts.onProgress === 'function' ? opts.onProgress : () => {},
   };
@@ -38,6 +40,15 @@ export function setupRVOImport(inputSelector = '#rvo-file', opts = {}) {
   input.addEventListener('change', async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    // (optioneel) bestandstype-guard voor UX
+    const ext = (file.name.split('.').pop() || '').toLowerCase();
+    if (!['xlsx','xls','csv'].includes(ext)) {
+      alert('Kies een RVO-bestand in .xlsx, .xls of .csv formaat.');
+      e.target.value = '';
+      return;
+    }
+
     if (!opts.addButtonSelector) {
       await handleFile(file, state);
       input.value = ''; // opnieuw kunnen kiezen
