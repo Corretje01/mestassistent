@@ -4,14 +4,13 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>Beheer – MestAssistent</title>
+  <title>Beheer</title>
 
   <!-- Basis styles -->
   <link rel="stylesheet" href="style.css"/>
 
   <!-- Supabase client -->
   <script type="module" src="supabaseClient.js"></script>
-  <script type="module" src="./core/ui/nav.js"></script>
 
   <!-- Pagina-specifieke styles (beheer) -->
   <style>
@@ -37,13 +36,13 @@
       color:#111827;
       border-radius:10px;
       box-sizing: border-box;
-      line-height: 1.2;            /* voorkomt 'afknippen' onderin */
-      padding:.62rem .85rem;       /* net iets compacter dan .7rem */
-      min-height:42px;             /* consistente hoogte zonder forceren */
+      line-height: 1.2;
+      padding:.62rem .85rem;
+      min-height:42px;
       outline:none;
       transition:border-color .15s ease, box-shadow .15s ease, background-color .15s ease;
       font:inherit;
-      -webkit-appearance:none;     /* Safari/iOS: consistente hoogte */
+      -webkit-appearance:none;
       appearance:none;
     }
     .admin-ui select{
@@ -71,14 +70,10 @@
     }
     .admin-ui textarea{ min-height: 96px; resize: vertical; }
 
-    /* iOS/Safari nuance */
     @supports (-webkit-touch-callout: none) {
-      .admin-ui select{
-        padding-top:.58rem; padding-bottom:.58rem;
-      }
+      .admin-ui select{ padding-top:.58rem; padding-bottom:.58rem; }
     }
 
-    /* Knoppen in huisstijl */
     .admin-ui .btn,
     .admin-ui .btn-primary,
     .admin-ui .btn-danger,
@@ -94,10 +89,8 @@
     .admin-ui .btn-primary:active,
     .admin-ui .btn-danger:active,
     .admin-ui .btn-outline:active,
-    .admin-ui .btn-ghost:active{
-      transform: translateY(1px);
-    }
-    /* Primary (gebruikt var(--color-yellow)/--color-black) */
+    .admin-ui .btn-ghost:active{ transform: translateY(1px); }
+
     .admin-ui .btn-primary{
       background: var(--color-yellow);
       border:2px solid var(--color-yellow);
@@ -106,19 +99,16 @@
     }
     .admin-ui .btn-primary:hover{ box-shadow: 0 10px 24px rgba(241,196,15,.35); }
 
-    /* Danger */
     .admin-ui .btn-danger{
       background:#fff; color:#991b1b; border:2px solid #991b1b;
     }
     .admin-ui .btn-danger:hover{ background:#991b1b; color:#fff; }
 
-    /* Outline */
     .admin-ui .btn-outline{
       background:#fff; color:#111827; border:2px solid #111827;
     }
     .admin-ui .btn-outline:hover{ background:#111827; color:#fff; }
 
-    /* Ghost (subtiel; voor “Bekijk analyse”) */
     .admin-ui .btn-ghost{
       background:transparent; border:2px solid transparent; color:#111827;
     }
@@ -126,9 +116,6 @@
 
     .admin-ui button[disabled]{ opacity:.6; cursor:not-allowed; }
 
-    /* =========================
-       Filters (sticky, ruimtelijk)
-       ========================= */
     .admin-filters{
       display:grid;
       grid-template-columns: repeat(4, minmax(0,1fr));
@@ -146,12 +133,7 @@
       .admin-filters{ grid-template-columns: 1fr 1fr; }
     }
 
-    /* =================
-       Lijst & kaarten
-       ================= */
-    .list-head{
-      display:flex; align-items:center; justify-content:space-between; margin-bottom:.5rem;
-    }
+    .list-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:.5rem; }
 
     details.details-card{
       border:1px solid #eee; border-radius:14px; padding:.6rem .85rem;
@@ -168,7 +150,6 @@
     .item-title{ font-weight:800; }
     .item-meta{ color:#6b7280; font-size:.9rem; }
 
-    /* Status chips */
     .status-chip{
       display:inline-flex; align-items:center; line-height:1;
       border-radius:999px; padding:.35rem .65rem; font-size:.85rem; font-weight:700;
@@ -177,7 +158,6 @@
     .status-chip.green{ background:#e6f7ed; color:#065f46; }
     .status-chip.red{ background:#fde8e8; color:#991b1b; }
 
-    /* Grids in details-body */
     .admin-grid-3{ display:grid; grid-template-columns:repeat(3,1fr); gap:.6rem; }
     .admin-grid-2{ display:grid; grid-template-columns:1fr 2fr; gap:.85rem; }
     @media (max-width: 900px){
@@ -185,31 +165,20 @@
       .admin-grid-2{ grid-template-columns:1fr; }
     }
 
-    /* Labels in kaarten */
     .admin-field{ display:flex; flex-direction:column; gap:.35rem; }
     .admin-field label{ font-weight:600; font-size:.9rem; color:#111827; }
 
-    /* “Bekijk analyse” knop in ghost-stijl */
     .admin-ui .a-open{
       background:transparent; border:2px solid transparent; color:#111827;
       display:inline-flex; align-items:center; height:36px; padding:.45rem .7rem; border-radius:10px;
     }
     .admin-ui .a-open:hover{ background:#f5f5f5; }
 
-    /* Card sectie-spacing alleen op beheerpagina toepassen */
     .admin-ui .card{ padding:1.1rem 1rem; }
 
-    /* ======================================================
-       ANALYSEVELDEN (DS, N, P, K, OS, Biogas) — subtiele upgrade
-       Werkt op markup die beheer.js rendert: input[data-k="..."]
-       ====================================================== */
     .admin-ui .row label{
-      display:flex;
-      flex-direction:column;
-      gap:.35rem;
-      font-weight:600;
-      font-size:.9rem;
-      color:#111827;
+      display:flex; flex-direction:column; gap:.35rem;
+      font-weight:600; font-size:.9rem; color:#111827;
     }
     .admin-ui .row input[data-k]{
       border:1px solid #e5e7eb;
@@ -222,8 +191,8 @@
       line-height:1.2;
       box-sizing:border-box;
       transition:border-color .15s ease, box-shadow .15s ease, background-color .15s ease;
-      text-align:right;                   /* nummers rechts uitlijnen */
-      font-variant-numeric: tabular-nums; /* gelijke cijferbreedte */
+      text-align:right;
+      font-variant-numeric: tabular-nums;
       letter-spacing:.01em;
     }
     .admin-ui .row input[data-k]:hover{ background:#f7f7f7; }
@@ -234,7 +203,6 @@
       outline:none;
     }
     .admin-ui .row input[data-k]::placeholder{ color:#9ca3af; }
-    /* iets meer lucht tussen de 3 kolommen in de details-body */
     .admin-ui .row{ gap:.75rem !important; }
   </style>
 </head>
@@ -254,7 +222,7 @@
         </button>
 
         <ul class="nav-links">
-          <li class="auth-only"><a href="stap1.html" class="nav__item" id="nav-bereken">Bereken plaatsingsruimte</a></li>
+          <li class="auth-only"><a href="plaatsingsruimte.html" class="nav__item" id="nav-bereken">Bereken plaatsingsruimte</a></li>
           <li class="auth-only"><a href="mestplan.html" class="nav__item" id="nav-mestplan">Maak mestplan</a></li>
           <li class="auth-only"><a href="upload.html" class="nav__item" id="nav-upload">Mest uploaden</a></li>
           <li class="auth-only"><a href="account.html" class="nav__item" id="nav-account">Mijn account</a></li>
@@ -319,13 +287,15 @@
   <footer id="footer"></footer>
 
   <!-- Scripts -->
-  <script type="module" src="utils.js"></script>
-  <script type="module" src="beheer.js"></script>
-
-  <!-- Nav init -->
+  <!-- nav.js als normaal script (geen module) -->
+  <script src="./core/ui/nav.js"></script>
+  <!-- nav-menu als ES-module -->
   <script type="module">
-    import { initNavMenu } from './nav-menu.js';
+    import { initNavMenu } from './core/ui/nav-menu.js';
     initNavMenu({ menuId: 'site-menu', toggleId: 'nav-toggle' });
   </script>
+  <!-- gedeelde utils en pagina-logica als modules -->
+  <script type="module" src="./core/utils/utils.js"></script>
+  <script type="module" src="./pages/beheer/beheer.js"></script>
 </body>
 </html>
