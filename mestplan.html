@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="style.css" />
 
   <!-- 1) GLPK (module voor optimalisatie) -->
-  <script src="./scripts/glpk.js"></script>
+  <script src="./core/domain/glpk.js"></script>
 </head>
 <body>
   <header class="site-header">
@@ -31,7 +31,7 @@
         <ul class="nav-links">
           <!-- Alleen na inloggen zichtbaar -->
           <li class="auth-only">
-            <a href="stap1.html" class="nav__item" id="nav-bereken">Bereken plaatsingsruimte</a>
+            <a href="plaatsingsruimte.html" class="nav__item" id="nav-bereken">Bereken plaatsingsruimte</a>
           </li>
           <li class="auth-only">
             <a href="mestplan.html" class="nav__item" id="nav-mestplan">Maak mestplan</a>
@@ -133,10 +133,10 @@
   <!-- 1) ESM Supabase-client -->
   <script type="module" src="supabaseClient.js"></script>
 
-  <!-- 2) Nav logic als module -->
-  <script type="module" src="./core/ui/nav.js"></script>
+  <!-- 2) nav.js als normaal script + nav-menu als ES-module -->
+  <script src="./core/ui/nav.js"></script>
   <script type="module">
-    import { initNavMenu } from './nav-menu.js';
+    import { initNavMenu } from './core/ui/nav-menu.js';
     initNavMenu({ menuId: 'site-menu', toggleId: 'nav-toggle' });
   </script>
 
@@ -154,7 +154,7 @@
     });
   </script>
 
-  <!-- 4) Paginapecifiek script als module -->
-  <script type="module" src="./main.js"></script>
+  <!-- 4) Paginascript als module -->
+  <script type="module" src="./pages/mestplan/mestplan.js"></script>
 </body>
 </html>
