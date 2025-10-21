@@ -1,10 +1,10 @@
-// main.js
+// pages/mestplan/mestplan.js
 
-import { StateManager } from './statemanager.js';
-import { UIController } from './uicontroller.js';
-import { LogicEngine } from './logicengine.js';
-import { ValidationEngine } from './validationengine.js';
-import { supabase } from './supabaseClient.js';
+import { StateManager } from '../../core/domain/stateManager.js';
+import { UIController } from '../../core/ui/uiController.js';
+import { LogicEngine } from '../../core/domain/logicEngine.js';
+import { ValidationEngine } from '../../core/domain/validationEngine.js';
+import { supabase } from '../../supabaseClient.js';
 
 // Debounced helper: upsert het volledige trio A/B/C
 let saveTimeout;
@@ -133,7 +133,8 @@ async function initializeApp() {
     // 5) Laad mestsoorten.json en configureer knoppen
     let mestsoortenData = {};
     try {
-      const resp = await fetch('/data/mestsoorten.json');
+      // Let op: fetch is relatief aan de pagina (mestplan.html staat in de root)
+      const resp = await fetch('./core/domain/data/mestsoorten.json', { cache: 'no-store' });
       mestsoortenData = await resp.json();
       StateManager.setMestTypes(mestsoortenData);
       console.log('✅ mestsoorten.json geladen');
