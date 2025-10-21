@@ -141,11 +141,13 @@
     </div>
   </footer>
 
-  <!-- Modules -->
+  <!-- Supabase client (ES module) -->
   <script type="module" src="supabaseClient.js"></script>
-  <script type="module" src="./core/ui/nav.js"></script>
+
+  <!-- nav.js als normaal script + nav-menu als ES-module -->
+  <script src="./core/ui/nav.js"></script>
   <script type="module">
-    import { initNavMenu } from './nav-menu.js';
+    import { initNavMenu } from './core/ui/nav-menu.js';
     initNavMenu({ menuId: 'site-menu', toggleId: 'nav-toggle' });
   </script>
 
@@ -153,16 +155,17 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
   <!-- App modules -->
-  <script type="module" src="kaart.js"></script>
-  <script type="module" src="berekening.js"></script>
+  <script type="module" src="./pages/plaatsingsruimte/kaart.js"></script>
+  <script type="module" src="./pages/plaatsingsruimte/berekening.js"></script>
 
   <!-- KMZ-import init + opslaan/verwijderen + saved laden -->
   <script type="module">
-    import { setupKMZImport } from './kmzImport.js';
+    import { setupKMZImport } from './pages/plaatsingsruimte/kmzImport.js';
     import { supabase } from './supabaseClient.js';
-    import { parcels, clearAllParcels } from './kaart.js';
+    import { parcels, clearAllParcels } from './pages/plaatsingsruimte/kaart.js';
 
-    setupKMZImport('#kmz-file', '#kmz-add', { eligibilityUrl: '/data/rvoGebruik-eligibility.json' });
+    // let op: pad naar eligibility JSON binnen je core/domain/data
+    setupKMZImport('#kmz-file', '#kmz-add', { eligibilityUrl: './core/domain/data/rvoGebruik-eligibility.json' });
 
     const btnAdd    = document.getElementById('kmz-add');
     const btnDel    = document.getElementById('kmz-delete');
@@ -229,7 +232,6 @@
     }
 
     async function deleteParcelsFromAccount() {
-      // 1) Bevestigingspopup (met aantallen)
       const count = Array.isArray(parcels) ? parcels.length : 0;
       if (!count) return;
       const ok = confirm(
@@ -237,12 +239,10 @@
       );
       if (!ok) return;
     
-      // 2) (ongewijzigd) sessie check
       const { data: { session } } = await supabase.auth.getSession();
       const user = session?.user;
       if (!user) { alert('Je moet ingelogd zijn om te verwijderen.'); return; }
     
-      // 3) (ongewijzigd) kmz-pad ophalen om ook uit storage te kunnen verwijderen
       let kmz_path = null;
       try {
         const { data } = await supabase
@@ -253,19 +253,16 @@
         kmz_path = data?.kmz_path || null;
       } catch {}
     
-      // 4) (ongewijzigd) DB record verwijderen
       const { error } = await supabase
         .from('user_parcel_sets')
         .delete()
         .eq('user_id', user.id);
       if (error) { console.error(error); alert('Verwijderen uit je account is niet gelukt.'); return; }
     
-      // 5) (ongewijzigd) KMZ uit storage verwijderen (best effort)
       if (kmz_path) {
         try { await supabase.storage.from('kmz').remove([kmz_path]); } catch {}
       }
     
-      // 6) (ongewijzigd) UI resetten
       clearAllParcels();
       fileInput.value = '';
       label.textContent = 'Koppel percelen';
@@ -301,7 +298,7 @@
       updateDeleteVisibility();
     });
 
-    btnDel.addEventListener('click', deleteParcelsFromAccount);
+    document.getElementById('kmz-delete').addEventListener('click', deleteParcelsFromAccount);
   </script>
 
   <!-- Route-guard + opgeslagen percelen laden -->
