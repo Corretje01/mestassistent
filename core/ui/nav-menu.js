@@ -1,9 +1,9 @@
 // core/ui/nav-menu.js
-// Gebruik per pagina (vanaf de project-root-HTML):
-//   <script type="module">
-//     import { initNavMenu } from './core/ui/nav-menu.js';
-//     initNavMenu({ menuId: 'site-menu', toggleId: 'nav-toggle' });
-//   </script>
+// Gebruik per pagina (vanaf de root-HTML):
+// <script type="module">
+//   import { initNavMenu } from './core/ui/nav-menu.js';
+//   initNavMenu({ menuId: 'site-menu', toggleId: 'nav-toggle' });
+// </script>
 
 export function initNavMenu({
   menuId = 'site-menu',
@@ -18,7 +18,7 @@ export function initNavMenu({
   const main     = document.getElementById(mainId);
   const footer   = document.getElementById(footerId);
 
-  // Als verplichte elementen ontbreken, stop dan stilletjes (voorkomt fouten op pagina's zonder menu)
+  // Ontbreekt iets? Dan stilletjes stoppen (pagina kan ook zonder menu bestaan)
   if (!menu || !toggle) return;
 
   const mql = window.matchMedia('(min-width: 1024px)');
@@ -27,7 +27,7 @@ export function initNavMenu({
     [main, footer].forEach(el => {
       if (!el) return;
       if (on) { el.setAttribute('aria-hidden', 'true'); el.setAttribute('inert', ''); }
-      else { el.removeAttribute('aria-hidden'); el.removeAttribute('inert'); }
+      else    { el.removeAttribute('aria-hidden'); el.removeAttribute('inert'); }
     });
   };
 
@@ -48,7 +48,7 @@ export function initNavMenu({
   };
 
   const close = () => {
-    if (mql.matches) return;
+    if (mql.matches) return; // desktop: blijft inline
     menu.dataset.open = 'false';
     toggle.setAttribute('aria-expanded', 'false');
     document.body.classList.remove('body--no-scroll');
@@ -59,7 +59,7 @@ export function initNavMenu({
     toggle.focus();
   };
 
-  // Toggle
+  // Toggle knop
   toggle.addEventListener('click', () => {
     (menu.dataset.open === 'true') ? close() : open();
   });
@@ -69,7 +69,7 @@ export function initNavMenu({
     closeBtn.addEventListener('click', (e) => { e.preventDefault(); close(); });
   }
 
-  // Backdrop klik
+  // Backdrop klik sluit
   menu.addEventListener('click', (e) => {
     if (e.target === menu && menu.dataset.open === 'true') close();
   });
@@ -79,7 +79,7 @@ export function initNavMenu({
     if (e.key === 'Escape' && menu.dataset.open === 'true') close();
   });
 
-  // Focus-trap
+  // Focus-trap binnen overlay
   menu.addEventListener('keydown', (e) => {
     if (e.key !== 'Tab' || menu.dataset.open !== 'true') return;
     const els = Array.from(focusables());
@@ -92,7 +92,7 @@ export function initNavMenu({
   // Breakpoint gedrag
   const applyMode = () => {
     if (mql.matches) {
-      // desktop: inline
+      // desktop: inline menu
       menu.removeAttribute('role');
       menu.removeAttribute('aria-modal');
       menu.hidden = false;
@@ -109,5 +109,9 @@ export function initNavMenu({
   applyMode();
   mql.addEventListener('change', applyMode);
 
-  return { destroy() { mql.removeEventListener('change', applyMode); } };
+  // Expose klein API'tje (optioneel)
+  return {
+    close,
+    destroy() { mql.removeEventListener('change', applyMode); }
+  };
 }
