@@ -7,7 +7,7 @@
   <title>Mest uploaden – MestAssistent</title>
   <link rel="stylesheet" href="style.css"/>
 
-  <!-- Supabase in head (zoals op je andere pagina's) -->
+  <!-- Supabase als module (zoals op je andere pagina's) -->
   <script type="module" src="supabaseClient.js"></script>
 </head>
 <body>
@@ -200,7 +200,7 @@
             <div class="meta-value js-kind"></div>
           </div>
 
-          <div class="meta-row">
+        <div class="meta-row">
             <div class="meta-label">Nutriënten</div>
             <div class="meta-value">
               <div class="analysis-pills js-analysis"></div>
@@ -246,12 +246,23 @@
   <!-- Pagina-scripts -->
   <script type="module" src="utils.js"></script>
   <script type="module" src="upload.js"></script>
+
+  <!-- Nav logic als ES-module -->
   <script type="module" src="./core/ui/nav.js"></script>
 
   <!-- Nav init -->
   <script type="module">
     import { initNavMenu } from './core/ui/nav-menu.js';
     initNavMenu({ menuId: 'site-menu', toggleId: 'nav-toggle' });
+  </script>
+
+  <!-- Auth-guard (relatieve redirect, consistent met de andere pagina's) -->
+  <script type="module">
+    import { supabase } from './supabaseClient.js';
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      window.location.href = 'account.html?signin=1';
+    }
   </script>
 
   <!-- Kleine UX-masks (prijs ±, 2 decimals; ton integer; postcode 1234 AB) -->
