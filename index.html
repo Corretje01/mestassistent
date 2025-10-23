@@ -4,58 +4,44 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>KoeHandelaar – Ontdek of jij geld misloopt</title>
-  <link rel="stylesheet" href="style.css" />
   <meta name="description" content="Ontgrendel real-time mestprijzen. Minder giswerk, meer zekerheid.">
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <header class="site-header">
     <nav class="navbar">
-      <!-- Home: altijd relatief naar index.html -->
+      <!-- Home -->
       <a href="index.html" class="nav-logo">KoeHandelaar</a>
-  
+
       <!-- Hamburger toggle (mobiel) -->
       <button id="nav-toggle" class="nav-toggle" aria-label="Menu" aria-controls="site-menu" aria-expanded="false">
         <span class="bars" aria-hidden="true"></span>
       </button>
-  
-      <!-- Menu (overlay op mobiel, inline op desktop) -->
+
+      <!-- Menu -->
       <div id="site-menu" class="site-menu" hidden>
-        <!-- Close-button (X) voor mobiel menu -->
         <button id="nav-close" class="nav-close" aria-label="Menu sluiten">
           <span aria-hidden="true">&times;</span>
         </button>
-  
+
         <ul class="nav-links">
           <!-- Alleen na inloggen zichtbaar -->
-          <li class="auth-only">
-            <a href="plaatsingsruimte.html" class="nav__item" id="nav-bereken">Bereken plaatsingsruimte</a>
-          </li>
-          <li class="auth-only">
-            <a href="mestplan.html" class="nav__item" id="nav-mestplan">Maak mestplan</a>
-          </li>
-          <li class="auth-only">
-            <a href="upload.html" class="nav__item" id="nav-upload">Mest uploaden</a>
-          </li>
-          <li class="auth-only">
-            <a href="account.html" class="nav__item" id="nav-account">Mijn account</a>
-          </li>
-  
+          <li class="auth-only"><a href="plaatsingsruimte.html" class="nav__item" id="nav-bereken">Bereken plaatsingsruimte</a></li>
+          <li class="auth-only"><a href="mestplan.html" class="nav__item" id="nav-mestplan">Maak mestplan</a></li>
+          <li class="auth-only"><a href="upload.html" class="nav__item" id="nav-upload">Mest uploaden</a></li>
+          <li class="auth-only"><a href="account.html" class="nav__item" id="nav-account">Mijn account</a></li>
+
           <!-- Alleen admin -->
-          <li class="auth-only admin-only">
-            <a href="beheer.html" class="nav__item" id="nav-beheer">Beheer</a>
-          </li>
-  
-          <!-- Altijd aanwezig; tekst/actie wisselt: Inloggen ↔ Uitloggen -->
-          <li class="nav-auth-item">
-            <button class="btn-login" id="nav-auth">Inloggen</button>
-          </li>
+          <li class="auth-only admin-only"><a href="beheer.html" class="nav__item" id="nav-beheer">Beheer</a></li>
+
+          <!-- Inloggen/Uitloggen -->
+          <li class="nav-auth-item"><button class="btn-login" id="nav-auth">Inloggen</button></li>
         </ul>
       </div>
     </nav>
   </header>
 
   <main id="main">
-
     <!-- HERO -->
     <section class="hero container" style="text-align:center;">
       <h1 style="margin-bottom:0.5rem;">Ontgrendel real-time mestprijzen en ontdek of jij geld misloopt</h1>
@@ -85,8 +71,8 @@
     <section class="container card" style="margin-top:1rem;">
       <h2 style="margin-bottom:0.5rem;">Over ons</h2>
       <p style="margin:0.5rem 0 1rem;">
-        KoeHandelaar geeft je grip op je mestdeals: helder, eerlijk en zonder ruis. Simpel in gebruik, 
-        doeltreffend in resultaat. We werken met een vaste vergoeding van €2,50/ton. Geen abonnementen. 
+        KoeHandelaar geeft je grip op je mestdeals: helder, eerlijk en zonder ruis. Simpel in gebruik,
+        doeltreffend in resultaat. We werken met een vaste vergoeding van €2,50/ton. Geen abonnementen.
         Geen kleine lettertjes. Geen kosten zonder deal.
       </p>
       <div class="stats-grid" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:0.75rem;">
@@ -105,7 +91,7 @@
       </div>
     </section>
 
-    <!-- WIIFM (benefits) -->
+    <!-- WIIFM -->
     <section class="container card" style="margin-top:1rem;">
       <h2 style="margin-bottom:0.5rem;">Wat levert het jou op</h2>
       <ul class="bullets" style="margin-top:0.5rem;">
@@ -117,12 +103,10 @@
       </ul>
     </section>
 
-    <!-- OPLOSSING -->
+    <!-- HOE WERKT HET -->
     <section id="hoe-werkt-het" class="container card" style="margin-top:1rem;">
       <h2 style="margin-bottom:0.5rem;">Zo werkt het</h2>
-      <p style="margin-top:0; margin-bottom:1rem;">
-        In 4 stappen een eerlijke prijs voor je mest.
-      </p>
+      <p style="margin-top:0; margin-bottom:1rem;">In 4 stappen een eerlijke prijs voor je mest.</p>
       <ol style="margin-left:1.25rem; line-height:1.6;">
         <li><strong>Stap 1:</strong> Maak gratis een account.</li>
         <li><strong>Stap 2:</strong> Bereken je plaatsingsruimte.</li>
@@ -131,25 +115,6 @@
       </ol>
       <div style="margin-top:1rem; text-align:center;">
         <a href="account.html" class="btn btn-primary">Probeer het nu</a>
-      </div>
-    </section>
-
-    <!-- SOCIAL PROOF -->
-    <section class="container card" style="margin-top:1rem;">
-      <h2 style="margin-bottom:0.5rem;">Wat anderen zeggen</h2>
-      <div class="testimonials" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:0.75rem;">
-        <blockquote class="card" style="margin:0;">
-          <p style="margin:0 0 0.5rem;">“Einlik meer klaorheid in de mestmark. Dit hadde we veurig jaor motte heb’n.”</p>
-          <footer style="color:#666;">~ Melkveehouder, Gelderland</footer>
-        </blockquote>
-        <blockquote class="card" style="margin:0;">
-          <p style="margin:0 0 0.5rem;">“Heldere tool. Doet precies wat het moet doen. De commissie is hoog maar de service ook”</p>
-          <footer style="color:#666;">~ Akkerbouwer, Flevoland</footer>
-        </blockquote>
-        <blockquote class="card" style="margin:0;">
-          <p style="margin:0 0 0.5rem;">“Live aanpassen en meteen effect zien. Knap staaltje vakwerk.”</p>
-          <footer style="color:#666;">~ Varkenshouder, Noord-Brabant</footer>
-        </blockquote>
       </div>
     </section>
 
@@ -166,7 +131,6 @@
         </div>
       </div>
     </section>
-
   </main>
 
   <footer id="footer" class="container" style="padding:2rem 0; color:#777; font-size:0.9rem;">
@@ -180,18 +144,14 @@
     </div>
   </footer>
 
-  <!-- Supabase client -->
+  <!-- Scripts (ESM) -->
   <script type="module" src="supabaseClient.js"></script>
-  <!-- nav.js als normaal script (geen module), zodat bestaande window-scope code blijft werken -->
-  <script src="./core/ui/nav.js"></script>
-  <!-- nav-menu is een ES-module -->
+  <script type="module" src="./core/ui/nav.js"></script>
   <script type="module">
     import { initNavMenu } from './core/ui/nav-menu.js';
     initNavMenu({ menuId: 'site-menu', toggleId: 'nav-toggle' });
-  </script>
-  <script>
     // Jaar in footer
-    document.getElementById('year').textContent = new Date().getFullYear();
+    const y = document.getElementById('year'); if (y) y.textContent = new Date().getFullYear();
   </script>
 </body>
 </html>
