@@ -4,7 +4,7 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>Beheer</title>
+  <title>Beheer – MestAssistent</title>
 
   <!-- Basis styles -->
   <link rel="stylesheet" href="style.css"/>
@@ -20,9 +20,7 @@
     /* ==========================================================
        Moderne form controls & knoppen (gescope'd onder .admin-ui)
        ========================================================== */
-    .admin-ui .label-sm{
-      font-size:.9rem; font-weight:600; color:var(--color-black);
-    }
+    .admin-ui .label-sm{ font-size:.9rem; font-weight:600; color:var(--color-black); }
 
     .admin-ui .input,
     .admin-ui .select,
@@ -36,7 +34,7 @@
       color:#111827;
       border-radius:10px;
       box-sizing: border-box;
-      line-height: 1.2;
+      line-height:1.2;
       padding:.62rem .85rem;
       min-height:42px;
       outline:none;
@@ -99,19 +97,13 @@
     }
     .admin-ui .btn-primary:hover{ box-shadow: 0 10px 24px rgba(241,196,15,.35); }
 
-    .admin-ui .btn-danger{
-      background:#fff; color:#991b1b; border:2px solid #991b1b;
-    }
+    .admin-ui .btn-danger{ background:#fff; color:#991b1b; border:2px solid #991b1b; }
     .admin-ui .btn-danger:hover{ background:#991b1b; color:#fff; }
 
-    .admin-ui .btn-outline{
-      background:#fff; color:#111827; border:2px solid #111827;
-    }
+    .admin-ui .btn-outline{ background:#fff; color:#111827; border:2px solid #111827; }
     .admin-ui .btn-outline:hover{ background:#111827; color:#fff; }
 
-    .admin-ui .btn-ghost{
-      background:transparent; border:2px solid transparent; color:#111827;
-    }
+    .admin-ui .btn-ghost{ background:transparent; border:2px solid transparent; color:#111827; }
     .admin-ui .btn-ghost:hover{ background:#f5f5f5; }
 
     .admin-ui button[disabled]{ opacity:.6; cursor:not-allowed; }
@@ -140,9 +132,7 @@
       margin:.75rem 0; background:#fff;
       transition:box-shadow .15s ease, border-color .15s ease;
     }
-    details.details-card[open]{
-      box-shadow: 0 10px 30px rgba(0,0,0,.06); border-color:#e8e8e8;
-    }
+    details.details-card[open]{ box-shadow: 0 10px 30px rgba(0,0,0,.06); border-color:#e8e8e8; }
     .item-summary{
       display:flex; flex-wrap:wrap; gap:.5rem 1rem; align-items:center; cursor:pointer; list-style:none;
       padding:.2rem 0;
@@ -181,26 +171,14 @@
       font-weight:600; font-size:.9rem; color:#111827;
     }
     .admin-ui .row input[data-k]{
-      border:1px solid #e5e7eb;
-      border-radius:10px;
-      background:#fafafa;
-      padding:.6rem .8rem;
-      min-height:42px;
-      color:#111827;
-      font:inherit;
-      line-height:1.2;
-      box-sizing:border-box;
-      transition:border-color .15s ease, box-shadow .15s ease, background-color .15s ease;
-      text-align:right;
-      font-variant-numeric: tabular-nums;
-      letter-spacing:.01em;
+      border:1px solid #e5e7eb; border-radius:10px; background:#fafafa;
+      padding:.6rem .8rem; min-height:42px; color:#111827; font:inherit; line-height:1.2;
+      box-sizing:border-box; transition:border-color .15s ease, box-shadow .15s ease, background-color .15s ease;
+      text-align:right; font-variant-numeric: tabular-nums; letter-spacing:.01em;
     }
     .admin-ui .row input[data-k]:hover{ background:#f7f7f7; }
     .admin-ui .row input[data-k]:focus{
-      background:#fff;
-      border-color: var(--color-yellow);
-      box-shadow: 0 0 0 3px rgba(241,196,15,.25);
-      outline:none;
+      background:#fff; border-color: var(--color-yellow); box-shadow: 0 0 0 3px rgba(241,196,15,.25); outline:none;
     }
     .admin-ui .row input[data-k]::placeholder{ color:#9ca3af; }
     .admin-ui .row{ gap:.75rem !important; }
@@ -286,16 +264,43 @@
 
   <footer id="footer"></footer>
 
-  <!-- Scripts -->
-  <!-- nav.js als normaal script (geen module) -->
-  <script src="./core/ui/nav.js"></script>
-  <!-- nav-menu als ES-module -->
+  <!-- Shared utils + paginalogica als modules -->
+  <script type="module" src="./core/utils/utils.js"></script>
+  <script type="module" src="./pages/beheer/beheer.js"></script>
+
+  <!-- Nav logic als ES-module + init -->
+  <script type="module" src="./core/ui/nav.js"></script>
   <script type="module">
     import { initNavMenu } from './core/ui/nav-menu.js';
     initNavMenu({ menuId: 'site-menu', toggleId: 'nav-toggle' });
   </script>
-  <!-- gedeelde utils en pagina-logica als modules -->
-  <script type="module" src="./core/utils/utils.js"></script>
-  <script type="module" src="./pages/beheer/beheer.js"></script>
+
+  <!-- Admin-guard (alleen ingelogde admins) -->
+  <script type="module">
+    import { supabase } from './supabaseClient.js';
+
+    // 1) Auth vereist
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      window.location.replace('account.html?signin=1');
+    } else {
+      // 2) Role check
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', session.user.id)
+          .single();
+
+        const role = (data?.role || '').toLowerCase();
+        if (error || role !== 'admin') {
+          // Niet geautoriseerd voor beheer
+          window.location.replace('account.html');
+        }
+      } catch {
+        window.location.replace('account.html');
+      }
+    }
+  </script>
 </body>
 </html>
