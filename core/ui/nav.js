@@ -1,183 +1,163 @@
-// nav.js — robuuste navigatie + login/logout (desktop & mobiel)
-import { supabase } from './supabaseClient.js';
+// File: mestassisten/core/ui/nav.js
+// ES-module: robuste navbar + auth-knop + role-based UI + route-guards (dicht bij origineel)
+
+import { supabase } from '../../../supabaseClient.js';
 
 /* ========== helpers ========== */
-const $ = (id) => document.getElementById(id);
+const $id = (id) => document.getElementById(id);
+const hardNavigate = (href) => { window.location.assign(href); };
 
-function closeMenuIfOpen() {
-  const menu   = $('site-menu');
-  const toggle = $('nav-toggle');
-  if (!menu || !toggle) return;
-  if (menu.dataset.open === 'true') {
-    toggle.setAttribute('aria-expanded', 'false');
-    menu.dataset.open = 'false';
-    document.body.classList.remove('body--no-scroll');
-    requestAnimationFrame(() => setTimeout(() => {
-      if (menu.dataset.open !== 'true') menu.hidden = true;
-    }, 150));
+const isProtectedPath = () => {
+  const p = window.location.pathname.toLowerCase();
+  // Sluit aan bij je nieuwe structuur (aanpasbaar): plaatsingsruimte/mestplan/beheer
+  return (
+    /plaatsingsruimte(\.html)?$/.test(p) ||
+    /mestplan(\.html)?$/.test(p) ||
+    /beheer(\.html)?$/.test(p)
+  );
+};
+
+const selectEls = () => {
+  return {
+    siteMenu:   $id('site-menu'),
+    navToggle:  $id('nav-toggle'),
+    authBtn:    $id('nav-auth'),
+
+    // nav-links die we hard navigeren (zoals in je oude baseline)
+    lBereken:   $id('nav-bereken'),
+    lMestplan:  $id('nav-mestplan'),
+    lUpload:    $id('nav-upload'),
+    lAccount:   $id('nav-account'),
+    lBeheer:    $id('nav-beheer'),
+  };
+};
+
+const toggleAuthClasses = (isAuth) => {
+  document.body.classList.toggle('is-auth',  !!isAuth);
+  document.body.classList.toggle('is-guest', !isAuth);
+
+  // Toon/Verberg blokken
+  for (const el of document.querySelectorAll('.auth-only')) {
+    el.style.display = isAuth ? '' : 'none';
   }
-}
+  for (const el of document.querySelectorAll('.guest-only')) {
+    el.style.display = isAuth ? 'none' : '';
+  }
+};
 
-function hardNavigate(href, { replace = false } = {}) {
-  closeMenuIfOpen();
-  if (replace) location.replace(href);
-  else location.assign(href);
-}
+const showAdminOnly = (isAdmin) => {
+  for (const el of document.querySelectorAll('.admin-only')) {
+    el.style.display = isAdmin ? '' : 'none';
+  }
+};
 
-async function getSessionSafe() {
-  try { return (await supabase.auth.getSession()).data.session; }
-  catch { return null; }
-}
-
-function clearSupabaseStorage() {
+const fetchIsAdmin = async (userId) => {
   try {
-    Object.keys(localStorage).forEach(k => k.startsWith('sb-') && localStorage.removeItem(k));
-    Object.keys(sessionStorage).forEach(k => k.startsWith('sb-') && sessionStorage.removeItem(k));
-  } catch {}
-}
-
-/* ========== UI state ========== */
-export async function updateNavUI() {
-  const session = await getSessionSafe();
-  const isLoggedIn = !!session;
-
-  document.body.classList.toggle('is-auth', isLoggedIn);
-  document.body.classList.toggle('is-guest', !isLoggedIn);
-
-  // Toon/verberg links met .auth-only
-  document.querySelectorAll('.auth-only').forEach(li => { li.style.display = isLoggedIn ? '' : 'none'; });
-
-  // Admin-only
-  let isAdmin = false;
-  if (isLoggedIn) {
-    try {
-      const { data: prof } = await supabase.from('profiles').select('role').eq('id', session.user.id).single();
-      isAdmin = prof?.role === 'admin';
-    } catch {}
+    // Sluit aan bij je bestaande profiles tabel + role kolom
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', userId)
+      .single();
+    if (error) return false;
+    return (data?.role || '').toLowerCase() === 'admin';
+  } catch {
+    return false;
   }
-  document.querySelectorAll('.admin-only').forEach(li => { li.style.display = (isLoggedIn && isAdmin) ? '' : 'none'; });
+};
 
-  // Auth-knop
-  const authBtn = $('nav-auth');
-  if (authBtn) {
-    authBtn.type = 'button';
-    authBtn.textContent = isLoggedIn ? 'Uitloggen' : 'Inloggen';
-    authBtn.setAttribute('data-auth-mode', isLoggedIn ? 'logout' : 'login');
-  }
+const updateAuthButton = (authBtn, isAuth) => {
+  if (!authBtn) return;
+  authBtn.textContent = isAuth ? 'Uitloggen' : 'Inloggen';
+  authBtn.setAttribute('aria-label', isAuth ? 'Uitloggen' : 'Inloggen');
+};
 
-  setActiveLink();
-}
-
-function setActiveLink() {
-  const current = new URL(location.href);
-  document.querySelectorAll('#site-menu .nav-links a').forEach(a => {
-    try {
-      const href = new URL(a.getAttribute('href'), location.origin);
-      if (href.pathname.replace(/\/+$/,'') === current.pathname.replace(/\/+$/,'')) {
-        a.setAttribute('aria-current','page');
-      } else {
-        a.removeAttribute('aria-current');
-      }
-    } catch {}
-  });
-}
-
-/* ========== auth actions ========== */
-async function robustSignOut() {
-  document.body.classList.add('is-guest');
-  document.body.classList.remove('is-auth');
-
-  try {
-    let { error } = await supabase.auth.signOut();
-    if (error) {
-      await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
-    }
-  } catch {}
-  clearSupabaseStorage();
-
-  const t0 = Date.now();
-  while (Date.now() - t0 < 250) {
-    const s = await getSessionSafe();
-    if (!s) break;
-    await new Promise(r => setTimeout(r, 60));
-  }
-}
-
-/* ========== bindings ========== */
-function bindNavLinks() {
-  const map = [
-    ['nav-bereken',  'plaatsingsruimte.html'], // <-- aangepast
-    ['nav-mestplan', 'mestplan.html'],
-    ['nav-upload',   'upload.html'],
-    ['nav-account',  'account.html'],
-    ['nav-beheer',   'beheer.html'],
-  ];
-  for (const [id, href] of map) {
-    const el = $(id);
-    if (!el) continue;
-    const go = (e) => { e.preventDefault(); hardNavigate(href); };
-    el.addEventListener('click', go, { passive: false });
-    el.addEventListener('pointerup', go, { passive: false });
-  }
-}
-
-async function handleAuthClick(e, btn) {
-  e.preventDefault();
-  const mode = btn.getAttribute('data-auth-mode');
-  if (mode === 'logout') {
-    btn.disabled = true;
-    btn.textContent = 'Uitloggen…';
-    await robustSignOut();
-    hardNavigate('account.html?logout=1', { replace: true });
-  } else {
-    hardNavigate('account.html?signin=1', { replace: false });
-  }
-}
-
-function bindAuthButton() {
-  const btn = $('nav-auth');
-  if (btn && !btn.dataset.bound) {
-    const on = (e) => handleAuthClick(e, btn);
-    btn.addEventListener('click', on, { passive: false });
-    btn.addEventListener('pointerup', on, { passive: false });
-    btn.dataset.bound = 'true';
-  }
-  if (!document.body.dataset.authDelegated) {
-    const delegate = (e) => {
-      const tgt = e.target?.closest?.('#nav-auth');
-      if (!tgt) return;
-      e.preventDefault();
-      handleAuthClick(e, tgt);
-    };
-    document.addEventListener('click', delegate, { passive: false });
-    document.addEventListener('pointerup', delegate, { passive: false });
-    document.body.dataset.authDelegated = 'true';
-  }
-}
-
-/* ========== route guard ========== */
-async function guardProtectedPages() {
-  const slug = location.pathname.replace(/\/+$/, '').split('/').pop().toLowerCase();
-  const protectedSet = new Set([
-    'plaatsingsruimte', 'plaatsingsruimte.html', // <-- toegevoegd
-    'mestplan', 'mestplan.html'
-  ]);
-  if (!protectedSet.has(slug)) return;
-
+const guardProtectedPages = async () => {
+  if (!isProtectedPath()) return;
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) {
-    location.assign('account.html?signin=1');
+    // Houd de oude redirectstijl aan
+    const target = 'account.html?signin=1';
+    hardNavigate(target);
   }
-}
+};
 
-/* ========== init ========== */
-document.addEventListener('DOMContentLoaded', async () => {
-  await updateNavUI();
-  bindNavLinks();
-  bindAuthButton();
+const bindNavLinks = (els) => {
+  // Hard navigeren om SPA-achtigheid te voorkomen (zoals in je oude code)
+  if (els.lBereken)  els.lBereken.addEventListener('click', (e) => { e.preventDefault(); hardNavigate('plaatsingsruimte.html'); });
+  if (els.lMestplan) els.lMestplan.addEventListener('click', (e) => { e.preventDefault(); hardNavigate('mestplan.html'); });
+  if (els.lUpload)   els.lUpload.addEventListener('click', (e) => { e.preventDefault(); hardNavigate('upload.html'); });
+  if (els.lAccount)  els.lAccount.addEventListener('click', (e) => { e.preventDefault(); hardNavigate('account.html'); });
+  if (els.lBeheer)   els.lBeheer.addEventListener('click', (e) => { e.preventDefault(); hardNavigate('beheer.html'); });
+};
+
+const bindAuthButton = (els) => {
+  if (!els.authBtn) return;
+
+  const handler = async (e) => {
+    e.preventDefault();
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) {
+      // Uitloggen → terug naar account
+      await supabase.auth.signOut();
+      hardNavigate('account.html');
+      return;
+    }
+    // Inloggen via accountpagina (consistent met oude flow)
+    hardNavigate('account.html?signin=1');
+  };
+
+  // Degelijk binden (click is genoeg; pointerup mag ook als je dat gebruikte)
+  els.authBtn.addEventListener('click', handler, { passive: false });
+};
+
+const bindMenuToggle = (els) => {
+  if (!els.navToggle || !els.siteMenu) return;
+  els.navToggle.addEventListener('click', (e) => {
+    e.preventDefault();
+    const expanded = els.navToggle.getAttribute('aria-expanded') === 'true';
+    els.navToggle.setAttribute('aria-expanded', expanded ? 'false' : 'true');
+    els.siteMenu.hidden = expanded;
+  });
+};
+
+const updateUI = async () => {
+  const els = selectEls();
+  const { data: { session } } = await supabase.auth.getSession();
+  const user = session?.user || null;
+
+  updateAuthButton(els.authBtn, !!user);
+  toggleAuthClasses(!!user);
+
+  let isAdmin = false;
+  if (user?.id) isAdmin = await fetchIsAdmin(user.id);
+  showAdminOnly(isAdmin);
+};
+
+const init = async () => {
+  const els = selectEls();
+
+  // init binding
+  bindMenuToggle(els);
+  bindNavLinks(els);
+  bindAuthButton(els);
+
+  // init UI state
+  await updateUI();
+
+  // guard protected pages
   await guardProtectedPages();
 
-  supabase.auth.onAuthStateChange(() => { updateNavUI(); });
-  window.addEventListener('pageshow', () => { updateNavUI(); });
-  window.matchMedia('(min-width: 1024px)').addEventListener('change', closeMenuIfOpen);
-});
+  // live updates
+  supabase.auth.onAuthStateChange(async () => {
+    await updateUI();
+    if (isProtectedPath()) await guardProtectedPages();
+  });
+
+  // bij terugnavigeren (bfcache)
+  window.addEventListener('pageshow', async () => {
+    await updateUI();
+  });
+};
+
+document.addEventListener('DOMContentLoaded', () => { init(); });
