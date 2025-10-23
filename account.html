@@ -3,12 +3,24 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Mijn account</title>
+  <title>Mijn account – MestAssistent</title>
+
+  <!-- Basis styles -->
   <link rel="stylesheet" href="style.css">
-  <!-- (optioneel) pagina-specifieke CSS -->
+
+  <!-- Pagina-specifieke CSS -->
   <link rel="stylesheet" href="./pages/account/view.css">
+
+  <!-- Navbar normalisatie (beschermt tegen lek uit view.css) -->
+  <style>
+    /* scope alleen op de navbar */
+    .navbar .nav-links { display: flex; gap: .75rem; padding: 0; margin: 0; list-style: none; }
+    .navbar .nav-links li { margin: 0; padding: 0; }
+    .navbar .nav-links a.nav__item { display: inline-flex; align-items: center; text-decoration: none; }
+    .navbar .btn-login { margin: 0; }
+  </style>
 </head>
-<body>
+<body class="page-account">
   <header class="site-header">
     <nav class="navbar">
       <!-- Home -->
@@ -157,16 +169,13 @@
     </section>
   </main>
 
-  <!-- Scripts -->
+  <!-- Scripts (ES-modules) -->
   <script type="module" src="supabaseClient.js"></script>
-  <!-- nav.js MOET als module, omdat het ES-imports gebruikt -->
   <script type="module" src="./core/ui/nav.js"></script>
-  <!-- nav-menu is wel een ES-module -->
   <script type="module">
     import { initNavMenu } from './core/ui/nav-menu.js';
     initNavMenu({ menuId: 'site-menu', toggleId: 'nav-toggle' });
   </script>
-  <!-- account-pagina logica (ES-module) -->
   <script type="module" src="./pages/account/account.js"></script>
 </body>
 </html>
