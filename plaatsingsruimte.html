@@ -140,7 +140,7 @@
   <!-- Supabase client (ES module) -->
   <script type="module" src="supabaseClient.js"></script>
 
-  <!-- nav als modules -->
+  <!-- Nav als ES-modules -->
   <script type="module" src="./core/ui/nav.js"></script>
   <script type="module">
     import { initNavMenu } from './core/ui/nav-menu.js';
@@ -160,7 +160,7 @@
     import { supabase } from './supabaseClient.js';
     import { parcels, clearAllParcels } from './pages/plaatsingsruimte/plaatsingsruimte.js';
 
-    // let op: pad naar eligibility JSON binnen je core/domain/data
+    // Let op: eligibility JSON pad binnen core/domain/data
     setupKMZImport('#kmz-file', '#kmz-add', { eligibilityUrl: './core/domain/data/rvoGebruik-eligibility.json' });
 
     const btnAdd    = document.getElementById('kmz-add');
@@ -303,7 +303,7 @@
     document.addEventListener('DOMContentLoaded', async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-        window.location.replace('/account.html?signin=1');
+        window.location.replace('account.html?signin=1');
         return;
       }
       const y = document.getElementById('year');
