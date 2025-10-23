@@ -133,20 +133,21 @@
   <!-- 1) ESM Supabase-client -->
   <script type="module" src="supabaseClient.js"></script>
 
-  <!-- 2) nav.js als normaal script + nav-menu als ES-module -->
-  <script src="./core/ui/nav.js"></script>
+  <!-- 2) Nav logic als ES-module + nav-menu init -->
+  <script type="module" src="./core/ui/nav.js"></script>
   <script type="module">
     import { initNavMenu } from './core/ui/nav-menu.js';
     initNavMenu({ menuId: 'site-menu', toggleId: 'nav-toggle' });
   </script>
 
-  <!-- 3) Route-guard als module -->
+  <!-- 3) Route-guard als module (relatieve redirect) -->
   <script type="module">
     import { supabase } from './supabaseClient.js';
     document.addEventListener('DOMContentLoaded', async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-        window.location.href = '/account.html';
+        window.location.href = 'account.html?signin=1';
+        return;
       }
       // Jaar in footer
       const y = document.getElementById('year');
