@@ -159,8 +159,8 @@
 
   <!-- Scripts -->
   <script type="module" src="supabaseClient.js"></script>
-  <!-- nav.js als normaal script (geen module) zodat oude code met window-scope gewoon werkt -->
-  <script src="./core/ui/nav.js"></script>
+  <!-- nav.js MOET als module, omdat het ES-imports gebruikt -->
+  <script type="module" src="./core/ui/nav.js"></script>
   <!-- nav-menu is wel een ES-module -->
   <script type="module">
     import { initNavMenu } from './core/ui/nav-menu.js';
