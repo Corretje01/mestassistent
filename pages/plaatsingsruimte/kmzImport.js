@@ -1,14 +1,13 @@
 // pages/plaatsingsruimte/kmzImport.js
 // KMZ-only import voor “Mijn Percelen”
-// - Leest .kmz (KML in ZIP), haalt per perceel velden uit <description>-tabel
-// - Normaliseert naar Excel-achtige rows (sectorId, gewasCode, gewasNaam, ha, geldigheid, gebruik, melding)
+// - Leest .kmz (KML in ZIP), haalt velden uit <description>-tabel
+// - Normaliseert naar rows (sectorId, gewasCode, gewasNaam, ha, geldigheid, gebruik, melding)
 // - Zet geometry index: window.__KMZ_GEO = { byId: { sectorId: Feature } }
 // - Zet data-rows:      window.__KMZ_RAW = [ ... ]
-// - Dispatcht 'rvo:imported' zodat plaatsingsruimte.js percelen tekent en berekening start
+// - Dispatcht 'rvo:imported' zodat plaatsingsruimte.js percelen tekent
 
 import JSZip from 'https://cdn.jsdelivr.net/npm/jszip@3.10.1/+esm';
 
-// Publieke API
 export function setupKMZImport(
   inputSelector = '#kmz-file',
   addButtonSelector = '#kmz-add',
@@ -23,7 +22,6 @@ export function setupKMZImport(
 
   let kmzFile = null;
 
-  // Accept alleen .kmz (zover mogelijk)
   $input.addEventListener('change', e => {
     const f = e.target.files?.[0] || null;
     if (f && !/\.kmz$/i.test(f.name)) {
@@ -32,16 +30,16 @@ export function setupKMZImport(
       kmzFile = null;
       return;
     }
-    kmzFile = f;
+    kmzFile = f || null;
   });
 
   $btn.addEventListener('click', async () => {
-    if (!kmzFile) return alert('Kies eerst een .kmz bestand.');
-    $btn.disabled = true;
+    if (!kmzFile) { alert('Kies eerst een .kmz bestand.'); return; }
+
+    setBusy(true, 'Bestand lezen…');
     try {
       const rowsAndGeo = await parseKMZ(kmzFile, {
         peildatum: resolvePeildatum(opts.peildatum),
-        // ✅ standaardpad naar eligibility-config binnen je nieuwe structuur
         eligibilityUrl: opts.eligibilityUrl || './core/domain/data/rvoGebruik-eligibility.json',
       });
 
@@ -58,15 +56,33 @@ export function setupKMZImport(
       }));
     } catch (e) {
       console.error('[kmzImport] parse fout:', e);
-      alert('Kon KMZ niet verwerken. Controleer het bestand en probeer opnieuw.');
+      alert(e?.message?.includes('Geen .kml')
+        ? 'Het KMZ-bestand bevat geen .kml. Controleer of je de juiste export hebt gedownload.'
+        : 'Kon KMZ niet verwerken. Controleer het bestand en probeer opnieuw.'
+      );
     } finally {
-      $btn.disabled = false;
+      setBusy(false);
     }
   });
+
+  function setBusy(on, text) {
+    try {
+      if (on) {
+        $btn.disabled = true;
+        $btn.setAttribute('aria-busy', 'true');
+        const label = document.getElementById('kmz-label');
+        if (label && text) label.textContent = text;
+      } else {
+        $btn.disabled = false;
+        $btn.removeAttribute('aria-busy');
+        const label = document.getElementById('kmz-label');
+        if (label) label.textContent = 'Koppel percelen';
+      }
+    } catch {}
+  }
 }
 
 /* ---------------- Helpers ---------------- */
-
 function resolvePeildatum(d) {
   if (d instanceof Date && !isNaN(d)) return d;
   if (typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d)) {
@@ -78,10 +94,8 @@ function resolvePeildatum(d) {
 }
 
 async function parseKMZ(file, { peildatum, eligibilityUrl }) {
-  // 1) eligibility-config (optioneel)
   const eligList = await fetchEligibility(eligibilityUrl);
 
-  // 2) unzip → vind .kml
   const zip = await JSZip.loadAsync(file);
   let kmlEntry = null;
   zip.forEach((path, entry) => {
@@ -92,13 +106,13 @@ async function parseKMZ(file, { peildatum, eligibilityUrl }) {
   const kmlText = await kmlEntry.async('text');
   const kdoc = new DOMParser().parseFromString(kmlText, 'application/xml');
   const placemarks = Array.from(kdoc.getElementsByTagName('Placemark'));
-  if (!placemarks.length) throw new Error('KMZ bevat geen Placemark polygonen');
+  if (!placemarks.length) throw new Error('KMZ bevat geen perceel-polygonen (Placemark).');
 
   const byId = {};
   const rawRows = [];
 
   for (const pm of placemarks) {
-    const props = extractPropsFromPlacemark(pm); // tabel-keys uit <description>
+    const props = extractPropsFromPlacemark(pm);
     const geo   = kmlPolygonsToGeoJSON(pm);
 
     const sectorId = String(
@@ -107,7 +121,6 @@ async function parseKMZ(file, { peildatum, eligibilityUrl }) {
     if (!sectorId) continue;
     if (!geo || geo.length === 0) continue;
 
-    // (Multi)Polygon Feature maken
     const geometry = geo.length === 1
       ? geo[0]
       : { type: 'MultiPolygon', coordinates: geo.map(g => g.coordinates) };
@@ -122,13 +135,12 @@ async function parseKMZ(file, { peildatum, eligibilityUrl }) {
       }
     };
 
-    // Rijen normaliseren
     const row = kmzPropsToRow(props);
     row.sectorId = sectorId;
     rawRows.push(row);
   }
 
-  // 3) eligibility & filters
+  // eligibility & peildatum
   const eligByOms = indexEligibility(eligList);
   for (const r of rawRows) {
     r.reviewNeeded = reviewFlag(eligByOms, r.gebruikOms);
@@ -174,7 +186,6 @@ function textContent(el, sel) {
 }
 function extractPropsFromPlacemark(pm) {
   const props = {};
-  // HTML tabel in <description>
   const desc = textContent(pm, 'description');
   if (desc) {
     try {
@@ -189,7 +200,6 @@ function extractPropsFromPlacemark(pm) {
       }
     } catch {}
   }
-  // eventueel name meenemen
   const name = textContent(pm, 'name');
   if (name && !props['Naam']) props['Naam'] = name;
   return props;
@@ -235,7 +245,7 @@ function kmzPropsToRow(p) {
   const versie    = String(p['Sector versie'] || p['Versie'] || '').trim();
 
   return {
-    sectorId: '', // ingevuld in caller
+    sectorId: '',
     sectorVersie: versie || undefined,
     gewasCode,
     gewasNaam,
@@ -250,7 +260,6 @@ function kmzPropsToRow(p) {
 
 /* ---- utils ---- */
 function parseHa(s) {
-  // accepteer "2.9574ha", "2,9574", "2.95", etc.
   s = s.replace(/\s*ha$/i,'').trim();
   const n = parseFloat(s.replace(/\./g,'').replace(',','.'));
   return Number.isFinite(n) ? n : 0;
@@ -262,9 +271,9 @@ function toInt(v) {
 function parseDateSmart(v) {
   const s = String(v||'').trim();
   if (!s) return null;
-  const dmy = s.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})$/); // dd-mm-yyyy
+  const dmy = s.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})$/);
   if (dmy) return new Date(+dmy[3], +dmy[2]-1, +dmy[1]);
-  const ymd = s.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/); // yyyy-mm-dd
+  const ymd = s.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/);
   if (ymd) return new Date(+ymd[1], +ymd[2]-1, +ymd[3]);
   const d = new Date(s);
   return isNaN(d) ? null : d;
