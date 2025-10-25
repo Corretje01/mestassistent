@@ -1,48 +1,39 @@
 // core/ui/nav.js
-// Auth button + role UI + guards + hard redirect on logout
 import { supabase } from '../../supabaseClient.js';
 
 const L = (...a) => console.log('[nav]', ...a);
 const $ = (id) => document.getElementById(id);
 
-// ---------------- helpers ----------------
-function homeURL() {
-  // use the logo href if available (works from subfolders)
-  const logo = document.querySelector('.nav-logo[href]');
-  if (logo) {
-    try { return new URL(logo.getAttribute('href'), location.href).toString(); } catch {}
-  }
-  // fallback: index.html next to current page
-  return new URL('index.html', location.href).toString();
-}
-function hardRedirect(href) {
-  // single-line logs for each try; helps spot blockers
-  L('redirect →', href, 'from', location.pathname);
-  try { location.replace(href); L('location.replace OK'); return; } catch {}
-  try { location.href = href; L('location.href OK'); return; } catch {}
-  setTimeout(() => { try { location.assign(href); L('location.assign OK'); } catch {} }, 10);
-}
+let authState = 'unknown'; // 'unknown' | 'guest' | 'authed'
+
+/* ---------- helpers ---------- */
 function isProtected() {
   const p = location.pathname.toLowerCase();
   return /(?:\/)?(plaatsingsruimte|mestplan|beheer)(?:\.html)?$/.test(p);
 }
+function homeURL() {
+  const logo = document.querySelector('.nav-logo[href]');
+  if (logo) {
+    try { return new URL(logo.getAttribute('href'), location.href).toString(); } catch {}
+  }
+  return new URL('index.html', location.href).toString();
+}
+function hardRedirect(href) {
+  L('→ redirect', href);
+  try { location.replace(href); return; } catch {}
+  try { location.href = href; return; } catch {}
+  setTimeout(() => { try { location.assign(href); } catch {} }, 10);
+}
 
-// ---------------- UI updates ----------------
-function toggleAuthClasses(isAuth) {
-  document.body.classList.toggle('is-auth',  !!isAuth);
+/* ---------- UI ---------- */
+function setAuthClasses(isAuth) {
+  document.body.classList.toggle('is-auth',  isAuth);
   document.body.classList.toggle('is-guest', !isAuth);
-  document.querySelectorAll('.auth-only').forEach(el  => { el.style.display = isAuth ? '' : 'none'; });
-  document.querySelectorAll('.guest-only').forEach(el => { el.style.display = isAuth ? 'none' : ''; });
+  document.querySelectorAll('.auth-only').forEach(el  => el.style.display = isAuth ? '' : 'none');
+  document.querySelectorAll('.guest-only').forEach(el => el.style.display = isAuth ? 'none' : '');
 }
-async function fetchIsAdmin(userId) {
-  try {
-    const { data, error } = await supabase.from('profiles').select('role').eq('id', userId).maybeSingle();
-    if (error) { L('profiles error:', error.message); return false; }
-    return (data?.role || '').toLowerCase() === 'admin';
-  } catch (e) { L('profiles ex:', e?.message || e); return false; }
-}
-function showAdminOnly(isAdmin) {
-  document.querySelectorAll('.admin-only').forEach(el => { el.style.display = isAdmin ? '' : 'none'; });
+function setAdminVisible(isAdmin) {
+  document.querySelectorAll('.admin-only').forEach(el => el.style.display = isAdmin ? '' : 'none');
 }
 function setActiveLink() {
   const cur = new URL(location.href);
@@ -54,33 +45,45 @@ function setActiveLink() {
     } catch {}
   });
 }
-function updateAuthBtn(btn, isAuth) {
+function renderButton(mode) {
+  const btn = $('#nav-auth');
   if (!btn) return;
   btn.type = 'button';
-  btn.disabled = false;
   btn.removeAttribute('aria-busy');
-  btn.textContent = isAuth ? 'Uitloggen' : 'Inloggen';
-  btn.dataset.authMode = isAuth ? 'logout' : 'login';
-  L('auth button →', btn.textContent);
-}
-export async function updateNavUI() {
-  let session = null;
-  try { session = (await supabase.auth.getSession()).data.session; } catch {}
-  const isAuth = !!session;
+  btn.disabled = false;
 
-  L('updateNavUI auth:', isAuth, 'path:', location.pathname);
-
-  toggleAuthClasses(isAuth);
-  if (isAuth) {
-    try { showAdminOnly(await fetchIsAdmin(session.user.id)); } catch {}
-  } else {
-    showAdminOnly(false);
+  if (mode === 'unknown') {
+    btn.textContent = 'Bezig…';
+    btn.dataset.authMode = 'unknown';
+    return;
   }
-  updateAuthBtn($('#nav-auth'), isAuth);
+  if (mode === 'authed') {
+    btn.textContent = 'Uitloggen';
+    btn.dataset.authMode = 'logout';
+    return;
+  }
+  // guest
+  btn.textContent = 'Inloggen';
+  btn.dataset.authMode = 'login';
+}
+async function renderUIFromSession(session) {
+  const isAuth = !!session;
+  authState = isAuth ? 'authed' : 'guest';
+  renderButton(authState);
+  setAuthClasses(isAuth);
   setActiveLink();
+
+  if (isAuth) {
+    try {
+      const { data, error } = await supabase.from('profiles').select('role').eq('id', session.user.id).maybeSingle();
+      setAdminVisible(!error && (data?.role || '').toLowerCase() === 'admin');
+    } catch { setAdminVisible(false); }
+  } else {
+    setAdminVisible(false);
+  }
 }
 
-// ---------------- bindings ----------------
+/* ---------- bindings ---------- */
 function closeMobileMenu() {
   const menu = $('#site-menu');
   const toggle = $('#nav-toggle');
@@ -88,7 +91,9 @@ function closeMobileMenu() {
   menu.dataset.open = 'false';
   document.body.classList.remove('body--no-scroll');
   if (toggle) toggle.setAttribute('aria-expanded', 'false');
-  requestAnimationFrame(() => setTimeout(() => { if (menu.dataset.open !== 'true') menu.hidden = true; }, 160));
+  requestAnimationFrame(() => setTimeout(() => {
+    if (menu.dataset.open !== 'true') menu.hidden = true;
+  }, 160));
 }
 function bindNavLinks() {
   const map = [
@@ -104,7 +109,6 @@ function bindNavLinks() {
     el.addEventListener('click', (e) => {
       e.preventDefault();
       closeMobileMenu();
-      L('nav to →', href);
       location.href = href;
     }, { passive: false });
   });
@@ -115,90 +119,80 @@ function bindAuthButton() {
 
   btn.addEventListener('click', async (e) => {
     e.preventDefault();
-    let session = null;
-    try { session = (await supabase.auth.getSession()).data.session; } catch {}
 
-    // LOGGED IN → LOG OUT
-    if (session) {
-      L('click logout (start)');
-      // immediate UI feedback
-      btn.disabled = true;
-      btn.setAttribute('aria-busy', 'true');
-      btn.textContent = 'Uitloggen…';
+    // while we’re not sure yet
+    if (authState === 'unknown') return;
+
+    // LOGIN
+    if (authState === 'guest') {
       closeMobileMenu();
-
-      // schedule hard redirect no matter what happens
-      const home = homeURL();
-      const goHome = () => { L('force home (timer)'); hardRedirect(home); };
-      const t1 = setTimeout(goHome, 250);   // primary
-      const t2 = setTimeout(goHome, 1500);  // belt&braces
-
-      try {
-        const { error } = await supabase.auth.signOut(); // all scopes by default
-        if (error) L('signOut error:', error.message);
-        else L('signOut OK');
-      } catch (err) {
-        L('signOut ex:', err?.message || err);
-      }
-
-      // Immediately flip button back to "Inloggen" so navbar isn't empty
-      updateAuthBtn(btn, false);
-
-      // If still on a protected page, go home now (don’t wait)
-      if (isProtected()) {
-        L('on protected after signOut → go home now');
-        clearTimeout(t1); clearTimeout(t2);
-        hardRedirect(home);
-        return;
-      }
-
-      // otherwise: also redirect to home (spec asked this)
-      clearTimeout(t1); clearTimeout(t2);
-      hardRedirect(home);
+      location.href = 'account.html?signin=1';
       return;
     }
 
-    // LOGGED OUT → LOGIN
-    L('click login → account');
+    // LOGOUT
+    btn.disabled = true;
+    btn.setAttribute('aria-busy', 'true');
+    btn.textContent = 'Uitloggen…';
     closeMobileMenu();
-    location.href = 'account.html?signin=1';
+
+    try {
+      await supabase.auth.signOut(); // all scopes
+      // flip UI to guest immediately; don’t wait for event
+      authState = 'guest';
+      renderButton('guest');
+      setAuthClasses(false);
+    } catch (err) {
+      L('signOut error:', err?.message || err);
+    }
+
+    // redirect policy
+    const to = isProtected() ? 'account.html?signin=1' : homeURL();
+    hardRedirect(to);
   }, { passive: false });
 
   btn.dataset.bound = '1';
 }
 
-// ---------------- guards ----------------
-async function guardProtectedPages() {
+/* ---------- guards ---------- */
+async function guardProtected() {
   if (!isProtected()) return;
-  let session = null;
-  try { session = (await supabase.auth.getSession()).data.session; } catch {}
+  const { data: { session } } = await supabase.auth.getSession();
   if (!session) {
-    L('guard: not authed on protected → to account');
+    L('guard → to account');
     location.replace('account.html?signin=1');
   }
 }
 
-// ---------------- init ----------------
+/* ---------- init ---------- */
 document.addEventListener('DOMContentLoaded', async () => {
   L('init');
+  renderButton('unknown'); // show "Bezig…" until INITIAL_SESSION arrives
   bindNavLinks();
   bindAuthButton();
-  await updateNavUI();
-  await guardProtectedPages();
 
-  supabase.auth.onAuthStateChange(async (evt) => {
-    L('onAuthStateChange:', evt, 'path:', location.pathname);
-    await updateNavUI();
+  // Subscribe FIRST so we catch INITIAL_SESSION
+  supabase.auth.onAuthStateChange(async (evt, session) => {
+    L('auth event:', evt);
+    // Always re-render on any event
+    await renderUIFromSession(session);
 
-    if (evt === 'SIGNED_OUT') {
-      // If the provider signs out from elsewhere, push away from protected pages
-      if (isProtected()) {
-        const home = homeURL();
-        L('SIGNED_OUT on protected → home');
-        hardRedirect(home);
-      }
+    // If a remote sign-out happens on a protected page, push away
+    if (evt === 'SIGNED_OUT' && isProtected()) {
+      hardRedirect(homeURL());
     }
   });
 
-  window.addEventListener('pageshow', () => { updateNavUI(); });
+  // Kick a manual read; this returns immediately (may be null before INITIAL_SESSION)
+  const { data: { session } } = await supabase.auth.getSession();
+  // If session is already present (hot path), render now
+  if (session) await renderUIFromSession(session);
+  // Guard protected pages based on what we know right now
+  await guardProtected();
+
+  // BFCache back/forward: re-sync
+  window.addEventListener('pageshow', async () => {
+    const { data: { session: s2 } } = await supabase.auth.getSession();
+    await renderUIFromSession(s2);
+  });
 });
