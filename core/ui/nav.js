@@ -1,212 +1,204 @@
 // core/ui/nav.js
-// ES-module: auth-knop + role-based UI + route-guards
+// Auth button + role UI + guards + hard redirect on logout
 import { supabase } from '../../supabaseClient.js';
 
-const log = (...a) => console.log('[nav]', ...a);
-const $id = (id) => document.getElementById(id);
+const L = (...a) => console.log('[nav]', ...a);
+const $ = (id) => document.getElementById(id);
 
-/* -------- helpers -------- */
-function getHomeHref() {
-  // Prefer the logo link (works in subfolders)
+// ---------------- helpers ----------------
+function homeURL() {
+  // use the logo href if available (works from subfolders)
   const logo = document.querySelector('.nav-logo[href]');
-  try {
-    if (logo) return new URL(logo.getAttribute('href'), location.href).toString();
-  } catch {}
-  // Fallback: index.html next to current page
+  if (logo) {
+    try { return new URL(logo.getAttribute('href'), location.href).toString(); } catch {}
+  }
+  // fallback: index.html next to current page
   return new URL('index.html', location.href).toString();
 }
-function hardNavigateAllWays(href, { replace = true } = {}) {
-  // Try several ways to ensure navigation actually happens
-  try { if (replace) history.replaceState(null, '', href); } catch {}
-  try { replace ? location.replace(href) : (location.href = href); } catch {}
-  // Belt-and-suspenders: delayed retries
-  setTimeout(() => { try { location.href = href; } catch {} }, 30);
-  setTimeout(() => { try { location.assign(href); } catch {} }, 120);
+function hardRedirect(href) {
+  // single-line logs for each try; helps spot blockers
+  L('redirect →', href, 'from', location.pathname);
+  try { location.replace(href); L('location.replace OK'); return; } catch {}
+  try { location.href = href; L('location.href OK'); return; } catch {}
+  setTimeout(() => { try { location.assign(href); L('location.assign OK'); } catch {} }, 10);
 }
-const isProtectedPath = () => {
-  const p = window.location.pathname.toLowerCase();
-  return (
-    /plaatsingsruimte(\.html)?$/.test(p) ||
-    /mestplan(\.html)?$/.test(p) ||
-    /beheer(\.html)?$/.test(p)
-  );
-};
-const selectEls = () => ({
-  authBtn:  $id('nav-auth'),
-  lBereken: $id('nav-bereken'),
-  lMestplan:$id('nav-mestplan'),
-  lUpload:  $id('nav-upload'),
-  lAccount: $id('nav-account'),
-  lBeheer:  $id('nav-beheer'),
-});
+function isProtected() {
+  const p = location.pathname.toLowerCase();
+  return /(?:\/)?(plaatsingsruimte|mestplan|beheer)(?:\.html)?$/.test(p);
+}
 
-/* -------- UI helpers -------- */
-const toggleAuthClasses = (isAuth) => {
+// ---------------- UI updates ----------------
+function toggleAuthClasses(isAuth) {
   document.body.classList.toggle('is-auth',  !!isAuth);
   document.body.classList.toggle('is-guest', !isAuth);
   document.querySelectorAll('.auth-only').forEach(el  => { el.style.display = isAuth ? '' : 'none'; });
   document.querySelectorAll('.guest-only').forEach(el => { el.style.display = isAuth ? 'none' : ''; });
-};
-const showAdminOnly = (isAdmin) => {
+}
+async function fetchIsAdmin(userId) {
+  try {
+    const { data, error } = await supabase.from('profiles').select('role').eq('id', userId).maybeSingle();
+    if (error) { L('profiles error:', error.message); return false; }
+    return (data?.role || '').toLowerCase() === 'admin';
+  } catch (e) { L('profiles ex:', e?.message || e); return false; }
+}
+function showAdminOnly(isAdmin) {
   document.querySelectorAll('.admin-only').forEach(el => { el.style.display = isAdmin ? '' : 'none'; });
-};
-const setActiveLink = () => {
-  const current = new URL(location.href);
+}
+function setActiveLink() {
+  const cur = new URL(location.href);
   document.querySelectorAll('#site-menu .nav-links a').forEach(a => {
     try {
       const href = new URL(a.getAttribute('href'), location.origin);
-      if (href.pathname.replace(/\/+$/, '') === current.pathname.replace(/\/+$/, '')) {
-        a.setAttribute('aria-current', 'page');
-      } else {
-        a.removeAttribute('aria-current');
-      }
+      if (href.pathname.replace(/\/+$/, '') === cur.pathname.replace(/\/+$/, '')) a.setAttribute('aria-current', 'page');
+      else a.removeAttribute('aria-current');
     } catch {}
   });
-};
-const fetchIsAdmin = async (userId) => {
-  try {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', userId)
-      .single();
-    if (error) return false;
-    return (data?.role || '').toLowerCase() === 'admin';
-  } catch { return false; }
-};
-const updateAuthButton = (btn, isAuth) => {
+}
+function updateAuthBtn(btn, isAuth) {
   if (!btn) return;
   btn.type = 'button';
-  btn.textContent = isAuth ? 'Uitloggen' : 'Inloggen';
-  btn.setAttribute('data-auth-mode', isAuth ? 'logout' : 'login');
-  btn.setAttribute('aria-label', isAuth ? 'Uitloggen' : 'Inloggen');
-  btn.removeAttribute('aria-busy');
   btn.disabled = false;
-};
-const closeMenu = () => {
-  const menu   = $id('site-menu');
-  const toggle = $id('nav-toggle');
+  btn.removeAttribute('aria-busy');
+  btn.textContent = isAuth ? 'Uitloggen' : 'Inloggen';
+  btn.dataset.authMode = isAuth ? 'logout' : 'login';
+  L('auth button →', btn.textContent);
+}
+export async function updateNavUI() {
+  let session = null;
+  try { session = (await supabase.auth.getSession()).data.session; } catch {}
+  const isAuth = !!session;
+
+  L('updateNavUI auth:', isAuth, 'path:', location.pathname);
+
+  toggleAuthClasses(isAuth);
+  if (isAuth) {
+    try { showAdminOnly(await fetchIsAdmin(session.user.id)); } catch {}
+  } else {
+    showAdminOnly(false);
+  }
+  updateAuthBtn($('#nav-auth'), isAuth);
+  setActiveLink();
+}
+
+// ---------------- bindings ----------------
+function closeMobileMenu() {
+  const menu = $('#site-menu');
+  const toggle = $('#nav-toggle');
   if (!menu) return;
   menu.dataset.open = 'false';
   document.body.classList.remove('body--no-scroll');
   if (toggle) toggle.setAttribute('aria-expanded', 'false');
-  requestAnimationFrame(() => setTimeout(() => {
-    if (menu.dataset.open !== 'true') menu.hidden = true;
-  }, 180));
-};
-
-/* -------- public UI update -------- */
-export async function updateNavUI() {
-  let session = null;
-  try { session = (await supabase.auth.getSession()).data.session; } catch {}
-  const isLoggedIn = !!session;
-
-  log('updateNavUI – ingelogd:', isLoggedIn);
-  toggleAuthClasses(isLoggedIn);
-
-  let isAdmin = false;
-  if (isLoggedIn) {
-    try { isAdmin = await fetchIsAdmin(session.user.id); } catch {}
-  }
-  showAdminOnly(isAdmin);
-
-  updateAuthButton($id('nav-auth'), isLoggedIn);
-  setActiveLink();
+  requestAnimationFrame(() => setTimeout(() => { if (menu.dataset.open !== 'true') menu.hidden = true; }, 160));
 }
-
-/* -------- bindings -------- */
-const bindNavLinks = (els) => {
+function bindNavLinks() {
   const map = [
-    [els.lBereken, 'plaatsingsruimte.html'],
-    [els.lMestplan, 'mestplan.html'],
-    [els.lUpload,   'upload.html'],
-    [els.lAccount,  'account.html'],
-    [els.lBeheer,   'beheer.html'],
+    ['nav-bereken', 'plaatsingsruimte.html'],
+    ['nav-mestplan', 'mestplan.html'],
+    ['nav-upload',   'upload.html'],
+    ['nav-account',  'account.html'],
+    ['nav-beheer',   'beheer.html'],
   ];
-  for (const [el, href] of map) {
-    if (!el) continue;
-    const go = (e) => { e.preventDefault(); closeMenu(); location.href = href; };
-    el.addEventListener('click', go, { passive: false });
-  }
-};
-
-const bindAuthButton = (btn) => {
+  map.forEach(([id, href]) => {
+    const el = $(id);
+    if (!el) return;
+    el.addEventListener('click', (e) => {
+      e.preventDefault();
+      closeMobileMenu();
+      L('nav to →', href);
+      location.href = href;
+    }, { passive: false });
+  });
+}
+function bindAuthButton() {
+  const btn = $('#nav-auth');
   if (!btn || btn.dataset.bound) return;
 
-  const on = async (e) => {
+  btn.addEventListener('click', async (e) => {
     e.preventDefault();
-
     let session = null;
     try { session = (await supabase.auth.getSession()).data.session; } catch {}
 
-    // ——— UITLOGGEN ———
+    // LOGGED IN → LOG OUT
     if (session) {
-      log('klik op Uitloggen → start');
+      L('click logout (start)');
+      // immediate UI feedback
       btn.disabled = true;
       btn.setAttribute('aria-busy', 'true');
       btn.textContent = 'Uitloggen…';
-      closeMenu();
+      closeMobileMenu();
+
+      // schedule hard redirect no matter what happens
+      const home = homeURL();
+      const goHome = () => { L('force home (timer)'); hardRedirect(home); };
+      const t1 = setTimeout(goHome, 250);   // primary
+      const t2 = setTimeout(goHome, 1500);  // belt&braces
 
       try {
-        await supabase.auth.signOut();
+        const { error } = await supabase.auth.signOut(); // all scopes by default
+        if (error) L('signOut error:', error.message);
+        else L('signOut OK');
       } catch (err) {
-        console.warn('[nav] signOut error (ga toch door):', err?.message || err);
+        L('signOut ex:', err?.message || err);
       }
 
-      // Toon direct weer "Inloggen" in de UI (menu blijft dus niet 'leeg')
-      updateAuthButton(btn, false);
+      // Immediately flip button back to "Inloggen" so navbar isn't empty
+      updateAuthBtn(btn, false);
 
-      // Forceer weg naar home (meerdere fallbacks)
-      const home = getHomeHref();
-      log('redirect →', home);
-      hardNavigateAllWays(home, { replace: true });
+      // If still on a protected page, go home now (don’t wait)
+      if (isProtected()) {
+        L('on protected after signOut → go home now');
+        clearTimeout(t1); clearTimeout(t2);
+        hardRedirect(home);
+        return;
+      }
+
+      // otherwise: also redirect to home (spec asked this)
+      clearTimeout(t1); clearTimeout(t2);
+      hardRedirect(home);
       return;
     }
 
-    // ——— INLOGGEN ———
-    log('klik op Inloggen → account.html?signin=1');
-    closeMenu();
+    // LOGGED OUT → LOGIN
+    L('click login → account');
+    closeMobileMenu();
     location.href = 'account.html?signin=1';
-  };
+  }, { passive: false });
 
-  btn.addEventListener('click', on, { passive: false });
-  btn.dataset.bound = 'true';
-};
+  btn.dataset.bound = '1';
+}
 
-/* -------- guards -------- */
-const guardProtectedPages = async () => {
-  if (!isProtectedPath()) return;
+// ---------------- guards ----------------
+async function guardProtectedPages() {
+  if (!isProtected()) return;
   let session = null;
   try { session = (await supabase.auth.getSession()).data.session; } catch {}
   if (!session) {
-    // Niet ingelogd op beschermde pagina → ga naar account signin
-    const url = new URL('account.html', location.href);
-    url.searchParams.set('signin', '1');
-    location.replace(url.toString());
+    L('guard: not authed on protected → to account');
+    location.replace('account.html?signin=1');
   }
-};
+}
 
-/* -------- init -------- */
+// ---------------- init ----------------
 document.addEventListener('DOMContentLoaded', async () => {
-  log('init nav.js');
-  const els = selectEls();
-  bindNavLinks(els);
-  bindAuthButton(els.authBtn);
-
+  L('init');
+  bindNavLinks();
+  bindAuthButton();
   await updateNavUI();
   await guardProtectedPages();
 
   supabase.auth.onAuthStateChange(async (evt) => {
-    log('onAuthStateChange:', evt);
+    L('onAuthStateChange:', evt, 'path:', location.pathname);
     await updateNavUI();
 
-    // Extra zekerheid: als we uitgelogd zijn én op beschermde pagina, direct naar home
-    if (evt === 'SIGNED_OUT' && isProtectedPath()) {
-      const home = getHomeHref();
-      log('SIGNED_OUT op protected → force redirect →', home);
-      hardNavigateAllWays(home, { replace: true });
+    if (evt === 'SIGNED_OUT') {
+      // If the provider signs out from elsewhere, push away from protected pages
+      if (isProtected()) {
+        const home = homeURL();
+        L('SIGNED_OUT on protected → home');
+        hardRedirect(home);
+      }
     }
   });
 
-  window.addEventListener('pageshow', async () => { await updateNavUI(); });
+  window.addEventListener('pageshow', () => { updateNavUI(); });
 });
