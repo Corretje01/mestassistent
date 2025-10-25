@@ -4,10 +4,11 @@
  * Alle DOM interactie en UI rendering (inclusief mestsliders correct updaten)
  */
 
-import { StateManager } from './statemanager.js';
-import { CalculationEngine } from './calculationengine.js';
-import { ValidationEngine } from './validationengine.js';
-import { LogicEngine } from './logicengine.js';
+import { StateManager }      from '../domain/statemanager.js';
+import { CalculationEngine } from '../domain/calculationengine.js';
+import { ValidationEngine }  from '../domain/validationengine.js';
+import { LogicEngine }       from '../domain/logicengine.js';
+
 
 export const UIController = (() => {
 
