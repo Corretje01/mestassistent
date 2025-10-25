@@ -1,208 +1,227 @@
 // core/ui/nav.js
-// Auth/UI/guards (los van hamburger). Robuust uitloggen + redirect.
+// ES-module: auth-knop + role-based UI + route-guards (incl. robuuste sign-out + BFCache fixes)
 
 import { supabase } from '../../supabaseClient.js';
 
-/* ========== helpers ========== */
+/* ----------------------------- helpers ----------------------------- */
 const $id = (id) => document.getElementById(id);
 
-function closeMenuIfOpen() {
-  const menu = $id('site-menu');
-  const toggle = $id('nav-toggle');
-  if (!menu || !toggle) return;
-  if (menu.dataset.open === 'true') {
-    toggle.setAttribute('aria-expanded', 'false');
-    menu.dataset.open = 'false';
-    document.body.classList.remove('body--no-scroll');
-    // verberg na fade
-    requestAnimationFrame(() => setTimeout(() => {
-      if (menu.dataset.open !== 'true') menu.hidden = true;
-    }, 150));
-  }
-}
-
-function hardNavigate(href, { replace = false } = {}) {
-  closeMenuIfOpen();
-  if (replace) window.location.replace(href);
-  else window.location.assign(href);
-}
-
-async function getSessionSafe() {
+const getSessionSafe = async () => {
   try { return (await supabase.auth.getSession()).data.session; }
   catch { return null; }
-}
+};
 
-function clearSupabaseStorage() {
-  try {
-    Object.keys(localStorage).forEach(k => k.startsWith('sb-') && localStorage.removeItem(k));
-    Object.keys(sessionStorage).forEach(k => k.startsWith('sb-') && sessionStorage.removeItem(k));
-  } catch {}
-}
+// Navigeren (hard = buiten SPA-cache om)
+const hardNavigate = (href, { replace = false } = {}) => {
+  if (replace) window.location.replace(href);
+  else window.location.assign(href);
+};
 
-function currentSlug() {
-  return location.pathname.replace(/\/+$/, '').split('/').pop().toLowerCase();
-}
+// Zet absolute home-URL, robuust binnen submappen
+const absoluteHome = () => new URL('index.html', location.origin + location.pathname.replace(/[^/]*$/, ''));
 
-function isProtectedPath() {
-  const slug = currentSlug();
-  return new Set(['plaatsingsruimte','plaatsingsruimte.html','mestplan','mestplan.html','beheer','beheer.html']).has(slug);
-}
+// Compact “menu sluiten” helper voor mobiel overlay (nav-menu.js beheert de UI, wij doen een best-effort sluiting)
+const closeMenuIfOpen = () => {
+  const menu = $id('site-menu');
+  if (menu && menu.dataset.open === 'true') {
+    // mimic close-animation: reset ARIA + laat nav-menu.js het visueel afhandelen
+    menu.dataset.open = 'false';
+    menu.setAttribute('hidden', '');
+    document.body.classList.remove('body--no-scroll');
+  }
+};
 
-/* ========== UI helpers ========== */
-function toggleAuthClasses(isAuth) {
+/* ----------------------------- routes ----------------------------- */
+const isProtectedPath = () => {
+  const p = window.location.pathname.toLowerCase();
+  return (
+    /plaatsingsruimte(\.html)?$/.test(p) ||
+    /mestplan(\.html)?$/.test(p) ||
+    /beheer(\.html)?$/.test(p)
+  );
+};
+
+/* ----------------------------- DOM select ----------------------------- */
+const selectEls = () => ({
+  authBtn:  $id('nav-auth'),
+  lBereken: $id('nav-bereken'),
+  lMestplan:$id('nav-mestplan'),
+  lUpload:  $id('nav-upload'),
+  lAccount: $id('nav-account'),
+  lBeheer:  $id('nav-beheer'),
+});
+
+/* ----------------------------- UI helpers ----------------------------- */
+const toggleAuthClasses = (isAuth) => {
   document.body.classList.toggle('is-auth',  !!isAuth);
   document.body.classList.toggle('is-guest', !isAuth);
-  document.querySelectorAll('.auth-only').forEach(el => { el.style.display = isAuth ? '' : 'none'; });
+  document.querySelectorAll('.auth-only').forEach(el  => { el.style.display = isAuth ? '' : 'none'; });
   document.querySelectorAll('.guest-only').forEach(el => { el.style.display = isAuth ? 'none' : ''; });
-}
+};
 
-async function fetchIsAdmin(userId) {
-  try {
-    const { data, error } = await supabase.from('profiles').select('role').eq('id', userId).single();
-    if (error) return false;
-    return String(data?.role || '').toLowerCase() === 'admin';
-  } catch { return false; }
-}
+const showAdminOnly = (isAdmin) => {
+  document.querySelectorAll('.admin-only').forEach(el => { el.style.display = isAdmin ? '' : 'none'; });
+};
 
-function setActiveLink() {
+const setActiveLink = () => {
   const current = new URL(location.href);
   document.querySelectorAll('#site-menu .nav-links a').forEach(a => {
     try {
       const href = new URL(a.getAttribute('href'), location.origin);
-      if (href.pathname.replace(/\/+$/,'') === current.pathname.replace(/\/+$/,'')) {
-        a.setAttribute('aria-current','page');
+      if (href.pathname.replace(/\/+$/, '') === current.pathname.replace(/\/+$/, '')) {
+        a.setAttribute('aria-current', 'page');
       } else {
         a.removeAttribute('aria-current');
       }
     } catch {}
   });
-}
+};
 
-function updateAuthButton(btn, isAuth) {
+/* ----------------------------- data helpers ----------------------------- */
+const fetchIsAdmin = async (userId) => {
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', userId)
+      .single();
+    if (error) return false;
+    return (data?.role || '').toLowerCase() === 'admin';
+  } catch { return false; }
+};
+
+/* ----------------------------- UI updates ----------------------------- */
+const updateAuthButton = (btn, isAuth) => {
   if (!btn) return;
   btn.type = 'button';
   btn.textContent = isAuth ? 'Uitloggen' : 'Inloggen';
   btn.dataset.authMode = isAuth ? 'logout' : 'login';
   btn.setAttribute('aria-label', isAuth ? 'Uitloggen' : 'Inloggen');
-}
+};
 
-/* ========== UI sync ========== */
 export async function updateNavUI() {
   const session = await getSessionSafe();
-  const isAuth = !!session;
+  const isLoggedIn = !!session;
 
-  toggleAuthClasses(isAuth);
+  toggleAuthClasses(isLoggedIn);
 
   // admin-only
   let isAdmin = false;
-  if (isAuth) {
+  if (isLoggedIn) {
     try { isAdmin = await fetchIsAdmin(session.user.id); } catch {}
   }
-  document.querySelectorAll('.admin-only').forEach(el => { el.style.display = (isAuth && isAdmin) ? '' : 'none'; });
+  showAdminOnly(isAdmin);
 
-  updateAuthButton($id('nav-auth'), isAuth);
+  updateAuthButton($id('nav-auth'), isLoggedIn);
   setActiveLink();
-
-  // log compact
-  console.debug('[nav] UI sync – ingelogd:', isAuth);
 }
 
-/* ========== bindings ========== */
-function bindNavLinks() {
+/* ----------------------------- bindings ----------------------------- */
+const bindNavLinks = (els) => {
   const map = [
-    ['nav-bereken','plaatsingsruimte.html'],
-    ['nav-mestplan','mestplan.html'],
-    ['nav-upload','upload.html'],
-    ['nav-account','account.html'],
-    ['nav-beheer','beheer.html'],
+    [els.lBereken, 'plaatsingsruimte.html'],
+    [els.lMestplan, 'mestplan.html'],
+    [els.lUpload,   'upload.html'],
+    [els.lAccount,  'account.html'],
+    [els.lBeheer,   'beheer.html'],
   ];
-  for (const [id, href] of map) {
-    const el = $id(id);
+  for (const [el, href] of map) {
     if (!el) continue;
     const go = (e) => { e.preventDefault(); hardNavigate(href); };
     el.addEventListener('click', go, { passive: false });
     el.addEventListener('pointerup', go, { passive: false });
   }
-}
+};
 
 async function robustSignOutFlow(btn) {
-  // UI: meteen naar “Inloggen…”
-  if (btn) { btn.disabled = true; btn.textContent = 'Uitloggen…'; }
-
-  // 1) server signOut, zo nodig local fallback
   try {
-    const { error } = await supabase.auth.signOut(); // all scopes
-    if (error) {
-      await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
+    if (btn) { btn.disabled = true; btn.textContent = 'Uitloggen…'; }
+    // 1) Supabase signOut (alle scopes)
+    await supabase.auth.signOut();
+
+    // 2) Extra opruiming lokale tokens (soms blijft iets hangen bij custom deploys)
+    try {
+      Object.keys(localStorage).forEach(k => k.startsWith('sb-') && localStorage.removeItem(k));
+      Object.keys(sessionStorage).forEach(k => k.startsWith('sb-') && sessionStorage.removeItem(k));
+    } catch {}
+
+    // 3) UI direct updaten
+    await updateNavUI();
+
+    // 4) Sluit eventueel mobiel menu en navigeer hard naar home
+    closeMenuIfOpen();
+    const home = absoluteHome();
+
+    // Op beschermde pagina's: altijd wegsturen
+    if (isProtectedPath()) {
+      location.replace(home.href);
+      return;
     }
-  } catch {}
-  clearSupabaseStorage();
 
-  // 2) korte poll tot sessie echt weg is (max ~1.2s)
-  const t0 = Date.now();
-  while (Date.now() - t0 < 1200) {
-    const s = await getSessionSafe();
-    if (!s) break;
-    await new Promise(r => setTimeout(r, 80));
+    // Niet-beschermde pagina's:
+    // - Als we niet op home staan → ga naar home
+    if (location.href !== home.href) {
+      location.replace(home.href);
+      return;
+    }
+
+    // - Als we al op home staan → ververs om BFCache/ oude state te wissen
+    location.replace(home.href);
+    setTimeout(() => location.reload(), 60);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Inloggen'; }
   }
-
-  // 3) UI meteen bijwerken
-  await updateNavUI();
-
-  // 4) redirect: homepage; als je op een protected pagina bent: altijd weg
-  const target = 'index.html';
-  if (isProtectedPath()) hardNavigate(target, { replace: true });
-  else hardNavigate(target, { replace: true });
 }
 
-function bindAuthButton() {
-  const btn = $id('nav-auth');
+const bindAuthButton = (btn) => {
   if (!btn || btn.dataset.bound) return;
 
-  const onClick = async (e) => {
+  const on = async (e) => {
     e.preventDefault();
     const session = await getSessionSafe();
     if (session) {
-      // Uitloggen
-      console.debug('[nav] Uitloggen → start');
       await robustSignOutFlow(btn);
-      return;
+    } else {
+      closeMenuIfOpen();
+      hardNavigate('account.html?signin=1');
     }
-    // Inloggen
-    hardNavigate('account.html?signin=1');
   };
 
-  btn.addEventListener('click', onClick, { passive: false });
-  btn.addEventListener('pointerup', onClick, { passive: false });
-  btn.dataset.bound = '1';
-}
+  btn.addEventListener('click', on, { passive: false });
+  btn.addEventListener('pointerup', on, { passive: false });
+  btn.dataset.bound = 'true';
+};
 
-/* ========== guards ========== */
-async function guardProtectedPages() {
+/* ----------------------------- guards ----------------------------- */
+const guardProtectedPages = async () => {
   if (!isProtectedPath()) return;
   const session = await getSessionSafe();
-  if (!session) {
-    console.debug('[nav] Guard → niet ingelogd op protected: redirect');
-    hardNavigate('account.html?signin=1', { replace: true });
-  }
-}
+  if (!session) hardNavigate('account.html?signin=1');
+};
 
-/* ========== init ========== */
+/* ----------------------------- init ----------------------------- */
 document.addEventListener('DOMContentLoaded', async () => {
-  console.debug('[nav] init');
-  bindNavLinks();
-  bindAuthButton();
+  const els = selectEls();
+  bindNavLinks(els);
+  bindAuthButton(els.authBtn);
 
   await updateNavUI();
   await guardProtectedPages();
 
-  // Auth state events → UI bijwerken en zo nodig guarden
-  supabase.auth.onAuthStateChange(async (evt) => {
-    console.debug('[nav] onAuthStateChange:', evt);
+  // Reageer op auth-state wissels
+  supabase.auth.onAuthStateChange(async (_evt) => {
     await updateNavUI();
     if (isProtectedPath()) await guardProtectedPages();
   });
 
-  // bfcache terug → UI sync
-  window.addEventListener('pageshow', async () => { await updateNavUI(); });
+  // BFCache-terug: sync UI en redirect indien nodig
+  window.addEventListener('pageshow', async (e) => {
+    await updateNavUI();
+    if (e.persisted && isProtectedPath()) {
+      const s = await getSessionSafe();
+      if (!s) {
+        location.replace(absoluteHome().href);
+      }
+    }
+  });
 });
