@@ -1,10 +1,18 @@
 // pages/mestplan/mestplan.js
+// Fixed: lowercase imports + export shims + bestaande UX (URL fallback + Supabase opslag)
 
-import { StateManager } from '../../core/domain/stateManager.js';
-import { UIController } from '../../core/ui/uiController.js';
-import { LogicEngine } from '../../core/domain/logicEngine.js';
-import { ValidationEngine } from '../../core/domain/validationEngine.js';
 import { supabase } from '../../supabaseClient.js';
+
+// === Module imports (lowercase paden) + shims voor default/named exports ===
+import * as SM from '../../core/domain/statemanager.js';
+import * as UI from '../../core/ui/uicontroller.js';
+import * as LE from '../../core/domain/logicengine.js';
+import * as VE from '../../core/domain/validationengine.js';
+
+const StateManager     = SM.StateManager     || SM.default || SM;
+const UIController     = UI.UIController     || UI.default || UI;
+const LogicEngine      = LE.LogicEngine      || LE.default || LE;
+const ValidationEngine = VE.ValidationEngine || VE.default || VE;
 
 /* ===========================
    Helpers: Supabase + URL params
@@ -96,6 +104,23 @@ async function ensureGLPK() {
 }
 
 /* ===========================
+   mestsoorten.json met failover
+=========================== */
+async function loadMestsoorten() {
+  const tryPaths = [
+    './core/domain/data/mestsoorten.json', // nieuwe structuur (relatief vanaf mestplan.html)
+    '/data/mestsoorten.json'               // oud pad (absolute fallback)
+  ];
+  for (const p of tryPaths) {
+    try {
+      const r = await fetch(p, { cache: 'no-store' });
+      if (r.ok) return await r.json();
+    } catch {}
+  }
+  throw new Error('mestsoorten.json niet gevonden op bekende paden');
+}
+
+/* ===========================
    UI
 =========================== */
 function bindABCInputsAndState({ A, B, C }) {
@@ -118,6 +143,7 @@ function bindABCInputsAndState({ A, B, C }) {
     const b = Number(bEl.value) || 0;
     const c = Number(cEl.value) || 0;
 
+    // Reset actieve mestselecties zodat constraints niet blijven hangen
     document.querySelectorAll('.mest-btn.active').forEach(btn => {
       btn.classList.remove('active');
       const key = `${btn.dataset.type}-${btn.dataset.animal}`;
@@ -193,6 +219,7 @@ async function initializeApp() {
     // 1) A/B/C: URL → DB → 0
     const q = getABCFromQuery();
     let A, B, C;
+
     if (q.A !== null || q.B !== null || q.C !== null) {
       A = q.A ?? 0; B = q.B ?? 0; C = q.C ?? 0;
       const user = await getSessionUser();
@@ -217,21 +244,7 @@ async function initializeApp() {
     UIController.initStandardSliders();
     UIController.updateSliders();
 
-    // 4) mestsoorten.json met failover pad
-    async function loadMestsoorten() {
-      const tryPaths = [
-        './core/domain/data/mestsoorten.json', // nieuwe structuur
-        '/data/mestsoorten.json'               // oud pad (fallback)
-      ];
-      for (const p of tryPaths) {
-        try {
-          const r = await fetch(p, { cache: 'no-store' });
-          if (r.ok) return await r.json();
-        } catch {}
-      }
-      throw new Error('mestsoorten.json niet gevonden op bekende paden');
-    }
-
+    // 4) mestsoorten.json (met fallback pad)
     let mestsoortenData = {};
     try {
       mestsoortenData = await loadMestsoorten();
@@ -244,7 +257,7 @@ async function initializeApp() {
     bindMestButtons(mestsoortenData);
     bindOptimizeButton();
 
-    // 6) Realtime sync
+    // 6) Realtime sync van A/B/C
     const user = await getSessionUser();
     if (user) {
       const channel = supabase
@@ -259,6 +272,7 @@ async function initializeApp() {
             const nA = Number(payload.new?.res_n_dierlijk ?? 0);
             const nB = Number(payload.new?.res_n_totaal   ?? 0);
             const nC = Number(payload.new?.res_p_totaal   ?? 0);
+
             if (
               aEl && bEl && cEl &&
               ((Number(aEl.value) || 0) !== nA ||
@@ -272,11 +286,14 @@ async function initializeApp() {
           }
         )
         .subscribe();
+
       window.addEventListener('beforeunload', () => supabase.removeChannel(channel));
     }
+
+    console.log('✅ Mestplan init voltooid');
   } catch (err) {
     console.error('❌ Fout bij initialisatie:', err);
-    alert('⚠️ Er ging iets mis bij initialisatie.');
+    alert('⚠️ Er ging iets mis bij initialisatie. Open de console (imports/paden).');
   }
 }
 
