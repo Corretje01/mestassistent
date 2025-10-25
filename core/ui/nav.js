@@ -5,6 +5,16 @@ import { supabase } from '../../supabaseClient.js';
 const log = (...a) => console.log('[nav]', ...a);
 const $id = (id) => document.getElementById(id);
 
+function getHomeHref() {
+  // Neem de href van het logo als bron van waarheid (werkt ook in submappen)
+  const logo = document.querySelector('.nav-logo[href]');
+  try {
+    if (logo) return new URL(logo.getAttribute('href'), location.href).toString();
+  } catch {}
+  // Fallback: index.html naast huidige pagina
+  return new URL('index.html', location.href).toString();
+}
+
 const hardNavigate = (href, { replace = false } = {}) => {
   log('navigeren naar', href, '(replace:', !!replace, ')');
   if (replace) window.location.replace(href);
@@ -15,21 +25,12 @@ const closeMenu = () => {
   const menu   = $id('site-menu');
   const toggle = $id('nav-toggle');
   if (!menu) return;
-  if (menu.dataset.open === 'true') log('menu sluiten');
   menu.dataset.open = 'false';
   document.body.classList.remove('body--no-scroll');
   if (toggle) toggle.setAttribute('aria-expanded', 'false');
   requestAnimationFrame(() => setTimeout(() => {
     if (menu.dataset.open !== 'true') menu.hidden = true;
   }, 180));
-};
-
-const clearLocalAuthCaches = () => {
-  log('lokale sb-* storage wissen');
-  try {
-    Object.keys(localStorage).forEach(k => k.startsWith('sb-') && localStorage.removeItem(k));
-    Object.keys(sessionStorage).forEach(k => k.startsWith('sb-') && sessionStorage.removeItem(k));
-  } catch (e) { log('storage clear error (ok):', e?.message); }
 };
 
 const isProtectedPath = () => {
@@ -143,57 +144,20 @@ const bindAuthButton = (btn) => {
       log('klik op Uitloggen → start');
       btn.disabled = true;
       btn.setAttribute('aria-busy', 'true');
-      const prevTxt = btn.textContent;
       btn.textContent = 'Uitloggen…';
-
-      // 1) Supabase signOut (probeer beide scopes voor zekerheid)
-      try {
-        log('supabase.auth.signOut (all scopes) proberen…');
-        await supabase.auth.signOut(); // v2: server + local (als refresh token bestaat)
-      } catch (e1) {
-        log('signOut() gaf error (ok):', e1?.message);
-      }
-      try {
-        log('extra: signOut({scope:"local"})');
-        await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
-      } catch {}
-
-      // 2) Lokale tokens weg
-      clearLocalAuthCaches();
-
-      // 3) UI meteen updaten + menu dicht
-      await updateNavUI();
       closeMenu();
 
-      // 4) Poll heel kort of de sessie echt weg is
-      let cleared = false;
-      for (let i = 0; i < 10; i++) {
-        const cur = (await supabase.auth.getSession()).data.session;
-        log(`session check ${i+1}/10 →`, !!cur);
-        if (!cur) { cleared = true; break; }
-        await new Promise(r => setTimeout(r, 120));
+      try {
+        await supabase.auth.signOut();
+      } catch (err) {
+        console.warn('[nav] signOut error (gaat verder met redirect):', err?.message || err);
       }
 
-      // 5) Altijd redirecten naar homepage (replace)
-      log('redirect naar index.html (replace), cleared=', cleared);
-      hardNavigate('index.html', { replace: true });
-
-      // 6) Safety net: als browser om wat voor reden niet navigeert, herstel de knop
-      setTimeout(() => {
-        if (document.visibilityState === 'visible') {
-          log('safety net: nog steeds op dezelfde pagina, force reload');
-          // forceer alsnog “weg” zijn
-          clearLocalAuthCaches();
-          window.location.href = 'index.html';
-        }
-      }, 1500);
-
-      // UI fallback herstel (zou niet bereikt moeten worden)
-      setTimeout(() => {
-        btn.disabled = false;
-        btn.removeAttribute('aria-busy');
-        btn.textContent = prevTxt;
-      }, 2500);
+      // 👉 Geen verdere awaits of UI-updates meer hier: direct weg!
+      const home = getHomeHref();
+      log('direct redirect naar', home);
+      location.replace(home);
+      return; // stop handler
 
     } else {
       // === INLOGGEN ===
@@ -234,8 +198,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (isProtectedPath()) await guardProtectedPages();
   });
 
-  window.addEventListener('pageshow', async () => { 
-    log('pageshow → updateNavUI'); 
-    await updateNavUI(); 
+  window.addEventListener('pageshow', async () => {
+    log('pageshow → updateNavUI');
+    await updateNavUI();
   });
 });
