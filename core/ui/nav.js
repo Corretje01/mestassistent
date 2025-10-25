@@ -1,64 +1,61 @@
 // core/ui/nav.js
-// Auth-knop + role-based UI + route-guards
-// Hardere, robuuste redirect na uitloggen + duidelijke logging
-
+// Auth-knop + role-based UI + route-guards (production: minimale logging)
 import { supabase } from '../../supabaseClient.js';
 
-/* ============ Logging ============ */
-const L = (...args) => console.log('[nav]', ...args);
-
-/* ============ Helpers ============ */
+/* ---------- helpers ---------- */
 const $id = (id) => document.getElementById(id);
 
+const navigateTo = (href, { replace = true } = {}) => {
+  try { history.scrollRestoration = 'manual'; } catch {}
+  try { if (replace) window.location.replace(href); else window.location.assign(href); } catch {}
+};
+
 const getSessionSafe = async () => {
-  try {
-    const s = (await supabase.auth.getSession()).data.session;
-    L('getSessionSafe →', s ? 'session aanwezig' : 'geen session');
-    return s;
-  } catch (e) {
-    L('getSessionSafe fout:', e?.message || e);
-    return null;
-  }
+  try { return (await supabase.auth.getSession()).data.session; }
+  catch { return null; }
 };
 
 const isProtectedPath = () => {
-  const p = location.pathname.toLowerCase();
-  const match =
-    /plaatsingsruimte(\.html)?$/.test(p) ||
-    /mestplan(\.html)?$/.test(p) ||
-    /beheer(\.html)?$/.test(p);
-  L('isProtectedPath(', p, ') →', match);
-  return match;
+  const p = (window.location.pathname || '').toLowerCase();
+  return /(?:^|\/)(plaatsingsruimte|mestplan|beheer)(?:\.html)?$/.test(p);
 };
 
-const absoluteHome = () => {
-  // Ga uit van index.html in dezelfde map als de huidige pagina
-  const baseDir = location.origin + location.pathname.replace(/[^/]*$/, '');
-  const url = new URL('index.html', baseDir);
-  L('absoluteHome →', url.href);
-  return url.href;
-};
-
-const closeMenuIfOpen = () => {
-  const menu = $id('site-menu');
-  if (menu && menu.dataset.open === 'true') {
-    L('closeMenuIfOpen → sluiten');
-    menu.dataset.open = 'false';
-    menu.setAttribute('hidden', '');
-    document.body.classList.remove('body--no-scroll');
-  }
-};
-
-/* ============ UI helpers ============ */
+/* ---------- UI helpers ---------- */
 const toggleAuthClasses = (isAuth) => {
   document.body.classList.toggle('is-auth',  !!isAuth);
   document.body.classList.toggle('is-guest', !isAuth);
-  document.querySelectorAll('.auth-only').forEach(el  => { el.style.display = isAuth ? '' : 'none'; });
+  document.querySelectorAll('.auth-only') .forEach(el => { el.style.display = isAuth ? '' : 'none'; });
   document.querySelectorAll('.guest-only').forEach(el => { el.style.display = isAuth ? 'none' : ''; });
 };
 
 const showAdminOnly = (isAdmin) => {
   document.querySelectorAll('.admin-only').forEach(el => { el.style.display = isAdmin ? '' : 'none'; });
+};
+
+const setActiveLink = () => {
+  const current = new URL(location.href);
+  document.querySelectorAll('#site-menu .nav-links a').forEach(a => {
+    try {
+      const href = new URL(a.getAttribute('href'), location.origin);
+      const norm = (s) => s.replace(/\/+$/, '');
+      if (norm(href.pathname) === norm(current.pathname)) a.setAttribute('aria-current', 'page');
+      else a.removeAttribute('aria-current');
+    } catch {}
+  });
+};
+
+const fetchIsAdmin = async (userId) => {
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', userId)
+      .maybeSingle();
+    if (error || !data) return false;
+    return String(data.role || '').toLowerCase() === 'admin';
+  } catch {
+    return false;
+  }
 };
 
 const updateAuthButton = (btn, isAuth) => {
@@ -69,34 +66,8 @@ const updateAuthButton = (btn, isAuth) => {
   btn.setAttribute('aria-label', isAuth ? 'Uitloggen' : 'Inloggen');
 };
 
-const setActiveLink = () => {
-  const current = new URL(location.href);
-  document.querySelectorAll('#site-menu .nav-links a').forEach(a => {
-    try {
-      const href = new URL(a.getAttribute('href'), location.origin);
-      const on = href.pathname.replace(/\/+$/, '') === current.pathname.replace(/\/+$/, '');
-      if (on) a.setAttribute('aria-current', 'page');
-      else a.removeAttribute('aria-current');
-    } catch {}
-  });
-};
-
-/* ============ Data helpers ============ */
-const fetchIsAdmin = async (userId) => {
-  try {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', userId)
-      .single();
-    if (error) return false;
-    return (data?.role || '').toLowerCase() === 'admin';
-  } catch { return false; }
-};
-
-/* ============ Public UI update ============ */
+/* ---------- UI main ---------- */
 export async function updateNavUI() {
-  L('updateNavUI → start');
   const session = await getSessionSafe();
   const isLoggedIn = !!session;
 
@@ -104,51 +75,16 @@ export async function updateNavUI() {
 
   let isAdmin = false;
   if (isLoggedIn) {
-    try { isAdmin = await fetchIsAdmin(session.user.id); } catch {}
+    try { isAdmin = await fetchIsAdmin(session.user.id); }
+    catch (e) { console.error('[nav] fetchIsAdmin error:', e); }
   }
   showAdminOnly(isAdmin);
 
   updateAuthButton($id('nav-auth'), isLoggedIn);
   setActiveLink();
-  L('updateNavUI → klaar (isLoggedIn:', isLoggedIn, ', isAdmin:', isAdmin, ')');
 }
 
-/* ============ Redirects ============ */
-function redirectHomeNow(reason = 'unknown') {
-  const home = absoluteHome();
-  const here = location.href;
-  const protectedNow = isProtectedPath();
-
-  L('redirectHomeNow → reason:', reason, '| protectedNow:', protectedNow, '| here:', here, '| home:', home);
-
-  try { closeMenuIfOpen(); } catch {}
-
-  // Op beschermde pagina's altijd weg
-  if (protectedNow) {
-    L('redirect → protected page → location.replace(home)');
-    location.replace(home);
-    // Fallbacks voor agressieve caches:
-    setTimeout(() => { if (location.href !== home) location.assign(home); }, 80);
-    setTimeout(() => { if (location.href !== home) location.reload(); }, 160);
-    return;
-  }
-
-  // Niet beschermd: als we al op home staan → toch replace (refresh)
-  if (here === home) {
-    L('redirect → al op home → replace/refresh');
-    location.replace(home);
-    setTimeout(() => { if (location.href !== home) location.reload(); }, 80);
-    return;
-  }
-
-  // Normaal scenario: ga naar home
-  L('redirect → naar home (replace)');
-  location.replace(home);
-  setTimeout(() => { if (location.href !== home) location.assign(home); }, 80);
-  setTimeout(() => { if (location.href !== home) location.reload(); }, 160);
-}
-
-/* ============ Bindings ============ */
+/* ---------- bindings ---------- */
 const bindNavLinks = (els) => {
   const map = [
     [els.lBereken, 'plaatsingsruimte.html'],
@@ -159,110 +95,97 @@ const bindNavLinks = (els) => {
   ];
   for (const [el, href] of map) {
     if (!el) continue;
-    const go = (e) => { e.preventDefault(); location.assign(href); };
+    const go = (e) => { e.preventDefault(); navigateTo(href); };
     el.addEventListener('click', go, { passive: false });
     el.addEventListener('pointerup', go, { passive: false });
   }
 };
 
-async function robustSignOutFlow(btn) {
-  L('robustSignOutFlow → start');
+const robustSignOutFlow = async (btn) => {
   try {
     if (btn) { btn.disabled = true; btn.textContent = 'Uitloggen…'; }
+    await supabase.auth.signOut(); // all scopes
 
-    // 1) Supabase sign out (timeout-guard)
-    L('robustSignOutFlow → supabase.auth.signOut …');
-    const signOut = supabase.auth.signOut();
-    const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error('signOut timeout')), 1500));
-    await Promise.race([signOut, timeout]).catch(e => { L('signOut race →', e?.message || e); });
-
-    // 2) Tokens lokaal opruimen (best-effort)
+    // extra schoonmaak voor zekerheid
     try {
       Object.keys(localStorage).forEach(k => k.startsWith('sb-') && localStorage.removeItem(k));
       Object.keys(sessionStorage).forEach(k => k.startsWith('sb-') && sessionStorage.removeItem(k));
     } catch {}
 
-    // 3) NIET wachten op UI; meteen redirecten
-    L('robustSignOutFlow → directe redirect');
-    redirectHomeNow('post-signOut');
+    // UI meteen updaten en redirecten
+    await updateNavUI();
 
-    // 4) Fire-and-forget UI update (mag falen)
-    updateNavUI().catch(()=>{});
+    // Altijd naar home bij uitloggen
+    const home = '/index.html';
+    navigateTo(home, { replace: true });
+
+    // fallback (heel kort) als browser niets doet
+    setTimeout(() => {
+      if (!document.hidden && (location.pathname || '').toLowerCase() !== '/index.html') {
+        navigateTo(home, { replace: true });
+      }
+    }, 300);
   } catch (e) {
-    L('robustSignOutFlow fout:', e?.message || e);
-    redirectHomeNow('catch');
-  } finally {
-    if (btn) { btn.disabled = false; btn.textContent = 'Inloggen'; }
-    L('robustSignOutFlow → einde');
+    console.error('[nav] signOut flow error:', e);
+    // Als er iets misgaat: stuur alsnog naar account
+    navigateTo('account.html?signin=1', { replace: true });
   }
-}
+};
 
 const bindAuthButton = (btn) => {
   if (!btn || btn.dataset.bound) return;
 
   const on = async (e) => {
     e.preventDefault();
-    L('authBtn click');
     const session = await getSessionSafe();
     if (session) {
       await robustSignOutFlow(btn);
     } else {
-      closeMenuIfOpen();
-      location.assign('account.html?signin=1');
+      navigateTo('account.html?signin=1');
     }
   };
 
   btn.addEventListener('click', on, { passive: false });
   btn.addEventListener('pointerup', on, { passive: false });
-  btn.dataset.bound = 'true';
+  btn.dataset.bound = '1';
 };
 
-/* ============ Guards ============ */
+/* ---------- guards ---------- */
 const guardProtectedPages = async () => {
   if (!isProtectedPath()) return;
   const session = await getSessionSafe();
-  if (!session) {
-    L('guardProtectedPages → geen session → naar account');
-    location.replace('account.html?signin=1');
-  }
+  if (!session) navigateTo('account.html?signin=1', { replace: true });
 };
 
-/* ============ Init ============ */
-document.addEventListener('DOMContentLoaded', async () => {
-  L('init');
-  const els = {
-    authBtn:  $id('nav-auth'),
-    lBereken: $id('nav-bereken'),
-    lMestplan:$id('nav-mestplan'),
-    lUpload:  $id('nav-upload'),
-    lAccount: $id('nav-account'),
-    lBeheer:  $id('nav-beheer'),
-  };
+/* ---------- init ---------- */
+const selectEls = () => ({
+  authBtn:  $id('nav-auth'),
+  lBereken: $id('nav-bereken'),
+  lMestplan:$id('nav-mestplan'),
+  lUpload:  $id('nav-upload'),
+  lAccount: $id('nav-account'),
+  lBeheer:  $id('nav-beheer'),
+});
 
+document.addEventListener('DOMContentLoaded', async () => {
+  const els = selectEls();
   bindNavLinks(els);
   bindAuthButton(els.authBtn);
 
   await updateNavUI();
   await guardProtectedPages();
 
-  // Fallback: als Supabase meldt dat we uitgelogd zijn en we staan op een beschermde pagina → redirect
-  supabase.auth.onAuthStateChange(async (evt) => {
-    L('onAuthStateChange →', evt);
-    if (evt === 'SIGNED_OUT') {
-      redirectHomeNow('onAuthStateChange');
-      return;
-    }
+  // Auth state → UI + guard
+  supabase.auth.onAuthStateChange(async (_evt) => {
+    const session = await getSessionSafe();
     await updateNavUI();
-    if (isProtectedPath()) await guardProtectedPages();
+
+    // Als je op een beschermde pagina staat en je bent uitgelogd → weg
+    if (!session && isProtectedPath()) {
+      navigateTo('/index.html', { replace: true });
+    }
   });
 
-  // BFCache terugkeer
-  window.addEventListener('pageshow', async (e) => {
-    L('pageshow (persisted:', !!e.persisted, ')');
-    await updateNavUI();
-    if (e.persisted && isProtectedPath()) {
-      const s = await getSessionSafe();
-      if (!s) redirectHomeNow('pageshow-persisted-no-session');
-    }
-  });
+  // BFCache / terugknop: verzeker UI consistentie
+  window.addEventListener('pageshow', async () => { await updateNavUI(); });
 });
