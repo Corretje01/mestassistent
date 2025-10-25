@@ -38,7 +38,7 @@ export const UIController = (() => {
         <label for="slider-${id}">${label}</label>
         <span class="value" id="value-${id}">0 / ${max} ${unit}</span>
       </div>
-      <input type="range" id="slider-${id}" min="0" max="${max}" step="0.1" value="0" />
+      <input type="range" id="slider-${id}" min="0" max="${max}" step="1" value="0" />
     `;
     container.appendChild(group);
 
@@ -62,7 +62,7 @@ export const UIController = (() => {
         <label for="slider-${id}">${label}</label>
         <span class="value" id="value-${id}">0 / ${max} ton</span>
       </div>
-      <input type="range" id="slider-${id}" min="0" max="${max}" step="0.1" value="0" />
+      <input type="range" id="slider-${id}" min="0" max="${max}" step="1" value="0" />
     `;
     container.appendChild(group);
 
@@ -96,7 +96,7 @@ export const UIController = (() => {
       if (!sliderEl || !valueEl) return;
   
       sliderEl.max = max;
-      const afgerond = Math.round(value * 10) / 10;
+      const afgerond = Math.round(value);
       if (!StateManager.isLocked(id)) {
         sliderEl.value = afgerond;
       }
@@ -112,7 +112,7 @@ export const UIController = (() => {
   
       const newMax = ValidationEngine.getMaxTonnage(id);
       sliderEl.max = newMax;
-      const afgerond = Math.round(mest.ton * 10) / 10;
+      const afgerond = Math.round(mest.ton)
       if (!StateManager.isLocked(id)) {
         sliderEl.value = afgerond;
       }
@@ -128,14 +128,14 @@ export const UIController = (() => {
       const valueEl = document.getElementById(`value-${id}`);
       if (!sliderEl || !valueEl) continue;
 
-      const afgerond = Math.round(mest.ton * 10) / 10;
+      const afgerond = Math.round(mest.ton)
 
       if (!StateManager.isLocked(id)) {
         sliderEl.value = afgerond;
       }
 
       const formattedVal = `${afgerond} ton`;
-      const formattedMax = `${sliderEl.max} ton`;
+      const formattedMax = `${Math.round(Number(sliderEl.max)||0)} ton`;
       valueEl.textContent = `${formattedVal} / ${formattedMax}`;
     }
   }
