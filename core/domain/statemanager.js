@@ -1,3 +1,4 @@
+//core/domain/statemanager.js
 /**
  * statemanager.js
  * Centrale state voor mestplan applicatie
