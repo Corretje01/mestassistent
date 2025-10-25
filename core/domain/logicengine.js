@@ -1,11 +1,12 @@
-import { StateManager } from './statemanager.js';
+import { StateManager }      from './statemanager.js';
 import { CalculationEngine } from './calculationengine.js';
-import { ValidationEngine } from './validationengine.js';
-import { UIController } from './uicontroller.js';
+import { ValidationEngine }  from './validationengine.js';
+// Belangrijk: UI ligt in ../ui/
+import { UIController }      from '../ui/uicontroller.js';
 
 export const LogicEngine = (() => {
 
-    /**
+  /**
    * Checkt per nutriënt of limieten worden overschreden. Retourneert het eerste nutriënt dat overschreden wordt, of null.
    * @param {Object} totaal - resultaat van CalculationEngine.berekenNutriëntenVoorState
    * @param {Object} limieten - { stikstof: maxA, fosfaat: maxC, kalium: maxB, ... }
@@ -22,7 +23,7 @@ export const LogicEngine = (() => {
 
   function forceWithinBounds(id, value) {
     const sliderEl = document.getElementById(`slider-${id}`);
-    if (!sliderEl) return value; // Fallback
+    if (!sliderEl) return value;
     const min = Number(sliderEl.min);
     const max = Number(sliderEl.max);
     if (value < min || value > max) {
@@ -32,7 +33,7 @@ export const LogicEngine = (() => {
     }
     return value;
   }
-  
+
   const lastValidSliderValues = {};
 
   function onSliderChange(id, newValue) {
@@ -47,38 +48,30 @@ export const LogicEngine = (() => {
 
     const clamped = forceWithinBounds(id, newValue);
     sliderEl.value = String(clamped);
-
     if (clamped !== newValue) return;
 
-    // ---- Hypothetische nutriëntensom controleren vóórdat we de wijziging toepassen ----
-    // Deep copy van huidige state (let op: bij grote states kan een utility als structuredClone sneller zijn)
+    // Hypothetische check (voordat we state aanpassen)
     const state = JSON.parse(JSON.stringify(StateManager.getState()));
     if (state.actieveMest[id]) state.actieveMest[id].ton = clamped;
 
-    // Haal limieten op
     const ruimte = StateManager.getGebruiksruimte();
     const nutLimieten = {
       stikstof: ruimte.A,
       fosfaat:  ruimte.C,
       kalium:   ruimte.B * 1.25,
-      // organisch, financieel evt. toevoegen
     };
 
     const totaalNa = CalculationEngine.berekenNutriëntenVoorState(state);
     const overschredenNut = overschrijdtNutriëntLimieten(totaalNa, nutLimieten);
-
     if (overschredenNut) {
-      // Constraint geraakt: zet slider terug, shake, log, stop!
       sliderEl.value = String(lastValidSliderValues[id] ?? sliderEl.min);
       UIController.shake(id);
       console.warn(`❌ Overschrijding: ${overschredenNut} overschrijdt maximum`);
       return;
     }
 
-    // Indien OK: sla waarde op als geldig
     lastValidSliderValues[id] = clamped;
 
-    // --- Nu pas wijzigen ---
     if (id === 'kunststikstof') {
       StateManager.setKunstmest(clamped);
       updateStikstofMaxDoorKunstmest();
@@ -92,32 +85,30 @@ export const LogicEngine = (() => {
 
     UIController.updateSliders();
   }
-  
+
   function handleMestSliderChange(id, newValue) {
     const oudeState = StateManager.getState();
     const mest = oudeState.actieveMest[id];
     const deltaTon = newValue - mest.ton;
     if (deltaTon === 0) return;
 
-    // Clamp waarde (géén wijzigingen buiten bereik)
     const clampedValue = forceWithinBounds(id, newValue);
     if (clampedValue !== newValue) return;
 
     const deltaNut = berekenDeltaNutriënten(mest, deltaTon);
     const vergrendeldeNut = Object.keys(deltaNut).filter(n => StateManager.isLocked(n) && deltaNut[n] !== 0);
 
-    // Hypothetische state opbouwen
-    // Start met een kopie van de huidige state
+    // Hypothetische state
     const hypothetischeState = JSON.parse(JSON.stringify(oudeState));
-    // Zet primaire wijziging alvast in hypothetische state
     hypothetischeState.actieveMest[id].ton = clampedValue;
 
+    let aanpassingen = {};
     if (vergrendeldeNut.length > 0) {
       const andereMest = Object.entries(oudeState.actieveMest)
         .filter(([key]) => key !== id && !StateManager.isLocked(key))
         .map(([key, mest]) => ({ id: key, mest }));
 
-      const aanpassingen = {};
+      aanpassingen = {};
 
       for (const nut of vergrendeldeNut) {
         const delta = deltaNut[nut];
@@ -134,7 +125,6 @@ export const LogicEngine = (() => {
           UIController.shake(id);
           return;
         }
-
         for (const o of opties) {
           const aandeel = o.gehalte / totaalGehalte;
           const tonDelta = -delta * aandeel / o.gehalte;
@@ -142,26 +132,25 @@ export const LogicEngine = (() => {
         }
       }
 
-      // Pas alle berekende compensaties toe op de hypothetische state
+      // Pas compensaties toe in hypothetische state
       for (const [key, tonDelta] of Object.entries(aanpassingen)) {
         const huidig = oudeState.actieveMest[key].ton;
         const nieuw = huidig + tonDelta;
         const geclampteNieuw = forceWithinBounds(key, nieuw);
         if (geclampteNieuw !== nieuw) {
           UIController.shake(key);
-          return; // Annuleer alles bij één overtreding
+          return;
         }
         hypothetischeState.actieveMest[key].ton = nieuw;
       }
     }
 
-    // === CENTRALE NUTRIËNT-CONSTRAINTCHECK ===
+    // Centrale constraintcheck
     const ruimte = StateManager.getGebruiksruimte();
     const nutLimieten = {
       stikstof: ruimte.A,
       fosfaat:  ruimte.C,
       kalium:   ruimte.B * 1.25,
-      // evt. uitbreiden
     };
     const totaalNa = CalculationEngine.berekenNutriëntenVoorState(hypothetischeState);
     const overschredenNut = overschrijdtNutriëntLimieten(totaalNa, nutLimieten);
@@ -171,15 +160,11 @@ export const LogicEngine = (() => {
       return;
     }
 
-    // === PAS ALS ALLES OK IS, DE WIJZIGINGEN DOORVOEREN ===
+    // Definitief toepassen
     StateManager.setMestTonnage(id, clampedValue);
-
-    if (vergrendeldeNut.length > 0) {
-      // Nogmaals: voer compensaties nu pas echt door!
-      for (const [key, tonDelta] of Object.entries(aanpassingen)) {
-        const huidig = oudeState.actieveMest[key].ton;
-        StateManager.setMestTonnage(key, huidig + tonDelta);
-      }
+    for (const [key, tonDelta] of Object.entries(aanpassingen)) {
+      const huidig = oudeState.actieveMest[key].ton;
+      StateManager.setMestTonnage(key, huidig + tonDelta);
     }
   }
 
@@ -189,8 +174,7 @@ export const LogicEngine = (() => {
       UIController.shake(nutId);
       return;
     }
-    
-    // Stap 1: Haal huidige staat en bereken delta
+
     const state = StateManager.getState();
     const actieveMest = state.actieveMest;
     const gebruiksruimte = StateManager.getGebruiksruimte();
@@ -198,13 +182,12 @@ export const LogicEngine = (() => {
 
     const huidigeWaarde = huidigeNut[nutId] || 0;
     const delta = doelWaarde - huidigeWaarde;
-    const richting = delta > 0 ? 'verhogen' : 'verlagen';
     const opType = delta > 0 ? 'min' : 'max';
 
-    console.log(`🔄 Doel: ${richting} van ${nutId} van ${huidigeWaarde.toFixed(2)} naar ${doelWaarde.toFixed(2)}`);
+    console.log(`🔄 Doel: ${delta > 0 ? 'verhogen' : 'verlagen'} van ${nutId} van ${huidigeWaarde.toFixed(2)} naar ${doelWaarde.toFixed(2)}`);
     console.log(`🔍 GLPK-versie: ${window.glp_version ? window.glp_version() : 'onbekend'}`);
-    
-    // Stap 2: Stel LP-model op voor glpk.js
+
+    // Model
     const model = {
       name: 'mestoptimalisatie',
       objective: {
@@ -216,35 +199,20 @@ export const LogicEngine = (() => {
       bounds: []
     };
 
-    // Stap 3: Verzamel data per mestsoort
+    // Data per mestsoort
     const mestData = Object.entries(actieveMest)
       .filter(([id]) => !StateManager.isLocked(id))
       .map(([id, mest]) => {
         const gehalte = getGehaltePerNutriënt(nutId, mest);
         const prijsPerTon = getPrijsPerTonInclTransport(mest);
         const kostenPerKgNut = gehalte > 0 ? prijsPerTon / gehalte : Infinity;
-        console.log('🔍 kostenPerKgNut check:', {
-          id,
-          prijsPerTon,
-          gehalte,
-          kostenPerKgNut
-        });
 
         const sliderEl = document.getElementById(`slider-${id}`);
         const minT = Number(sliderEl.min);
         const maxT = Number(sliderEl.max);
-        
+
         const huidig = mest.ton;
-        return {
-          id,
-          mest,
-          gehalte,
-          prijsPerTon,
-          kostenPerKgNut,
-          huidig,
-          min: minT,
-          max: maxT
-        };
+        return { id, mest, gehalte, prijsPerTon, kostenPerKgNut, huidig, min: minT, max: maxT };
       })
       .filter(m => m.gehalte > 0);
 
@@ -254,28 +222,20 @@ export const LogicEngine = (() => {
       return;
     }
 
-    // Stap 4: Bouw variabelen en doelstelling
+    // Doelstelling + bounds
     for (const m of mestData) {
       model.objective.vars.push({
         name: m.id,
         coef: opType === 'min' ? -m.kostenPerKgNut : m.kostenPerKgNut
       });
-
-      model.bounds.push({
-        name: m.id,
-        type: window.GLP_DB,
-        lb: m.min,
-        ub: m.max
-      });
-
-      console.log(`📊 ${m.id} — €${m.prijsPerTon}/ton, ${m.gehalte} ${nutId}/ton → €${m.kostenPerKgNut.toFixed(2)} per ${nutId} | huidig: ${m.huidig.toFixed(2)}t | bereik: ${m.min}–${m.max}t`);
+      model.bounds.push({ name: m.id, type: window.GLP_DB, lb: m.min, ub: m.max });
     }
 
-    // Stap 5: Voeg gebruiksruimte-beperkingen toe
+    // Limieten
     const nutriëntLimieten = {
       stikstof: gebruiksruimte.A,
       fosfaat: gebruiksruimte.C,
-      kalium: gebruiksruimte.B * 1.25,
+      kalium:  gebruiksruimte.B * 1.25,
       organisch: gebruiksruimte.organisch || Infinity
     };
 
@@ -287,19 +247,14 @@ export const LogicEngine = (() => {
           bnds: { type: window.GLP_UP, ub: nutriëntLimieten[nut], lb: -Infinity }
         };
         for (const m of mestData) {
-          const gehalte = getGehaltePerNutriënt(nut, m.mest);
-          if (gehalte > 0) {
-            constraint.vars.push({ name: m.id, coef: gehalte });
-          }
+          const g = getGehaltePerNutriënt(nut, m.mest);
+          if (g > 0) constraint.vars.push({ name: m.id, coef: g });
         }
-        if (constraint.vars.length > 0) {
-          model.subjectTo.push(constraint);
-          console.log(`🔒 Nutriëntbeperking ${nut}: max ${nutriëntLimieten[nut]}`);
-        }
+        if (constraint.vars.length > 0) model.subjectTo.push(constraint);
       }
     }
 
-    // Stap 6: Voeg vergrendelde nutriënten toe
+    // Vergrendelde nutriënten (excl. doel)
     for (const nut of ['stikstof', 'fosfaat', 'kalium', 'organisch', 'financieel']) {
       if (StateManager.isLocked(nut) && nut !== nutId) {
         const vergrendeldeWaarde = huidigeNut[nut];
@@ -309,264 +264,210 @@ export const LogicEngine = (() => {
           bnds: { type: window.GLP_DB, ub: vergrendeldeWaarde + 0.5, lb: vergrendeldeWaarde - 0.5 }
         };
         for (const m of mestData) {
-          const gehalte = getGehaltePerNutriënt(nut, m.mest);
-          if (gehalte !== 0) {
-            constraint.vars.push({ name: m.id, coef: gehalte });
-          }
+          const g = getGehaltePerNutriënt(nut, m.mest);
+          if (g !== 0) constraint.vars.push({ name: m.id, coef: g });
         }
-        if (constraint.vars.length > 0) {
-          model.subjectTo.push(constraint);
-          console.log(`🔒 Vergrendelde beperking ${nut}: ${vergrendeldeWaarde} (±0.5)`);
-        }
+        if (constraint.vars.length > 0) model.subjectTo.push(constraint);
       }
     }
 
-    // Stap 7: Voeg doelbeperking toe
+    // Doelbeperking
     const doelConstraint = {
       name: nutId,
       vars: [],
       bnds: { type: window.GLP_DB, ub: doelWaarde + 0.5, lb: doelWaarde - 0.5 }
     };
     for (const m of mestData) {
-      const gehalte = getGehaltePerNutriënt(nutId, m.mest);
-      if (gehalte > 0) {
-        doelConstraint.vars.push({ name: m.id, coef: gehalte });
-      }
+      const g = getGehaltePerNutriënt(nutId, m.mest);
+      if (g > 0) doelConstraint.vars.push({ name: m.id, coef: g });
     }
-    if (doelConstraint.vars.length > 0) {
-      model.subjectTo.push(doelConstraint);
-      console.log(`🧮 Doelbeperking ${nutId}: ${doelWaarde}`);
-    } else {
-      console.log(`🚫 Geen variabelen voor ${nutId} beperking`);
+    if (doelConstraint.vars.length === 0) {
       UIController.shake(nutId);
       return;
     }
+    model.subjectTo.push(doelConstraint);
 
-    console.log(`📦 LP-model opgebouwd:`, model);
+    // --- GLPK solve ---
+    try {
+      const lp = window.glp_create_prob();
+      window.glp_set_prob_name(lp, 'mestoptimalisatie');
+      window.glp_set_obj_dir(lp, opType === 'min' ? window.GLP_MAX : window.GLP_MIN);
 
-  // Stap 8: Los LP-model op met glpk.js
-  try {
-    const lp = window.glp_create_prob();
-    window.glp_set_prob_name(lp, 'mestoptimalisatie');
-    window.glp_set_obj_dir(lp, opType === 'min' ? window.GLP_MAX : window.GLP_MIN);
-  
-    // Voeg kolommen toe (mestsoorten)
-    const colIndices = {};
-    mestData.forEach(m => {
-      const col = window.glp_add_cols(lp, 1);
-      window.glp_set_col_name(lp, col, m.id);
-      window.glp_set_col_bnds(lp, col, window.GLP_DB, m.min, m.max);
-      window.glp_set_obj_coef(
-        lp, col,
-        opType === 'min' ? -m.kostenPerKgNut : m.kostenPerKgNut
-      );
-      colIndices[m.id] = col;
-    });
-  
-    // Voeg rijen toe (nutriënten‑beperkingen, zonder 'financieel')
-    const rowIndices = {};
-    for (const nut of ['stikstof','fosfaat','kalium','organisch']) {
-      if (nut !== nutId && nutriëntLimieten[nut] !== undefined && !StateManager.isLocked(nut)) {
-        const row = window.glp_add_rows(lp, 1);
-        window.glp_set_row_name(lp, row, nut);
-        window.glp_set_row_bnds(lp, row, window.GLP_UP, 0, nutriëntLimieten[nut]);
-        rowIndices[nut] = row;
-        console.log(`🔒 GLPK Nutriëntbeperking ${nut}: max ${nutriëntLimieten[nut]}`);
-      }
-    }
-    
-    // Voeg GLP_DB-rijen toe voor elke locked nutriënt (excl. doelnutriënt)
-    for (const nut of ['stikstof','fosfaat','kalium','organisch']) {
-      if (StateManager.isLocked(nut) && nut !== nutId) {
-        const lockedVal = huidigeNut[nut] || 0;
-        const row = window.glp_add_rows(lp, 1);
-        window.glp_set_row_name(lp, row, nut);
-        window.glp_set_row_bnds(
-          lp, row,
-          window.GLP_DB,
-          lockedVal - 0.5,
-          lockedVal + 0.5
-        );
-        rowIndices[nut] = row;
-        console.log(`🔒 GLPK Vergrendelde beperking ${nut}: ${lockedVal} (±0.5)`);
-      }
-    }
-    
-    // Doel‑nutriënt
-    const doelRow = window.glp_add_rows(lp, 1);
-    window.glp_set_row_name(lp, doelRow, nutId);
-    window.glp_set_row_bnds(lp, doelRow, window.GLP_DB, doelWaarde - 0.5, doelWaarde + 0.5);
-    rowIndices[nutId] = doelRow;
-  
-    // Bouw coëfficiëntenmatrix
-    const ia = [0], ja = [0], ar = [0];
-    let nz = 1;
-    for (const nut of Object.keys(rowIndices)) {
-      for (const m of mestData) {
-        const gehalte = getGehaltePerNutriënt(nut, m.mest);
-        if (gehalte !== 0) {
-          ia[nz] = rowIndices[nut];
-          ja[nz] = colIndices[m.id];
-          ar[nz] = gehalte;
-          nz++;
+      // Kolommen
+      const colIndices = {};
+      mestData.forEach(m => {
+        const col = window.glp_add_cols(lp, 1);
+        window.glp_set_col_name(lp, col, m.id);
+        window.glp_set_col_bnds(lp, col, window.GLP_DB, m.min, m.max);
+        window.glp_set_obj_coef(lp, col, opType === 'min' ? -m.kostenPerKgNut : m.kostenPerKgNut);
+        colIndices[m.id] = col;
+      });
+
+      // Rijen (limieten + locks + doel)
+      const rowIndices = {};
+      for (const nut of ['stikstof','fosfaat','kalium','organisch']) {
+        if (nut !== nutId && nutriëntLimieten[nut] !== undefined && !StateManager.isLocked(nut)) {
+          const row = window.glp_add_rows(lp, 1);
+          window.glp_set_row_name(lp, row, nut);
+          window.glp_set_row_bnds(lp, row, window.GLP_UP, 0, nutriëntLimieten[nut]);
+          rowIndices[nut] = row;
         }
       }
-    }
-  
-    // Debug logging
-    console.log("📋 Matrix:", window.glp_get_num_rows(lp), "×", window.glp_get_num_cols(lp));
-    console.log("📋 Coëfficiënten (model):", mestData.map(m => ({
-      id: m.id,
-      coef: opType==='min' ? -m.kostenPerKgNut : m.kostenPerKgNut
-    })));
-    console.log("📋 Coëfficiënten (GLPK):", mestData.map(m => ({
-      id: m.id,
-      coef: window.glp_get_obj_coef(lp, colIndices[m.id])
-    })));
-  
-    window.glp_load_matrix(lp, nz - 1, ia, ja, ar);
-  
-    // Oplossen
-    const ret = window.glp_simplex(lp, {
-      msg_lev:  window.GLP_MSG_ALL,
-      meth:     window.GLP_PRIMAL,
-      pricing:  window.GLP_PT_STD,
-      r_test:   window.GLP_RT_STD,
-      tol_bnd:  0.001,
-      tol_dj:   0.001,
-      tol_piv:  0.001,
-      it_lim:   1000,
-      tm_lim:   1000,
-      presolve: window.GLP_ON
-    });
-    const status = window.glp_get_status(lp);
-    console.log(`GLPK simplex ret=${ret}, status=${status}`);
-    if (ret !== 0 || (status !== window.GLP_OPT && status !== window.GLP_FEAS)) {
-      console.warn(`⚠️ Geen oplossing voor ${nutId}: ret=${ret}, status=${status}`);
-      UIController.shake(nutId);
-      return;
-    }
-  
-    // Lees tonnages uit
-    console.log('📦 Resultaat tonnages na LP-optimalisatie:');
-    const tonnages = {};
-    mestData.forEach(m => {
-      const col = colIndices[m.id];
-      const val = window.glp_get_col_prim(lp, col);
-      tonnages[m.id] = val;
-      console.log(`➡️ ${m.id}: ${val.toFixed(2)} ton`);
-    });
-  
-    // Valideer m.b.v. directe berekening
-    const bereikteNutriënten = { stikstof:0, fosfaat:0, kalium:0, organisch:0 };
-    mestData.forEach(m => {
-      const ton = tonnages[m.id];
-      bereikteNutriënten.stikstof  += getGehaltePerNutriënt('stikstof',  m.mest) * ton;
-      bereikteNutriënten.fosfaat   += getGehaltePerNutriënt('fosfaat',   m.mest) * ton;
-      bereikteNutriënten.kalium    += getGehaltePerNutriënt('kalium',    m.mest) * ton;
-      bereikteNutriënten.organis   += getGehaltePerNutriënt('organisch', m.mest) * ton;
-    });
-  
-    let geldig = true;
-    ['stikstof','fosfaat','kalium','organisch'].forEach(nut => {
-      const bereikt = bereikteNutriënten[nut];
-      const limiet  = nutriëntLimieten[nut];
-      if (limiet !== undefined && bereikt > limiet + 1e-6) {
-        console.warn(`⚠️ Overschrijding ${nut}: ${bereikt.toFixed(2)} > ${limiet}`);
-        geldig = false;
+      for (const nut of ['stikstof','fosfaat','kalium','organisch']) {
+        if (StateManager.isLocked(nut) && nut !== nutId) {
+          const lockedVal = huidigeNut[nut] || 0;
+          const row = window.glp_add_rows(lp, 1);
+          window.glp_set_row_name(lp, row, nut);
+          window.glp_set_row_bnds(lp, row, window.GLP_DB, lockedVal - 0.5, lockedVal + 0.5);
+          rowIndices[nut] = row;
+        }
       }
-      if (StateManager.isLocked(nut) && nut !== nutId) {
-        const origineel = huidigeNut[nut];
-        if (Math.abs(bereikt - origineel) > 0.5) {
-          console.warn(`⚠️ Vergrendelde ${nut} gewijzigd: ${bereikt.toFixed(2)} ≠ ${origineel.toFixed(2)}`);
+      const doelRow = window.glp_add_rows(lp, 1);
+      window.glp_set_row_name(lp, doelRow, nutId);
+      window.glp_set_row_bnds(lp, doelRow, window.GLP_DB, doelWaarde - 0.5, doelWaarde + 0.5);
+      rowIndices[nutId] = doelRow;
+
+      // Matrix
+      const ia = [0], ja = [0], ar = [0];
+      let nz = 1;
+      for (const nut of Object.keys(rowIndices)) {
+        for (const m of mestData) {
+          const g = getGehaltePerNutriënt(nut, m.mest);
+          if (g !== 0) {
+            ia[nz] = rowIndices[nut];
+            ja[nz] = colIndices[m.id];
+            ar[nz] = g;
+            nz++;
+          }
+        }
+      }
+      window.glp_load_matrix(lp, nz - 1, ia, ja, ar);
+
+      // Oplossen
+      const ret = window.glp_simplex(lp, {
+        msg_lev:  window.GLP_MSG_ALL,
+        meth:     window.GLP_PRIMAL,
+        pricing:  window.GLP_PT_STD,
+        r_test:   window.GLP_RT_STD,
+        tol_bnd:  0.001,
+        tol_dj:   0.001,
+        tol_piv:  0.001,
+        it_lim:   1000,
+        tm_lim:   1000,
+        presolve: window.GLP_ON
+      });
+      const status = window.glp_get_status(lp);
+      console.log(`GLPK simplex ret=${ret}, status=${status}`);
+      if (ret !== 0 || (status !== window.GLP_OPT && status !== window.GLP_FEAS)) {
+        UIController.shake(nutId);
+        return;
+      }
+
+      // Lees tonnages
+      const tonnages = {};
+      mestData.forEach(m => {
+        const col = colIndices[m.id];
+        const val = window.glp_get_col_prim(lp, col);
+        tonnages[m.id] = val;
+      });
+
+      // Directe validatie
+      const bereikte = { stikstof:0, fosfaat:0, kalium:0, organisch:0 };
+      mestData.forEach(m => {
+        const ton = tonnages[m.id];
+        bereikte.stikstof  += getGehaltePerNutriënt('stikstof',  m.mest) * ton;
+        bereikte.fosfaat   += getGehaltePerNutriënt('fosfaat',   m.mest) * ton;
+        bereikte.kalium    += getGehaltePerNutriënt('kalium',    m.mest) * ton;
+        bereikte.organisch += getGehaltePerNutriënt('organisch', m.mest) * ton; // ← FIX (was "organis")
+      });
+
+      let geldig = true;
+      for (const nut of ['stikstof','fosfaat','kalium','organisch']) {
+        const bereikt = bereikte[nut];
+        const limiet  = nutriëntLimieten[nut];
+        if (limiet !== undefined && bereikt > limiet + 1e-6) {
           geldig = false;
         }
+        if (StateManager.isLocked(nut) && nut !== nutId) {
+          const origineel = huidigeNut[nut];
+          if (Math.abs(bereikt - origineel) > 0.5) {
+            geldig = false;
+          }
+        }
       }
-    });
-  
-    if (Math.abs(bereikteNutriënten[nutId] - doelWaarde) > 0.55) {
-      console.warn(`⚠️ Doelnutriënt ${nutId} afwijking: ${bereikteNutriënten[nutId].toFixed(2)} ≠ ${doelWaarde}`);
-      geldig = false;
-    }
-  
-    if (!geldig) {
-      console.warn(`⚠️ LP-oplossing ongeldig, slider wordt niet aangepast`);
+      if (Math.abs(bereikte[nutId] - doelWaarde) > 0.55) {
+        geldig = false;
+      }
+      if (!geldig) {
+        UIController.shake(nutId);
+        return;
+      }
+
+      pasTonnagesToe(tonnages);
+      updateSlider(nutId, doelWaarde, huidigeNut);
+
+      const kosten = window.glp_get_obj_val(lp);
+      console.log(`💰 Totale kostenresultaat: €${kosten.toFixed(2)}`);
+    } catch (err) {
+      console.error(`❌ LP-optimalisatie gefaald (${nutId}): ${err.message}`);
       UIController.shake(nutId);
-      return;
-    }
-  
-    pasTonnagesToe(tonnages);
-    updateSlider(nutId, doelWaarde, huidigeNut);
-  
-    const kosten = window.glp_get_obj_val(lp);
-    console.log(`💰 Totale kostenresultaat: €${kosten.toFixed(2)}`);
-    
-  } catch (err) {
-    console.error(`❌ LP-optimalisatie gefaald (${nutId}): ${err.message}`);
-    UIController.shake(nutId);
     }
   }
 
   function pasTonnagesToe(tonnages) {
-    // Maak deep copy van state en pas batchgewijs hypothetisch toe
     const state = StateManager.getStateDeepCopy ? StateManager.getStateDeepCopy() : JSON.parse(JSON.stringify(StateManager.getState()));
     for (const [id, tonnage] of Object.entries(tonnages)) {
       const geclampteTonnage = forceWithinBounds(id, tonnage);
       if (state.actieveMest[id]) state.actieveMest[id].ton = geclampteTonnage;
     }
-  
+
     const ruimte = StateManager.getGebruiksruimte();
     const nutLimieten = {
       stikstof: ruimte.A,
       fosfaat:  ruimte.C,
       kalium:   ruimte.B * 1.25,
-      // evt. andere constraints
     };
     const totaalNa = CalculationEngine.berekenNutriëntenVoorState(state);
     const overschredenNut = overschrijdtNutriëntLimieten(totaalNa, nutLimieten);
-  
     if (overschredenNut) {
-      // Annuleer en shake alle sliders in batch
       Object.keys(tonnages).forEach(id => UIController.shake(id));
       console.warn(`❌ Overschrijding (batch): ${overschredenNut} overschrijdt maximum`);
       return;
     }
-  
-    // Pas alle tonnages toe (altijd geclampte waarde)
+
     for (const [id, tonnage] of Object.entries(tonnages)) {
       const geclampteTonnage = forceWithinBounds(id, tonnage);
       StateManager.setMestTonnage(id, geclampteTonnage);
     }
     UIController.updateSliders();
   }
-  
-  function updateSlider(nutId, doelWaarde, huidigeNut) {
+
+  function updateSlider(nutId, doelWaarde) {
     const herberekend = CalculationEngine.berekenNutriënten(false);
     const afwijking = Math.abs(herberekend[nutId] - doelWaarde);
     const slider = document.getElementById(`slider-${nutId}`);
     if (slider && afwijking <= 0.55) {
       slider.value = doelWaarde;
       console.log(`🎯 Nutriëntenslider ${nutId} gesynchroniseerd op ${doelWaarde}`);
-    } else {
-      console.warn(`⚠️ Nutriëntenslider ${nutId} niet gesynchroniseerd — afwijking ${afwijking.toFixed(2)}`);
-      if (slider) UIController.shake(nutId);
+    } else if (slider) {
+      UIController.shake(nutId);
     }
   }
-  
+
   function berekenDeltaNutriënten(mest, tonDelta) {
     return {
-      stikstof:  tonDelta * (mest.N_kg_per_ton || 0),
-      fosfaat:   tonDelta * (mest.P_kg_per_ton || 0),
-      kalium:    tonDelta * (mest.K_kg_per_ton || 0),
-      organisch: tonDelta * ((mest.OS_percent || 0) / 100),
+      stikstof:   tonDelta * (mest.N_kg_per_ton || 0),
+      fosfaat:    tonDelta * (mest.P_kg_per_ton || 0),
+      kalium:     tonDelta * (mest.K_kg_per_ton || 0),
+      organisch:  tonDelta * ((mest.OS_percent || 0) / 100),
       financieel: tonDelta * ((mest.Inkoopprijs_per_ton || 0) + 10)
     };
   }
-  
+
   function getPrijsPerTonInclTransport(mest) {
     return (mest.Inkoopprijs_per_ton || 0) + 10;
   }
-  
+
   function getGehaltePerNutriënt(nut, mest) {
     switch (nut) {
       case 'stikstof':  return mest.N_kg_per_ton   || 0;
@@ -576,7 +477,7 @@ export const LogicEngine = (() => {
       default:          return 0;
     }
   }
-    
+
   function isNutrientSlider(id) {
     return ['stikstof', 'fosfaat', 'kalium', 'organisch', 'financieel'].includes(id);
   }
