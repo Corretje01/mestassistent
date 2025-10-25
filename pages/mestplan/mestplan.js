@@ -6,17 +6,37 @@ import { LogicEngine } from '../../core/domain/logicEngine.js';
 import { ValidationEngine } from '../../core/domain/validationEngine.js';
 import { supabase } from '../../supabaseClient.js';
 
-// Debounced helper: upsert het volledige trio A/B/C
+/* ===========================
+   Helpers: Supabase + URL params
+=========================== */
+async function getSessionUser() {
+  const { data: { session }, error } = await supabase.auth.getSession();
+  if (error) console.warn('getSession error:', error);
+  return session?.user || null;
+}
+
+function getABCFromQuery() {
+  const p = new URLSearchParams(location.search);
+  const A = Number(p.get('totaalA'));
+  const B = Number(p.get('totaalB'));
+  const C = Number(p.get('totaalC'));
+  return {
+    A: Number.isFinite(A) ? A : null,
+    B: Number.isFinite(B) ? B : null,
+    C: Number.isFinite(C) ? C : null
+  };
+}
+
 let saveTimeout;
-function saveMestplan() {
+async function debouncedSaveABC() {
   clearTimeout(saveTimeout);
   saveTimeout = setTimeout(async () => {
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await getSessionUser();
     if (!user) return;
 
-    const a = Number(document.getElementById('prev_res_n_dierlijk').value) || 0;
-    const b = Number(document.getElementById('prev_res_n_totaal').value)  || 0;
-    const c = Number(document.getElementById('prev_res_p_totaal').value)  || 0;
+    const a = Number(document.getElementById('prev_res_n_dierlijk')?.value) || 0;
+    const b = Number(document.getElementById('prev_res_n_totaal')?.value)  || 0;
+    const c = Number(document.getElementById('prev_res_p_totaal')?.value)  || 0;
 
     const { error } = await supabase
       .from('user_mestplan')
@@ -29,12 +49,12 @@ function saveMestplan() {
       }, { onConflict: 'user_id' });
 
     if (error) console.error('Save error:', error);
+    else console.debug('A/B/C opgeslagen.');
   }, 300);
 }
 
-// Haal per-account opgeslagen waarden op (of maak lege entry aan)
-async function loadMestplan() {
-  const { data: { user } } = await supabase.auth.getUser();
+async function loadABCFromDB() {
+  const user = await getSessionUser();
   if (!user) return { A: 0, B: 0, C: 0 };
 
   const { data, error } = await supabase
@@ -44,139 +64,198 @@ async function loadMestplan() {
     .maybeSingle();
 
   if (error) {
-    console.error('loadMestplan error:', error);
+    console.warn('loadABCFromDB error:', error);
     return { A: 0, B: 0, C: 0 };
   }
   if (!data) return { A: 0, B: 0, C: 0 };
 
   return {
     A: Number(data.res_n_dierlijk ?? 0),
-    B: Number(data.res_n_totaal ?? 0),
-    C: Number(data.res_p_totaal ?? 0),
+    B: Number(data.res_n_totaal   ?? 0),
+    C: Number(data.res_p_totaal   ?? 0),
   };
 }
 
-// Wacht tot GLPK in window zit
-async function waitForGLPK() {
+/* ===========================
+   GLPK alleen checken wanneer nodig
+=========================== */
+async function ensureGLPK() {
+  // Alleen aanroepen vlak vóór optimaliseren/LogicEngine die GLPK nodig heeft.
+  const maxAttempts = 100;
+  let attempts = 0;
   return new Promise((resolve, reject) => {
-    const maxAttempts = 100;
-    let attempts = 0;
-    const check = () => {
+    const tick = () => {
       if (typeof window.glp_create_prob !== 'undefined') {
-        console.log('✅ GLPK geladen');
+        console.log('✅ GLPK beschikbaar');
         resolve(window);
-      } else if (attempts >= maxAttempts) {
+      } else if (attempts++ >= maxAttempts) {
         reject(new Error('GLPK niet beschikbaar'));
       } else {
-        attempts++;
-        setTimeout(check, 100);
+        setTimeout(tick, 100);
       }
     };
-    check();
+    tick();
   });
 }
 
-// Hoofdinitialisatie
-async function initializeApp() {
-  try {
-    await waitForGLPK();
+/* ===========================
+   UI initialisatie
+=========================== */
+function bindABCInputsAndState({ A, B, C }) {
+  const aEl = document.getElementById('prev_res_n_dierlijk');
+  const bEl = document.getElementById('prev_res_n_totaal');
+  const cEl = document.getElementById('prev_res_p_totaal');
+  if (!aEl || !bEl || !cEl) {
+    console.warn('Stap-2 inputs ontbreken in de DOM.');
+    return;
+  }
 
-    // Pak de drie inputvelden 1x vast
-    const aEl = document.getElementById('prev_res_n_dierlijk');
-    const bEl = document.getElementById('prev_res_n_totaal');
-    const cEl = document.getElementById('prev_res_p_totaal');
-    if (!aEl || !bEl || !cEl) {
-      console.warn('Stap-2 inputs ontbreken in de DOM.');
-      return;
-    }
+  // Zet beginwaarden
+  aEl.value = A;
+  bEl.value = B;
+  cEl.value = C;
 
-    // Helper om alle actieve mest-knoppen te resetten
-    function resetMestPlanUI() {
-      document.querySelectorAll('.mest-btn.active').forEach(btn => {
-        btn.classList.remove('active');
-        const key = `${btn.dataset.type}-${btn.dataset.animal}`;
+  // Naar StateManager
+  StateManager.setGebruiksruimte(A, B, C);
+
+  // Listeners
+  const onChange = () => {
+    const a = Number(aEl.value) || 0;
+    const b = Number(bEl.value) || 0;
+    const c = Number(cEl.value) || 0;
+
+    // Reset actieve mestselecties (voorkomt oude constraints/conflicten)
+    document.querySelectorAll('.mest-btn.active').forEach(btn => {
+      btn.classList.remove('active');
+      const key = `${btn.dataset.type}-${btn.dataset.animal}`;
+      StateManager.removeMestType(key);
+    });
+    UIController.hideSlidersContainer();
+
+    StateManager.setGebruiksruimte(a, b, c);
+    UIController.updateSliders();
+
+    debouncedSaveABC();
+  };
+
+  [aEl, bEl, cEl].forEach(el => el.addEventListener('input', onChange));
+}
+
+function bindMestButtons(mestsoortenData) {
+  const mapTypeKey = (type) => ({ drijfmest: 'drijfmest', vastemest: 'vaste_mest', overig: 'overig' }[type]);
+
+  document.querySelectorAll('.mest-btn').forEach(btn => {
+    if (btn.dataset.bound) return;
+
+    btn.addEventListener('click', () => {
+      btn.classList.toggle('active');
+      const type = btn.dataset.type;
+      const animal = btn.dataset.animal;
+      const key = `${type}-${animal}`;
+
+      if (btn.classList.contains('active')) {
+        // Vereiste dataset ophalen
+        const jsonType = mapTypeKey(type);
+        const mestData = mestsoortenData?.[jsonType]?.[animal];
+
+        if (!mestData) {
+          btn.classList.remove('active');
+          alert(`Geen specificaties gevonden voor: ${type} – ${animal}. Controleer core/domain/data/mestsoorten.json`);
+          return;
+        }
+
+        StateManager.addMestType(key, mestData);
+        UIController.renderMestsoortSlider(key, `${type} ${animal}`, ValidationEngine.getMaxTonnage(key));
+        UIController.showSlidersContainer();
+      } else {
         StateManager.removeMestType(key);
-      });
-      UIController.hideSlidersContainer();
-    }
+        document.getElementById(`group-${key}`)?.remove();
+        if (Object.keys(StateManager.getActieveMest()).length === 0) {
+          UIController.hideSlidersContainer();
+        }
+      }
 
-    // 1) Laad gebruiksruimte uit Supabase
-    const { A, B, C } = await loadMestplan();
-    StateManager.setGebruiksruimte(A, B, C);
-
-    // 2) Vul inputs met deze waarden
-    aEl.value = A;
-    bEl.value = B;
-    cEl.value = C;
-
-    // 3) Live-listeners op de inputs
-    [aEl, bEl, cEl].forEach(input => {
-      input.addEventListener('input', () => {
-        // Recalc state op basis van actuele velden
-        const a = Number(aEl.value) || 0;
-        const b = Number(bEl.value) || 0;
-        const c = Number(cEl.value) || 0;
-
-        resetMestPlanUI();
-        StateManager.setGebruiksruimte(a, b, c);
-        UIController.updateSliders();
-
-        // Debounced upsert van het volledige trio
-        saveMestplan();
-      });
+      UIController.updateSliders();
     });
 
-    // 4) Init en render standaard sliders
+    btn.dataset.bound = '1';
+  });
+}
+
+function bindOptimizeButton() {
+  const btn = document.getElementById('optimaliseer-btn');
+  if (!btn || btn.dataset.bound) return;
+
+  btn.addEventListener('click', async () => {
+    try {
+      await ensureGLPK(); // Gebruik GLPK alleen hier (nu blokkeert de UI init niet)
+      // Run je optimalisatie (LogicEngine gebruikt GLPK onder water)
+      await LogicEngine.optimize();
+      UIController.updateSliders();
+    } catch (e) {
+      console.error('Optimalisatie mislukt:', e);
+      alert('Optimalisatie lukt niet (GLPK niet beschikbaar?).');
+    }
+  });
+
+  btn.dataset.bound = '1';
+}
+
+/* ===========================
+   Hoofdinitialisatie
+=========================== */
+async function initializeApp() {
+  try {
+    // Route-guard staat al in HTML; we gaan ervan uit dat de gebruiker ingelogd is.
+
+    // 1) ABC bepalen: URL → DB → 0
+    const q = getABCFromQuery();
+    let A, B, C;
+
+    if (q.A !== null || q.B !== null || q.C !== null) {
+      A = q.A ?? 0; B = q.B ?? 0; C = q.C ?? 0;
+      // Eerste keer direct opslaan zodat refresh dezelfde waarden toont
+      const user = await getSessionUser();
+      if (user) {
+        await supabase.from('user_mestplan').upsert({
+          user_id: user.id,
+          res_n_dierlijk: A,
+          res_n_totaal:   B,
+          res_p_totaal:   C,
+          updated_at:     new Date().toISOString()
+        }, { onConflict: 'user_id' });
+      }
+    } else {
+      const fromDB = await loadABCFromDB();
+      A = fromDB.A; B = fromDB.B; C = fromDB.C;
+    }
+
+    // 2) Bind inputs + state
+    bindABCInputsAndState({ A, B, C });
+
+    // 3) UI-controller init + standaard sliders
     UIController.initStandardSliders();
     UIController.updateSliders();
 
-    // 5) Laad mestsoorten.json en configureer knoppen
-    let mestsoortenData = {};
+    // 4) Mestsoorten laden (faalt niet hard; knoppen werken en melden netjes)
+    let mestsoortenData = null;
     try {
-      // Let op: fetch is relatief aan de pagina (mestplan.html staat in de root)
       const resp = await fetch('./core/domain/data/mestsoorten.json', { cache: 'no-store' });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       mestsoortenData = await resp.json();
       StateManager.setMestTypes(mestsoortenData);
       console.log('✅ mestsoorten.json geladen');
     } catch (err) {
-      console.error('Fout bij laden mestsoorten.json:', err);
-      alert('⚠️ Kan mestsoorten.json niet laden.');
-      return; // stop init
+      console.warn('⚠️ Kan mestsoorten.json niet laden. Knoppen tonen melding bij gebruik.', err);
+      mestsoortenData = {}; // laat knoppen werken met melding
     }
 
-    // 6) Event handlers voor mest-knoppen
-    document.querySelectorAll('.mest-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        btn.classList.toggle('active');
-        const type = btn.dataset.type;
-        const animal = btn.dataset.animal;
-        const key = `${type}-${animal}`;
+    // 5) Bind mest-knoppen + optimize
+    bindMestButtons(mestsoortenData);
+    bindOptimizeButton();
 
-        if (btn.classList.contains('active')) {
-          const jsonType = { drijfmest: 'drijfmest', vastemest: 'vaste_mest', overig: 'overig' }[type];
-          const mestData = mestsoortenData?.[jsonType]?.[animal];
-          if (!mestData) {
-            console.warn(`⚠ Geen mestdata voor ${key}`);
-            return;
-          }
-          StateManager.addMestType(key, mestData);
-          UIController.renderMestsoortSlider(key, `${type} ${animal}`, ValidationEngine.getMaxTonnage(key));
-          UIController.showSlidersContainer();
-        } else {
-          StateManager.removeMestType(key);
-          const group = document.getElementById(`group-${key}`);
-          if (group) group.remove();
-          if (Object.keys(StateManager.getActieveMest()).length === 0) {
-            UIController.hideSlidersContainer();
-          }
-        }
-
-        UIController.updateSliders();
-      });
-    });
-
-    // 7) Realtime sync (na UI-setup) – luister op INSERT + UPDATE
-    const { data: { user } } = await supabase.auth.getUser();
+    // 6) Realtime sync van A/B/C
+    const user = await getSessionUser();
     if (user) {
       const channel = supabase
         .channel('mestplan-sync')
@@ -184,30 +263,42 @@ async function initializeApp() {
           'postgres_changes',
           { event: '*', schema: 'public', table: 'user_mestplan', filter: `user_id=eq.${user.id}` },
           (payload) => {
+            const aEl = document.getElementById('prev_res_n_dierlijk');
+            const bEl = document.getElementById('prev_res_n_totaal');
+            const cEl = document.getElementById('prev_res_p_totaal');
             const nA = Number(payload.new?.res_n_dierlijk ?? 0);
             const nB = Number(payload.new?.res_n_totaal   ?? 0);
             const nC = Number(payload.new?.res_p_totaal   ?? 0);
 
-            StateManager.setGebruiksruimte(nA, nB, nC);
-            aEl.value = nA;
-            bEl.value = nB;
-            cEl.value = nC;
-            UIController.updateSliders();
+            // Alleen updaten als waarden echt verschillen (beperkt jitter)
+            if (aEl && bEl && cEl &&
+                (Number(aEl.value)||0) !== nA || (Number(bEl.value)||0) !== nB || (Number(cEl.value)||0) !== nC) {
+              aEl.value = nA; bEl.value = nB; cEl.value = nC;
+              StateManager.setGebruiksruimte(nA, nB, nC);
+              UIController.updateSliders();
+            }
           }
         )
         .subscribe();
 
-      // Opruimen bij navigatie
-      window.addEventListener('beforeunload', () => {
-        supabase.removeChannel(channel);
-      });
+      window.addEventListener('beforeunload', () => supabase.removeChannel(channel));
     }
 
+    console.log('✅ Mestplan init voltooid');
   } catch (err) {
     console.error('❌ Fout bij initialisatie:', err);
     alert('⚠️ Er ging iets mis bij initialisatie.');
   }
 }
 
-// Start de app wanneer de pagina geladen is
-window.onload = initializeApp;
+/* ===========================
+   Start init (betrouwbaar)
+   - Als DOM al klaar is, direct starten
+   - Anders wachten op DOMContentLoaded
+=========================== */
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initializeApp, { once: true });
+} else {
+  // DOM is al klaar (kan gebeuren door script-volgorde)
+  initializeApp();
+}
