@@ -1,3 +1,4 @@
+// core/ui/uiController.js
 /**
  * uiController.js
  * Alle DOM interactie en UI rendering (inclusief mestsliders correct updaten)
