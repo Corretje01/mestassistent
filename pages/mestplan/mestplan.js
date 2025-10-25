@@ -1,10 +1,9 @@
 // pages/mestplan/mestplan.js
-// Snelle "instant fill" (localStorage) + DB overwrite bij auth,
-// integer ABC, lazy GLPK, stabiele mestsoorten & UI-binding.
+// ABC integer-only + robuuste bronkeuze (URL → LS → DB) + late auth retry + realtime sync
 
 import { supabase } from '../../supabaseClient.js';
 
-// ===== Module imports (lowercase paden) + shims voor default/named exports =====
+// === Module imports (lowercase paden) + shims voor default/named exports ===
 import * as SM from '../../core/domain/statemanager.js';
 import * as UI from '../../core/ui/uicontroller.js';
 import * as LE from '../../core/domain/logicengine.js';
@@ -16,23 +15,52 @@ const LogicEngine      = LE.LogicEngine      || LE.default || LE;
 const ValidationEngine = VE.ValidationEngine || VE.default || VE;
 
 /* ===========================
-   Helpers: auth + URL + storage
+   Kleine helpers
 =========================== */
-async function getSessionUser() {
-  const { data: { session }, error } = await supabase.auth.getSession();
-  if (error) console.warn('getSession error:', error);
-  return session?.user || null;
+const roundInt = (v) => Number.isFinite(v) ? Math.round(v) : 0;
+const toPosInt = (v) => Math.max(0, roundInt(Number(v)));
+
+function setABCInputs({ A, B, C }) {
+  const aEl = document.getElementById('prev_res_n_dierlijk');
+  const bEl = document.getElementById('prev_res_n_totaal');
+  const cEl = document.getElementById('prev_res_p_totaal');
+  if (!aEl || !bEl || !cEl) return false;
+  aEl.value = toPosInt(A);
+  bEl.value = toPosInt(B);
+  cEl.value = toPosInt(C);
+  return true;
 }
 
-// Wacht even op auth; geef snel terug als het langer duurt (we tonen dan LS-waarden)
-async function waitForAuth({ timeoutMs = 1200 } = {}) {
-  const start = Date.now();
-  while (Date.now() - start < timeoutMs) {
-    const u = await getSessionUser();
-    if (u) return u;
-    await new Promise(r => setTimeout(r, 120));
-  }
-  return null; // geen user (nog) => werk met LS; DB volgt als user later binnenkomt
+function getABCFromInputs() {
+  return {
+    A: toPosInt(document.getElementById('prev_res_n_dierlijk')?.value),
+    B: toPosInt(document.getElementById('prev_res_n_totaal')?.value),
+    C: toPosInt(document.getElementById('prev_res_p_totaal')?.value),
+  };
+}
+
+function saveABCToLocalStorage({ A, B, C }) {
+  try {
+    localStorage.setItem('mestplan_last_results', JSON.stringify({
+      res_n_dierlijk: toPosInt(A),
+      res_n_totaal:   toPosInt(B),
+      res_p_totaal:   toPosInt(C),
+      ts: Date.now()
+    }));
+  } catch {}
+}
+
+function loadABCFromLocalStorage() {
+  try {
+    const raw = localStorage.getItem('mestplan_last_results');
+    if (!raw) return null;
+    const j = JSON.parse(raw);
+    return {
+      A: toPosInt(j?.res_n_dierlijk),
+      B: toPosInt(j?.res_n_totaal),
+      C: toPosInt(j?.res_p_totaal),
+    };
+  } catch { return null; }
 }
 
 function getABCFromQuery() {
@@ -40,64 +68,20 @@ function getABCFromQuery() {
   const A = Number(p.get('totaalA'));
   const B = Number(p.get('totaalB'));
   const C = Number(p.get('totaalC'));
-  return {
-    A: Number.isFinite(A) ? A : null,
-    B: Number.isFinite(B) ? B : null,
-    C: Number.isFinite(C) ? C : null
+  const out = {
+    A: Number.isFinite(A) ? roundInt(A) : null,
+    B: Number.isFinite(B) ? roundInt(B) : null,
+    C: Number.isFinite(C) ? roundInt(C) : null
   };
+  // Alleen geldig als tenminste één aanwezig is
+  if (out.A === null && out.B === null && out.C === null) return null;
+  return { A: out.A ?? 0, B: out.B ?? 0, C: out.C ?? 0 };
 }
 
-function loadABCFromLocalStorage() {
-  try {
-    const raw = localStorage.getItem('mestplan_last_results');
-    if (!raw) return null;
-    const obj = JSON.parse(raw);
-    const A = Math.round(Number(obj?.res_n_dierlijk || 0));
-    const B = Math.round(Number(obj?.res_n_totaal   || 0));
-    const C = Math.round(Number(obj?.res_p_totaal   || 0));
-    if (!Number.isFinite(A) && !Number.isFinite(B) && !Number.isFinite(C)) return null;
-    return { A: A || 0, B: B || 0, C: C || 0 };
-  } catch { return null; }
-}
-
-function saveABCToLocalStorage({ A, B, C }) {
-  try {
-    localStorage.setItem('mestplan_last_results', JSON.stringify({
-      res_n_dierlijk: Math.round(A || 0),
-      res_n_totaal:   Math.round(B || 0),
-      res_p_totaal:   Math.round(C || 0),
-      ts: Date.now()
-    }));
-  } catch {}
-}
-
-/* ===========================
-   DB I/O
-=========================== */
-let saveTimeout;
-async function debouncedSaveABC() {
-  clearTimeout(saveTimeout);
-  saveTimeout = setTimeout(async () => {
-    const user = await getSessionUser();
-    const a = Math.round(Number(document.getElementById('prev_res_n_dierlijk')?.value) || 0);
-    const b = Math.round(Number(document.getElementById('prev_res_n_totaal')?.value)  || 0);
-    const c = Math.round(Number(document.getElementById('prev_res_p_totaal')?.value)  || 0);
-
-    // altijd ook lokaal, voor instant fills
-    saveABCToLocalStorage({ A: a, B: b, C: c });
-
-    if (!user) return; // geen user -> alleen lokaal
-    const { error } = await supabase
-      .from('user_mestplan')
-      .upsert({
-        user_id:        user.id,
-        res_n_dierlijk: a,
-        res_n_totaal:   b,
-        res_p_totaal:   c,
-        updated_at:     new Date().toISOString()
-      }, { onConflict: 'user_id' });
-    if (error) console.error('Save error:', error);
-  }, 250);
+async function getSessionUser() {
+  const { data: { session }, error } = await supabase.auth.getSession();
+  if (error) console.warn('getSession error:', error);
+  return session?.user || null;
 }
 
 async function loadABCFromDB() {
@@ -117,39 +101,57 @@ async function loadABCFromDB() {
   if (!data) return null;
 
   return {
-    A: Math.round(Number(data.res_n_dierlijk ?? 0)),
-    B: Math.round(Number(data.res_n_totaal   ?? 0)),
-    C: Math.round(Number(data.res_p_totaal   ?? 0)),
+    A: toPosInt(data.res_n_dierlijk),
+    B: toPosInt(data.res_n_totaal),
+    C: toPosInt(data.res_p_totaal),
   };
 }
 
+let saveTimeout;
+async function debouncedSaveABC() {
+  clearTimeout(saveTimeout);
+  saveTimeout = setTimeout(async () => {
+    const user = await getSessionUser();
+    const { A, B, C } = getABCFromInputs();
+    saveABCToLocalStorage({ A, B, C });
+    if (!user) return;
+
+    const { error } = await supabase
+      .from('user_mestplan')
+      .upsert({
+        user_id:        user.id,
+        res_n_dierlijk: A,
+        res_n_totaal:   B,
+        res_p_totaal:   C,
+        updated_at:     new Date().toISOString()
+      }, { onConflict: 'user_id' });
+    if (error) console.error('Save error:', error);
+  }, 300);
+}
+
 /* ===========================
-   GLPK pas bij optimaliseren
+   GLPK: check vlak vóór optimaliseren
 =========================== */
 async function ensureGLPK() {
-  const maxAttempts = 100;
+  if (typeof window.glp_create_prob !== 'undefined') return true;
   let attempts = 0;
   return new Promise((resolve, reject) => {
     const tick = () => {
-      if (typeof window.glp_create_prob !== 'undefined') {
-        resolve(window);
-      } else if (attempts++ >= maxAttempts) {
-        reject(new Error('GLPK niet beschikbaar'));
-      } else {
-        setTimeout(tick, 100);
-      }
+      if (typeof window.glp_create_prob !== 'undefined') resolve(true);
+      else if (attempts++ >= 50) reject(new Error('GLPK niet beschikbaar'));
+      else setTimeout(tick, 80);
     };
     tick();
   });
 }
 
 /* ===========================
-   mestsoorten.json met failover
+   mestsoorten.json (met fallback pad)
 =========================== */
 async function loadMestsoorten() {
   const tryPaths = [
-    './core/domain/data/mestsoorten.json', // nieuw pad (relatief vanaf mestplan.html)
-    '/data/mestsoorten.json'               // oud pad (absolute fallback)
+    './core/domain/data/mestsoorten.json',
+    '/data/mestsoorten.json'
   ];
   for (const p of tryPaths) {
     try {
@@ -161,34 +163,27 @@ async function loadMestsoorten() {
 }
 
 /* ===========================
-   UI
+   UI: binds
 =========================== */
 function bindABCInputsAndState({ A, B, C }) {
+  // Zet inputs & state
+  setABCInputs({ A, B, C });
+  StateManager.setGebruiksruimte(toPosInt(A), toPosInt(B), toPosInt(C));
+
+  // Zorg dat inputs integer-only blijven
   const aEl = document.getElementById('prev_res_n_dierlijk');
   const bEl = document.getElementById('prev_res_n_totaal');
   const cEl = document.getElementById('prev_res_p_totaal');
-  if (!aEl || !bEl || !cEl) {
-    console.warn('Stap-2 inputs ontbreken in de DOM.');
-    return;
-  }
-
-  // altijd hele getallen tonen
-  aEl.value = Math.round(A || 0);
-  bEl.value = Math.round(B || 0);
-  cEl.value = Math.round(C || 0);
-
-  StateManager.setGebruiksruimte(
-    Math.round(A || 0),
-    Math.round(B || 0),
-    Math.round(C || 0)
-  );
 
   const onChange = () => {
-    // forceer integers in de velden zelf
-    const a = Math.round(Number(aEl.value) || 0);
-    const b = Math.round(Number(bEl.value) || 0);
-    const c = Math.round(Number(cEl.value) || 0);
-    aEl.value = a; bEl.value = b; cEl.value = c;
+    // Forceer hele getallen in het veld zelf
+    aEl.value = toPosInt(aEl.value);
+    bEl.value = toPosInt(bEl.value);
+    cEl.value = toPosInt(cEl.value);
+
+    const a = toPosInt(aEl.value);
+    const b = toPosInt(bEl.value);
+    const c = toPosInt(cEl.value);
 
     // Reset actieve mestselecties zodat constraints niet blijven hangen
     document.querySelectorAll('.mest-btn.active').forEach(btn => {
@@ -199,13 +194,16 @@ function bindABCInputsAndState({ A, B, C }) {
     UIController.hideSlidersContainer();
 
     StateManager.setGebruiksruimte(a, b, c);
+    saveABCToLocalStorage({ A: a, B: b, C: c });
     UIController.updateSliders();
 
-    debouncedSaveABC(); // sla lokaal + (indien user) DB op
+    debouncedSaveABC();
   };
 
-  // input + blur (blur garandeert afronden bij copy/paste)
   [aEl, bEl, cEl].forEach(el => {
+    el.setAttribute('inputmode', 'numeric');
+    el.step = '1';
+    el.min = '0';
     el.addEventListener('input', onChange);
     el.addEventListener('blur', onChange);
   });
@@ -216,7 +214,6 @@ function bindMestButtons(mestsoortenData) {
 
   document.querySelectorAll('.mest-btn').forEach(btn => {
     if (btn.dataset.bound) return;
-
     btn.addEventListener('click', () => {
       btn.classList.toggle('active');
       const type = btn.dataset.type;
@@ -243,7 +240,6 @@ function bindMestButtons(mestsoortenData) {
       }
       UIController.updateSliders();
     });
-
     btn.dataset.bound = '1';
   });
 }
@@ -251,79 +247,67 @@ function bindMestButtons(mestsoortenData) {
 function bindOptimizeButton() {
   const btn = document.getElementById('optimaliseer-btn');
   if (!btn || btn.dataset.bound) return;
-
   btn.addEventListener('click', async () => {
     try {
       await ensureGLPK();
-      await LogicEngine.optimize();
+      // In jouw huidige logicengine zit de optimalisatie verspreid; roep hier de publieke API aan
+      if (typeof LogicEngine.optimize === 'function') {
+        await LogicEngine.optimize();
+      } else {
+        // fallback: sliders gewoon updaten (geen hard error)
+        console.warn('LogicEngine.optimize() ontbreekt; alleen sliders herberekend.');
+      }
       UIController.updateSliders();
     } catch (e) {
       console.error('Optimalisatie mislukt:', e);
       alert('Optimalisatie lukt niet (GLPK niet beschikbaar?).');
     }
   });
-
   btn.dataset.bound = '1';
 }
 
 /* ===========================
-   Init
+   Init (bronkeuze + UI setup)
 =========================== */
 async function initializeApp() {
   try {
-    // 0) Instant UI: vul meteen vanuit localStorage om "0-flits" te vermijden
-    const lsEarly = loadABCFromLocalStorage();
-    if (lsEarly) {
-      bindABCInputsAndState(lsEarly);
-      try {
-        UIController.initStandardSliders();
-        UIController.updateSliders();
-      } catch {}
-    }
+    // 0) Standaard sliders (UIController is al integer-ready aan jouw kant)
+    UIController.initStandardSliders();
+    UIController.updateSliders();
 
-    // 1) URL → (bij user) DB-upsert → bron voor UI
-    const q = getABCFromQuery();
-    let ABCFrom = null;
+    // 1) ABC-bron kiezen in volgorde: URL → LocalStorage → DB → 0
+    let source = 'default';
+    let ABC = { A: 0, B: 0, C: 0 };
 
-    if (q.A !== null || q.B !== null || q.C !== null) {
-      // URL-waarden winnen de eerste keer; schrijf (indien user) direct weg naar DB
-      const A = Math.round(q.A ?? 0), B = Math.round(q.B ?? 0), C = Math.round(q.C ?? 0);
-      const userNow = await waitForAuth({ timeoutMs: 1200 });
-      saveABCToLocalStorage({ A, B, C });
-      if (userNow) {
+    const fromURL = getABCFromQuery();
+    const fromLS  = loadABCFromLocalStorage();
+
+    if (fromURL) {
+      ABC = fromURL; source = 'url';
+      // Schrijf meteen weg (LS + DB) zodat mestplan.html direct de bron vastlegt
+      saveABCToLocalStorage(ABC);
+      const user = await getSessionUser();
+      if (user) {
         await supabase.from('user_mestplan').upsert({
-          user_id: userNow.id,
-          res_n_dierlijk: A,
-          res_n_totaal:   B,
-          res_p_totaal:   C,
+          user_id:        user.id,
+          res_n_dierlijk: toPosInt(ABC.A),
+          res_n_totaal:   toPosInt(ABC.B),
+          res_p_totaal:   toPosInt(ABC.C),
           updated_at:     new Date().toISOString()
         }, { onConflict: 'user_id' });
       }
-      ABCFrom = { A, B, C };
+    } else if (fromLS && (fromLS.A || fromLS.B || fromLS.C)) {
+      ABC = fromLS; source = 'localstorage';
     } else {
-      // Geen URL; probeer eerst of de user bekend is en lees dan DB
-      const user = await waitForAuth({ timeoutMs: 1200 });
-      if (user) {
-        const dbVal = await loadABCFromDB();
-        if (dbVal) {
-          saveABCToLocalStorage(dbVal); // sync LS met DB
-          ABCFrom = dbVal;
-        }
-      }
-      // fallback: als we nog niets hebben (en LSEarly was leeg), zet 0,0,0
-      if (!ABCFrom && !lsEarly) ABCFrom = { A: 0, B: 0, C: 0 };
+      const fromDB = await loadABCFromDB(); // keert null terug als geen sessie/rij
+      if (fromDB) { ABC = fromDB; source = 'database'; }
     }
 
-    // 2) Inputs/state definitief binden wanneer nodig (overschrijft early LS)
-    if (ABCFrom) {
-      bindABCInputsAndState(ABCFrom);
-      if (!lsEarly) {
-        UIController.initStandardSliders();
-        UIController.updateSliders();
-      }
-    }
+    bindABCInputsAndState(ABC);
+    UIController.updateSliders();
+    console.log(`✅ Mestplan init voltooid (bron: ${source})`);
 
-    // 3) mestsoorten.json (met fallback pad)
+    // 2) mestsoorten.json (met fallback pad) + knoppen
     let mestsoortenData = {};
     try {
       mestsoortenData = await loadMestsoorten();
@@ -331,12 +315,10 @@ async function initializeApp() {
     } catch (e) {
       console.warn('mestsoorten.json niet gevonden; knoppen geven melding bij gebruik.', e);
     }
-
-    // 4) Knoppen + Optimize
     bindMestButtons(mestsoortenData);
     bindOptimizeButton();
 
-    // 5) Realtime sync van A/B/C (DB → UI)
+    // 3) Realtime sync van A/B/C (als ingelogd)
     const user = await getSessionUser();
     if (user) {
       const channel = supabase
@@ -345,20 +327,17 @@ async function initializeApp() {
           'postgres_changes',
           { event: '*', schema: 'public', table: 'user_mestplan', filter: `user_id=eq.${user.id}` },
           (payload) => {
-            const aEl = document.getElementById('prev_res_n_dierlijk');
-            const bEl = document.getElementById('prev_res_n_totaal');
-            const cEl = document.getElementById('prev_res_p_totaal');
-            if (!aEl || !bEl || !cEl) return;
+            const nA = toPosInt(payload.new?.res_n_dierlijk);
+            const nB = toPosInt(payload.new?.res_n_totaal);
+            const nC = toPosInt(payload.new?.res_p_totaal);
 
-            const nA = Math.round(Number(payload.new?.res_n_dierlijk ?? 0));
-            const nB = Math.round(Number(payload.new?.res_n_totaal   ?? 0));
-            const nC = Math.round(Number(payload.new?.res_p_totaal   ?? 0));
-
-            if ((+aEl.value||0)!==nA || (+bEl.value||0)!==nB || (+cEl.value||0)!==nC) {
-              aEl.value = nA; bEl.value = nB; cEl.value = nC;
+            const cur = getABCFromInputs();
+            if (cur.A !== nA || cur.B !== nB || cur.C !== nC) {
+              setABCInputs({ A: nA, B: nB, C: nC });
               StateManager.setGebruiksruimte(nA, nB, nC);
               saveABCToLocalStorage({ A: nA, B: nB, C: nC });
               UIController.updateSliders();
+              console.log('🔄 ABC realtime sync (DB → UI).');
             }
           }
         )
@@ -367,36 +346,47 @@ async function initializeApp() {
       window.addEventListener('beforeunload', () => supabase.removeChannel(channel));
     }
 
-    // 6) Multi-tab sync via storage events
-    window.addEventListener('storage', (e) => {
-      if (e.key !== 'mestplan_last_results' || !e.newValue) return;
+    // 4) Auth state change → alsnog DB lezen (lichtgewicht, geen blocking)
+    supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (!session?.user) return;
       try {
-        const obj = JSON.parse(e.newValue);
-        const A = Math.round(Number(obj?.res_n_dierlijk || 0));
-        const B = Math.round(Number(obj?.res_n_totaal   || 0));
-        const C = Math.round(Number(obj?.res_p_totaal   || 0));
-        const aEl = document.getElementById('prev_res_n_dierlijk');
-        const bEl = document.getElementById('prev_res_n_totaal');
-        const cEl = document.getElementById('prev_res_p_totaal');
-        if (!aEl || !bEl || !cEl) return;
-        if ((+aEl.value||0)===A && (+bEl.value||0)===B && (+cEl.value||0)===C) return;
-
-        aEl.value = A; bEl.value = B; cEl.value = C;
-        StateManager.setGebruiksruimte(A, B, C);
-        UIController.updateSliders();
-      } catch {}
+        const dbVal = await loadABCFromDB();
+        if (!dbVal) return;
+        const cur = getABCFromInputs();
+        // Alleen bijwerken als het echt wat toevoegt
+        if (cur.A !== dbVal.A || cur.B !== dbVal.B || cur.C !== dbVal.C) {
+          setABCInputs(dbVal);
+          StateManager.setGebruiksruimte(dbVal.A, dbVal.B, dbVal.C);
+          saveABCToLocalStorage(dbVal);
+          UIController.updateSliders();
+          console.log('🔄 ABC bijgewerkt na late auth (DB → UI).');
+        }
+      } catch (e) {
+        console.warn('auth state change → loadABCFromDB fout:', e);
+      }
     });
 
-    console.log('✅ Mestplan init voltooid (instant-fill + DB overwrite + integers)');
+    // 5) Late retry (2s) alleen als alles nog 0 is (vangt trage sessie op; UI blijft direct bruikbaar)
+    setTimeout(async () => {
+      const cur = getABCFromInputs();
+      if (cur.A === 0 && cur.B === 0 && cur.C === 0) {
+        const dbVal = await loadABCFromDB();
+        if (dbVal && (dbVal.A || dbVal.B || dbVal.C)) {
+          setABCInputs(dbVal);
+          StateManager.setGebruiksruimte(dbVal.A, dbVal.B, dbVal.C);
+          saveABCToLocalStorage(dbVal);
+          UIController.updateSliders();
+          console.log('⏱️ Late DB-retry gevuld.');
+        }
+      }
+    }, 2000);
+
   } catch (err) {
     console.error('❌ Fout bij initialisatie:', err);
-    alert('⚠️ Er ging iets mis bij initialisatie. Check console voor details.');
+    alert('⚠️ Er ging iets mis bij initialisatie. Open de console (imports/paden).');
   }
 }
 
-/* ===========================
-   Start init
-=========================== */
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', initializeApp, { once: true });
 } else {
