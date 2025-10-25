@@ -1,6 +1,5 @@
-// pages/account/account.js — robuuste login/registratie/profiel + mobiele fixes
+// pages/account/account.js — robuuste login/registratie/profiel + nette UI states
 
-// LET OP: dit pad is relatief vanaf DIT bestand (pages/account/…)
 import { supabase } from '../../supabaseClient.js';
 
 /* ========== helpers ========== */
@@ -24,11 +23,15 @@ function parseQuery() {
 }
 
 async function getSessionSafe() {
+  try { return (await supabase.auth.getSession()).data.session; }
+  catch { return null; }
+}
+
+function focusFirstInput(formEl) {
   try {
-    return (await supabase.auth.getSession()).data.session;
-  } catch {
-    return null;
-  }
+    const first = formEl?.querySelector('input,select,textarea,button');
+    first?.focus();
+  } catch {}
 }
 
 /* ========== secties/elementen ========== */
@@ -51,6 +54,7 @@ async function syncUIBySession() {
     hide(registerForm);
     hide(profileSect);
     profileSect?.setAttribute('hidden', '');
+    focusFirstInput(loginForm);
   }
 }
 
@@ -67,17 +71,14 @@ async function fillProfileFromUser() {
     const el = $(`profile_${key}`);
     if (el) el.value = md[key] ?? '';
   });
-  const emailEl = $('profile_email'); // optioneel veld
-  if (emailEl) emailEl.value = user.email || '';
 }
 
-/* Na succesvolle login: directe harde redirect (voorkom terug naar auth) */
+/* Na succesvolle login: redirect naar stap 1 */
 function gotoAfterLogin() {
-  // Gebruik jouw actuele slug:
   location.replace('/plaatsingsruimte.html');
 }
 
-/* Na account delete: zeker weten uitgelogd + terug naar account.html */
+/* Na account delete: zeker weten uitgelogd + terug naar account */
 async function robustSignOutAndBackToAccount() {
   try { await supabase.auth.signOut(); } catch {}
   try {
@@ -99,28 +100,33 @@ document.addEventListener('DOMContentLoaded', async () => {
     registerForm = $('registerForm');
     profileForm  = $('profileForm');
 
-    // Progressive enhancement: startsituatie voor mobiel/slow JS
+    // Progressive enhancement
     authSect?.removeAttribute('hidden');
     profileSect?.setAttribute('hidden', '');
 
-    // toggles login <-> register
+    // switch login <-> register
     $('show-register')?.addEventListener('click', (e) => {
       e.preventDefault();
       hide(loginForm);
       show(registerForm);
+      focusFirstInput(registerForm);
+      setMsg(messageEl, '');
     });
     $('show-login')?.addEventListener('click', (e) => {
       e.preventDefault();
       show(loginForm);
       hide(registerForm);
+      focusFirstInput(loginForm);
+      setMsg(messageEl, '');
     });
 
-    // Query feedback (bv. ?signin=1 / ?logout=1 / ?register=1)
+    // Query feedback
     const q = parseQuery();
     if (q.logout)  setMsg(messageEl, 'Je bent uitgelogd.', 'success');
     if (q.register) {
       hide(loginForm);
       show(registerForm);
+      focusFirstInput(registerForm);
       setMsg(messageEl, 'Maak je account aan om te starten.', 'info');
     }
 
@@ -145,11 +151,10 @@ document.addEventListener('DOMContentLoaded', async () => {
           return;
         }
 
-        // ✅ Meteen navigeren; guard op /plaatsingsruimte(.html)
+        // Direct navigeren + watchdog
         const go = (href) => { location.replace(href); };
         go('/plaatsingsruimte.html');
 
-        // ✅ Watchdog (max ~2s): fallback als navigatie/ sessie nog niet klaar is
         let tries = 0;
         const t = setInterval(async () => {
           tries++;
@@ -173,8 +178,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         const formData = Object.fromEntries(fd);
 
         const { error } = await supabase.auth.signUp({
-          email: formData.email,       // uit #email_reg (name="email")
-          password: formData.password, // uit #password_reg (name="password")
+          email: formData.email,
+          password: formData.password,
           options: {
             data: {
               voornaam: formData.voornaam || '',
@@ -199,6 +204,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         setMsg(messageEl, 'Registratie gelukt! Bevestig je e-mail om in te loggen.', 'success');
         show(loginForm);
         hide(registerForm);
+        focusFirstInput(loginForm);
         if (btn) btn.disabled = false;
       });
     }
@@ -210,6 +216,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         setMsg(profileMsg, '');
         const btn = profileForm.querySelector('button[type="submit"]');
         if (btn) btn.disabled = true;
+
+        // check sessie (anders updateUser geeft niets)
+        const session = await getSessionSafe();
+        if (!session) {
+          setMsg(profileMsg, 'Niet ingelogd. Log opnieuw in.', 'error');
+          if (btn) btn.disabled = false;
+          return;
+        }
 
         const updates = {
           voornaam: $('profile_voornaam')?.value ?? '',
@@ -238,6 +252,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (!confirm('Weet je zeker dat je je account permanent wilt verwijderen?')) return;
 
       try {
+        // Serverless function die je user verwijdert (vereist service role)
         const { error } = await supabase.functions.invoke('delete-user');
         if (error) throw error;
         await robustSignOutAndBackToAccount();
@@ -248,10 +263,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     /* ===== Auth-state volgen voor UI-consistentie ===== */
     supabase.auth.onAuthStateChange(async (evt) => {
-      if (evt === 'SIGNED_IN') {
-        gotoAfterLogin();
-        return;
-      }
+      if (evt === 'SIGNED_IN') { gotoAfterLogin(); return; }
       await syncUIBySession();
     });
 
