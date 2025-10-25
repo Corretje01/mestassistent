@@ -1,29 +1,47 @@
 <!DOCTYPE html>
 <html lang="nl">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Mijn account – MestAssistent</title>
 
   <!-- Basis styles -->
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css"/>
 
-  <!-- Pagina-specifieke CSS -->
-  <link rel="stylesheet" href="./pages/account/view.css">
-
-  <!-- Navbar normalisatie (beschermt tegen lek uit view.css) -->
+  <!-- Pagina-specifieke, gescope-de CSS (alleen voor .page-account) -->
   <style>
-    /* scope alleen op de navbar */
-    .navbar .nav-links { display: flex; gap: .75rem; padding: 0; margin: 0; list-style: none; }
-    .navbar .nav-links li { margin: 0; padding: 0; }
-    .navbar .nav-links a.nav__item { display: inline-flex; align-items: center; text-decoration: none; }
-    .navbar .btn-login { margin: 0; }
+    .page-account .container { max-width: 880px; }
+    .page-account .auth-form,
+    .page-account #profileForm {
+      background:#fff; padding:1.25rem 1.25rem 1rem;
+      border-radius:12px; box-shadow:0 8px 28px rgba(0,0,0,.05);
+      margin-bottom:1.25rem;
+    }
+    .page-account .auth-form h2 { margin-bottom:.75rem; }
+    .page-account .field-group { margin-bottom:.9rem; }
+    .page-account .field-group input {
+      height:44px; /* betere tappability */
+    }
+    .page-account .message { margin:.75rem 0; }
+    .page-account .btn-row {
+      display:flex; gap:.6rem; flex-wrap:wrap; margin-top:.5rem;
+    }
+    .page-account .btn-row .btn-primary,
+    .page-account .btn-row .btn-danger {
+      min-height:44px;
+    }
+    /* Links onder formulieren iets lucht */
+    .page-account .mt-2 { margin-top:.5rem; }
+    /* Navbar-scope correctie voor eventuele leakage */
+    .navbar .nav-links { display:flex; gap:.75rem; padding:0; margin:0; list-style:none; }
+    .navbar .nav-links li { margin:0; padding:0; }
+    .navbar .nav-links a.nav__item { display:inline-flex; align-items:center; text-decoration:none; }
+    .navbar .btn-login { margin:0; }
   </style>
 </head>
 <body class="page-account">
   <header class="site-header">
     <nav class="navbar">
-      <!-- Home -->
       <a href="index.html" class="nav-logo">KoeHandelaar</a>
 
       <!-- Hamburger toggle (mobiel) -->
@@ -31,36 +49,19 @@
         <span class="bars" aria-hidden="true"></span>
       </button>
 
-      <!-- Menu -->
+      <!-- Menu (overlay op mobiel, inline op desktop) -->
       <div id="site-menu" class="site-menu" hidden>
         <button id="nav-close" class="nav-close" aria-label="Menu sluiten">
           <span aria-hidden="true">&times;</span>
         </button>
 
         <ul class="nav-links">
-          <!-- Alleen na inloggen zichtbaar -->
-          <li class="auth-only">
-            <a href="plaatsingsruimte.html" class="nav__item" id="nav-bereken">Plaatsingsruimte berekenen</a>
-          </li>
-          <li class="auth-only">
-            <a href="mestplan.html" class="nav__item" id="nav-mestplan">Mestplan samenstellen</a>
-          </li>
-          <li class="auth-only">
-            <a href="upload.html" class="nav__item" id="nav-upload">Mest uploaden</a>
-          </li>
-          <li class="auth-only">
-            <a href="account.html" class="nav__item" id="nav-account">Mijn account</a>
-          </li>
-
-          <!-- Alleen admin -->
-          <li class="auth-only admin-only">
-            <a href="beheer.html" class="nav__item" id="nav-beheer">Beheer</a>
-          </li>
-
-          <!-- Inloggen/Uitloggen -->
-          <li class="nav-auth-item">
-            <button class="btn-login" id="nav-auth">Inloggen</button>
-          </li>
+          <li class="auth-only"><a href="plaatsingsruimte.html" class="nav__item" id="nav-bereken">Plaatsingsruimte berekenen</a></li>
+          <li class="auth-only"><a href="mestplan.html" class="nav__item" id="nav-mestplan">Mestplan samenstellen</a></li>
+          <li class="auth-only"><a href="upload.html" class="nav__item" id="nav-upload">Mest uploaden</a></li>
+          <li class="auth-only"><a href="account.html" class="nav__item" id="nav-account">Mijn account</a></li>
+          <li class="auth-only admin-only"><a href="beheer.html" class="nav__item" id="nav-beheer">Beheer</a></li>
+          <li class="nav-auth-item"><button class="btn-login" id="nav-auth">Inloggen</button></li>
         </ul>
       </div>
     </nav>
@@ -76,100 +77,70 @@
     <div id="auth-message" class="message"></div>
 
     <!-- Login & registratie -->
-    <section id="auth-section" style="margin-top:2rem;">
+    <section id="auth-section" style="margin-top:1.25rem;">
 
       <!-- Login -->
-      <form id="loginForm" class="auth-form">
+      <form id="loginForm" class="auth-form" autocomplete="on">
         <h2>Inloggen</h2>
         <div class="field-group">
           <label for="email">E-mail</label>
-          <input type="email" id="email" name="email" required>
+          <input type="email" id="email" name="email" required autocomplete="email" inputmode="email"/>
         </div>
         <div class="field-group">
           <label for="password">Wachtwoord</label>
-          <input type="password" id="password" name="password" required>
+          <input type="password" id="password" name="password" required autocomplete="current-password"/>
         </div>
-        <button type="submit" class="btn-primary">Inloggen</button>
-        <p class="mt-2">Nog geen account?
-          <a href="#" id="show-register">Registreer hier</a>
-        </p>
+        <div class="btn-row">
+          <button type="submit" class="btn-primary">Inloggen</button>
+        </div>
+        <p class="mt-2">Nog geen account? <a href="#" id="show-register">Registreer hier</a></p>
       </form>
 
       <!-- Registreren -->
-      <form id="registerForm" class="auth-form" style="display:none;">
+      <form id="registerForm" class="auth-form" style="display:none;" autocomplete="on">
         <h2>Registreren</h2>
-        <div class="field-group">
-          <label for="voornaam">Voornaam</label>
-          <input type="text" id="voornaam" name="voornaam" required>
+        <div class="field-group"><label for="voornaam">Voornaam</label><input type="text" id="voornaam" name="voornaam" required/></div>
+        <div class="field-group"><label for="tussenvoegsel">Tussenvoegsel (optioneel)</label><input type="text" id="tussenvoegsel" name="tussenvoegsel"/></div>
+        <div class="field-group"><label for="achternaam">Achternaam</label><input type="text" id="achternaam" name="achternaam" required/></div>
+        <div class="field-group"><label for="email_reg">E-mail</label><input type="email" id="email_reg" name="email" required autocomplete="email"/></div>
+        <div class="field-group"><label for="telefoon">Telefoon</label><input type="text" id="telefoon" name="telefoon" placeholder="+31 6 12345678" required/></div>
+        <div class="field-group"><label for="woonplaats">Woonplaats</label><input type="text" id="woonplaats" name="woonplaats" required/></div>
+        <div class="field-group"><label for="postcode">Postcode</label><input type="text" id="postcode" name="postcode" placeholder="1234 AB" required/></div>
+        <div class="field-group"><label for="straat">Straat</label><input type="text" id="straat" name="straat" required/></div>
+        <div class="field-group"><label for="huisnummer">Huisnummer</label><input type="number" id="huisnummer" name="huisnummer" required/></div>
+        <div class="field-group"><label for="huisnummer_toevoeging">Toevoeging (optioneel)</label><input type="text" id="huisnummer_toevoeging" name="huisnummer_toevoeging"/></div>
+        <div class="field-group"><label for="password_reg">Wachtwoord</label><input type="password" id="password_reg" name="password" required autocomplete="new-password"/></div>
+        <div class="btn-row">
+          <button type="submit" class="btn-primary">Account aanmaken</button>
         </div>
-        <div class="field-group">
-          <label for="tussenvoegsel">Tussenvoegsel (optioneel)</label>
-          <input type="text" id="tussenvoegsel" name="tussenvoegsel">
-        </div>
-        <div class="field-group">
-          <label for="achternaam">Achternaam</label>
-          <input type="text" id="achternaam" name="achternaam" required>
-        </div>
-        <div class="field-group">
-          <label for="email_reg">E-mail</label>
-          <input type="email" id="email_reg" name="email" required>
-        </div>
-        <div class="field-group">
-          <label for="telefoon">Telefoon</label>
-          <input type="text" id="telefoon" name="telefoon" placeholder="+31 6 12345678" required>
-        </div>
-        <div class="field-group">
-          <label for="woonplaats">Woonplaats</label>
-          <input type="text" id="woonplaats" name="woonplaats" required>
-        </div>
-        <div class="field-group">
-          <label for="postcode">Postcode</label>
-          <input type="text" id="postcode" name="postcode" placeholder="1234 AB" required>
-        </div>
-        <div class="field-group">
-          <label for="straat">Straat</label>
-          <input type="text" id="straat" name="straat" required>
-        </div>
-        <div class="field-group">
-          <label for="huisnummer">Huisnummer</label>
-          <input type="number" id="huisnummer" name="huisnummer" required>
-        </div>
-        <div class="field-group">
-          <label for="huisnummer_toevoeging">Toevoeging (optioneel)</label>
-          <input type="text" id="huisnummer_toevoeging" name="huisnummer_toevoeging">
-        </div>
-        <div class="field-group">
-          <label for="password_reg">Wachtwoord</label>
-          <input type="password" id="password_reg" name="password" required>
-        </div>
-        <button type="submit" class="btn-primary">Account aanmaken</button>
-        <p class="mt-2">Heb je al een account?
-          <a href="#" id="show-login">Log hier in</a>
-        </p>
+        <p class="mt-2">Heb je al een account? <a href="#" id="show-login">Log hier in</a></p>
       </form>
     </section>
 
     <!-- Profiel -->
     <section id="profile-section" hidden>
       <h2>Mijn profiel</h2>
-      <form id="profileForm">
-        <div class="field-group"><label>Voornaam</label><input id="profile_voornaam"></div>
-        <div class="field-group"><label>Tussenvoegsel</label><input id="profile_tussenvoegsel"></div>
-        <div class="field-group"><label>Achternaam</label><input id="profile_achternaam"></div>
-        <div class="field-group"><label>Telefoon</label><input id="profile_telefoon"></div>
-        <div class="field-group"><label>Woonplaats</label><input id="profile_woonplaats"></div>
-        <div class="field-group"><label>Postcode</label><input id="profile_postcode"></div>
-        <div class="field-group"><label>Straat</label><input id="profile_straat"></div>
-        <div class="field-group"><label>Huisnummer</label><input id="profile_huisnummer"></div>
-        <div class="field-group"><label>Toevoeging</label><input id="profile_huisnummer_toevoeging"></div>
-        <button type="submit" class="btn-primary">Wijzigingen opslaan</button>
-        <button type="button" id="deleteAccount" class="btn-danger">Account verwijderen</button>
+      <form id="profileForm" autocomplete="on">
+        <div class="field-group"><label for="profile_voornaam">Voornaam</label><input id="profile_voornaam" autocomplete="given-name"/></div>
+        <div class="field-group"><label for="profile_tussenvoegsel">Tussenvoegsel</label><input id="profile_tussenvoegsel"/></div>
+        <div class="field-group"><label for="profile_achternaam">Achternaam</label><input id="profile_achternaam" autocomplete="family-name"/></div>
+        <div class="field-group"><label for="profile_telefoon">Telefoon</label><input id="profile_telefoon" autocomplete="tel"/></div>
+        <div class="field-group"><label for="profile_woonplaats">Woonplaats</label><input id="profile_woonplaats"/></div>
+        <div class="field-group"><label for="profile_postcode">Postcode</label><input id="profile_postcode"/></div>
+        <div class="field-group"><label for="profile_straat">Straat</label><input id="profile_straat" autocomplete="address-line1"/></div>
+        <div class="field-group"><label for="profile_huisnummer">Huisnummer</label><input id="profile_huisnummer"/></div>
+        <div class="field-group"><label for="profile_huisnummer_toevoeging">Toevoeging</label><input id="profile_huisnummer_toevoeging"/></div>
+
+        <div class="btn-row">
+          <button type="submit" class="btn-primary">Wijzigingen opslaan</button>
+          <button type="button" id="deleteAccount" class="btn-danger">Account verwijderen</button>
+        </div>
       </form>
       <div id="profile-message" class="message"></div>
     </section>
   </main>
 
-  <!-- Scripts (ES-modules) -->
+  <!-- ES-modules (let op: paden kloppen met jouw structuur) -->
   <script type="module" src="supabaseClient.js"></script>
   <script type="module" src="./core/ui/nav.js"></script>
   <script type="module">
