@@ -35,7 +35,6 @@ let stikstofnormen = null;
 let normenLoaded = false;
 let pendingRecalc = false;
 
-// Pad in je nieuwe structuur
 fetch('./core/domain/data/stikstofnormen_tabel2.json', { cache: 'no-store' })
   .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
   .then(json => { stikstofnormen = json; normenLoaded = true; if (pendingRecalc) recalcNow(); })
@@ -90,14 +89,14 @@ function recalcNow() {
     const gewasNaam = p.gewasNaam;
     const landgebruik = String(p.landgebruik || '').toLowerCase();
 
-    // A: EU-norm dierlijke N
+    // A: EU-norm dierlijke N (kg/ha)
     const A_ha = 170;
 
     // B: grondgebonden N uit normen-tabel via gewas/grond
     const entry = findNormEntry(stikstofnormen, gewasNaam, gewasCode);
     const B_ha = entry ? pickBnorm(entry, grond) : 0;
 
-    // C: fosfaat P: simpele bandbreedte (gras/bouwland)
+    // C: fosfaat P (kg/ha) — eenvoudige benadering
     const C_ha = landgebruik.includes('gras') ? 75 : 40;
 
     totaalA += A_ha * ha;
@@ -105,7 +104,7 @@ function recalcNow() {
     totaalC += C_ha * ha;
   }
 
-  // Rond af en toon
+  // Integers afdwingen (hele kg)
   const A = Math.round(totaalA);
   const B = Math.round(totaalB);
   const C = Math.round(totaalC);
@@ -118,23 +117,21 @@ function recalcNow() {
   setResultsVisible(true);
   setStep2Enabled(true);
 
-  persistResults(A, B, C).catch(() => {});
+  // Start save (debounced), maar we flushen vóór navigatie
+  persistResults(A, B, C, { immediate: false }).catch(() => {});
 }
 
 /* ------------------------------- 6) Normen & utils ------------------------------- */
 function findNormEntry(normDb, gewasNaam, gewasCode) {
   if (!normDb) return null;
 
-  // 1) Exacte naam-key
   if (gewasNaam && normDb[gewasNaam]) return normDb[gewasNaam];
 
-  // 2) Case-insensitive exacte match
   if (gewasNaam) {
     const key = Object.keys(normDb).find(k => k.toLowerCase() === String(gewasNaam).toLowerCase());
     if (key) return normDb[key];
   }
 
-  // 3) Code-lookup
   if (gewasCode != null) {
     const codeStr = String(gewasCode);
     for (const obj of Object.values(normDb)) {
@@ -151,7 +148,6 @@ function pickBnorm(entry, grond) {
   const g = normalizeGrond(grond);
   if (entry[g] != null) return toNum(entry[g]) || 0;
 
-  // Fallbacks voor variantenamen
   const fallbacks = {
     zand: ['Noordelijk, westelijk en centraal zand', 'Zand (N/W/C)', 'Zand'],
     klei: ['Klei'],
@@ -162,7 +158,6 @@ function pickBnorm(entry, grond) {
     if (entry[k] != null) return toNum(entry[k]) || 0;
   }
 
-  // Allerlaatste fallback: eerste numerieke waarde uit entry
   for (const v of Object.values(entry)) {
     const n = toNum(v);
     if (Number.isFinite(n)) return n;
@@ -179,10 +174,12 @@ function normalizeGrond(s) {
   return 'zand';
 }
 
-/* ------------------------------- 7) Opslaan ------------------------------- */
-// NB: je oude code deed dit ook; laat staan — mestplan.js leest het terug.
-let saveTimer;
-async function persistResults(A, B, C) {
+/* ------------------------------- 7) Opslaan (debounce + flush) ------------------------------- */
+let saveTimer = null;
+let lastPayload = null;
+let pendingSavePromise = null;
+
+async function persistResults(A, B, C, { immediate = false } = {}) {
   // LocalStorage (snelle fallback)
   try {
     localStorage.setItem('mestplan_last_results', JSON.stringify({
@@ -191,28 +188,72 @@ async function persistResults(A, B, C) {
       res_p_totaal:   C,
       ts: Date.now()
     }));
-  } catch {}
+    console.log('💾 LS save OK:', { A, B, C });
+  } catch (e) {
+    console.warn('LS save failed:', e);
+  }
 
-  // Debounced upsert naar Supabase
+  lastPayload = { A, B, C };
+
+  // Immediate = nu wegschrijven; anders debounce
+  if (immediate) {
+    clearTimeout(saveTimer);
+    pendingSavePromise = doUpsert(lastPayload);
+    await pendingSavePromise;
+    pendingSavePromise = null;
+    return;
+  }
+
   clearTimeout(saveTimer);
+  pendingSavePromise = null;
   saveTimer = setTimeout(async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { error } = await supabase
-        .from('user_mestplan')
-        .upsert({
-          user_id:        user.id,
-          res_n_dierlijk: A,
-          res_n_totaal:   B,
-          res_p_totaal:   C,
-          updated_at:     new Date().toISOString()
-        }, { onConflict: 'user_id' });
-      if (error) console.error('upsert mestplan error:', error);
-    } catch (e) {
-      console.warn('Supabase opslaan overgeslagen:', e?.message || e);
-    }
+    pendingSavePromise = doUpsert(lastPayload);
+    try { await pendingSavePromise; } finally { pendingSavePromise = null; }
   }, 250);
+}
+
+async function doUpsert({ A, B, C }) {
+  // wacht op sessie (max 3 pogingen, 300ms tussenpauze)
+  let user = null;
+  for (let i = 0; i < 3 && !user; i++) {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      user = session?.user || null;
+    } catch {}
+    if (!user) await new Promise(r => setTimeout(r, 300));
+  }
+  if (!user) {
+    console.warn('⚠️ Supabase: geen user tijdens persist; DB-save overgeslagen.', { A, B, C });
+    return;
+  }
+
+  const row = {
+    user_id:        user.id,
+    res_n_dierlijk: Math.round(A),
+    res_n_totaal:   Math.round(B),
+    res_p_totaal:   Math.round(C),
+    updated_at:     new Date().toISOString()
+  };
+
+  const { error } = await supabase
+    .from('user_mestplan')
+    .upsert(row, { onConflict: 'user_id' });
+
+  if (error) {
+    console.error('❌ Supabase upsert error:', error, row);
+  } else {
+    console.log('✅ Supabase upsert OK:', row);
+  }
+}
+
+// Publieke flush, zodat we vóór navigatie altijd opslaan
+async function flushPersistNow() {
+  clearTimeout(saveTimer);
+  if (pendingSavePromise) {
+    await pendingSavePromise;
+  } else if (lastPayload) {
+    await doUpsert(lastPayload);
+  }
 }
 
 /* ------------------------------- 8) “Ga naar stap 2” ------------------------------- */
@@ -221,21 +262,28 @@ async function persistResults(A, B, C) {
   if (btnStep2.dataset._bound === '1') return;
   btnStep2.dataset._bound = '1';
 
-  btnStep2.addEventListener('click', () => {
+  btnStep2.addEventListener('click', async () => {
     const hasParcels = Array.isArray(liveParcels) && liveParcels.length > 0;
     if (!hasParcels) {
       alert('Selecteer eerst minstens één perceel op de kaart.');
       return;
     }
 
-    // Zet URL-query als extra vangnet naast DB-opslag
+    // 1) Flush DB-save vóór navigatie (belangrijk!)
+    try {
+      await flushPersistNow();
+    } catch (e) {
+      console.warn('Flush persist faalde (we gaan door met URL-fallback):', e);
+    }
+
+    // 2) Zet URL-query als extra vangnet naast DB-opslag
     const q = new URLSearchParams({
       totaalA: String(currentTotals.A || 0),
       totaalB: String(currentTotals.B || 0),
       totaalC: String(currentTotals.C || 0)
     });
 
-    // Relatief pad (geen leading slash), net als elders
+    // 3) Relatief pad (geen leading slash), net als elders
     window.location.href = `mestplan.html?${q.toString()}`;
   });
 })();
