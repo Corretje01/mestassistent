@@ -1,8 +1,8 @@
 // core/domain/logicengine.js
-import { StateManager }      from '../core/domain/statemanager.js';        
-import { CalculationEngine } from '../core/domain/calculationengine.js';
-import { ValidationEngine }  from '../core/domain/validationengine.js';   
-import { UIController }      from '../ui/uicontroller.js';   
+import { StateManager }      from './statemanager.js';        // ← pas aan als in submap
+import { CalculationEngine } from './calculationengine.js';   // ← pas aan als in submap
+import { ValidationEngine }  from './validationengine.js';    // ← pas aan als in submap
+import { UIController }      from '../ui/uicontroller.js';    // ← pas aan als in submap
 
 export const LogicEngine = (() => {
   function overschrijdtNutriëntLimieten(totaal, limieten) {
