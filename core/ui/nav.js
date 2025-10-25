@@ -5,34 +5,24 @@ import { supabase } from '../../supabaseClient.js';
 const log = (...a) => console.log('[nav]', ...a);
 const $id = (id) => document.getElementById(id);
 
+/* -------- helpers -------- */
 function getHomeHref() {
-  // Neem de href van het logo als bron van waarheid (werkt ook in submappen)
+  // Prefer the logo link (works in subfolders)
   const logo = document.querySelector('.nav-logo[href]');
   try {
     if (logo) return new URL(logo.getAttribute('href'), location.href).toString();
   } catch {}
-  // Fallback: index.html naast huidige pagina
+  // Fallback: index.html next to current page
   return new URL('index.html', location.href).toString();
 }
-
-const hardNavigate = (href, { replace = false } = {}) => {
-  log('navigeren naar', href, '(replace:', !!replace, ')');
-  if (replace) window.location.replace(href);
-  else window.location.assign(href);
-};
-
-const closeMenu = () => {
-  const menu   = $id('site-menu');
-  const toggle = $id('nav-toggle');
-  if (!menu) return;
-  menu.dataset.open = 'false';
-  document.body.classList.remove('body--no-scroll');
-  if (toggle) toggle.setAttribute('aria-expanded', 'false');
-  requestAnimationFrame(() => setTimeout(() => {
-    if (menu.dataset.open !== 'true') menu.hidden = true;
-  }, 180));
-};
-
+function hardNavigateAllWays(href, { replace = true } = {}) {
+  // Try several ways to ensure navigation actually happens
+  try { if (replace) history.replaceState(null, '', href); } catch {}
+  try { replace ? location.replace(href) : (location.href = href); } catch {}
+  // Belt-and-suspenders: delayed retries
+  setTimeout(() => { try { location.href = href; } catch {} }, 30);
+  setTimeout(() => { try { location.assign(href); } catch {} }, 120);
+}
 const isProtectedPath = () => {
   const p = window.location.pathname.toLowerCase();
   return (
@@ -41,7 +31,6 @@ const isProtectedPath = () => {
     /beheer(\.html)?$/.test(p)
   );
 };
-
 const selectEls = () => ({
   authBtn:  $id('nav-auth'),
   lBereken: $id('nav-bereken'),
@@ -51,17 +40,16 @@ const selectEls = () => ({
   lBeheer:  $id('nav-beheer'),
 });
 
+/* -------- UI helpers -------- */
 const toggleAuthClasses = (isAuth) => {
   document.body.classList.toggle('is-auth',  !!isAuth);
   document.body.classList.toggle('is-guest', !isAuth);
   document.querySelectorAll('.auth-only').forEach(el  => { el.style.display = isAuth ? '' : 'none'; });
   document.querySelectorAll('.guest-only').forEach(el => { el.style.display = isAuth ? 'none' : ''; });
 };
-
 const showAdminOnly = (isAdmin) => {
   document.querySelectorAll('.admin-only').forEach(el => { el.style.display = isAdmin ? '' : 'none'; });
 };
-
 const setActiveLink = () => {
   const current = new URL(location.href);
   document.querySelectorAll('#site-menu .nav-links a').forEach(a => {
@@ -75,7 +63,6 @@ const setActiveLink = () => {
     } catch {}
   });
 };
-
 const fetchIsAdmin = async (userId) => {
   try {
     const { data, error } = await supabase
@@ -87,15 +74,28 @@ const fetchIsAdmin = async (userId) => {
     return (data?.role || '').toLowerCase() === 'admin';
   } catch { return false; }
 };
-
 const updateAuthButton = (btn, isAuth) => {
   if (!btn) return;
   btn.type = 'button';
   btn.textContent = isAuth ? 'Uitloggen' : 'Inloggen';
   btn.setAttribute('data-auth-mode', isAuth ? 'logout' : 'login');
   btn.setAttribute('aria-label', isAuth ? 'Uitloggen' : 'Inloggen');
+  btn.removeAttribute('aria-busy');
+  btn.disabled = false;
+};
+const closeMenu = () => {
+  const menu   = $id('site-menu');
+  const toggle = $id('nav-toggle');
+  if (!menu) return;
+  menu.dataset.open = 'false';
+  document.body.classList.remove('body--no-scroll');
+  if (toggle) toggle.setAttribute('aria-expanded', 'false');
+  requestAnimationFrame(() => setTimeout(() => {
+    if (menu.dataset.open !== 'true') menu.hidden = true;
+  }, 180));
 };
 
+/* -------- public UI update -------- */
 export async function updateNavUI() {
   let session = null;
   try { session = (await supabase.auth.getSession()).data.session; } catch {}
@@ -114,7 +114,7 @@ export async function updateNavUI() {
   setActiveLink();
 }
 
-/* ------------------- bindings ------------------- */
+/* -------- bindings -------- */
 const bindNavLinks = (els) => {
   const map = [
     [els.lBereken, 'plaatsingsruimte.html'],
@@ -125,7 +125,7 @@ const bindNavLinks = (els) => {
   ];
   for (const [el, href] of map) {
     if (!el) continue;
-    const go = (e) => { e.preventDefault(); closeMenu(); hardNavigate(href); };
+    const go = (e) => { e.preventDefault(); closeMenu(); location.href = href; };
     el.addEventListener('click', go, { passive: false });
   }
 };
@@ -139,8 +139,8 @@ const bindAuthButton = (btn) => {
     let session = null;
     try { session = (await supabase.auth.getSession()).data.session; } catch {}
 
+    // ——— UITLOGGEN ———
     if (session) {
-      // === UITLOGGEN ===
       log('klik op Uitloggen → start');
       btn.disabled = true;
       btn.setAttribute('aria-busy', 'true');
@@ -150,39 +150,43 @@ const bindAuthButton = (btn) => {
       try {
         await supabase.auth.signOut();
       } catch (err) {
-        console.warn('[nav] signOut error (gaat verder met redirect):', err?.message || err);
+        console.warn('[nav] signOut error (ga toch door):', err?.message || err);
       }
 
-      // 👉 Geen verdere awaits of UI-updates meer hier: direct weg!
-      const home = getHomeHref();
-      log('direct redirect naar', home);
-      location.replace(home);
-      return; // stop handler
+      // Toon direct weer "Inloggen" in de UI (menu blijft dus niet 'leeg')
+      updateAuthButton(btn, false);
 
-    } else {
-      // === INLOGGEN ===
-      log('klik op Inloggen → ga naar account.html?signin=1');
-      closeMenu();
-      hardNavigate('account.html?signin=1');
+      // Forceer weg naar home (meerdere fallbacks)
+      const home = getHomeHref();
+      log('redirect →', home);
+      hardNavigateAllWays(home, { replace: true });
+      return;
     }
+
+    // ——— INLOGGEN ———
+    log('klik op Inloggen → account.html?signin=1');
+    closeMenu();
+    location.href = 'account.html?signin=1';
   };
 
   btn.addEventListener('click', on, { passive: false });
   btn.dataset.bound = 'true';
 };
 
-/* ------------------- guards ------------------- */
+/* -------- guards -------- */
 const guardProtectedPages = async () => {
   if (!isProtectedPath()) return;
   let session = null;
   try { session = (await supabase.auth.getSession()).data.session; } catch {}
   if (!session) {
-    log('guard → niet ingelogd → naar account.html?signin=1');
-    hardNavigate('account.html?signin=1');
+    // Niet ingelogd op beschermde pagina → ga naar account signin
+    const url = new URL('account.html', location.href);
+    url.searchParams.set('signin', '1');
+    location.replace(url.toString());
   }
 };
 
-/* ------------------- init ------------------- */
+/* -------- init -------- */
 document.addEventListener('DOMContentLoaded', async () => {
   log('init nav.js');
   const els = selectEls();
@@ -195,11 +199,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   supabase.auth.onAuthStateChange(async (evt) => {
     log('onAuthStateChange:', evt);
     await updateNavUI();
-    if (isProtectedPath()) await guardProtectedPages();
+
+    // Extra zekerheid: als we uitgelogd zijn én op beschermde pagina, direct naar home
+    if (evt === 'SIGNED_OUT' && isProtectedPath()) {
+      const home = getHomeHref();
+      log('SIGNED_OUT op protected → force redirect →', home);
+      hardNavigateAllWays(home, { replace: true });
+    }
   });
 
-  window.addEventListener('pageshow', async () => {
-    log('pageshow → updateNavUI');
-    await updateNavUI();
-  });
+  window.addEventListener('pageshow', async () => { await updateNavUI(); });
 });
