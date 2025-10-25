@@ -49,7 +49,6 @@ async function debouncedSaveABC() {
       }, { onConflict: 'user_id' });
 
     if (error) console.error('Save error:', error);
-    else console.debug('A/B/C opgeslagen.');
   }, 300);
 }
 
@@ -77,16 +76,14 @@ async function loadABCFromDB() {
 }
 
 /* ===========================
-   GLPK alleen checken wanneer nodig
+   GLPK alleen checken vlak vóór optimaliseren
 =========================== */
 async function ensureGLPK() {
-  // Alleen aanroepen vlak vóór optimaliseren/LogicEngine die GLPK nodig heeft.
   const maxAttempts = 100;
   let attempts = 0;
   return new Promise((resolve, reject) => {
     const tick = () => {
       if (typeof window.glp_create_prob !== 'undefined') {
-        console.log('✅ GLPK beschikbaar');
         resolve(window);
       } else if (attempts++ >= maxAttempts) {
         reject(new Error('GLPK niet beschikbaar'));
@@ -99,7 +96,7 @@ async function ensureGLPK() {
 }
 
 /* ===========================
-   UI initialisatie
+   UI
 =========================== */
 function bindABCInputsAndState({ A, B, C }) {
   const aEl = document.getElementById('prev_res_n_dierlijk');
@@ -110,21 +107,17 @@ function bindABCInputsAndState({ A, B, C }) {
     return;
   }
 
-  // Zet beginwaarden
   aEl.value = A;
   bEl.value = B;
   cEl.value = C;
 
-  // Naar StateManager
   StateManager.setGebruiksruimte(A, B, C);
 
-  // Listeners
   const onChange = () => {
     const a = Number(aEl.value) || 0;
     const b = Number(bEl.value) || 0;
     const c = Number(cEl.value) || 0;
 
-    // Reset actieve mestselecties (voorkomt oude constraints/conflicten)
     document.querySelectorAll('.mest-btn.active').forEach(btn => {
       btn.classList.remove('active');
       const key = `${btn.dataset.type}-${btn.dataset.animal}`;
@@ -146,7 +139,6 @@ function bindMestButtons(mestsoortenData) {
 
   document.querySelectorAll('.mest-btn').forEach(btn => {
     if (btn.dataset.bound) return;
-
     btn.addEventListener('click', () => {
       btn.classList.toggle('active');
       const type = btn.dataset.type;
@@ -154,16 +146,13 @@ function bindMestButtons(mestsoortenData) {
       const key = `${type}-${animal}`;
 
       if (btn.classList.contains('active')) {
-        // Vereiste dataset ophalen
         const jsonType = mapTypeKey(type);
         const mestData = mestsoortenData?.[jsonType]?.[animal];
-
         if (!mestData) {
           btn.classList.remove('active');
-          alert(`Geen specificaties gevonden voor: ${type} – ${animal}. Controleer core/domain/data/mestsoorten.json`);
+          alert(`Geen specificaties gevonden voor: ${type} – ${animal}. Controleer core/domain/data/mestsoorten.json of /data/mestsoorten.json`);
           return;
         }
-
         StateManager.addMestType(key, mestData);
         UIController.renderMestsoortSlider(key, `${type} ${animal}`, ValidationEngine.getMaxTonnage(key));
         UIController.showSlidersContainer();
@@ -174,10 +163,8 @@ function bindMestButtons(mestsoortenData) {
           UIController.hideSlidersContainer();
         }
       }
-
       UIController.updateSliders();
     });
-
     btn.dataset.bound = '1';
   });
 }
@@ -185,11 +172,9 @@ function bindMestButtons(mestsoortenData) {
 function bindOptimizeButton() {
   const btn = document.getElementById('optimaliseer-btn');
   if (!btn || btn.dataset.bound) return;
-
   btn.addEventListener('click', async () => {
     try {
-      await ensureGLPK(); // Gebruik GLPK alleen hier (nu blokkeert de UI init niet)
-      // Run je optimalisatie (LogicEngine gebruikt GLPK onder water)
+      await ensureGLPK();
       await LogicEngine.optimize();
       UIController.updateSliders();
     } catch (e) {
@@ -197,24 +182,19 @@ function bindOptimizeButton() {
       alert('Optimalisatie lukt niet (GLPK niet beschikbaar?).');
     }
   });
-
   btn.dataset.bound = '1';
 }
 
 /* ===========================
-   Hoofdinitialisatie
+   Init
 =========================== */
 async function initializeApp() {
   try {
-    // Route-guard staat al in HTML; we gaan ervan uit dat de gebruiker ingelogd is.
-
-    // 1) ABC bepalen: URL → DB → 0
+    // 1) A/B/C: URL → DB → 0
     const q = getABCFromQuery();
     let A, B, C;
-
     if (q.A !== null || q.B !== null || q.C !== null) {
       A = q.A ?? 0; B = q.B ?? 0; C = q.C ?? 0;
-      // Eerste keer direct opslaan zodat refresh dezelfde waarden toont
       const user = await getSessionUser();
       if (user) {
         await supabase.from('user_mestplan').upsert({
@@ -230,31 +210,41 @@ async function initializeApp() {
       A = fromDB.A; B = fromDB.B; C = fromDB.C;
     }
 
-    // 2) Bind inputs + state
+    // 2) Inputs/state
     bindABCInputsAndState({ A, B, C });
 
-    // 3) UI-controller init + standaard sliders
+    // 3) Standaard sliders
     UIController.initStandardSliders();
     UIController.updateSliders();
 
-    // 4) Mestsoorten laden (faalt niet hard; knoppen werken en melden netjes)
-    let mestsoortenData = null;
-    try {
-      const resp = await fetch('./core/domain/data/mestsoorten.json', { cache: 'no-store' });
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-      mestsoortenData = await resp.json();
-      StateManager.setMestTypes(mestsoortenData);
-      console.log('✅ mestsoorten.json geladen');
-    } catch (err) {
-      console.warn('⚠️ Kan mestsoorten.json niet laden. Knoppen tonen melding bij gebruik.', err);
-      mestsoortenData = {}; // laat knoppen werken met melding
+    // 4) mestsoorten.json met failover pad
+    async function loadMestsoorten() {
+      const tryPaths = [
+        './core/domain/data/mestsoorten.json', // nieuwe structuur
+        '/data/mestsoorten.json'               // oud pad (fallback)
+      ];
+      for (const p of tryPaths) {
+        try {
+          const r = await fetch(p, { cache: 'no-store' });
+          if (r.ok) return await r.json();
+        } catch {}
+      }
+      throw new Error('mestsoorten.json niet gevonden op bekende paden');
     }
 
-    // 5) Bind mest-knoppen + optimize
+    let mestsoortenData = {};
+    try {
+      mestsoortenData = await loadMestsoorten();
+      StateManager.setMestTypes(mestsoortenData);
+    } catch (e) {
+      console.warn('mestsoorten.json niet gevonden; knoppen geven melding bij gebruik.', e);
+    }
+
+    // 5) Knoppen + Optimize
     bindMestButtons(mestsoortenData);
     bindOptimizeButton();
 
-    // 6) Realtime sync van A/B/C
+    // 6) Realtime sync
     const user = await getSessionUser();
     if (user) {
       const channel = supabase
@@ -269,10 +259,12 @@ async function initializeApp() {
             const nA = Number(payload.new?.res_n_dierlijk ?? 0);
             const nB = Number(payload.new?.res_n_totaal   ?? 0);
             const nC = Number(payload.new?.res_p_totaal   ?? 0);
-
-            // Alleen updaten als waarden echt verschillen (beperkt jitter)
-            if (aEl && bEl && cEl &&
-                (Number(aEl.value)||0) !== nA || (Number(bEl.value)||0) !== nB || (Number(cEl.value)||0) !== nC) {
+            if (
+              aEl && bEl && cEl &&
+              ((Number(aEl.value) || 0) !== nA ||
+               (Number(bEl.value) || 0) !== nB ||
+               (Number(cEl.value) || 0) !== nC)
+            ) {
               aEl.value = nA; bEl.value = nB; cEl.value = nC;
               StateManager.setGebruiksruimte(nA, nB, nC);
               UIController.updateSliders();
@@ -280,25 +272,16 @@ async function initializeApp() {
           }
         )
         .subscribe();
-
       window.addEventListener('beforeunload', () => supabase.removeChannel(channel));
     }
-
-    console.log('✅ Mestplan init voltooid');
   } catch (err) {
     console.error('❌ Fout bij initialisatie:', err);
     alert('⚠️ Er ging iets mis bij initialisatie.');
   }
 }
 
-/* ===========================
-   Start init (betrouwbaar)
-   - Als DOM al klaar is, direct starten
-   - Anders wachten op DOMContentLoaded
-=========================== */
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', initializeApp, { once: true });
 } else {
-  // DOM is al klaar (kan gebeuren door script-volgorde)
   initializeApp();
 }
