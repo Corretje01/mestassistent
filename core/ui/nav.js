@@ -1,29 +1,37 @@
 // core/ui/nav.js
 // ES-module: auth-knop + role-based UI + route-guards
-// BELANGRIJK: dit bestand NIET het hamburgermenu laten togglen (dat doet nav-menu.js)
-import { supabase } from '../../supabaseClient.js'; // pad vanaf /core/ui/ naar projectroot
+import { supabase } from '../../supabaseClient.js';
 
-/* helpers */
+const log = (...a) => console.log('[nav]', ...a);
 const $id = (id) => document.getElementById(id);
+
 const hardNavigate = (href, { replace = false } = {}) => {
+  log('navigeren naar', href, '(replace:', !!replace, ')');
   if (replace) window.location.replace(href);
   else window.location.assign(href);
 };
+
 const closeMenu = () => {
   const menu   = $id('site-menu');
   const toggle = $id('nav-toggle');
   if (!menu) return;
-  // Alleen overlay-modus sluiten (mobiel)
+  if (menu.dataset.open === 'true') log('menu sluiten');
   menu.dataset.open = 'false';
   document.body.classList.remove('body--no-scroll');
   if (toggle) toggle.setAttribute('aria-expanded', 'false');
-  // verberg na animatie
   requestAnimationFrame(() => setTimeout(() => {
     if (menu.dataset.open !== 'true') menu.hidden = true;
   }, 180));
 };
 
-/* protected pagina's (pas aan naar wens) */
+const clearLocalAuthCaches = () => {
+  log('lokale sb-* storage wissen');
+  try {
+    Object.keys(localStorage).forEach(k => k.startsWith('sb-') && localStorage.removeItem(k));
+    Object.keys(sessionStorage).forEach(k => k.startsWith('sb-') && sessionStorage.removeItem(k));
+  } catch (e) { log('storage clear error (ok):', e?.message); }
+};
+
 const isProtectedPath = () => {
   const p = window.location.pathname.toLowerCase();
   return (
@@ -42,7 +50,6 @@ const selectEls = () => ({
   lBeheer:  $id('nav-beheer'),
 });
 
-/* UI helpers */
 const toggleAuthClasses = (isAuth) => {
   document.body.classList.toggle('is-auth',  !!isAuth);
   document.body.classList.toggle('is-guest', !isAuth);
@@ -68,7 +75,6 @@ const setActiveLink = () => {
   });
 };
 
-/* data helpers */
 const fetchIsAdmin = async (userId) => {
   try {
     const { data, error } = await supabase
@@ -81,7 +87,6 @@ const fetchIsAdmin = async (userId) => {
   } catch { return false; }
 };
 
-/* UI updates */
 const updateAuthButton = (btn, isAuth) => {
   if (!btn) return;
   btn.type = 'button';
@@ -95,9 +100,9 @@ export async function updateNavUI() {
   try { session = (await supabase.auth.getSession()).data.session; } catch {}
   const isLoggedIn = !!session;
 
+  log('updateNavUI – ingelogd:', isLoggedIn);
   toggleAuthClasses(isLoggedIn);
 
-  // admin-only
   let isAdmin = false;
   if (isLoggedIn) {
     try { isAdmin = await fetchIsAdmin(session.user.id); } catch {}
@@ -108,7 +113,7 @@ export async function updateNavUI() {
   setActiveLink();
 }
 
-/* bindings */
+/* ------------------- bindings ------------------- */
 const bindNavLinks = (els) => {
   const map = [
     [els.lBereken, 'plaatsingsruimte.html'],
@@ -124,13 +129,6 @@ const bindNavLinks = (els) => {
   }
 };
 
-const clearLocalAuthCaches = () => {
-  try {
-    Object.keys(localStorage).forEach(k => k.startsWith('sb-') && localStorage.removeItem(k));
-    Object.keys(sessionStorage).forEach(k => k.startsWith('sb-') && sessionStorage.removeItem(k));
-  } catch {}
-};
-
 const bindAuthButton = (btn) => {
   if (!btn || btn.dataset.bound) return;
 
@@ -142,22 +140,64 @@ const bindAuthButton = (btn) => {
 
     if (session) {
       // === UITLOGGEN ===
+      log('klik op Uitloggen → start');
       btn.disabled = true;
+      btn.setAttribute('aria-busy', 'true');
       const prevTxt = btn.textContent;
       btn.textContent = 'Uitloggen…';
 
-      try { await supabase.auth.signOut(); } catch {}
-      clearLocalAuthCaches();
-      await updateNavUI();   // menu-items meteen updaten
-      closeMenu();           // overlay sluiten (mobiel)
+      // 1) Supabase signOut (probeer beide scopes voor zekerheid)
+      try {
+        log('supabase.auth.signOut (all scopes) proberen…');
+        await supabase.auth.signOut(); // v2: server + local (als refresh token bestaat)
+      } catch (e1) {
+        log('signOut() gaf error (ok):', e1?.message);
+      }
+      try {
+        log('extra: signOut({scope:"local"})');
+        await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
+      } catch {}
 
-      // Direct naar homepage
+      // 2) Lokale tokens weg
+      clearLocalAuthCaches();
+
+      // 3) UI meteen updaten + menu dicht
+      await updateNavUI();
+      closeMenu();
+
+      // 4) Poll heel kort of de sessie echt weg is
+      let cleared = false;
+      for (let i = 0; i < 10; i++) {
+        const cur = (await supabase.auth.getSession()).data.session;
+        log(`session check ${i+1}/10 →`, !!cur);
+        if (!cur) { cleared = true; break; }
+        await new Promise(r => setTimeout(r, 120));
+      }
+
+      // 5) Altijd redirecten naar homepage (replace)
+      log('redirect naar index.html (replace), cleared=', cleared);
       hardNavigate('index.html', { replace: true });
 
-      // safety net: als iets de redirect blokkeert, herstel knop
-      setTimeout(() => { btn.disabled = false; btn.textContent = prevTxt; }, 1200);
+      // 6) Safety net: als browser om wat voor reden niet navigeert, herstel de knop
+      setTimeout(() => {
+        if (document.visibilityState === 'visible') {
+          log('safety net: nog steeds op dezelfde pagina, force reload');
+          // forceer alsnog “weg” zijn
+          clearLocalAuthCaches();
+          window.location.href = 'index.html';
+        }
+      }, 1500);
+
+      // UI fallback herstel (zou niet bereikt moeten worden)
+      setTimeout(() => {
+        btn.disabled = false;
+        btn.removeAttribute('aria-busy');
+        btn.textContent = prevTxt;
+      }, 2500);
+
     } else {
       // === INLOGGEN ===
+      log('klik op Inloggen → ga naar account.html?signin=1');
       closeMenu();
       hardNavigate('account.html?signin=1');
     }
@@ -167,16 +207,20 @@ const bindAuthButton = (btn) => {
   btn.dataset.bound = 'true';
 };
 
-/* guards */
+/* ------------------- guards ------------------- */
 const guardProtectedPages = async () => {
   if (!isProtectedPath()) return;
   let session = null;
   try { session = (await supabase.auth.getSession()).data.session; } catch {}
-  if (!session) hardNavigate('account.html?signin=1');
+  if (!session) {
+    log('guard → niet ingelogd → naar account.html?signin=1');
+    hardNavigate('account.html?signin=1');
+  }
 };
 
-/* init */
+/* ------------------- init ------------------- */
 document.addEventListener('DOMContentLoaded', async () => {
+  log('init nav.js');
   const els = selectEls();
   bindNavLinks(els);
   bindAuthButton(els.authBtn);
@@ -184,10 +228,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   await updateNavUI();
   await guardProtectedPages();
 
-  supabase.auth.onAuthStateChange(async () => {
+  supabase.auth.onAuthStateChange(async (evt) => {
+    log('onAuthStateChange:', evt);
     await updateNavUI();
     if (isProtectedPath()) await guardProtectedPages();
   });
 
-  window.addEventListener('pageshow', async () => { await updateNavUI(); });
+  window.addEventListener('pageshow', async () => { 
+    log('pageshow → updateNavUI'); 
+    await updateNavUI(); 
+  });
 });
