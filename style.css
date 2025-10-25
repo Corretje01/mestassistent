@@ -618,3 +618,40 @@ th,td{padding:.65rem;border-bottom:1px solid #eee;vertical-align:top}
 /* Fouten (zoals utils.js zet) */
 .input-error{border-color:#c62828}
 [data-error]::after{content:attr(data-error);color:#c62828;font-size:.85rem;display:block;margin-top:.25rem}
+
+
+
+/* ===== Alleen telefoonweergave (desktop blijft zoals het is) ===== */
+@media (max-width: 640px) {
+  /* Label boven de knoppen, knoppen in 2 kolommen en links uitgelijnd */
+  #mest-selectie .category {
+    display: grid;
+    grid-template-columns: 1fr 1fr; /* twee gelijke kolommen op mobiel */
+    gap: 10px;
+    align-items: start;
+    justify-items: start; /* knoppen tekst links */
+  }
+
+  #mest-selectie .category__label {
+    grid-column: 1 / -1;  /* label over de volle breedte bovenaan */
+    margin-bottom: 4px;
+    font-weight: 700;
+  }
+
+  #mest-selectie .mest-btn {
+    width: 100%;          /* gelijke breedte per kolom */
+    min-height: 44px;     /* fijne touch-target */
+    text-align: left;     /* label links in de knop */
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: .95rem;
+  }
+}
+
+/* Extra klein scherm: val terug naar 1 kolom */
+@media (max-width: 360px) {
+  #mest-selectie .category {
+    grid-template-columns: 1fr;
+  }
+}
+
