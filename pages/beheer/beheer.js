@@ -44,8 +44,7 @@ let session, userId, isAdmin = false;
   restoreFilters();
   bindFilters();
 
-  // Belangrijk: GEEN beforeunload of globale click-guards.
-  // Alleen inline guards in items en bij filterwijzigingen.
+  // géén beforeunload of globale click-guards — alleen inline guards
 
   await loadList();
 })();
@@ -65,7 +64,6 @@ function bindFilters() {
     loadList();
   });
 
-  // Voor consistentie: max 1 open; expand/collapse sluiten alles.
   btnExpand?.addEventListener('click', () => toggleOnlyOneOpen(null));
   btnCollapse?.addEventListener('click', () => toggleOnlyOneOpen(null));
 }
@@ -264,14 +262,20 @@ function bindItemActions(rows){
       }
     });
 
-    // --- Bestand openen (popup-vriendelijk + geen extra waarschuwingen) ---
+    // --- Bestand openen (popup-proof, zonder huidige tab te navigeren) ---
     btnOpen?.addEventListener('click', () => {
       if (!r.file_path) { toast('Geen bestand beschikbaar.', 'error'); return; }
 
-      // 1) Probeer synchron een leeg tabblad te openen (meest popup-proof).
-      const newTab = window.open('', '_blank', 'noopener,noreferrer');
+      // Open synchron een tab waar we later de URL in zetten.
+      // Belangrijk: GEEN 'noopener'/'noreferrer', anders kun je tab niet meer besturen.
+      const tab = window.open('about:blank', '_blank');
+      if (tab) {
+        try {
+          tab.document.write('<!doctype html><meta charset="utf-8"><title>Analyse laden…</title><body style="font-family:system-ui;margin:2rem">Analyse wordt geladen…</body>');
+          tab.document.close();
+        } catch {}
+      }
 
-      // 2) Vraag de signed URL asynchroon op.
       (async () => {
         try {
           const { data, error } = await supabase.storage
@@ -280,16 +284,20 @@ function bindItemActions(rows){
 
           if (error || !data?.signedUrl) throw error || new Error('Geen signed URL');
 
-          if (newTab) {
-            // Als tab kon openen: navigeer die tab naar de signed URL.
-            newTab.location = data.signedUrl;
+          if (tab) {
+            // Navigeer alleen de nieuwe tab, laat de huidige met rust.
+            tab.location.replace(data.signedUrl);
           } else {
-            // Fallback: pop-ups geblokkeerd → navigeer huidig tabblad (geen extra waarschuwing).
-            window.location.assign(data.signedUrl);
+            // Als openen niet lukte, probeer alsnog een nieuwe tab met de URL.
+            const secondTry = window.open(data.signedUrl, '_blank');
+            if (!secondTry) {
+              // Als ook dat niet mag, laatste redmiddel: huidige tab.
+              window.location.assign(data.signedUrl);
+            }
           }
         } catch (e) {
           console.error(e);
-          try { newTab?.close(); } catch {}
+          try { tab?.close(); } catch {}
           toast('Kon bestand niet openen.', 'error');
         }
       })();
