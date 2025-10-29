@@ -1,5 +1,5 @@
 // pages/beheer/beheer.js
-// Admin-lijst met filters, single-edit lock, inline dirty-guard en veilige saves (geen page/beforeunload guards)
+// Admin-lijst met filters, single-edit lock, inline dirty-guard en veilige saves (geen globale nav/beforeunload guards)
 
 import { supabase } from '../../supabaseClient.js';
 import { toast }    from '../../core/utils/utils.js';
@@ -35,7 +35,8 @@ let session, userId, isAdmin = false;
   userId = session.user.id;
 
   try {
-    const { data: prof } = await supabase.from('profiles').select('role').eq('id', userId).maybeSingle();
+    const { data: prof } = await supabase
+      .from('profiles').select('role').eq('id', userId).maybeSingle();
     isAdmin = String(prof?.role || '').toLowerCase() === 'admin';
   } catch {}
   if (!isAdmin) { toast('Geen toegang', 'error'); window.location.replace('account.html'); return; }
@@ -44,9 +45,7 @@ let session, userId, isAdmin = false;
   restoreFilters();
   bindFilters();
 
-  // LET OP: GEEN beforeunload- of globale nav-click-guards meer.
-  // We houden alleen een nette inline guard per item.
-
+  // Belangrijk: geen beforeunload of globale nav-interceptor hier.
   await loadList();
 })();
 
@@ -65,7 +64,7 @@ function bindFilters() {
     loadList();
   });
 
-  // Met single-edit lock houden we “max 1 open”; expand/collapse maakt alles dicht voor consistentie
+  // Met single-edit lock houden we “max 1 open”; expand/collapse dicht alles voor consistentie
   btnExpand?.addEventListener('click', () => toggleOnlyOneOpen(null));
   btnCollapse?.addEventListener('click', () => toggleOnlyOneOpen(null));
 }
@@ -266,29 +265,35 @@ function bindItemActions(rows){
       }
     });
 
-    // --- Bestand openen (popup-safe) ---
+    // --- Bestand openen (popup-safe & niet-blokkerend voor save) ---
     btnOpen?.addEventListener('click', async () => {
       if (!r.file_path) { toast('Geen bestand beschikbaar.', 'error'); return; }
 
-      // Open synchronously to avoid popup blockers
-      const newTab = window.open('', '_blank', 'noopener,noreferrer');
-      if (!newTab) {
+      // 1) Synchronous open — houdt de user gesture intact
+      const tab = window.open('', '_blank', 'noopener,noreferrer');
+      if (!tab) {
         toast('Popup geblokkeerd. Sta pop-ups toe voor deze site.', 'error');
         return;
       }
-
       try {
-        const { data, error } = await supabase.storage
+        // Simpele placeholder zodat de tab niet "leeg" oogt
+        tab.document.write('<!doctype html><title>Analyse openen…</title><body style="font-family:sans-serif;padding:1rem;">Analyse laden…</body>');
+
+        // 2) Signed URL ophalen
+        const { data, error } = await supabase
+          .storage
           .from('mest-analyses')
           .createSignedUrl(r.file_path, 60);
 
-        if (error || !data?.signedUrl) throw error || new Error('Geen signed URL');
+        if (error || !data?.signedUrl) {
+          throw error || new Error('Geen signed URL beschikbaar');
+        }
 
-        // Navigate the already-opened tab
-        newTab.location = data.signedUrl;
+        // 3) Navigeren in de reeds geopende tab
+        tab.location = data.signedUrl;
       } catch (e) {
-        console.error(e);
-        try { newTab.close(); } catch {}
+        console.error('[beheer] open analyse error:', e);
+        try { tab.close(); } catch {}
         toast('Kon bestand niet openen.', 'error');
       }
     });
@@ -359,15 +364,21 @@ function bindItemActions(rows){
       const prevLabel = btnSave.textContent;
       btnSave.textContent = 'Opslaan…';
 
-      const { error } = await supabase.from('mest_uploads').update(patch).eq('id', r.id);
+      let err = null;
+      try {
+        const { error } = await supabase.from('mest_uploads').update(patch).eq('id', r.id);
+        err = error || null;
+      } catch (e) {
+        err = e;
+      }
 
       editSession.saving = false;
       setItemInputsDisabled(root, false);
       btnSave.textContent = prevLabel;
 
-      if (error) {
-        console.error(error);
-        toast(`Opslaan mislukt: ${error.message}`, 'error');
+      if (err) {
+        console.error('[beheer] save error:', err);
+        toast(`Opslaan mislukt: ${err.message || err}`, 'error');
         return;
       }
 
