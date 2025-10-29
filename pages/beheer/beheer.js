@@ -1,6 +1,6 @@
 // pages/beheer/beheer.js
 // Admin-lijst met filters, single-edit lock, dirty-guard en veilige saves
-// Inclusief stabiele "Bekijk analyse" (nieuw tabblad met eigen viewer + iframe)
+// "Bekijk analyse" opent weer direct de signed URL op andere origin, in een nieuw tabblad.
 
 import { supabase } from '../../supabaseClient.js';
 import { toast }    from '../../core/utils/utils.js';
@@ -21,10 +21,10 @@ const LS_KEY = 'beheer.filters.v1';
 
 // ===== Single-edit session =====
 const editSession = {
-  id: null,           // id van het item dat momenteel bewerkt wordt
-  dirty: false,       // zijn er onopgeslagen wijzigingen?
-  saving: false,      // is er een save bezig?
-  snapshot: null      // originele data van het item (voor rollback)
+  id: null,      // id van het item dat momenteel bewerkt wordt
+  dirty: false,  // onopgeslagen wijzigingen?
+  saving: false, // save bezig?
+  snapshot: null // originele data (voor rollback)
 };
 
 let session, userId, isAdmin = false;
@@ -36,7 +36,8 @@ let session, userId, isAdmin = false;
   userId = session.user.id;
 
   try {
-    const { data: prof } = await supabase.from('profiles').select('role').eq('id', userId).maybeSingle();
+    const { data: prof } = await supabase.from('profiles')
+      .select('role').eq('id', userId).maybeSingle();
     isAdmin = String(prof?.role || '').toLowerCase() === 'admin';
   } catch {}
   if (!isAdmin) { toast('Geen toegang', 'error'); window.location.replace('account.html'); return; }
@@ -45,7 +46,7 @@ let session, userId, isAdmin = false;
   restoreFilters();
   bindFilters();
 
-  // Warn alleen bij échte pagina-unload (Google/Browser toont dit 1x)
+  // Alleen bij echte pagina-unload (browser toont het 1x)
   window.addEventListener('beforeunload', (e) => {
     if (editSession.dirty && !editSession.saving) {
       e.preventDefault();
@@ -53,20 +54,19 @@ let session, userId, isAdmin = false;
     }
   });
 
-  // Intercepteer alleen navigatie binnen dezelfde tab (header/menu/links).
-  // Externe nieuwe tabbladen (zoals "Bekijk analyse") laten we ongemoeid.
+  // Dirty-guard alleen voor navigatie in DEZELFDE tab (menu/links).
+  // Nieuwe tabbladen (zoals "Bekijk analyse") NIET blokkeren.
   document.body.addEventListener('click', (e) => {
     const a = e.target.closest('a,button');
     if (!a) return;
 
-    // Links/knoppen die de *huidige* tab navigeren:
     const href = a.tagName === 'A' ? a.getAttribute('href') : null;
     const isSameTabNav =
       a.matches('.nav__item, .btn-login') ||
       (href && !href.startsWith('#') && !href.startsWith('javascript:') && a.getAttribute('target') !== '_blank');
 
     if (isSameTabNav && editSession.dirty && !editSession.saving) {
-      const ok = confirm('Je hebt onopgeslagen wijzigingen. Weet je zeker dat je wilt doorgaan? Wijzigingen gaan verloren.');
+      const ok = confirm('Je hebt onopgeslagen wijzigingen. Doorgaan en wijzigingen verwerpen?');
       if (!ok) {
         e.preventDefault();
         e.stopPropagation();
@@ -94,16 +94,13 @@ function bindFilters() {
     loadList();
   });
 
-  // Met single-edit lock is "expand/collapse" functioneel gelijk: we sluiten alles
+  // Met single-edit lock sluiten we gewoon alles
   btnExpand?.addEventListener('click', () => toggleOnlyOneOpen(null));
   btnCollapse?.addEventListener('click', () => toggleOnlyOneOpen(null));
 }
 
 function onFiltersChanged(){
-  if (!allowDiscardIfDirty()) {
-    restoreFilters();
-    return;
-  }
+  if (!allowDiscardIfDirty()) { restoreFilters(); return; }
   persistFilters();
   loadList();
 }
@@ -207,7 +204,9 @@ async function loadList(){
 
   if (resCount) resCount.textContent = String(rows.length);
 
-  listEl.innerHTML = rows.length ? rows.map(renderItem).join('') : '<div class="muted">Geen resultaten</div>';
+  listEl.innerHTML = rows.length
+    ? rows.map(renderItem).join('')
+    : '<div class="muted">Geen resultaten</div>';
 
   clearEditSession();
   bindItemActions(rows);
@@ -296,107 +295,33 @@ function bindItemActions(rows){
       }
     });
 
-    // --- Bestand openen (stabiel, nieuw tabblad met eigen viewer + iframe) ---
+    // --- Bestand openen (directe navigatie in NIEUW tabblad) ---
     btnOpen?.addEventListener('click', async () => {
       if (!r.file_path) { toast('Geen bestand beschikbaar.', 'error'); return; }
 
-      // 1) Open direct een nieuw lege tab in de user-gesture (voorkomt popup-blokkades)
-      const tab = window.open('', '_blank');
-      if (!tab) {
-        toast('Pop-up werd geblokkeerd. Sta pop-ups toe voor deze site.', 'error');
-        return;
-      }
+      // 1) Open meteen een leeg tabblad tijdens de user-gesture (voorkomt blockers)
+      const newTab = window.open('about:blank', '_blank', 'noopener,noreferrer');
+      if (!newTab) { toast('Pop-up geblokkeerd. Sta pop-ups toe voor deze site.', 'error'); return; }
 
-      // 2) Toon loader in het nieuwe tabblad
       try {
-        tab.document.open();
-        tab.document.write(`<!doctype html>
-          <html lang="nl"><head><meta charset="utf-8">
-          <title>Analyse wordt geladen…</title>
-          <meta name="viewport" content="width=device-width, initial-scale=1">
-          <style>
-            :root{ color-scheme: light dark; }
-            body{ font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin:0; padding:24px; }
-            .wrap{ max-width: 980px; margin: 0 auto; }
-            .muted{ color:#6b7280; }
-            .spinner{ width:28px; height:28px; border:3px solid #e5e7eb; border-top-color:#111827; border-radius:50%; animation:spin 1s linear infinite; }
-            @keyframes spin{ to{ transform: rotate(360deg); } }
-          </style></head>
-          <body>
-            <div class="wrap">
-              <h1 style="margin:0 0 8px">Analyse wordt geladen…</h1>
-              <div style="display:flex;align-items:center;gap:10px" class="muted">
-                <div class="spinner" aria-hidden="true"></div>
-                <div>Even geduld a.u.b.</div>
-              </div>
-            </div>
-          </body></html>`);
-        tab.document.close();
-      } catch (_) {}
-
-      // 3) Haal signed URL op
-      let signedUrl = null;
-      try {
-        const { data, error } = await supabase
-          .storage
+        // 2) Signed URL ophalen
+        const { data, error } = await supabase.storage
           .from('mest-analyses')
           .createSignedUrl(r.file_path, 60);
         if (error || !data?.signedUrl) throw error || new Error('Geen signed URL');
-        signedUrl = data.signedUrl;
+
+        // 3) Navigeer dat tabblad hard naar de andere origin
+        try {
+          newTab.location.replace(data.signedUrl);
+        } catch {
+          // fallback
+          newTab.location.href = data.signedUrl;
+        }
       } catch (e) {
-        console.error('[beheer] createSignedUrl error:', e);
-        try { tab.document.body.innerHTML = `<p style="color:#991b1b">Kon bestand niet openen.</p>`; } catch {}
+        // Mislukt? Sluit het lege tabblad
+        try { newTab.close(); } catch {}
+        console.error('[beheer] createSignedUrl/open error:', e);
         toast('Kon bestand niet openen.', 'error');
-        return;
-      }
-
-      // 4) Schrijf viewer-HTML (iframe) in de nieuwe tab
-      try {
-        const safe = (s) => String(s)
-          .replaceAll('&','&amp;').replaceAll('<','&lt;')
-          .replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#39;');
-
-        const html = `<!doctype html>
-          <html lang="nl">
-          <head>
-            <meta charset="utf-8">
-            <title>Analyse</title>
-            <meta name="viewport" content="width=device-width, initial-scale=1">
-            <style>
-              :root{ color-scheme: light dark; }
-              body,html{ margin:0; height:100%; }
-              .bar{ position:sticky; top:0; background:#f9fafb; padding:8px 12px; border-bottom:1px solid #e5e7eb;
-                    font-family:system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
-              .bar a{ color:#111827; text-decoration:underline; }
-              .view{ height: calc(100% - 42px); }
-              .view iframe{ width:100%; height:100%; border:0; }
-              .fallback{ padding:16px; font-family:system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
-              .fallback img{ max-width:100%; height:auto; display:block; }
-            </style>
-          </head>
-          <body>
-            <div class="bar">
-              <strong>Analyse</strong> –
-              <a href="${safe(signedUrl)}" target="_blank" rel="noreferrer">open in nieuw tabblad</a> ·
-              <a href="${safe(signedUrl)}" download>download</a>
-            </div>
-            <div class="view">
-              <iframe src="${safe(signedUrl)}"></iframe>
-            </div>
-            <noscript>
-              <div class="fallback">
-                JavaScript staat uit. <a href="${safe(signedUrl)}">Klik hier om de analyse te openen</a>.
-              </div>
-            </noscript>
-          </body>
-          </html>`;
-
-        tab.document.open();
-        tab.document.write(html);
-        tab.document.close();
-      } catch (e) {
-        // Fallback: navigeer de tab hard naar de signed URL
-        try { tab.location.replace(signedUrl); } catch {}
       }
     });
 
@@ -412,20 +337,20 @@ function bindItemActions(rows){
       el?.addEventListener('change', markDirty);
     });
 
-    // Enter in numeric veld => save
+    // Enter → save
     inputs.forEach(i => {
       i.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') { e.preventDefault(); btnSave?.click(); }
       });
     });
-    // Cmd/Ctrl+S => save
+    // Cmd/Ctrl+S → save
     root.addEventListener('keydown', (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') {
         e.preventDefault(); btnSave?.click();
       }
     });
 
-    // Cancel → rollback naar snapshot
+    // Cancel → rollback
     btnCancel?.addEventListener('click', () => {
       if (editSession.id !== r.id) return;
       if (!editSession.dirty) return;
@@ -442,7 +367,10 @@ function bindItemActions(rows){
       if (editSession.id !== r.id) return;
 
       const newStatus = statusEl?.value;
-      if (!ALLOWED_STATUS.includes(newStatus)) { toast('Ongeldige status.', 'error'); return; }
+      if (!ALLOWED_STATUS.includes(newStatus)) {
+        toast('Ongeldige status.', 'error');
+        return;
+      }
 
       const note = (noteEl?.value || '').trim();
       if (newStatus === 'afgewezen' && note.length === 0) {
@@ -495,7 +423,7 @@ function bindItemActions(rows){
 }
 
 /* ========== EDIT SESSION HELPERS ========== */
-function startEditSession(row, rootEl){
+function startEditSession(row){
   editSession.id = row.id;
   editSession.dirty = false;
   editSession.saving = false;
