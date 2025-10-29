@@ -9,39 +9,21 @@
   <!-- Basis styles -->
   <link rel="stylesheet" href="style.css"/>
 
-  <!-- Supabase client -->
-  <script type="module" src="supabaseClient.js"></script>
-
   <!-- Pagina-specifieke styles (beheer) -->
   <style>
-    /* Container */
     .container { max-width: 1100px; margin: 0 auto; padding: 1rem; }
 
-    /* ==========================================================
-       Moderne form controls & knoppen (gescope'd onder .admin-ui)
-       ========================================================== */
+    /* ===== Controls & Buttons (gescope’d) ===== */
     .admin-ui .label-sm{ font-size:.9rem; font-weight:600; color:var(--color-black); }
-
     .admin-ui .input,
     .admin-ui .select,
     .admin-ui select,
     .admin-ui textarea,
     .admin-ui input[type="text"],
     .admin-ui input[type="search"]{
-      width:100%;
-      border:1px solid #e5e7eb;
-      background:#fff;
-      color:#111827;
-      border-radius:10px;
-      box-sizing: border-box;
-      line-height:1.2;
-      padding:.62rem .85rem;
-      min-height:42px;
-      outline:none;
-      transition:border-color .15s ease, box-shadow .15s ease, background-color .15s ease;
-      font:inherit;
-      -webkit-appearance:none;
-      appearance:none;
+      width:100%; border:1px solid #e5e7eb; background:#fff; color:#111827; border-radius:10px;
+      box-sizing:border-box; line-height:1.2; padding:.62rem .85rem; min-height:42px; outline:none;
+      transition:border-color .15s, box-shadow .15s, background-color .15s; font:inherit; appearance:none;
     }
     .admin-ui select{
       background-image:
@@ -53,8 +35,7 @@
         calc(100% - 12px) calc(50% - 3px),
         100% 0;
       background-size: 6px 6px, 6px 6px, 2.5rem 100%;
-      background-repeat: no-repeat;
-      padding-right:2.5rem;
+      background-repeat: no-repeat; padding-right:2.5rem;
     }
     .admin-ui .input:focus,
     .admin-ui .select:focus,
@@ -67,83 +48,59 @@
       background:#fff;
     }
     .admin-ui textarea{ min-height: 96px; resize: vertical; }
-
-    @supports (-webkit-touch-callout: none) {
-      .admin-ui select{ padding-top:.58rem; padding-bottom:.58rem; }
-    }
+    @supports (-webkit-touch-callout: none) { .admin-ui select{ padding-top:.58rem; padding-bottom:.58rem; } }
 
     .admin-ui .btn,
     .admin-ui .btn-primary,
     .admin-ui .btn-danger,
     .admin-ui .btn-outline,
     .admin-ui .btn-ghost{
-      display:inline-flex; align-items:center; justify-content:center;
-      gap:.4rem; border-radius:10px; padding:.6rem .9rem;
-      font-weight:700; line-height:1; cursor:pointer; user-select:none;
-      transition:transform .06s ease, box-shadow .15s ease, background .15s ease, border-color .15s ease;
-      height:42px;
+      display:inline-flex; align-items:center; justify-content:center; gap:.4rem;
+      border-radius:10px; padding:.6rem .9rem; font-weight:700; line-height:1; cursor:pointer; user-select:none;
+      transition:transform .06s, box-shadow .15s, background .15s, border-color .15s; height:42px;
     }
     .admin-ui .btn:active,
     .admin-ui .btn-primary:active,
     .admin-ui .btn-danger:active,
     .admin-ui .btn-outline:active,
     .admin-ui .btn-ghost:active{ transform: translateY(1px); }
-
     .admin-ui .btn-primary{
-      background: var(--color-yellow);
-      border:2px solid var(--color-yellow);
-      color: var(--color-black);
+      background: var(--color-yellow); border:2px solid var(--color-yellow); color: var(--color-black);
       box-shadow: 0 6px 18px rgba(241,196,15,.25);
     }
     .admin-ui .btn-primary:hover{ box-shadow: 0 10px 24px rgba(241,196,15,.35); }
-
     .admin-ui .btn-danger{ background:#fff; color:#991b1b; border:2px solid #991b1b; }
     .admin-ui .btn-danger:hover{ background:#991b1b; color:#fff; }
-
     .admin-ui .btn-outline{ background:#fff; color:#111827; border:2px solid #111827; }
     .admin-ui .btn-outline:hover{ background:#111827; color:#fff; }
-
     .admin-ui .btn-ghost{ background:transparent; border:2px solid transparent; color:#111827; }
     .admin-ui .btn-ghost:hover{ background:#f5f5f5; }
-
     .admin-ui button[disabled]{ opacity:.6; cursor:not-allowed; }
 
     .admin-filters{
-      display:grid;
-      grid-template-columns: repeat(4, minmax(0,1fr));
-      gap:.85rem; align-items:end;
-      position:sticky; top:.5rem; z-index:1;
+      display:grid; grid-template-columns: repeat(4, minmax(0,1fr));
+      gap:.85rem; align-items:end; position:sticky; top:.5rem; z-index:1;
     }
     .admin-filters .filter{ display:flex; flex-direction:column; gap:.4rem; }
     .admin-filters .filter-actions{
-      grid-column: 1 / -1;
-      display:flex; align-items:center; gap:.6rem; margin-top:.25rem;
+      grid-column: 1 / -1; display:flex; align-items:center; gap:.6rem; margin-top:.25rem;
     }
     .admin-filters .filter-actions .spacer{ flex:1; }
+    @media (max-width: 900px){ .admin-filters{ grid-template-columns: 1fr 1fr; } }
 
-    @media (max-width: 900px){
-      .admin-filters{ grid-template-columns: 1fr 1fr; }
-    }
-
+    .card{ padding:1.1rem 1rem; background:#fff; border:1px solid #eee; border-radius:14px; }
     .list-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:.5rem; }
 
     details.details-card{
-      border:1px solid #eee; border-radius:14px; padding:.6rem .85rem;
-      margin:.75rem 0; background:#fff;
+      border:1px solid #eee; border-radius:14px; padding:.6rem .85rem; margin:.75rem 0; background:#fff;
       transition:box-shadow .15s ease, border-color .15s ease;
     }
     details.details-card[open]{ box-shadow: 0 10px 30px rgba(0,0,0,.06); border-color:#e8e8e8; }
-    .item-summary{
-      display:flex; flex-wrap:wrap; gap:.5rem 1rem; align-items:center; cursor:pointer; list-style:none;
-      padding:.2rem 0;
-    }
+    .item-summary{ display:flex; flex-wrap:wrap; gap:.5rem 1rem; align-items:center; cursor:pointer; list-style:none; padding:.2rem 0; }
     .item-title{ font-weight:800; }
     .item-meta{ color:#6b7280; font-size:.9rem; }
 
-    .status-chip{
-      display:inline-flex; align-items:center; line-height:1;
-      border-radius:999px; padding:.35rem .65rem; font-size:.85rem; font-weight:700;
-    }
+    .status-chip{ display:inline-flex; align-items:center; line-height:1; border-radius:999px; padding:.35rem .65rem; font-size:.85rem; font-weight:700; }
     .status-chip.gray{ background:#f3f4f6; color:#111827; }
     .status-chip.green{ background:#e6f7ed; color:#065f46; }
     .status-chip.red{ background:#fde8e8; color:#991b1b; }
@@ -157,34 +114,25 @@
 
     .admin-field{ display:flex; flex-direction:column; gap:.35rem; }
     .admin-field label{ font-weight:600; font-size:.9rem; color:#111827; }
-
     .admin-ui .a-open{
-      background:transparent; border:2px solid transparent; color:#111827;
-      display:inline-flex; align-items:center; height:36px; padding:.45rem .7rem; border-radius:10px;
+      background:transparent; border:2px solid transparent; color:#111827; display:inline-flex; align-items:center;
+      height:36px; padding:.45rem .7rem; border-radius:10px;
     }
     .admin-ui .a-open:hover{ background:#f5f5f5; }
 
-    .admin-ui .card{ padding:1.1rem 1rem; }
-
-    .admin-ui .row label{
-      display:flex; flex-direction:column; gap:.35rem;
-      font-weight:600; font-size:.9rem; color:#111827;
-    }
-    .admin-ui .row input[data-k]{
-      border:1px solid #e5e7eb; border-radius:10px; background:#fafafa;
-      padding:.6rem .8rem; min-height:42px; color:#111827; font:inherit; line-height:1.2;
-      box-sizing:border-box; transition:border-color .15s ease, box-shadow .15s ease, background-color .15s ease;
+    .row label{ display:flex; flex-direction:column; gap:.35rem; font-weight:600; font-size:.9rem; color:#111827; }
+    .row input[data-k]{
+      border:1px solid #e5e7eb; border-radius:10px; background:#fafafa; padding:.6rem .8rem; min-height:42px;
+      color:#111827; font:inherit; line-height:1.2; box-sizing:border-box; transition:border-color .15s, box-shadow .15s, background-color .15s;
       text-align:right; font-variant-numeric: tabular-nums; letter-spacing:.01em;
     }
-    .admin-ui .row input[data-k]:hover{ background:#f7f7f7; }
-    .admin-ui .row input[data-k]:focus{
-      background:#fff; border-color: var(--color-yellow); box-shadow: 0 0 0 3px rgba(241,196,15,.25); outline:none;
-    }
-    .admin-ui .row input[data-k]::placeholder{ color:#9ca3af; }
-    .admin-ui .row{ gap:.75rem !important; }
+    .row input[data-k]:hover{ background:#f7f7f7; }
+    .row input[data-k]:focus{ background:#fff; border-color: var(--color-yellow); box-shadow: 0 0 0 3px rgba(241,196,15,.25); outline:none; }
+    .row input[data-k]::placeholder{ color:#9ca3af; }
+    .row{ gap:.75rem !important; }
   </style>
 </head>
-<body>
+<body class="admin-ui">
   <!-- HEADER -->
   <header class="site-header">
     <nav class="navbar">
@@ -195,30 +143,27 @@
       </button>
 
       <div id="site-menu" class="site-menu" hidden>
-        <button id="nav-close" class="nav-close" aria-label="Menu sluiten">
-          <span aria-hidden="true">&times;</span>
-        </button>
-
+        <button id="nav-close" class="nav-close" aria-label="Menu sluiten"><span aria-hidden="true">&times;</span></button>
         <ul class="nav-links">
           <li class="auth-only"><a href="plaatsingsruimte.html" class="nav__item" id="nav-bereken">Bereken plaatsingsruimte</a></li>
           <li class="auth-only"><a href="mestplan.html" class="nav__item" id="nav-mestplan">Maak mestplan</a></li>
           <li class="auth-only"><a href="upload.html" class="nav__item" id="nav-upload">Mest uploaden</a></li>
           <li class="auth-only"><a href="account.html" class="nav__item" id="nav-account">Mijn account</a></li>
           <li class="auth-only admin-only"><a href="beheer.html" class="nav__item" id="nav-beheer">Beheer</a></li>
-          <li class="nav-auth-item"><button class="btn-login" id="nav-auth">Inloggen</button></li>
+          <li class="nav-auth-item"><button class="btn-login" id="nav-auth" type="button">Inloggen</button></li>
         </ul>
       </div>
     </nav>
   </header>
 
   <!-- MAIN -->
-  <main id="main" class="container admin-ui">
+  <main id="main" class="container">
     <h1>Beheer</h1>
     <div class="muted">Alleen zichtbaar voor admins.</div>
 
     <!-- Filters -->
-    <section class="card">
-      <div class="admin-filters" role="region" aria-label="Filters">
+    <section class="card" aria-label="Filters">
+      <div class="admin-filters">
         <div class="filter">
           <label for="fStatus" class="label-sm">Status</label>
           <select id="fStatus" class="select">
@@ -236,12 +181,16 @@
 
         <div class="filter">
           <label for="fCategorie" class="label-sm">Categorie</label>
-          <select id="fCategorie" class="select"><option value="">Alle categorieën</option></select>
+          <select id="fCategorie" class="select">
+            <option value="">Alle categorieën</option>
+          </select>
         </div>
 
         <div class="filter">
           <label for="fType" class="label-sm">Type</label>
-          <select id="fType" class="select"><option value="">Alle types</option></select>
+          <select id="fType" class="select">
+            <option value="">Alle types</option>
+          </select>
         </div>
 
         <div class="filter-actions">
@@ -254,7 +203,7 @@
     </section>
 
     <!-- Lijst -->
-    <section class="card">
+    <section class="card" aria-live="polite">
       <div class="list-head">
         <div class="muted"><span id="resultCount">0</span> resultaten</div>
       </div>
@@ -264,43 +213,42 @@
 
   <footer id="footer"></footer>
 
+  <!-- Supabase client -->
+  <script type="module" src="supabaseClient.js"></script>
+
   <!-- Shared utils + paginalogica als modules -->
   <script type="module" src="./core/utils/utils.js"></script>
   <script type="module" src="./pages/beheer/beheer.js"></script>
 
-  <!-- Nav logic als ES-module + init -->
+  <!-- Nav logic + init -->
   <script type="module" src="./core/ui/nav.js"></script>
   <script type="module">
     import { initNavMenu } from './core/ui/nav-menu.js';
     initNavMenu({ menuId: 'site-menu', toggleId: 'nav-toggle' });
   </script>
 
-  <!-- Admin-guard (alleen ingelogde admins) -->
+  <!-- Admin-guard (ingelogd + admin) -->
   <script type="module">
     import { supabase } from './supabaseClient.js';
-
-    // 1) Auth vereist
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      window.location.replace('account.html?signin=1');
-    } else {
-      // 2) Role check
+    (async () => {
       try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          window.location.replace('account.html?signin=1'); return;
+        }
         const { data, error } = await supabase
           .from('profiles')
           .select('role')
           .eq('id', session.user.id)
-          .single();
-
-        const role = (data?.role || '').toLowerCase();
+          .maybeSingle();
+        const role = String(data?.role || '').toLowerCase();
         if (error || role !== 'admin') {
-          // Niet geautoriseerd voor beheer
-          window.location.replace('account.html');
+          window.location.replace('account.html'); return;
         }
       } catch {
         window.location.replace('account.html');
       }
-    }
+    })();
   </script>
 </body>
 </html>
