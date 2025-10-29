@@ -1,5 +1,5 @@
 // pages/beheer/beheer.js
-// Admin-lijst met filters, single-edit lock, inline dirty-guard en veilige saves (geen globale nav/beforeunload guards)
+// Admin-lijst met filters, single-edit lock, uitsluitend inline dirty-guard en veilige saves
 
 import { supabase } from '../../supabaseClient.js';
 import { toast }    from '../../core/utils/utils.js';
@@ -20,10 +20,10 @@ const LS_KEY = 'beheer.filters.v1';
 
 // ===== Single-edit session =====
 const editSession = {
-  id: null,           // id van het item dat momenteel bewerkt wordt
-  dirty: false,       // zijn er onopgeslagen wijzigingen?
-  saving: false,      // is er een save bezig?
-  snapshot: null      // originele data van het item (voor rollback)
+  id: null,           // id van item dat nu bewerkt wordt
+  dirty: false,       // onopgeslagen wijzigingen?
+  saving: false,      // save bezig?
+  snapshot: null      // originele data (voor rollback)
 };
 
 let session, userId, isAdmin = false;
@@ -35,8 +35,7 @@ let session, userId, isAdmin = false;
   userId = session.user.id;
 
   try {
-    const { data: prof } = await supabase
-      .from('profiles').select('role').eq('id', userId).maybeSingle();
+    const { data: prof } = await supabase.from('profiles').select('role').eq('id', userId).maybeSingle();
     isAdmin = String(prof?.role || '').toLowerCase() === 'admin';
   } catch {}
   if (!isAdmin) { toast('Geen toegang', 'error'); window.location.replace('account.html'); return; }
@@ -45,7 +44,9 @@ let session, userId, isAdmin = false;
   restoreFilters();
   bindFilters();
 
-  // Belangrijk: geen beforeunload of globale nav-interceptor hier.
+  // Belangrijk: GEEN beforeunload of globale click-guards.
+  // Alleen inline guards in items en bij filterwijzigingen.
+
   await loadList();
 })();
 
@@ -64,7 +65,7 @@ function bindFilters() {
     loadList();
   });
 
-  // Met single-edit lock houden we “max 1 open”; expand/collapse dicht alles voor consistentie
+  // Voor consistentie: max 1 open; expand/collapse sluiten alles.
   btnExpand?.addEventListener('click', () => toggleOnlyOneOpen(null));
   btnCollapse?.addEventListener('click', () => toggleOnlyOneOpen(null));
 }
@@ -176,9 +177,7 @@ async function loadList(){
 
   listEl.innerHTML = rows.length ? rows.map(renderItem).join('') : '<div class="muted">Geen resultaten</div>';
 
-  // Reset edit-session na nieuw renderen
-  clearEditSession();
-
+  clearEditSession(); // nieuwe lijst → sessie resetten
   bindItemActions(rows);
 }
 
@@ -243,7 +242,7 @@ function bindItemActions(rows){
     const noteEl   = root.querySelector('.f-note');
     const inputs   = root.querySelectorAll('input[data-k]');
 
-    // --- Single-open gedrag + inline dirty guard ---
+    // --- Max 1 open + inline dirty guard ---
     root.addEventListener('toggle', () => {
       if (root.open) {
         if (editSession.dirty && editSession.id !== r.id) {
@@ -252,7 +251,7 @@ function bindItemActions(rows){
           rollbackCurrentEdits();
         }
         toggleOnlyOneOpen(r.id);
-        startEditSession(r, root);
+        startEditSession(r);
       } else {
         if (editSession.id === r.id && editSession.dirty && !editSession.saving) {
           const ok = confirm('Wijzigingen zijn nog niet opgeslagen. Sluiten en wijzigingen verwerpen?');
@@ -265,42 +264,40 @@ function bindItemActions(rows){
       }
     });
 
-    // --- Bestand openen (popup-safe & niet-blokkerend voor save) ---
-    btnOpen?.addEventListener('click', async () => {
+    // --- Bestand openen (popup-vriendelijk + geen extra waarschuwingen) ---
+    btnOpen?.addEventListener('click', () => {
       if (!r.file_path) { toast('Geen bestand beschikbaar.', 'error'); return; }
 
-      // 1) Synchronous open — houdt de user gesture intact
-      const tab = window.open('', '_blank', 'noopener,noreferrer');
-      if (!tab) {
-        toast('Popup geblokkeerd. Sta pop-ups toe voor deze site.', 'error');
-        return;
-      }
-      try {
-        // Simpele placeholder zodat de tab niet "leeg" oogt
-        tab.document.write('<!doctype html><title>Analyse openen…</title><body style="font-family:sans-serif;padding:1rem;">Analyse laden…</body>');
+      // 1) Probeer synchron een leeg tabblad te openen (meest popup-proof).
+      const newTab = window.open('', '_blank', 'noopener,noreferrer');
 
-        // 2) Signed URL ophalen
-        const { data, error } = await supabase
-          .storage
-          .from('mest-analyses')
-          .createSignedUrl(r.file_path, 60);
+      // 2) Vraag de signed URL asynchroon op.
+      (async () => {
+        try {
+          const { data, error } = await supabase.storage
+            .from('mest-analyses')
+            .createSignedUrl(r.file_path, 60);
 
-        if (error || !data?.signedUrl) {
-          throw error || new Error('Geen signed URL beschikbaar');
+          if (error || !data?.signedUrl) throw error || new Error('Geen signed URL');
+
+          if (newTab) {
+            // Als tab kon openen: navigeer die tab naar de signed URL.
+            newTab.location = data.signedUrl;
+          } else {
+            // Fallback: pop-ups geblokkeerd → navigeer huidig tabblad (geen extra waarschuwing).
+            window.location.assign(data.signedUrl);
+          }
+        } catch (e) {
+          console.error(e);
+          try { newTab?.close(); } catch {}
+          toast('Kon bestand niet openen.', 'error');
         }
-
-        // 3) Navigeren in de reeds geopende tab
-        tab.location = data.signedUrl;
-      } catch (e) {
-        console.error('[beheer] open analyse error:', e);
-        try { tab.close(); } catch {}
-        toast('Kon bestand niet openen.', 'error');
-      }
+      })();
     });
 
-    // --- Dirty-detect ---
+    // --- Dirty detect ---
     const markDirty = () => {
-      if (editSession.id !== r.id) startEditSession(r, root);
+      if (editSession.id !== r.id) startEditSession(r);
       editSession.dirty = true;
       if (btnSave)   btnSave.disabled   = false;
       if (btnCancel) btnCancel.disabled = false;
@@ -323,10 +320,9 @@ function bindItemActions(rows){
       }
     });
 
-    // Cancel → rollback naar snapshot
+    // Cancel → rollback
     btnCancel?.addEventListener('click', () => {
-      if (editSession.id !== r.id) return;
-      if (!editSession.dirty) return;
+      if (editSession.id !== r.id || !editSession.dirty) return;
       rollbackCurrentEdits();
       restoreItemUIFromSnapshot(root, editSession.snapshot);
       editSession.dirty = false;
@@ -336,16 +332,14 @@ function bindItemActions(rows){
 
     // Save
     btnSave?.addEventListener('click', async () => {
-      if (editSession.saving) return;
-      if (editSession.id !== r.id) return;
+      if (editSession.saving || editSession.id !== r.id) return;
 
       const newStatus = statusEl?.value;
       if (!ALLOWED_STATUS.includes(newStatus)) { toast('Ongeldige status.', 'error'); return; }
 
       const note = (noteEl?.value || '').trim();
       if (newStatus === 'afgewezen' && note.length === 0) {
-        toast('Geef een reden bij afwijzen.', 'error');
-        noteEl?.focus(); return;
+        toast('Geef een reden bij afwijzen.', 'error'); noteEl?.focus(); return;
       }
 
       const patch = {
@@ -364,21 +358,15 @@ function bindItemActions(rows){
       const prevLabel = btnSave.textContent;
       btnSave.textContent = 'Opslaan…';
 
-      let err = null;
-      try {
-        const { error } = await supabase.from('mest_uploads').update(patch).eq('id', r.id);
-        err = error || null;
-      } catch (e) {
-        err = e;
-      }
+      const { error } = await supabase.from('mest_uploads').update(patch).eq('id', r.id);
 
       editSession.saving = false;
       setItemInputsDisabled(root, false);
       btnSave.textContent = prevLabel;
 
-      if (err) {
-        console.error('[beheer] save error:', err);
-        toast(`Opslaan mislukt: ${err.message || err}`, 'error');
+      if (error) {
+        console.error(error);
+        toast(`Opslaan mislukt: ${error.message}`, 'error');
         return;
       }
 
@@ -397,7 +385,7 @@ function bindItemActions(rows){
 }
 
 /* ========== EDIT SESSION HELPERS ========== */
-function startEditSession(row, rootEl){
+function startEditSession(row){
   editSession.id = row.id;
   editSession.dirty = false;
   editSession.saving = false;
@@ -464,7 +452,7 @@ function restoreItemUIFromSnapshot(root, snap){
 function setItemInputsDisabled(root, on){
   root.querySelectorAll('input, select, textarea, button').forEach(el => {
     if (el.classList.contains('a-save') || el.classList.contains('a-cancel')) {
-      el.disabled = on ? true : el.disabled;
+      el.disabled = on ? true : el.disabled; // save/cancel tijdelijk blokkeren tijdens save
     } else {
       el.disabled = on;
     }
@@ -477,7 +465,7 @@ function toggleOnlyOneOpen(id){
   all.forEach(d => { if (id == null || d.dataset.id !== String(id)) d.open = false; });
 }
 
-/** Confirm helper voor weggooien wijzigingen */
+/** Confirm helper voor weggooien wijzigingen (alleen inline) */
 function allowDiscardIfDirty(){
   if (!editSession.dirty || editSession.saving) return true;
   const ok = confirm('Je hebt onopgeslagen wijzigingen. Doorgaan en wijzigingen verwerpen?');
