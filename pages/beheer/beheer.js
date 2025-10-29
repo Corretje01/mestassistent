@@ -1,6 +1,8 @@
-// pages/beheer/beheer.js — opgeschoond: single-item edit guard (inline), geen page-nav guard
+// pages/beheer/beheer.js
+// Admin-lijst met filters, single-edit lock, dirty-guard en veilige saves
+
 import { supabase } from '../../supabaseClient.js';
-import { toast } from '../../core/utils/utils.js';
+import { toast }    from '../../core/utils/utils.js';
 
 const listEl   = document.getElementById('adminList');
 const fStatus  = document.getElementById('fStatus');
@@ -16,121 +18,182 @@ const btnCollapse = document.getElementById('btnCollapseAll');
 const ALLOWED_STATUS = ['in_behandeling', 'gepubliceerd', 'afgewezen'];
 const LS_KEY = 'beheer.filters.v1';
 
-// Één actieve editsessie tegelijk
+// ===== Single-edit session =====
 const editSession = {
-  activeId: null,        // id (uuid) van het geopende item dat bewerkbaar is
-  dirty: false,          // heeft onopgeslagen wijzigingen
-  snapshot: null,        // beginwaarden van inputs (voor dirty-vergelijking)
-  pendingOpenId: null,   // doel-item om na save/discard naar te wisselen
+  id: null,           // id van het item dat momenteel bewerkt wordt
+  dirty: false,       // zijn er onopgeslagen wijzigingen?
+  saving: false,      // is er een save bezig?
+  snapshot: null      // originele data van het item (voor rollback)
 };
 
 let session, userId, isAdmin = false;
 
+/* ========== INIT ========== */
 (async function init() {
-  ({ data: { session } } = await supabase.auth.getSession());
-  if (!session) { window.location.href = 'account.html'; return; }
+  try { ({ data: { session } } = await supabase.auth.getSession()); } catch {}
+  if (!session) { window.location.replace('account.html?signin=1'); return; }
   userId = session.user.id;
 
-  // check admin
-  const { data: prof, error: profErr } = await supabase
-    .from('profiles').select('role').eq('id', userId).single();
-  if (profErr) { toast('Kon profiel niet laden.', 'error'); window.location.href = '/'; return; }
-  isAdmin = String(prof?.role || '').toLowerCase() === 'admin';
-  if (!isAdmin) { toast('Geen toegang', 'error'); window.location.href = '/'; return; }
+  try {
+    const { data: prof } = await supabase.from('profiles').select('role').eq('id', userId).maybeSingle();
+    isAdmin = String(prof?.role || '').toLowerCase() === 'admin';
+  } catch {}
+  if (!isAdmin) { toast('Geen toegang', 'error'); window.location.replace('account.html'); return; }
 
-  // filters vullen + herstellen
   await loadMestSoorten();
   restoreFilters();
   bindFilters();
 
+  // Waarschuwing bij wegnavigeren met onopgeslagen wijzigingen
+  window.addEventListener('beforeunload', (e) => {
+    if (editSession.dirty && !editSession.saving) {
+      e.preventDefault();
+      e.returnValue = '';
+    }
+  });
+
+  // Intercepteer navigatielinks (header) en externe navigatie binnen de pagina
+  document.body.addEventListener('click', (e) => {
+    const a = e.target.closest('a,button');
+    if (!a) return;
+
+    // Links/knoppen die navigeren:
+    const href = a.tagName === 'A' ? a.getAttribute('href') : null;
+    const isNavLink = a.matches('.nav__item, .btn-login') || (href && !href.startsWith('#') && !href.startsWith('javascript:'));
+
+    if (isNavLink && editSession.dirty && !editSession.saving) {
+      const ok = confirm('Je hebt onopgeslagen wijzigingen. Weet je zeker dat je wilt doorgaan? Wijzigingen gaan verloren.');
+      if (!ok) {
+        e.preventDefault();
+        e.stopPropagation();
+      } else {
+        // roll back
+        rollbackCurrentEdits();
+      }
+    }
+  }, true);
+
   await loadList();
 })();
 
-/* ========================= Filters / lijst ========================= */
-
+/* ========== FILTERS ========== */
 function bindFilters() {
   [fStatus, fCat, fType].forEach(el => el?.addEventListener('change', onFiltersChanged));
   fQuery?.addEventListener('input', debounce(onFiltersChanged, 250));
 
   btnReset?.addEventListener('click', () => {
-    fStatus.value = ''; fQuery.value = ''; fCat.value = ''; fType.value = '';
-    persistFilters(); loadList();
+    if (!allowDiscardIfDirty()) return;
+    if (fStatus) fStatus.value = '';
+    if (fQuery)  fQuery.value  = '';
+    if (fCat)    fCat.value    = '';
+    if (fType)   fType.value   = '';
+    persistFilters();
+    loadList();
   });
 
-  btnExpand?.addEventListener('click', () => {
-    document.querySelectorAll('details.details-card').forEach(d => d.open = true);
-  });
-  btnCollapse?.addEventListener('click', () => {
-    document.querySelectorAll('details.details-card').forEach(d => d.open = false);
-  });
+  // Met single-edit lock heeft expand/collapse beperkte waarde; we maken ze "single-open"
+  btnExpand?.addEventListener('click', () => toggleOnlyOneOpen(null));  // sluit allemaal
+  btnCollapse?.addEventListener('click', () => toggleOnlyOneOpen(null)); // idem, consistent
 }
 
-function onFiltersChanged(){ persistFilters(); loadList(); }
+function onFiltersChanged(){
+  if (!allowDiscardIfDirty()) {
+    // reset UI naar oude filterwaarden
+    restoreFilters();
+    return;
+  }
+  persistFilters();
+  loadList();
+}
 
 function persistFilters(){
-  const payload = { status: fStatus.value, q: fQuery.value, cat: fCat.value, type: fType.value };
-  try { localStorage.setItem(LS_KEY, JSON.stringify(payload)); } catch(_) {}
+  const payload = {
+    status: fStatus?.value ?? '',
+    q:      fQuery?.value  ?? '',
+    cat:    fCat?.value    ?? '',
+    type:   fType?.value   ?? ''
+  };
+  try { localStorage.setItem(LS_KEY, JSON.stringify(payload)); } catch {}
 }
 function restoreFilters(){
   try {
     const raw = localStorage.getItem(LS_KEY);
     if (!raw) return;
     const { status, q, cat, type } = JSON.parse(raw);
-    if (typeof status === 'string') fStatus.value = status;
-    if (typeof q === 'string')      fQuery.value  = q;
-    if (typeof cat === 'string')    fCat.value    = cat;
-    if (typeof type === 'string')   fType.value   = type;
-  } catch(_) {}
+    if (fStatus && typeof status === 'string') fStatus.value = status;
+    if (fQuery  && typeof q      === 'string') fQuery.value  = q;
+    if (fCat    && typeof cat    === 'string') fCat.value    = cat;
+    if (fType   && typeof type   === 'string') fType.value   = type;
+  } catch {}
 }
 
-function debounce(fn, ms) { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; }
+function debounce(fn, ms){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), ms); }; }
 
-// Gebruik nette NL labels voor categorie
-function labelCategorie(c) {
-  const map = { drijfmest: 'Drijfmest', vaste_mest: 'Vaste mest', dikke_fractie: 'Dikke fractie', overig: 'Overig' };
-  return map[c] || String(c).replace(/_/g, ' ');
+/* ========== HELPER LABELS/UTILS ========== */
+function labelCategorie(c){
+  const map = { drijfmest:'Drijfmest', vaste_mest:'Vaste mest', dikke_fractie:'Dikke fractie', overig:'Overig' };
+  return map[c] || String(c || '').replace(/_/g, ' ');
+}
+function statusChip(s){
+  const map = { in_behandeling:'gray', gepubliceerd:'green', afgewezen:'red' };
+  const cls = map[s] || 'gray';
+  const label = String(s || '').replace('_',' ');
+  return `<span class="status-chip ${cls}" aria-label="Status: ${escapeHtml(label)}">${escapeHtml(label)}</span>`;
+}
+function input(key, label, val){
+  const v = (val === null || val === undefined) ? '' : String(val);
+  return `<label>${escapeHtml(label)}<input data-k="${escapeHtml(key)}" value="${escapeHtml(v)}" inputmode="decimal"/></label>`;
+}
+function escapeHtml(s){ return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+function asNumberOrNull(v){
+  if (v === null || v === undefined) return null;
+  const s = String(v).trim().replace(',', '.'); if (s === '') return null;
+  const n = Number(s); return Number.isFinite(n) ? n : null;
+}
+function fmtDate(iso){
+  if (!iso) return '—';
+  try { const d = new Date(iso); return d.toLocaleDateString('nl-NL',{ day:'2-digit', month:'short', year:'numeric' }); }
+  catch { return '—'; }
 }
 
-// Laad mestsoorten.json -> vul filter dropdowns (array- of object-vorm)
-async function loadMestSoorten() {
+/* ========== DATA LOADERS ========== */
+async function loadMestSoorten(){
   try {
-    const resp = await fetch('../../core/domain/data/mestsoorten.json', { cache: 'no-store' });
+    const resp = await fetch('../../core/domain/data/mestsoorten.json',{ cache:'no-store' });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const data = await resp.json();
 
-    let cats = [], types = [];
+    let cats=[], types=[];
     if (Array.isArray(data)) {
       cats  = [...new Set(data.map(m => m.categorie).filter(Boolean))];
       types = [...new Set(data.map(m => m.type).filter(Boolean))];
     } else if (data && typeof data === 'object') {
-      cats = Object.keys(data || {});
+      cats  = Object.keys(data || {});
       types = [...new Set(cats.flatMap(c => Object.keys(data[c] || {})))];
     }
 
     cats.forEach(c => fCat?.appendChild(new Option(labelCategorie(c), c)));
     types.forEach(t => fType?.appendChild(new Option(t, t)));
   } catch (e) {
-    console.error(e);
+    console.error('[beheer] mestsoorten laden:', e);
     toast('Kon mestsoorten niet laden.', 'error');
   }
 }
 
-async function loadList() {
+async function loadList(){
   if (!listEl) return;
+  // Als we dirty zijn en we herladen, raak je wijzigingen kwijt -> eerst bevestigen
+  if (!allowDiscardIfDirty()) return;
+
   listEl.textContent = 'Laden…';
 
-  // Bij opnieuw laden: sessie resetten
-  resetEditSession();
-
-  let q = supabase.from('mest_uploads')
-    .select('*')
-    .order('created_at', { ascending: false });
-
+  let q = supabase.from('mest_uploads').select('*').order('created_at',{ ascending:false });
   if (fStatus?.value) q = q.eq('status', fStatus.value);
   if (fCat?.value)    q = q.eq('mest_categorie', fCat.value);
   if (fType?.value)   q = q.eq('mest_type', fType.value);
 
   const { data, error } = await q;
-  if (error) { listEl.textContent = 'Fout bij laden'; return; }
+  if (error) { listEl.textContent = 'Fout bij laden'; console.error(error); return; }
 
   let rows = data || [];
   const query = fQuery?.value?.toLowerCase().trim();
@@ -143,29 +206,29 @@ async function loadList() {
 
   if (resCount) resCount.textContent = String(rows.length);
 
-  listEl.innerHTML = rows.length
-    ? rows.map(renderItem).join('')
-    : '<div class="muted">Geen resultaten</div>';
+  listEl.innerHTML = rows.length ? rows.map(renderItem).join('') : '<div class="muted">Geen resultaten</div>';
+
+  // Reset edit-session na nieuw renderen
+  clearEditSession();
 
   bindItemActions(rows);
 }
 
-/* ========================= Rendering ========================= */
-
-function renderItem(r) {
+/* ========== RENDER & BINDINGS PER ITEM ========== */
+function renderItem(r){
   const created = fmtDate(r.created_at);
   return `
-    <details class="details-card" data-id="${r.id}">
+    <details class="details-card" data-id="${escapeHtml(r.id)}">
       <summary class="item-summary">
         <span class="item-title">${escapeHtml(r.naam || '—')}</span>
         <span class="item-meta">${escapeHtml(labelCategorie(r.mest_categorie))}/${escapeHtml(r.mest_type || '—')} • ${escapeHtml(r.postcode || '—')} • ${created}</span>
         ${statusChip(r.status)}
       </summary>
 
-      <div class="edit-wrap" style="margin:.5rem 0;">
+      <div style="margin:.5rem 0;">
         <div style="display:flex; align-items:center; gap:.5rem;">
           <strong>Bestand:</strong>
-          <button class="a-open">Bekijk analyse</button>
+          <button class="a-open btn-ghost" type="button">Bekijk analyse</button>
           ${r.file_path ? '' : '<span class="muted">(geen bestand)</span>'}
         </div>
 
@@ -179,329 +242,265 @@ function renderItem(r) {
         </div>
 
         <div class="admin-grid-2" style="margin-top:.75rem;">
-          <label> Status
+          <div class="admin-field">
+            <label>Status</label>
             <select class="f-status">
-              ${ALLOWED_STATUS.map(s=>`<option ${s===r.status?'selected':''} value="${s}">${s.replace('_',' ')}</option>`).join('')}
+              ${ALLOWED_STATUS.map(s => `<option ${s===r.status?'selected':''} value="${s}">${escapeHtml(s.replace('_',' '))}</option>`).join('')}
             </select>
-          </label>
-          <label> Moderation note
+          </div>
+          <div class="admin-field">
+            <label>Moderation note</label>
             <textarea class="f-note" placeholder="Reden/onderbouwing (verplicht bij afkeuren)">${escapeHtml(r.moderation_note || '')}</textarea>
-          </label>
+          </div>
         </div>
 
-        <div class="actions" style="margin-top:.75rem; display:flex; gap:.5rem; align-items:center; flex-wrap:wrap;">
-          <button class="btn-primary a-save" disabled>Opslaan</button>
-          <span class="muted dirty-hint" hidden>Onopgeslagen wijzigingen…</span>
+        <div class="actions" style="margin-top:.75rem; display:flex; gap:.5rem;">
+          <button class="btn-primary a-save"  type="button" disabled>Opslaan</button>
+          <button class="btn-outline a-cancel" type="button" disabled>Wijzigingen ongedaan maken</button>
         </div>
-
-        <!-- Inline guard banner (injectieplek) -->
-        <div class="dirty-banner" hidden></div>
       </div>
     </details>
   `;
 }
 
-function statusChip(s){
-  const map = { in_behandeling:'gray', gepubliceerd:'green', afgewezen:'red' };
-  const cls = map[s] || 'gray';
-  const label = String(s || '').replace('_',' ');
-  return `<span class="status-chip ${cls}" aria-label="Status: ${label}">${label}</span>`;
-}
-
-function input(key, label, val) {
-  const v = (val === null || val === undefined) ? '' : String(val);
-  return `<label>${label}<input data-k="${key}" value="${escapeHtml(v)}" inputmode="decimal"/></label>`;
-}
-
-/* ========================= Item interactie ========================= */
-
-function bindItemActions(rows) {
+function bindItemActions(rows){
   rows.forEach(r => {
-    const root     = document.querySelector(`details[data-id="${r.id}"]`);
+    const root     = document.querySelector(`details[data-id="${CSS.escape(String(r.id))}"]`);
     if (!root) return;
 
-    const sumEl    = root.querySelector('summary');
     const btnSave  = root.querySelector('.a-save');
     const btnOpen  = root.querySelector('.a-open');
+    const btnCancel= root.querySelector('.a-cancel');
     const statusEl = root.querySelector('.f-status');
     const noteEl   = root.querySelector('.f-note');
     const inputs   = root.querySelectorAll('input[data-k]');
-    const hintEl   = root.querySelector('.dirty-hint');
 
-    // --- open file (signed URL)
+    // --- Single-open gedrag + dirty guard ---
+    root.addEventListener('toggle', () => {
+      if (root.open) {
+        // Wil je een ander item openen terwijl je dirty bent?
+        if (editSession.dirty && editSession.id !== r.id) {
+          const ok = confirm('Je hebt onopgeslagen wijzigingen. Doorgaan en wijzigingen verwerpen?');
+          if (!ok) { root.open = false; return; }
+          rollbackCurrentEdits(); // verwerp
+        }
+        // Sluit alle andere details
+        toggleOnlyOneOpen(r.id);
+        // Start nieuwe edit-sessie (clean)
+        startEditSession(r, root);
+      } else {
+        // Sluiten: als dit het actieve item is en dirty, vraag om bevestiging
+        if (editSession.id === r.id && editSession.dirty && !editSession.saving) {
+          const ok = confirm('Wijzigingen zijn nog niet opgeslagen. Sluiten en wijzigingen verwerpen?');
+          if (!ok) { root.open = true; return; }
+          rollbackCurrentEdits();
+          endEditSession();
+        } else if (editSession.id === r.id && !editSession.saving) {
+          // nette afronding
+          endEditSession();
+        }
+      }
+    });
+
+    // Bestand openen (signed URL)
     btnOpen?.addEventListener('click', async () => {
       if (!r.file_path) { toast('Geen bestand beschikbaar.', 'error'); return; }
-      const { data, error } = await supabase.storage
-        .from('mest-analyses')
-        .createSignedUrl(r.file_path, 60);
-      if (error) { toast(`Kon bestand niet openen: ${error.message}`, 'error'); return; }
-      window.open(data.signedUrl, '_blank', 'noopener');
-    });
-
-    // --- summary click: single-item edit guard
-    sumEl?.addEventListener('click', (e) => {
-      // Als dit item al actief is, laat gewoon togglen toe.
-      const id = r.id;
-      const switching = (editSession.activeId && editSession.activeId !== id);
-      if (switching && editSession.dirty) {
-        // Blokkeer wisselen; toon banner op actieve
-        e.preventDefault();
-        e.stopPropagation();
-        showDirtyBannerForActiveItem(id); // pendingOpenId = id
-        focusActiveDirtyItem();
+      try {
+        const { data, error } = await supabase.storage.from('mest-analyses').createSignedUrl(r.file_path, 60);
+        if (error || !data?.signedUrl) throw error || new Error('Geen URL');
+        window.open(data.signedUrl, '_blank', 'noopener');
+      } catch (e) {
+        console.error(e);
+        toast('Kon bestand niet openen.', 'error');
       }
     });
 
-    // --- toggle open/close: initialiseer sessie bij openen
-    root.addEventListener('toggle', () => {
-      const id = r.id;
-      if (root.open) {
-        // Als we hier kwamen via “Opslaan & wisselen” of “Verwerpen & wisselen”, reset dirty
-        if (editSession.pendingOpenId === id) {
-          editSession.pendingOpenId = null;
-        }
-        // Maak dit het actieve item en neem snapshot op
-        setActiveItem(id, root);
-        setSnapshotFromDOM(root);
-        setDirty(false, root);
-      } else {
-        // Sluit je het actieve item? Als het dirty is: blokkeer sluiten.
-        if (editSession.activeId === id && editSession.dirty) {
-          // Forceer open + banner tonen
-          root.open = true;
-          showDirtyBannerForActiveItem(null);
-        } else if (editSession.activeId === id) {
-          // schoon afsluiten
-          resetEditSession();
-        }
-      }
-    });
-
-    // --- Dirty detectie
-    const markDirty = () => { setDirty(true, root); };
+    // Dirty-detect
+    const markDirty = () => {
+      if (editSession.id !== r.id) startEditSession(r, root);
+      editSession.dirty = true;
+      if (btnSave)   btnSave.disabled   = false;
+      if (btnCancel) btnCancel.disabled = false;
+    };
     [statusEl, noteEl, ...inputs].forEach(el => {
       el?.addEventListener('input', markDirty);
       el?.addEventListener('change', markDirty);
     });
 
-    // Enter in input => save
+    // Enter in numeric veld => save
     inputs.forEach(i => {
-      i.addEventListener('keydown', e => {
+      i.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') { e.preventDefault(); btnSave?.click(); }
       });
     });
-
-    // Cmd/Ctrl+S => save (binnen dit details)
-    root.addEventListener('keydown', e => {
+    // Cmd/Ctrl+S => save
+    root.addEventListener('keydown', (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') {
         e.preventDefault(); btnSave?.click();
       }
     });
 
-    // --- Opslaan
-    btnSave?.addEventListener('click', async () => {
-      await saveCurrent(root, r.id);
+    // Cancel → rollback naar snapshot
+    btnCancel?.addEventListener('click', () => {
+      if (editSession.id !== r.id) return; // niet het actieve item
+      if (!editSession.dirty) return;
+      rollbackCurrentEdits();
+      // UI verversen
+      restoreItemUIFromSnapshot(root, editSession.snapshot);
+      editSession.dirty = false;
+      btnSave.disabled = true;
+      btnCancel.disabled = true;
     });
 
-    // Bij eerste render blijven alle items dicht; user opent er één → toggle handler init sessie
+    // Save
+    btnSave?.addEventListener('click', async () => {
+      if (editSession.saving) return;
+      if (editSession.id !== r.id) return;
+
+      const newStatus = statusEl?.value;
+      if (!ALLOWED_STATUS.includes(newStatus)) { toast('Ongeldige status.', 'error'); return; }
+
+      const note = (noteEl?.value || '').trim();
+      if (newStatus === 'afgewezen' && note.length === 0) {
+        toast('Geef een reden bij afwijzen.', 'error');
+        noteEl?.focus(); return;
+      }
+
+      const patch = {
+        status: newStatus,
+        moderation_note: note || null,
+        last_moderated_by: userId
+      };
+      inputs.forEach(i => {
+        const key = i.getAttribute('data-k');
+        patch[key] = asNumberOrNull(i.value);
+      });
+
+      // Disable UI tijdens save
+      setItemInputsDisabled(root, true);
+      editSession.saving = true;
+
+      const prevLabel = btnSave.textContent;
+      btnSave.textContent = 'Opslaan…';
+
+      const { error } = await supabase.from('mest_uploads').update(patch).eq('id', r.id);
+
+      // Re-enable UI
+      editSession.saving = false;
+      setItemInputsDisabled(root, false);
+      btnSave.textContent = prevLabel;
+
+      if (error) {
+        console.error(error);
+        toast(`Opslaan mislukt: ${error.message}`, 'error');
+        return;
+      }
+
+      toast('Opgeslagen', 'success');
+      editSession.dirty = false;
+      btnSave.disabled = true;
+      btnCancel.disabled = true;
+
+      // Na save lijst opnieuw laden zodat chips en status updaten
+      await loadList();
+      // Open opnieuw het item dat we net bewerkten (optioneel):
+      const reopened = document.querySelector(`details[data-id="${CSS.escape(String(r.id))}"]`);
+      if (reopened) reopened.open = true;
+    });
   });
+
+  // Forceer "max 1 open" direct na binden
+  toggleOnlyOneOpen(editSession.id);
 }
 
-/* ========================= Dirty/inline guard helpers ========================= */
-
-function resetEditSession() {
-  editSession.activeId = null;
+/* ========== EDIT SESSION HELPERS ========== */
+function startEditSession(row, rootEl){
+  editSession.id = row.id;
   editSession.dirty = false;
+  editSession.saving = false;
+  // snapshot bevat de oorspronkelijke waarden van dit item
+  editSession.snapshot = {
+    id: row.id,
+    status: row.status,
+    moderation_note: row.moderation_note || '',
+    ds_percent: row.ds_percent,
+    n_kg_per_ton: row.n_kg_per_ton,
+    p_kg_per_ton: row.p_kg_per_ton,
+    k_kg_per_ton: row.k_kg_per_ton,
+    os_percent: row.os_percent,
+    biogaspotentieel_m3_per_ton: row.biogaspotentieel_m3_per_ton
+  };
+}
+
+function endEditSession(){
+  editSession.id = null;
+  editSession.dirty = false;
+  editSession.saving = false;
   editSession.snapshot = null;
-  editSession.pendingOpenId = null;
 }
 
-function setActiveItem(id, root) {
-  editSession.activeId = id;
-  // Verwijder eventuele banners op ALLE items
-  document.querySelectorAll('.dirty-banner').forEach(b => (b.hidden = true, b.innerHTML = ''));
-  // Visuele hint reset
-  const hint = root.querySelector('.dirty-hint');
-  if (hint) hint.hidden = true;
+function clearEditSession(){
+  endEditSession();
+  // sluit alles
+  document.querySelectorAll('details.details-card[open]').forEach(d => d.open = false);
 }
 
-function setSnapshotFromDOM(root) {
-  editSession.snapshot = readPayloadFromDOM(root);
+function rollbackCurrentEdits(){
+  if (!editSession.id || !editSession.snapshot) return;
+  const root = document.querySelector(`details[data-id="${CSS.escape(String(editSession.id))}"]`);
+  if (root) restoreItemUIFromSnapshot(root, editSession.snapshot);
+  endEditSession();
 }
 
-function readPayloadFromDOM(root) {
+function restoreItemUIFromSnapshot(root, snap){
   const statusEl = root.querySelector('.f-status');
   const noteEl   = root.querySelector('.f-note');
   const inputs   = root.querySelectorAll('input[data-k]');
-  const payload  = {
-    status: statusEl?.value || '',
-    note:   (noteEl?.value || ''),
-    fields: {}
+
+  if (statusEl) statusEl.value = snap.status || 'in_behandeling';
+  if (noteEl)   noteEl.value   = snap.moderation_note || '';
+
+  const map = {
+    ds_percent: snap.ds_percent,
+    n_kg_per_ton: snap.n_kg_per_ton,
+    p_kg_per_ton: snap.p_kg_per_ton,
+    k_kg_per_ton: snap.k_kg_per_ton,
+    os_percent: snap.os_percent,
+    biogaspotentieel_m3_per_ton: snap.biogaspotentieel_m3_per_ton
   };
-  inputs.forEach(i => {
-    payload.fields[i.getAttribute('data-k')] = i.value;
-  });
-  return payload;
-}
-
-function isDirtyComparedToSnapshot(root) {
-  if (!editSession.snapshot) return false;
-  const cur = readPayloadFromDOM(root);
-  if (cur.status !== editSession.snapshot.status) return true;
-  if (cur.note   !== editSession.snapshot.note)   return true;
-  const keys = new Set([...Object.keys(cur.fields), ...Object.keys(editSession.snapshot.fields)]);
-  for (const k of keys) {
-    if ((cur.fields[k] ?? '') !== (editSession.snapshot.fields[k] ?? '')) return true;
-  }
-  return false;
-}
-
-function setDirty(on, root) {
-  editSession.dirty = !!on;
-  const btnSave = root.querySelector('.a-save');
-  const hintEl  = root.querySelector('.dirty-hint');
-  if (btnSave) btnSave.disabled = !editSession.dirty;
-  if (hintEl)  hintEl.hidden = !editSession.dirty;
-}
-
-function showDirtyBannerForActiveItem(pendingOpenId /* string|null */) {
-  const activeRoot = document.querySelector(`details.details-card[data-id="${editSession.activeId}"]`);
-  if (!activeRoot) return;
-  editSession.pendingOpenId = pendingOpenId || null;
-
-  const banner = activeRoot.querySelector('.dirty-banner');
-  if (!banner) return;
-
-  banner.innerHTML = `
-    <div class="card" style="margin-top:.65rem; display:flex; gap:.5rem; align-items:center; flex-wrap:wrap;">
-      <strong>Niet opgeslagen wijzigingen.</strong>
-      <div style="flex:1"></div>
-      <button class="btn-primary a-save-continue">Opslaan & wisselen</button>
-      <button class="btn-danger a-discard-continue">Verwerpen & wisselen</button>
-      <button class="btn-ghost a-keep-editing">Doorgaan met bewerken</button>
-    </div>
-  `;
-  banner.hidden = false;
-
-  const btnSaveCont   = banner.querySelector('.a-save-continue');
-  const btnDiscard    = banner.querySelector('.a-discard-continue');
-  const btnKeep       = banner.querySelector('.a-keep-editing');
-
-  btnKeep?.addEventListener('click', () => {
-    banner.hidden = true;
-  });
-
-  btnDiscard?.addEventListener('click', () => {
-    // Snapshot terugzetten → waarden herstellen
-    restoreFromSnapshot(activeRoot);
-    setDirty(false, activeRoot);
-    banner.hidden = true;
-    if (editSession.pendingOpenId) {
-      openItemById(editSession.pendingOpenId);
-      editSession.pendingOpenId = null;
-    }
-  });
-
-  btnSaveCont?.addEventListener('click', async () => {
-    const id = editSession.activeId;
-    await saveCurrent(activeRoot, id);
-    banner.hidden = true;
-    if (editSession.pendingOpenId) {
-      openItemById(editSession.pendingOpenId);
-      editSession.pendingOpenId = null;
-    }
-  });
-}
-
-function restoreFromSnapshot(root) {
-  if (!editSession.snapshot) return;
-  const statusEl = root.querySelector('.f-status');
-  const noteEl   = root.querySelector('.f-note');
-  if (statusEl) statusEl.value = editSession.snapshot.status || '';
-  if (noteEl)   noteEl.value   = editSession.snapshot.note   || '';
-  const inputs = root.querySelectorAll('input[data-k]');
   inputs.forEach(i => {
     const k = i.getAttribute('data-k');
-    i.value = editSession.snapshot.fields[k] ?? '';
+    const v = map[k];
+    i.value = (v === null || v === undefined) ? '' : String(v);
+  });
+
+  const btnSave   = root.querySelector('.a-save');
+  const btnCancel = root.querySelector('.a-cancel');
+  if (btnSave)   btnSave.disabled = true;
+  if (btnCancel) btnCancel.disabled = true;
+}
+
+function setItemInputsDisabled(root, on){
+  root.querySelectorAll('input, select, textarea, button').forEach(el => {
+    // save/cancel blijven bedienbaar volgens state:
+    if (el.classList.contains('a-save') || el.classList.contains('a-cancel')) {
+      el.disabled = on ? true : el.disabled; // tijdens save blokkeren
+    } else {
+      el.disabled = on;
+    }
   });
 }
 
-function focusActiveDirtyItem() {
-  const active = document.querySelector(`details.details-card[data-id="${editSession.activeId}"]`);
-  if (!active) return;
-  active.open = true;
-  active.scrollIntoView({ behavior: 'smooth', block: 'start' });
+/** Zorgt dat slechts 1 details open is; id === null => sluit alles. */
+function toggleOnlyOneOpen(id){
+  const all = Array.from(document.querySelectorAll('details.details-card'));
+  all.forEach(d => { if (id == null || d.dataset.id !== String(id)) d.open = false; });
 }
 
-function openItemById(id) {
-  const nextRoot = document.querySelector(`details.details-card[data-id="${id}"]`);
-  if (!nextRoot) return;
-  nextRoot.open = true; // triggert toggle → setActiveItem + snapshot
+/** Confirm helper voor weggooien wijzigingen */
+function allowDiscardIfDirty(){
+  if (!editSession.dirty || editSession.saving) return true;
+  const ok = confirm('Je hebt onopgeslagen wijzigingen. Doorgaan en wijzigingen verwerpen?');
+  if (ok) rollbackCurrentEdits();
+  return ok;
 }
-
-/* ========================= Opslaan ========================= */
-
-function escapeHtml(s) {
-  return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-}
-function asNumberOrNull(v) {
-  if (v === null || v === undefined) return null;
-  const s = String(v).trim().replace(',', '.'); if (s === '') return null;
-  const n = Number(s); return Number.isFinite(n) ? n : null;
-}
-function fmtDate(iso){
-  if (!iso) return '—';
-  try {
-    const d = new Date(iso);
-    return d.toLocaleDateString('nl-NL',{ day:'2-digit', month:'short', year:'numeric' });
-  } catch { return '—'; }
-}
-
-async function saveCurrent(root, rowId) {
-  // Valideer status
-  const statusEl = root.querySelector('.f-status');
-  const noteEl   = root.querySelector('.f-note');
-  const newStatus = statusEl?.value;
-  if (!ALLOWED_STATUS.includes(newStatus)) { toast('Ongeldige status.', 'error'); return; }
-
-  const note = (noteEl?.value || '').trim();
-  if (newStatus === 'afgewezen' && note.length === 0) {
-    toast('Geef een reden bij afwijzen.', 'error');
-    noteEl?.focus();
-    return;
-  }
-
-  // Bouw patch; parse numeriek met komma-ondersteuning
-  const patch = {
-    status: newStatus,
-    moderation_note: note || null,
-    last_moderated_by: userId
-  };
-  const inputs = root.querySelectorAll('input[data-k]');
-  inputs.forEach(i => {
-    const key = i.getAttribute('data-k');  // lowercase keys in DB
-    patch[key] = asNumberOrNull(i.value);
-  });
-
-  const btnSave = root.querySelector('.a-save');
-  const prevLabel = btnSave?.textContent || 'Opslaan';
-  if (btnSave) { btnSave.disabled = true; btnSave.textContent = 'Opslaan…'; }
-
-  const { error } = await supabase.from('mest_uploads').update(patch).eq('id', rowId);
-
-  if (btnSave) { btnSave.disabled = false; btnSave.textContent = prevLabel; }
-
-  if (error) {
-    toast(`Opslaan mislukt: ${error.message}`, 'error');
-    return;
-  }
-
-  toast('Opgeslagen', 'success');
-  // Nieuwe snapshot en dirty uit
-  setSnapshotFromDOM(root);
-  setDirty(false, root);
-  // Kopregel/status-chip meteen laten kloppen → herlaad lijst
-  await loadList();
-}
-
-/* ========================= Einde ========================= */
