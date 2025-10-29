@@ -1,5 +1,5 @@
 // pages/beheer/beheer.js
-// Admin-lijst met filters, single-edit lock, dirty-guard en veilige saves
+// Admin-lijst met filters, single-edit lock, inline dirty-guard en veilige saves (geen page/beforeunload guards)
 
 import { supabase } from '../../supabaseClient.js';
 import { toast }    from '../../core/utils/utils.js';
@@ -44,34 +44,8 @@ let session, userId, isAdmin = false;
   restoreFilters();
   bindFilters();
 
-  // Waarschuwing bij wegnavigeren met onopgeslagen wijzigingen
-  window.addEventListener('beforeunload', (e) => {
-    if (editSession.dirty && !editSession.saving) {
-      e.preventDefault();
-      e.returnValue = '';
-    }
-  });
-
-  // Intercepteer navigatielinks (header) en externe navigatie binnen de pagina
-  document.body.addEventListener('click', (e) => {
-    const a = e.target.closest('a,button');
-    if (!a) return;
-
-    // Links/knoppen die navigeren:
-    const href = a.tagName === 'A' ? a.getAttribute('href') : null;
-    const isNavLink = a.matches('.nav__item, .btn-login') || (href && !href.startsWith('#') && !href.startsWith('javascript:'));
-
-    if (isNavLink && editSession.dirty && !editSession.saving) {
-      const ok = confirm('Je hebt onopgeslagen wijzigingen. Weet je zeker dat je wilt doorgaan? Wijzigingen gaan verloren.');
-      if (!ok) {
-        e.preventDefault();
-        e.stopPropagation();
-      } else {
-        // roll back
-        rollbackCurrentEdits();
-      }
-    }
-  }, true);
+  // LET OP: GEEN beforeunload- of globale nav-click-guards meer.
+  // We houden alleen een nette inline guard per item.
 
   await loadList();
 })();
@@ -91,17 +65,13 @@ function bindFilters() {
     loadList();
   });
 
-  // Met single-edit lock heeft expand/collapse beperkte waarde; we maken ze "single-open"
-  btnExpand?.addEventListener('click', () => toggleOnlyOneOpen(null));  // sluit allemaal
-  btnCollapse?.addEventListener('click', () => toggleOnlyOneOpen(null)); // idem, consistent
+  // Met single-edit lock houden we “max 1 open”; expand/collapse maakt alles dicht voor consistentie
+  btnExpand?.addEventListener('click', () => toggleOnlyOneOpen(null));
+  btnCollapse?.addEventListener('click', () => toggleOnlyOneOpen(null));
 }
 
 function onFiltersChanged(){
-  if (!allowDiscardIfDirty()) {
-    // reset UI naar oude filterwaarden
-    restoreFilters();
-    return;
-  }
+  if (!allowDiscardIfDirty()) { restoreFilters(); return; }
   persistFilters();
   loadList();
 }
@@ -182,7 +152,6 @@ async function loadMestSoorten(){
 
 async function loadList(){
   if (!listEl) return;
-  // Als we dirty zijn en we herladen, raak je wijzigingen kwijt -> eerst bevestigen
   if (!allowDiscardIfDirty()) return;
 
   listEl.textContent = 'Laden…';
@@ -275,47 +244,56 @@ function bindItemActions(rows){
     const noteEl   = root.querySelector('.f-note');
     const inputs   = root.querySelectorAll('input[data-k]');
 
-    // --- Single-open gedrag + dirty guard ---
+    // --- Single-open gedrag + inline dirty guard ---
     root.addEventListener('toggle', () => {
       if (root.open) {
-        // Wil je een ander item openen terwijl je dirty bent?
         if (editSession.dirty && editSession.id !== r.id) {
           const ok = confirm('Je hebt onopgeslagen wijzigingen. Doorgaan en wijzigingen verwerpen?');
           if (!ok) { root.open = false; return; }
-          rollbackCurrentEdits(); // verwerp
+          rollbackCurrentEdits();
         }
-        // Sluit alle andere details
         toggleOnlyOneOpen(r.id);
-        // Start nieuwe edit-sessie (clean)
         startEditSession(r, root);
       } else {
-        // Sluiten: als dit het actieve item is en dirty, vraag om bevestiging
         if (editSession.id === r.id && editSession.dirty && !editSession.saving) {
           const ok = confirm('Wijzigingen zijn nog niet opgeslagen. Sluiten en wijzigingen verwerpen?');
           if (!ok) { root.open = true; return; }
           rollbackCurrentEdits();
           endEditSession();
         } else if (editSession.id === r.id && !editSession.saving) {
-          // nette afronding
           endEditSession();
         }
       }
     });
 
-    // Bestand openen (signed URL)
+    // --- Bestand openen (popup-safe) ---
     btnOpen?.addEventListener('click', async () => {
       if (!r.file_path) { toast('Geen bestand beschikbaar.', 'error'); return; }
+
+      // Open synchronously to avoid popup blockers
+      const newTab = window.open('', '_blank', 'noopener,noreferrer');
+      if (!newTab) {
+        toast('Popup geblokkeerd. Sta pop-ups toe voor deze site.', 'error');
+        return;
+      }
+
       try {
-        const { data, error } = await supabase.storage.from('mest-analyses').createSignedUrl(r.file_path, 60);
-        if (error || !data?.signedUrl) throw error || new Error('Geen URL');
-        window.open(data.signedUrl, '_blank', 'noopener');
+        const { data, error } = await supabase.storage
+          .from('mest-analyses')
+          .createSignedUrl(r.file_path, 60);
+
+        if (error || !data?.signedUrl) throw error || new Error('Geen signed URL');
+
+        // Navigate the already-opened tab
+        newTab.location = data.signedUrl;
       } catch (e) {
         console.error(e);
+        try { newTab.close(); } catch {}
         toast('Kon bestand niet openen.', 'error');
       }
     });
 
-    // Dirty-detect
+    // --- Dirty-detect ---
     const markDirty = () => {
       if (editSession.id !== r.id) startEditSession(r, root);
       editSession.dirty = true;
@@ -342,10 +320,9 @@ function bindItemActions(rows){
 
     // Cancel → rollback naar snapshot
     btnCancel?.addEventListener('click', () => {
-      if (editSession.id !== r.id) return; // niet het actieve item
+      if (editSession.id !== r.id) return;
       if (!editSession.dirty) return;
       rollbackCurrentEdits();
-      // UI verversen
       restoreItemUIFromSnapshot(root, editSession.snapshot);
       editSession.dirty = false;
       btnSave.disabled = true;
@@ -376,7 +353,6 @@ function bindItemActions(rows){
         patch[key] = asNumberOrNull(i.value);
       });
 
-      // Disable UI tijdens save
       setItemInputsDisabled(root, true);
       editSession.saving = true;
 
@@ -385,7 +361,6 @@ function bindItemActions(rows){
 
       const { error } = await supabase.from('mest_uploads').update(patch).eq('id', r.id);
 
-      // Re-enable UI
       editSession.saving = false;
       setItemInputsDisabled(root, false);
       btnSave.textContent = prevLabel;
@@ -401,15 +376,12 @@ function bindItemActions(rows){
       btnSave.disabled = true;
       btnCancel.disabled = true;
 
-      // Na save lijst opnieuw laden zodat chips en status updaten
       await loadList();
-      // Open opnieuw het item dat we net bewerkten (optioneel):
       const reopened = document.querySelector(`details[data-id="${CSS.escape(String(r.id))}"]`);
       if (reopened) reopened.open = true;
     });
   });
 
-  // Forceer "max 1 open" direct na binden
   toggleOnlyOneOpen(editSession.id);
 }
 
@@ -418,7 +390,6 @@ function startEditSession(row, rootEl){
   editSession.id = row.id;
   editSession.dirty = false;
   editSession.saving = false;
-  // snapshot bevat de oorspronkelijke waarden van dit item
   editSession.snapshot = {
     id: row.id,
     status: row.status,
@@ -441,7 +412,6 @@ function endEditSession(){
 
 function clearEditSession(){
   endEditSession();
-  // sluit alles
   document.querySelectorAll('details.details-card[open]').forEach(d => d.open = false);
 }
 
@@ -482,9 +452,8 @@ function restoreItemUIFromSnapshot(root, snap){
 
 function setItemInputsDisabled(root, on){
   root.querySelectorAll('input, select, textarea, button').forEach(el => {
-    // save/cancel blijven bedienbaar volgens state:
     if (el.classList.contains('a-save') || el.classList.contains('a-cancel')) {
-      el.disabled = on ? true : el.disabled; // tijdens save blokkeren
+      el.disabled = on ? true : el.disabled;
     } else {
       el.disabled = on;
     }
