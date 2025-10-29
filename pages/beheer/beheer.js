@@ -44,6 +44,14 @@ let session, userId, isAdmin = false;
   restoreFilters();
   bindFilters();
 
+  // Waarschuwing bij wegnavigeren met onopgeslagen wijzigingen
+  window.addEventListener('beforeunload', (e) => {
+    if (editSession.dirty && !editSession.saving) {
+      e.preventDefault();
+      e.returnValue = '';
+    }
+  });
+
   // Intercepteer navigatielinks (header) en externe navigatie binnen de pagina
   document.body.addEventListener('click', (e) => {
     const a = e.target.closest('a,button');
