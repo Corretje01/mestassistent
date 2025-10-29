@@ -1,7 +1,8 @@
 // pages/beheer/beheer.js
-// Admin-lijst met filters, status-wijziging en validatie
+// Admin-lijst met filters, single-edit lock, dirty-guard en veilige saves
+
 import { supabase } from '../../supabaseClient.js';
-import { toast } from '../../core/utils/utils.js';
+import { toast }    from '../../core/utils/utils.js';
 
 const listEl   = document.getElementById('adminList');
 const fStatus  = document.getElementById('fStatus');
@@ -17,38 +18,71 @@ const btnCollapse = document.getElementById('btnCollapseAll');
 const ALLOWED_STATUS = ['in_behandeling', 'gepubliceerd', 'afgewezen'];
 const LS_KEY = 'beheer.filters.v1';
 
+// ===== Single-edit session =====
+const editSession = {
+  id: null,           // id van het item dat momenteel bewerkt wordt
+  dirty: false,       // zijn er onopgeslagen wijzigingen?
+  saving: false,      // is er een save bezig?
+  snapshot: null      // originele data van het item (voor rollback)
+};
+
 let session, userId, isAdmin = false;
 
 /* ========== INIT ========== */
 (async function init() {
-  // Auth check (defensief – er is ook guard in beheer.html)
-  try {
-    ({ data: { session } } = await supabase.auth.getSession());
-  } catch {}
+  try { ({ data: { session } } = await supabase.auth.getSession()); } catch {}
   if (!session) { window.location.replace('account.html?signin=1'); return; }
   userId = session.user.id;
 
-  // Admin check
   try {
     const { data: prof } = await supabase.from('profiles').select('role').eq('id', userId).maybeSingle();
     isAdmin = String(prof?.role || '').toLowerCase() === 'admin';
   } catch {}
   if (!isAdmin) { toast('Geen toegang', 'error'); window.location.replace('account.html'); return; }
 
-  // Filters & data
   await loadMestSoorten();
   restoreFilters();
   bindFilters();
 
+  // Waarschuwing bij wegnavigeren met onopgeslagen wijzigingen
+  window.addEventListener('beforeunload', (e) => {
+    if (editSession.dirty && !editSession.saving) {
+      e.preventDefault();
+      e.returnValue = '';
+    }
+  });
+
+  // Intercepteer navigatielinks (header) en externe navigatie binnen de pagina
+  document.body.addEventListener('click', (e) => {
+    const a = e.target.closest('a,button');
+    if (!a) return;
+
+    // Links/knoppen die navigeren:
+    const href = a.tagName === 'A' ? a.getAttribute('href') : null;
+    const isNavLink = a.matches('.nav__item, .btn-login') || (href && !href.startsWith('#') && !href.startsWith('javascript:'));
+
+    if (isNavLink && editSession.dirty && !editSession.saving) {
+      const ok = confirm('Je hebt onopgeslagen wijzigingen. Weet je zeker dat je wilt doorgaan? Wijzigingen gaan verloren.');
+      if (!ok) {
+        e.preventDefault();
+        e.stopPropagation();
+      } else {
+        // roll back
+        rollbackCurrentEdits();
+      }
+    }
+  }, true);
+
   await loadList();
 })();
 
-/* ========== BINDINGS ========== */
+/* ========== FILTERS ========== */
 function bindFilters() {
   [fStatus, fCat, fType].forEach(el => el?.addEventListener('change', onFiltersChanged));
   fQuery?.addEventListener('input', debounce(onFiltersChanged, 250));
 
   btnReset?.addEventListener('click', () => {
+    if (!allowDiscardIfDirty()) return;
     if (fStatus) fStatus.value = '';
     if (fQuery)  fQuery.value  = '';
     if (fCat)    fCat.value    = '';
@@ -57,15 +91,17 @@ function bindFilters() {
     loadList();
   });
 
-  btnExpand?.addEventListener('click', () => {
-    document.querySelectorAll('details.details-card').forEach(d => d.open = true);
-  });
-  btnCollapse?.addEventListener('click', () => {
-    document.querySelectorAll('details.details-card').forEach(d => d.open = false);
-  });
+  // Met single-edit lock heeft expand/collapse beperkte waarde; we maken ze "single-open"
+  btnExpand?.addEventListener('click', () => toggleOnlyOneOpen(null));  // sluit allemaal
+  btnCollapse?.addEventListener('click', () => toggleOnlyOneOpen(null)); // idem, consistent
 }
 
-function onFiltersChanged() {
+function onFiltersChanged(){
+  if (!allowDiscardIfDirty()) {
+    // reset UI naar oude filterwaarden
+    restoreFilters();
+    return;
+  }
   persistFilters();
   loadList();
 }
@@ -79,7 +115,6 @@ function persistFilters(){
   };
   try { localStorage.setItem(LS_KEY, JSON.stringify(payload)); } catch {}
 }
-
 function restoreFilters(){
   try {
     const raw = localStorage.getItem(LS_KEY);
@@ -92,57 +127,43 @@ function restoreFilters(){
   } catch {}
 }
 
-function debounce(fn, ms) {
-  let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); };
-}
+function debounce(fn, ms){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), ms); }; }
 
-/* ========== HELPER LABELS ========== */
-function labelCategorie(c) {
-  const map = {
-    drijfmest: 'Drijfmest',
-    vaste_mest: 'Vaste mest',
-    dikke_fractie: 'Dikke fractie',
-    overig: 'Overig'
-  };
+/* ========== HELPER LABELS/UTILS ========== */
+function labelCategorie(c){
+  const map = { drijfmest:'Drijfmest', vaste_mest:'Vaste mest', dikke_fractie:'Dikke fractie', overig:'Overig' };
   return map[c] || String(c || '').replace(/_/g, ' ');
 }
-
 function statusChip(s){
   const map = { in_behandeling:'gray', gepubliceerd:'green', afgewezen:'red' };
   const cls = map[s] || 'gray';
   const label = String(s || '').replace('_',' ');
   return `<span class="status-chip ${cls}" aria-label="Status: ${escapeHtml(label)}">${escapeHtml(label)}</span>`;
 }
-
-function input(key, label, val) {
+function input(key, label, val){
   const v = (val === null || val === undefined) ? '' : String(val);
   return `<label>${escapeHtml(label)}<input data-k="${escapeHtml(key)}" value="${escapeHtml(v)}" inputmode="decimal"/></label>`;
 }
-
-function escapeHtml(s) {
-  return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-}
-function asNumberOrNull(v) {
+function escapeHtml(s){ return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+function asNumberOrNull(v){
   if (v === null || v === undefined) return null;
   const s = String(v).trim().replace(',', '.'); if (s === '') return null;
   const n = Number(s); return Number.isFinite(n) ? n : null;
 }
 function fmtDate(iso){
   if (!iso) return '—';
-  try {
-    const d = new Date(iso);
-    return d.toLocaleDateString('nl-NL',{ day:'2-digit', month:'short', year:'numeric' });
-  } catch { return '—'; }
+  try { const d = new Date(iso); return d.toLocaleDateString('nl-NL',{ day:'2-digit', month:'short', year:'numeric' }); }
+  catch { return '—'; }
 }
 
 /* ========== DATA LOADERS ========== */
-async function loadMestSoorten() {
+async function loadMestSoorten(){
   try {
-    const resp = await fetch('../../core/domain/data/mestsoorten.json', { cache: 'no-store' });
+    const resp = await fetch('../../core/domain/data/mestsoorten.json',{ cache:'no-store' });
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const data = await resp.json();
 
-    let cats = [], types = [];
+    let cats=[], types=[];
     if (Array.isArray(data)) {
       cats  = [...new Set(data.map(m => m.categorie).filter(Boolean))];
       types = [...new Set(data.map(m => m.type).filter(Boolean))];
@@ -159,15 +180,14 @@ async function loadMestSoorten() {
   }
 }
 
-async function loadList() {
+async function loadList(){
   if (!listEl) return;
+  // Als we dirty zijn en we herladen, raak je wijzigingen kwijt -> eerst bevestigen
+  if (!allowDiscardIfDirty()) return;
+
   listEl.textContent = 'Laden…';
 
-  let q = supabase
-    .from('mest_uploads')
-    .select('*')
-    .order('created_at', { ascending: false });
-
+  let q = supabase.from('mest_uploads').select('*').order('created_at',{ ascending:false });
   if (fStatus?.value) q = q.eq('status', fStatus.value);
   if (fCat?.value)    q = q.eq('mest_categorie', fCat.value);
   if (fType?.value)   q = q.eq('mest_type', fType.value);
@@ -186,15 +206,16 @@ async function loadList() {
 
   if (resCount) resCount.textContent = String(rows.length);
 
-  listEl.innerHTML = rows.length
-    ? rows.map(renderItem).join('')
-    : '<div class="muted">Geen resultaten</div>';
+  listEl.innerHTML = rows.length ? rows.map(renderItem).join('') : '<div class="muted">Geen resultaten</div>';
+
+  // Reset edit-session na nieuw renderen
+  clearEditSession();
 
   bindItemActions(rows);
 }
 
-/* ========== RENDER + BIND ITEM ========== */
-function renderItem(r) {
+/* ========== RENDER & BINDINGS PER ITEM ========== */
+function renderItem(r){
   const created = fmtDate(r.created_at);
   return `
     <details class="details-card" data-id="${escapeHtml(r.id)}">
@@ -224,7 +245,7 @@ function renderItem(r) {
           <div class="admin-field">
             <label>Status</label>
             <select class="f-status">
-              ${ALLOWED_STATUS.map(s=>`<option ${s===r.status?'selected':''} value="${s}">${escapeHtml(s.replace('_',' '))}</option>`).join('')}
+              ${ALLOWED_STATUS.map(s => `<option ${s===r.status?'selected':''} value="${s}">${escapeHtml(s.replace('_',' '))}</option>`).join('')}
             </select>
           </div>
           <div class="admin-field">
@@ -233,33 +254,59 @@ function renderItem(r) {
           </div>
         </div>
 
-        <div class="actions" style="margin-top:.75rem;">
-          <button class="btn-primary a-save" type="button" disabled>Opslaan</button>
+        <div class="actions" style="margin-top:.75rem; display:flex; gap:.5rem;">
+          <button class="btn-primary a-save"  type="button" disabled>Opslaan</button>
+          <button class="btn-outline a-cancel" type="button" disabled>Wijzigingen ongedaan maken</button>
         </div>
       </div>
     </details>
   `;
 }
 
-function bindItemActions(rows) {
+function bindItemActions(rows){
   rows.forEach(r => {
     const root     = document.querySelector(`details[data-id="${CSS.escape(String(r.id))}"]`);
     if (!root) return;
 
     const btnSave  = root.querySelector('.a-save');
     const btnOpen  = root.querySelector('.a-open');
+    const btnCancel= root.querySelector('.a-cancel');
     const statusEl = root.querySelector('.f-status');
     const noteEl   = root.querySelector('.f-note');
     const inputs   = root.querySelectorAll('input[data-k]');
 
-    // Open file (signed URL)
+    // --- Single-open gedrag + dirty guard ---
+    root.addEventListener('toggle', () => {
+      if (root.open) {
+        // Wil je een ander item openen terwijl je dirty bent?
+        if (editSession.dirty && editSession.id !== r.id) {
+          const ok = confirm('Je hebt onopgeslagen wijzigingen. Doorgaan en wijzigingen verwerpen?');
+          if (!ok) { root.open = false; return; }
+          rollbackCurrentEdits(); // verwerp
+        }
+        // Sluit alle andere details
+        toggleOnlyOneOpen(r.id);
+        // Start nieuwe edit-sessie (clean)
+        startEditSession(r, root);
+      } else {
+        // Sluiten: als dit het actieve item is en dirty, vraag om bevestiging
+        if (editSession.id === r.id && editSession.dirty && !editSession.saving) {
+          const ok = confirm('Wijzigingen zijn nog niet opgeslagen. Sluiten en wijzigingen verwerpen?');
+          if (!ok) { root.open = true; return; }
+          rollbackCurrentEdits();
+          endEditSession();
+        } else if (editSession.id === r.id && !editSession.saving) {
+          // nette afronding
+          endEditSession();
+        }
+      }
+    });
+
+    // Bestand openen (signed URL)
     btnOpen?.addEventListener('click', async () => {
       if (!r.file_path) { toast('Geen bestand beschikbaar.', 'error'); return; }
       try {
-        const { data, error } = await supabase
-          .storage
-          .from('mest-analyses')
-          .createSignedUrl(r.file_path, 60);
+        const { data, error } = await supabase.storage.from('mest-analyses').createSignedUrl(r.file_path, 60);
         if (error || !data?.signedUrl) throw error || new Error('Geen URL');
         window.open(data.signedUrl, '_blank', 'noopener');
       } catch (e) {
@@ -268,64 +315,192 @@ function bindItemActions(rows) {
       }
     });
 
-    // Dirty-detect: enable save bij wijziging
-    const markDirty = () => { if (btnSave) btnSave.disabled = false; };
+    // Dirty-detect
+    const markDirty = () => {
+      if (editSession.id !== r.id) startEditSession(r, root);
+      editSession.dirty = true;
+      if (btnSave)   btnSave.disabled   = false;
+      if (btnCancel) btnCancel.disabled = false;
+    };
     [statusEl, noteEl, ...inputs].forEach(el => {
       el?.addEventListener('input', markDirty);
       el?.addEventListener('change', markDirty);
     });
 
-    // Enter in input => save
+    // Enter in numeric veld => save
     inputs.forEach(i => {
-      i.addEventListener('keydown', e => {
+      i.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') { e.preventDefault(); btnSave?.click(); }
       });
     });
-
     // Cmd/Ctrl+S => save
-    root.addEventListener('keydown', e => {
+    root.addEventListener('keydown', (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') {
         e.preventDefault(); btnSave?.click();
       }
     });
 
+    // Cancel → rollback naar snapshot
+    btnCancel?.addEventListener('click', () => {
+      if (editSession.id !== r.id) return; // niet het actieve item
+      if (!editSession.dirty) return;
+      rollbackCurrentEdits();
+      // UI verversen
+      restoreItemUIFromSnapshot(root, editSession.snapshot);
+      editSession.dirty = false;
+      btnSave.disabled = true;
+      btnCancel.disabled = true;
+    });
+
+    // Save
     btnSave?.addEventListener('click', async () => {
-      // Valideer status
+      if (editSession.saving) return;
+      if (editSession.id !== r.id) return;
+
       const newStatus = statusEl?.value;
       if (!ALLOWED_STATUS.includes(newStatus)) { toast('Ongeldige status.', 'error'); return; }
 
-      // Reden verplicht bij afwijzen
       const note = (noteEl?.value || '').trim();
       if (newStatus === 'afgewezen' && note.length === 0) {
-        toast('Geef een reden bij afwijzen.', 'error'); noteEl?.focus(); return;
+        toast('Geef een reden bij afwijzen.', 'error');
+        noteEl?.focus(); return;
       }
 
-      // Patch opbouwen; parse numeriek met komma-ondersteuning
       const patch = {
         status: newStatus,
         moderation_note: note || null,
         last_moderated_by: userId
       };
       inputs.forEach(i => {
-        const key = i.getAttribute('data-k');  // DB-lowercase
+        const key = i.getAttribute('data-k');
         patch[key] = asNumberOrNull(i.value);
       });
 
+      // Disable UI tijdens save
+      setItemInputsDisabled(root, true);
+      editSession.saving = true;
+
       const prevLabel = btnSave.textContent;
-      btnSave.disabled = true; btnSave.textContent = 'Opslaan…';
+      btnSave.textContent = 'Opslaan…';
 
       const { error } = await supabase.from('mest_uploads').update(patch).eq('id', r.id);
 
-      btnSave.disabled = false; btnSave.textContent = prevLabel;
+      // Re-enable UI
+      editSession.saving = false;
+      setItemInputsDisabled(root, false);
+      btnSave.textContent = prevLabel;
 
       if (error) {
         console.error(error);
         toast(`Opslaan mislukt: ${error.message}`, 'error');
-      } else {
-        toast('Opgeslagen', 'success');
-        btnSave.disabled = true; // reset tot volgende wijziging
-        await loadList();        // herteken zodat chips/waarden syncen
+        return;
       }
+
+      toast('Opgeslagen', 'success');
+      editSession.dirty = false;
+      btnSave.disabled = true;
+      btnCancel.disabled = true;
+
+      // Na save lijst opnieuw laden zodat chips en status updaten
+      await loadList();
+      // Open opnieuw het item dat we net bewerkten (optioneel):
+      const reopened = document.querySelector(`details[data-id="${CSS.escape(String(r.id))}"]`);
+      if (reopened) reopened.open = true;
     });
   });
+
+  // Forceer "max 1 open" direct na binden
+  toggleOnlyOneOpen(editSession.id);
+}
+
+/* ========== EDIT SESSION HELPERS ========== */
+function startEditSession(row, rootEl){
+  editSession.id = row.id;
+  editSession.dirty = false;
+  editSession.saving = false;
+  // snapshot bevat de oorspronkelijke waarden van dit item
+  editSession.snapshot = {
+    id: row.id,
+    status: row.status,
+    moderation_note: row.moderation_note || '',
+    ds_percent: row.ds_percent,
+    n_kg_per_ton: row.n_kg_per_ton,
+    p_kg_per_ton: row.p_kg_per_ton,
+    k_kg_per_ton: row.k_kg_per_ton,
+    os_percent: row.os_percent,
+    biogaspotentieel_m3_per_ton: row.biogaspotentieel_m3_per_ton
+  };
+}
+
+function endEditSession(){
+  editSession.id = null;
+  editSession.dirty = false;
+  editSession.saving = false;
+  editSession.snapshot = null;
+}
+
+function clearEditSession(){
+  endEditSession();
+  // sluit alles
+  document.querySelectorAll('details.details-card[open]').forEach(d => d.open = false);
+}
+
+function rollbackCurrentEdits(){
+  if (!editSession.id || !editSession.snapshot) return;
+  const root = document.querySelector(`details[data-id="${CSS.escape(String(editSession.id))}"]`);
+  if (root) restoreItemUIFromSnapshot(root, editSession.snapshot);
+  endEditSession();
+}
+
+function restoreItemUIFromSnapshot(root, snap){
+  const statusEl = root.querySelector('.f-status');
+  const noteEl   = root.querySelector('.f-note');
+  const inputs   = root.querySelectorAll('input[data-k]');
+
+  if (statusEl) statusEl.value = snap.status || 'in_behandeling';
+  if (noteEl)   noteEl.value   = snap.moderation_note || '';
+
+  const map = {
+    ds_percent: snap.ds_percent,
+    n_kg_per_ton: snap.n_kg_per_ton,
+    p_kg_per_ton: snap.p_kg_per_ton,
+    k_kg_per_ton: snap.k_kg_per_ton,
+    os_percent: snap.os_percent,
+    biogaspotentieel_m3_per_ton: snap.biogaspotentieel_m3_per_ton
+  };
+  inputs.forEach(i => {
+    const k = i.getAttribute('data-k');
+    const v = map[k];
+    i.value = (v === null || v === undefined) ? '' : String(v);
+  });
+
+  const btnSave   = root.querySelector('.a-save');
+  const btnCancel = root.querySelector('.a-cancel');
+  if (btnSave)   btnSave.disabled = true;
+  if (btnCancel) btnCancel.disabled = true;
+}
+
+function setItemInputsDisabled(root, on){
+  root.querySelectorAll('input, select, textarea, button').forEach(el => {
+    // save/cancel blijven bedienbaar volgens state:
+    if (el.classList.contains('a-save') || el.classList.contains('a-cancel')) {
+      el.disabled = on ? true : el.disabled; // tijdens save blokkeren
+    } else {
+      el.disabled = on;
+    }
+  });
+}
+
+/** Zorgt dat slechts 1 details open is; id === null => sluit alles. */
+function toggleOnlyOneOpen(id){
+  const all = Array.from(document.querySelectorAll('details.details-card'));
+  all.forEach(d => { if (id == null || d.dataset.id !== String(id)) d.open = false; });
+}
+
+/** Confirm helper voor weggooien wijzigingen */
+function allowDiscardIfDirty(){
+  if (!editSession.dirty || editSession.saving) return true;
+  const ok = confirm('Je hebt onopgeslagen wijzigingen. Doorgaan en wijzigingen verwerpen?');
+  if (ok) rollbackCurrentEdits();
+  return ok;
 }
