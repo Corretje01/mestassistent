@@ -1,6 +1,6 @@
 // pages/beheer/beheer.js
 // Admin-lijst met filters, single-edit lock, dirty-guard en veilige saves
-// "Bekijk analyse" opent weer direct de signed URL op andere origin, in een nieuw tabblad.
+// "Bekijk analyse" navigeert nu in dezelfde tab naar de signed URL (geen pop-up -> geen blokkades)
 
 import { supabase } from '../../supabaseClient.js';
 import { toast }    from '../../core/utils/utils.js';
@@ -21,10 +21,10 @@ const LS_KEY = 'beheer.filters.v1';
 
 // ===== Single-edit session =====
 const editSession = {
-  id: null,      // id van het item dat momenteel bewerkt wordt
-  dirty: false,  // onopgeslagen wijzigingen?
-  saving: false, // save bezig?
-  snapshot: null // originele data (voor rollback)
+  id: null,
+  dirty: false,
+  saving: false,
+  snapshot: null
 };
 
 let session, userId, isAdmin = false;
@@ -46,7 +46,7 @@ let session, userId, isAdmin = false;
   restoreFilters();
   bindFilters();
 
-  // Alleen bij echte pagina-unload (browser toont het 1x)
+  // Alleen browser-native prompt bij echte unload
   window.addEventListener('beforeunload', (e) => {
     if (editSession.dirty && !editSession.saving) {
       e.preventDefault();
@@ -54,12 +54,10 @@ let session, userId, isAdmin = false;
     }
   });
 
-  // Dirty-guard alleen voor navigatie in DEZELFDE tab (menu/links).
-  // Nieuwe tabbladen (zoals "Bekijk analyse") NIET blokkeren.
+  // Dirty-guard alleen voor navigatie in dezelfde tab (menu/links).
   document.body.addEventListener('click', (e) => {
     const a = e.target.closest('a,button');
     if (!a) return;
-
     const href = a.tagName === 'A' ? a.getAttribute('href') : null;
     const isSameTabNav =
       a.matches('.nav__item, .btn-login') ||
@@ -67,12 +65,8 @@ let session, userId, isAdmin = false;
 
     if (isSameTabNav && editSession.dirty && !editSession.saving) {
       const ok = confirm('Je hebt onopgeslagen wijzigingen. Doorgaan en wijzigingen verwerpen?');
-      if (!ok) {
-        e.preventDefault();
-        e.stopPropagation();
-      } else {
-        rollbackCurrentEdits();
-      }
+      if (!ok) { e.preventDefault(); e.stopPropagation(); }
+      else { rollbackCurrentEdits(); }
     }
   }, true);
 
@@ -282,7 +276,7 @@ function bindItemActions(rows){
           rollbackCurrentEdits();
         }
         toggleOnlyOneOpen(r.id);
-        startEditSession(r, root);
+        startEditSession(r);
       } else {
         if (editSession.id === r.id && editSession.dirty && !editSession.saving) {
           const ok = confirm('Wijzigingen zijn nog niet opgeslagen. Sluiten en wijzigingen verwerpen?');
@@ -295,39 +289,32 @@ function bindItemActions(rows){
       }
     });
 
-    // --- Bestand openen (directe navigatie in NIEUW tabblad) ---
+    // --- Bestand openen (zelfde tab, geen pop-up) ---
     btnOpen?.addEventListener('click', async () => {
       if (!r.file_path) { toast('Geen bestand beschikbaar.', 'error'); return; }
-
-      // 1) Open meteen een leeg tabblad tijdens de user-gesture (voorkomt blockers)
-      const newTab = window.open('about:blank', '_blank', 'noopener,noreferrer');
-      if (!newTab) { toast('Pop-up geblokkeerd. Sta pop-ups toe voor deze site.', 'error'); return; }
+      const prevText = btnOpen.textContent;
+      btnOpen.disabled = true;
+      btnOpen.textContent = 'Laden…';
 
       try {
-        // 2) Signed URL ophalen
         const { data, error } = await supabase.storage
           .from('mest-analyses')
-          .createSignedUrl(r.file_path, 60);
+          .createSignedUrl(r.file_path, 120); // iets ruimer
         if (error || !data?.signedUrl) throw error || new Error('Geen signed URL');
 
-        // 3) Navigeer dat tabblad hard naar de andere origin
-        try {
-          newTab.location.replace(data.signedUrl);
-        } catch {
-          // fallback
-          newTab.location.href = data.signedUrl;
-        }
+        // direct in dezelfde tab -> geen popup block
+        window.location.assign(data.signedUrl);
       } catch (e) {
-        // Mislukt? Sluit het lege tabblad
-        try { newTab.close(); } catch {}
         console.error('[beheer] createSignedUrl/open error:', e);
         toast('Kon bestand niet openen.', 'error');
+        btnOpen.disabled = false;
+        btnOpen.textContent = prevText;
       }
     });
 
     // Dirty-detect
     const markDirty = () => {
-      if (editSession.id !== r.id) startEditSession(r, root);
+      if (editSession.id !== r.id) startEditSession(r);
       editSession.dirty = true;
       if (btnSave)   btnSave.disabled   = false;
       if (btnCancel) btnCancel.disabled = false;
@@ -388,7 +375,6 @@ function bindItemActions(rows){
         patch[key] = asNumberOrNull(i.value);
       });
 
-      // Disable UI tijdens save
       setItemInputsDisabled(root, true);
       editSession.saving = true;
 
@@ -397,7 +383,6 @@ function bindItemActions(rows){
 
       const { error } = await supabase.from('mest_uploads').update(patch).eq('id', r.id);
 
-      // Re-enable UI
       editSession.saving = false;
       setItemInputsDisabled(root, false);
       btnSave.textContent = prevLabel;
